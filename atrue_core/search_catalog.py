@@ -17,6 +17,7 @@ import os
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -505,23 +506,20 @@ def _option_label(key, value):
 
 def _derive_options(spec, working, idx_for):
     key = spec["key"]
-    if spec.get("fixed"):
-        raw_options = spec["fixed"]
-    else:
-        seen = []
-        for it in working:
-            for v in _as_list(idx_for[id(it)].get(key)):
-                if v not in seen:
-                    seen.append(v)
-        raw_options = seen
-    options = []
-    for value in raw_options:
-        count = 0
-        for it in working:
-            if value in _as_list(idx_for[id(it)].get(key)):
-                count += 1
-        options.append({"value": value, "label": _option_label(key, value), "count": count, "checked": False})
-    return options
+    # Count distinct values once per listing in one pass. The previous nested
+    # scan compared every option against every listing, which became quadratic
+    # as the catalog and its filter facets grew.
+    counts = {}
+    for it in working:
+        for value in set(_as_list(idx_for[id(it)].get(key))):
+            counts[value] = counts.get(value, 0) + 1
+
+    raw_options = spec["fixed"] if spec.get("fixed") else counts.keys()
+    return [
+        {"value": value, "label": _option_label(key, value),
+         "count": counts.get(value, 0), "checked": False}
+        for value in raw_options
+    ]
 
 
 # --- Card builders (one per category) --------------------------------------
@@ -984,10 +982,22 @@ def build_search_context(request, category_key, items):
 
     filtered = [it for it in working if _matches(it)]
     filtered = _apply_sort(category_key, filtered, request, idx_for)
+    total_results = len(filtered)
+    result_page = Paginator(filtered, 16).get_page(request.GET.get("page"))
 
-    cards = [cfg["card"](it, request) for it in filtered]
+    cards = [cfg["card"](it, request) for it in result_page.object_list]
     for card in cards:
         card["imgs_json"] = json.dumps(card.get("imgs") or [])
+
+    page_query = request.GET.copy()
+    page_query.pop(LIVE_FLAG, None)
+    previous_page_url = next_page_url = None
+    if result_page.has_previous():
+        page_query["page"] = result_page.previous_page_number()
+        previous_page_url = request.path + "?" + page_query.urlencode()
+    if result_page.has_next():
+        page_query["page"] = result_page.next_page_number()
+        next_page_url = request.path + "?" + page_query.urlencode()
 
     active_count = sum(1 for vals in selected.values() for _ in vals if vals) + (1 if pmin is not None or pmax is not None else 0)
 
@@ -1042,7 +1052,10 @@ def build_search_context(request, category_key, items):
         "cfg": cfg,
         "categories": categories_nav,
         "things": cards,
-        "total": len(filtered),
+        "total": total_results,
+        "result_page": result_page,
+        "previous_page_url": previous_page_url,
+        "next_page_url": next_page_url,
         "sort": sort,
         "sort_options": sort_options,
         "filter_groups": groups,

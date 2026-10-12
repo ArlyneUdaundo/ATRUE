@@ -1421,3 +1421,9 @@ article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
   padding-top: 0;
   padding-bottom: 0;
 }
+/* Compact result paging keeps large catalogs from rendering every card at once. */
+.bk-pagination { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:18px 0; color:var(--bk-muted); font-size:13px; }
+.bk-pagination > div { display:flex; gap:8px; }
+.bk-pagination a { display:inline-flex; align-items:center; min-height:38px; padding:0 14px; border:1px solid var(--bk-line); border-radius:10px; color:var(--bk-blue); font-weight:700; text-decoration:none; }
+.bk-pagination a:hover { background:var(--bk-blue); border-color:var(--bk-blue); color:#fff; }
+@media (max-width:480px) { .bk-pagination { align-items:flex-start; flex-direction:column; } }

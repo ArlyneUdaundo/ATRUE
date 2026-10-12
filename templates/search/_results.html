@@ -26,3 +26,12 @@ in search_page.html.
 {% else %}
     {% include 'search/_empty_state.html' %}
 {% endif %}
+{% if result_page.has_other_pages %}
+<nav class="bk-pagination" aria-label="Search result pages">
+    <span>Showing {{ result_page.start_index }}–{{ result_page.end_index }} of {{ total }}</span>
+    <div>
+        {% if result_page.has_previous %}<a href="{{ previous_page_url }}">Previous</a>{% endif %}
+        {% if result_page.has_next %}<a href="{{ next_page_url }}">Next</a>{% endif %}
+    </div>
+</nav>
+{% endif %}
