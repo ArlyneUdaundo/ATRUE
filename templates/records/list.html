@@ -8,7 +8,7 @@
 </div>
 
 <div class="grid-2" style="margin-bottom:22px">
-    <div class="stat-card"><div class="stat-val">{{ records.count }}</div><div class="stat-label">Total Records{{ records.count|pluralize }}</div></div>
+    <div class="stat-card"><div class="stat-val">{{ record_count }}</div><div class="stat-label">Total Records{{ record_count|pluralize }}</div></div>
     {% for value, label, count in summary %}
     <div class="stat-card"><div class="stat-val">{{ count }}</div><div class="stat-label">{{ label }}</div></div>
     {% endfor %}
@@ -44,5 +44,13 @@
             </tbody>
         </table>
     </div>
+    {% if records.has_other_pages %}
+    <nav class="card-pad" aria-label="Transaction record pages" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <span class="text-muted">Page {{ records.number }} of {{ records.paginator.num_pages }} · {{ record_count }} records</span>
+        <div style="display:flex;gap:8px">
+            {% if records.has_previous %}<a class="btn btn-outline btn-sm" href="?type={{ current_type|urlencode }}&page={{ records.previous_page_number }}">Previous</a>{% endif %}
+            {% if records.has_next %}<a class="btn btn-outline btn-sm" href="?type={{ current_type|urlencode }}&page={{ records.next_page_number }}">Next</a>{% endif %}
+        </div>
+    </nav>
 </div>
 {% endblock %}
