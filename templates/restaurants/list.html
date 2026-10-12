@@ -1,0 +1,57 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurants{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h2>Available Restaurants</h2>
+        <p>{{ restaurants|length }} restaurant{% if restaurants|length != 1 %}s{% endif %} found · Find a restaurant, inspect its tables and reserve ahead</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'restaurants:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Restaurant</a>
+    {% endif %}
+</div>
+
+<div class="cards">
+    {% for r in restaurants %}
+    <div class="scard">
+        <div class="scard-body">
+            <div class="scard-top">
+                <div class="scard-photo"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=75" alt="Restaurants photo"></div>
+                <span class="badge badge-green">{{ r.get_status_display }}</span>
+            </div>
+            <div class="mono" style="font-size:12px;color:var(--slate-500)">{{ r.restaurant_id }}</div>
+            <h3><a href="{% url 'restaurants:detail' r.slug %}" style="color:inherit;text-decoration:none">{{ r.name }}</a></h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ r.location }}</div>
+            {% if r.cuisine_type %}<div class="meta"><i class="fas fa-tag"></i> {{ r.cuisine_type }}</div>{% endif %}
+            {% if r.operating_hours %}<div class="meta"><i class="fas fa-clock"></i> {{ r.operating_hours }}</div>{% endif %}
+
+            {% if r.tables.all %}
+            <div class="mini-list">
+                {% for t in r.tables.all %}
+                <div class="mini-row">
+                    <span class="mini-info">
+                        <b><a href="{% url 'restaurants:table_detail' t.id %}" style="color:inherit">Table {{ t.table_number }}</a> <small style="color:var(--slate-500)">· {{ t.get_seating_area_display }}</small></b>
+                        <small>Seats up to {{ t.capacity }} guest(s)</small>
+                    </span>
+                    {% if request.user.is_platform_manager %}
+                    <span class="ag-manage-note" style="border:none;padding:0"><i class="fas fa-user-shield"></i></span>
+                    {% elif t.status != 'MAINTENANCE' %}
+                    <a href="{% url 'restaurants:book' t.id %}" class="btn btn-brand btn-sm" style="padding:4px 10px"><i class="fas fa-chair"></i> Reserve</a>
+                    {% else %}
+                    <span class="badge badge-gray">Under Maintenance</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="meta"><i class="fas fa-chair"></i> Tables will appear here once added by the administrator.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="card"><div class="empty"><i class="fas fa-utensils"></i><h3>No restaurants yet</h3><p>Restaurants will be listed here once added by the administrator.</p></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

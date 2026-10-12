@@ -1,0 +1,147 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ role.label }} Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1><i class="fas {{ role.icon }}"></i> {{ role.label }}</h1>
+        <p>{{ role.blurb }}</p>
+        <span class="badge {% if tier == 'PLATFORM' %}badge-red{% elif tier == 'MANAGEMENT' %}badge-amber{% elif tier == 'GUEST' %}badge-green{% else %}badge-blue{% endif %}">{{ tier_label }}</span>
+    </div>
+</div>
+
+<div class="stat-grid">
+{% if ticketing_summary %}
+    <a href="{% url 'airlines:bookings' %}" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-blue"><i class="fas fa-ticket-alt"></i></div>
+            <div class="stat-val">{{ ticketing_summary.reservations }}</div>
+            <div class="stat-lbl">Airline Reservations</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> Retrieve reservations</span>
+        </div>
+    </a>
+    <a href="{% url 'airlines:bookings' %}?status=PENDING" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-amber"><i class="fas fa-clock"></i></div>
+            <div class="stat-val">{{ ticketing_summary.awaiting_confirmation }}</div>
+            <div class="stat-lbl">Awaiting Confirmation</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> Review reservations</span>
+        </div>
+    </a>
+    <a href="{% url 'airlines:bookings' %}?status=CONFIRMED" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-green"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-val">{{ ticketing_summary.confirmed }}</div>
+            <div class="stat-lbl">Confirmed Reservations</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> Review ticket-ready bookings</span>
+        </div>
+    </a>
+{% elif tier == 'MANAGEMENT' or tier == 'PLATFORM' %}
+    <a href="{% url 'accounts:stats_list' 'users' %}" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-blue"><i class="fas fa-users"></i></div>
+            <div class="stat-val">{{ total_users }}</div>
+            <div class="stat-lbl">Total Users</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> View records</span>
+        </div>
+    </a>
+    <a href="{% url 'accounts:stats_list' 'bookings' %}" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-indigo"><i class="fas fa-ticket-alt"></i></div>
+            <div class="stat-val">{{ total_bookings }}</div>
+            <div class="stat-lbl">Platform Bookings</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> View records</span>
+        </div>
+    </a>
+    <a href="{% url 'accounts:stats_list' 'payments' %}" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-green"><i class="fas fa-credit-card"></i></div>
+            <div class="stat-val">{{ total_payments }}</div>
+            <div class="stat-lbl">Payments</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> View records</span>
+        </div>
+    </a>
+    <a href="{% url 'accounts:stats_list' 'revenue' %}" class="stat-link">
+        <div class="stat-card">
+            <div class="stat-ico ico-amber"><i class="fas fa-coins"></i></div>
+            <div class="stat-val">₱{{ total_revenue|floatformat:2 }}</div>
+            <div class="stat-lbl">Revenue</div>
+            <span class="hint"><i class="fas fa-arrow-right"></i> View records</span>
+        </div>
+    </a>
+{% else %}
+    <div class="stat-card">
+        <div class="stat-ico ico-blue"><i class="fas fa-ticket-alt"></i></div>
+        <div class="stat-val">{{ total_bookings }}</div>
+        <div class="stat-lbl">Total Bookings</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-green"><i class="fas fa-credit-card"></i></div>
+        <div class="stat-val">{{ total_payments }}</div>
+        <div class="stat-lbl">Payments Made</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-amber"><i class="fas fa-user-tag"></i></div>
+        <div class="stat-val">{{ role_count }}</div>
+        <div class="stat-lbl">Simulation Roles</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-indigo"><i class="fas fa-history"></i></div>
+        <div class="stat-val">{{ activity_count }}</div>
+        <div class="stat-lbl">Activities Logged</div>
+    </div>
+{% endif %}
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <h3 style="margin-bottom:4px"><i class="fas fa-toolbox"></i> {{ role.label }} Toolkit</h3>
+            <p style="color:var(--slate-500);font-size:13.5px;margin:0">Jump straight into the pages this role uses.</p>
+        </div>
+        <div class="card-pad" style="display:flex;flex-wrap:wrap;gap:10px">
+            {% for action in actions %}
+            <a href="{% url action.url %}" class="btn btn-ghost"><i class="fas {{ action.icon }}"></i> {{ action.label }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <h3 style="margin-bottom:4px"><i class="fas fa-user-tag"></i> Simulation Role</h3>
+            <p style="color:var(--slate-500);font-size:13.5px;margin:0">Instructor-assigned roles for this account.</p>
+        </div>
+        <div class="card-pad">
+            {% if current_role %}
+                <span class="badge badge-blue">{{ current_role.get_role_display }}</span>
+                <div class="meta" style="margin-top:14px"><i class="fas fa-play-circle"></i> {{ current_role.simulation_activity }}</div>
+                <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ current_role.assigned_at|date:"M d, Y H:i" }}</div>
+                <div style="margin-top:14px"><a href="{% url 'simulation:workspace' %}" class="btn btn-ghost"><i class="fas fa-users-cog"></i> View my roles</a></div>
+            {% else %}
+                <p style="color:var(--slate-500);font-size:14px;margin-bottom:14px">
+                    No instructor assignment yet, but your account type already acts as <b>{{ role.label }}</b>.
+                </p>
+                <div style="margin-top:6px"><a href="{% url 'simulation:workspace' %}" class="btn btn-brand"><i class="fas fa-play"></i> Go to Workspace</a></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:22px">
+    <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+        <h3 style="margin-bottom:4px"><i class="fas fa-shield-alt"></i> {{ role.label }} Permissions</h3>
+        <p style="color:var(--slate-500);font-size:13.5px;margin:0">What this role is allowed to do in the simulation.</p>
+    </div>
+    <div class="card-pad" style="display:grid;gap:10px">
+        {% for permission in permissions %}
+        <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+            <i class="fas fa-check-circle" style="color:#2563eb"></i>
+            <span>{{ permission }}</span>
+        </div>
+        {% empty %}
+        <p style="color:var(--slate-500);font-size:14px;margin:0">No specific permissions listed for this role.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,353 @@
+﻿{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Assign Role{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">{% endblock %}
+
+{% block content %}
+<style>
+#studentResults{border:1px solid var(--line,#d8dee9);border-radius:10px;margin-top:6px;max-height:260px;overflow-y:auto;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.10)}
+#studentResults .ac-item{display:flex;width:100%;justify-content:space-between;align-items:center;gap:12px;padding:10px 13px;border:0;background:none;text-align:left;cursor:pointer;font:inherit;color:inherit}
+#studentResults .ac-item:hover,#studentResults .ac-item:focus{background:var(--grad);color:#fff;outline:none}
+#studentResults .ac-item small{opacity:.7}
+#studentResults .ac-empty{padding:10px 13px;color:var(--slate-500);font-size:13px}
+</style>
+<div style="display:flex;flex-direction:column;align-items:center;gap:18px">
+<div class="page-head" style="width:100%;max-width:620px;text-align:center"><div style="display:flex;flex-direction:column"><h1>{% if session %}Add Activity to {{ session.name }}{% else %}Assign Simulation Role{% endif %}</h1><p>{% if session %}Add an activity and role assignment to this session.{% else %}Create a session name and place a student in it.{% endif %}</p></div></div>
+
+<div class="card card-pad" style="width:100%;max-width:620px">
+    {% if not students %}
+    <div class="empty"><i class="fas fa-user-graduate"></i><h3>No students yet</h3><p>Create student accounts first before assigning simulation roles.</p></div>
+    {% else %}
+    <form method="post" id="assignForm">
+        {% csrf_token %}
+        {% if session %}<input type="hidden" name="session" value="{{ session.id }}">{% endif %}
+        <div class="form-group">
+            <label>{% if session %}Activity Name{% else %}Simulation Activity{% endif %}</label>
+            <input type="text" id="activityName" name="activity_name" class="form-input" maxlength="150" value="{% if posted %}{{ posted.activity_name }}{% elif session %}{{ session.name }}{% endif %}" placeholder="{% if session %}e.g. Activity 1{% else %}e.g. Session 1{% endif %}" required>
+        </div>
+        <div class="form-group">
+            <label>Student</label>
+            <input type="text" id="studentSearch" class="form-input" value="{{ posted_student_name }}" placeholder="Type student name or initials..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="studentResults" aria-autocomplete="list">
+            <input type="hidden" name="student" id="studentId" value="{% if posted %}{{ posted.student }}{% endif %}">
+            <div id="studentResults" role="listbox" hidden></div>
+            <em class="muted-hint" id="studentCount" style="display:none"></em>
+        </div>
+        <div class="form-group">
+            <label>Role</label>
+            <select name="role" id="roleSelect" class="form-input role-picker-native" data-role-picker required>
+                <option value="" disabled{% if not posted or not posted.role %} selected{% endif %}>Select role</option>
+                {% for value, label, establishment_type in role_choices %}
+                <option value="{{ value }}"{% if posted and posted.role == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <em class="muted-hint">Every operational role is performed inside one establishment, so those roles reveal the establishment field below. Guest roles may optionally be pointed at a specific place too.</em>
+        </div>
+        <div class="form-group" id="establishmentGroup" style="display:none">
+            <label>Establishment</label>
+            <select name="establishment" id="establishmentSelect" class="form-input" data-chosen="{% if posted %}{{ posted.establishment }}{% endif %}" disabled>
+                <option value="">Select establishment</option>
+            </select>
+            <em class="muted-hint" id="establishmentHint">This role is performed inside an establishment, so choose where the student will work.</em>
+        </div>
+        <fieldset style="border:0;padding:0;margin:0">
+            <label style="display:block;margin-bottom:8px">Simulation Schedule</label>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px">
+                <div class="form-group" style="margin:0">
+                    <label for="simDate">Date</label>
+                    <input type="date" name="simulation_date" id="simDate" class="form-input" value="{% if posted %}{{ posted.simulation_date }}{% endif %}">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label for="startTime">Start Time</label>
+                    <input type="time" name="start_time" id="startTime" class="form-input" value="{% if posted %}{{ posted.start_time }}{% endif %}">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label for="endTime">End Time</label>
+                    <input type="time" name="end_time" id="endTime" class="form-input" value="{% if posted %}{{ posted.end_time }}{% endif %}">
+                </div>
+            </div>
+        </fieldset>
+        <div class="form-group" id="repeatGroup" style="display:none;margin-top:16px;padding:12px;border:1px solid #f0c36d;border-radius:10px;background:#fff8ec">
+            <label style="display:flex;gap:9px;align-items:flex-start;margin:0;cursor:pointer">
+                <input type="checkbox" name="assign_again" value="yes" id="assignAgain" style="margin-top:3px">
+                <span><b>Assign this role again</b><br>
+                <span class="muted-hint" id="repeatHint">This role is already active for this student in another session.</span></span>
+            </label>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> Assign Simulation</button>
+            <a href="{% url 'simulation:workspace' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+    <div style="margin-top:22px;border-top:1px solid var(--slate-200);padding-top:16px">
+        <h4 style="margin:0 0 10px"><i class="fas fa-history"></i> Student's Previous Assignments</h4>
+        <div id="prevAssignments" class="empty" style="margin:0"><i class="fas fa-user-graduate"></i><h3>Select a student</h3><p style="margin:0">Choose a student above to see the roles they have already completed.</p></div>
+    </div>
+    {{ student_roles|json_script:"studentRoles" }}
+    {{ role_establishment_types|json_script:"roleEstablishmentTypes" }}
+    {{ establishments_by_type|json_script:"establishmentData" }}
+    {{ establishment_types|json_script:"establishmentTypeLabels" }}
+    {{ guest_destinations|json_script:"guestDestinations" }}
+    {{ student_options|json_script:"studentData" }}
+    <script>
+    (function () {
+        const studentRoles = JSON.parse(document.getElementById('studentRoles').textContent || '{}');
+        const roleEstablishmentTypes = JSON.parse(document.getElementById('roleEstablishmentTypes').textContent || '{}');
+        const establishmentData = JSON.parse(document.getElementById('establishmentData').textContent || '{}');
+        const establishmentTypeLabels = JSON.parse(document.getElementById('establishmentTypeLabels').textContent || '[]');
+        const guestDestinations = JSON.parse(document.getElementById('guestDestinations').textContent || '{}');
+        const students = JSON.parse(document.getElementById('studentData').textContent || '[]');
+        const activityInput = document.getElementById('activityName');
+        const search = document.getElementById('studentSearch');
+        const hidden = document.getElementById('studentId');
+        const results = document.getElementById('studentResults');
+        const count = document.getElementById('studentCount');
+        const roleSelect = document.getElementById('roleSelect');
+        const box = document.getElementById('prevAssignments');
+        if (!search || !hidden || !results || !box) return;
+
+        let chosen = '';
+
+        // Matches on full name, surname-first, initials and username, so "A",
+        // "Ar" and "AJ" all find Arlyne Joy Udaundo. The admin never has to
+        // type the complete name.
+        function matching(term) {
+            const activity = (activityInput && activityInput.value || '').trim().toLowerCase();
+            return students.filter(function (s) {
+                const alreadyDone = activity && (studentRoles[s.id] || []).some(function (role) {
+                    return role.completed && role.activity.trim().toLowerCase() === activity;
+                });
+                return !alreadyDone && (!term || s.search.indexOf(term) !== -1);
+            }).slice(0, 25);
+        }
+
+        function closeResults() {
+            results.hidden = true;
+            results.innerHTML = '';
+            search.setAttribute('aria-expanded', 'false');
+        }
+
+        function choose(student) {
+            chosen = String(student.id);
+            hidden.value = chosen;
+            search.value = student.name;
+            closeResults();
+            render();
+        }
+
+        function drawResults() {
+            const term = (search.value || '').trim().toLowerCase();
+            const list = matching(term);
+            if (!list.length) {
+                results.innerHTML = '<div class="ac-empty">No student matches "' + search.value.trim() + '"</div>';
+                results.hidden = false;
+                search.setAttribute('aria-expanded', 'true');
+                count.style.display = 'none';
+                return;
+            }
+            let html = '';
+            list.forEach(function (s) {
+                html += '<button type="button" class="ac-item" data-id="' + s.id + '" role="option">' +
+                    '<span>' + s.name + '</span><small>@' + s.username + '</small></button>';
+            });
+            if (list.length === 25) {
+                html += '<div class="ac-empty">Keep typing to narrow the list.</div>';
+            }
+            results.innerHTML = html;
+            results.hidden = false;
+            search.setAttribute('aria-expanded', 'true');
+            count.style.display = '';
+            count.textContent = list.length + (list.length === 1 ? ' student matches' : ' students match');
+        }
+
+        search.addEventListener('input', function () {
+            // Editing the text means the previous pick no longer applies, so the
+            // hidden id is cleared rather than silently submitting a student the
+            // admin did not choose.
+            if (search.value !== (chosen ? (students.filter(function (s) { return String(s.id) === chosen; })[0] || {}).name : '')) {
+                hidden.value = '';
+                chosen = '';
+                render();
+            }
+            drawResults();
+        });
+
+        if (activityInput) activityInput.addEventListener('input', function () {
+            if (chosen && matching('').every(function (s) { return String(s.id) !== chosen; })) {
+                hidden.value = '';
+                chosen = '';
+                search.value = '';
+                render();
+            }
+            if (!results.hidden) drawResults();
+        });
+
+        results.addEventListener('click', function (event) {
+            const btn = event.target.closest('.ac-item');
+            if (!btn) return;
+            const student = students.filter(function (s) { return String(s.id) === btn.dataset.id; })[0];
+            if (student) choose(student);
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!results.contains(event.target) && event.target !== search) closeResults();
+        });
+
+        search.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeResults();
+            if (event.key === 'Enter' && !results.hidden) {
+                const first = results.querySelector('.ac-item');
+                if (first) { event.preventDefault(); first.click(); }
+            }
+        });
+
+        // An operational role is performed inside ONE specific establishment, so the
+        // establishment field only appears for those roles -- and it lists only
+        // the establishments that match the role's type. Picking "Hotel Manager"
+        // offers hotels; "Airline Manager" offers airlines. A role with no
+        // establishment type (the passenger, the administrative roles) shows no
+        // field at all, and any previously chosen establishment is cleared so it
+        // is never submitted by accident. Guest roles sit in between: they may
+        // *optionally* be pointed at one place of their module's own type, so
+        // they get the same picker with an empty "no specific place" option.
+        function toggleEstablishment() {
+            const group = document.getElementById('establishmentGroup');
+            const select = document.getElementById('establishmentSelect');
+            const hint = document.getElementById('establishmentHint');
+            if (!group || !select || !roleSelect) return;
+
+            const value = roleSelect.value;
+            const operationalType = value ? roleEstablishmentTypes[value] || null : null;
+            const guestType = value ? guestDestinations[value] || null : null;
+            const optional = Boolean(guestType);
+            const type = guestType || operationalType;
+            if (!type) {
+                group.style.display = 'none';
+                select.disabled = true;
+                select.innerHTML = '<option value="">Select establishment</option>';
+                select.value = '';
+                return;
+            }
+
+            const options = establishmentData[type] || [];
+            const label = (establishmentTypeLabels.filter(function (t) {
+                return t.value === type;
+            })[0] || {}).label || type;
+
+            let html = '<option value="">' + (optional ? 'No specific place' : 'Select ' + label.toLowerCase()) + '</option>';
+            options.forEach(function (establishment) {
+                html += '<option value="' + establishment.id + '">' + establishment.name + '</option>';
+            });
+            select.innerHTML = html;
+            // ``data-chosen`` is what a rejected submission came back with, so the
+            // establishment the instructor had already chosen is still there. It is
+            // read once and then dropped: a deliberate role change later in the
+            // form should start from a clean picker rather than keep an id that
+            // belongs to the previous role's type.
+            if (select.dataset.chosen) {
+                select.value = select.dataset.chosen;
+                select.dataset.chosen = '';
+            } else {
+                select.value = '';
+            }
+            group.style.display = '';
+            select.disabled = !options.length;
+            if (hint) {
+                hint.textContent = options.length
+                    ? (optional
+                        ? 'Optional: choose the ' + label.toLowerCase() + ' this guest will be directed to, or leave it empty to browse all ' + label.toLowerCase() + 's.'
+                        : 'This role is performed inside a ' + label.toLowerCase() +
+                          ', so choose where the student will work.')
+                    : 'No active ' + label.toLowerCase() +
+                      ' exists yet, so this role cannot be assigned.';
+            }
+        }
+        if (roleSelect) roleSelect.addEventListener('change', toggleEstablishment);
+
+        function render() {
+            const roles = studentRoles[hidden.value] || [];
+            // Only a LIVE assignment blocks the role. A finished one is history:
+            // the student may be assessed on the same role again in a later
+            // session, so it must not be greyed out here.
+            const live = {};
+            roles.forEach(function (r) { if (r.active) live[r.value] = r; });
+            if (roleSelect) {
+                Array.prototype.forEach.call(roleSelect.options, function (opt) {
+                    if (!opt.value) return;
+                    const held = live[opt.value];
+                    // Deliberately NOT disabled. A disabled <option> cannot be
+                    // chosen by the user, which would make the "assign again"
+                    // override unreachable -- the instructor could never select
+                    // the held role to trigger the prompt. The conflict is
+                    // surfaced by the "(active)" label, the submit guard below,
+                    // and the server-side check.
+                    opt.disabled = false;
+                    opt.textContent = opt.textContent.replace(/\s*\(active\)\s*$/, '') + (held ? ' (active)' : '');
+                });
+            }
+            showRepeatPrompt();
+            toggleEstablishment();
+            if (hidden.value === '' || !roles.length) {
+                box.className = 'empty';
+                box.innerHTML = '<i class="fas fa-user-graduate"></i><h3>' + (hidden.value === '' ? 'Select a student' : 'No previous assignments') + '</h3><p style="margin:0">' + (hidden.value === '' ? 'Choose a student above to see the roles they have already completed.' : 'This student has not completed any simulation roles yet.') + '</p>';
+                return;
+            }
+            let html = '<div class="table-wrap"><table class="table"><thead><tr><th>Role</th><th>Session</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+            roles.forEach(function (r) {
+                const badge = r.active ? 'badge-blue' : 'badge-gray';
+                html += '<tr><td><span class="badge ' + badge + '">' + r.role + '</span></td><td>' + r.activity + '</td><td><span class="badge ' + badge + '">' + r.status + '</span></td><td>' + r.date + '</td></tr>';
+            });
+            html += '</tbody></table></div><p style="color:var(--slate-500);font-size:13px;margin:12px 0 0"><i class="fas fa-info-circle"></i> Roles marked <b>(active)</b> are held right now. Tick “Assign this role again” to add one to this session too.</p>';
+            box.className = '';
+            box.innerHTML = html;
+        }
+
+        // The role list marks a conflict as "(active)" and blocks it, so the
+        // instructor has to clear the tick before the form will submit. The
+        // server re-checks the same rule, so a hand-crafted POST cannot skip it.
+        function showRepeatPrompt() {
+            const group = document.getElementById('repeatGroup');
+            const hint = document.getElementById('repeatHint');
+            const chosen = roleSelect ? roleSelect.value : '';
+            const held = chosen && (studentRoles[hidden.value] || []).filter(function (r) {
+                return r.active && r.value === chosen;
+            })[0];
+            if (!chosen || !held) {
+                group.style.display = 'none';
+                return;
+            }
+            group.style.display = '';
+            hint.textContent = held.role + ' is already active in “' + held.activity +
+                '” (' + held.date + '). Tick to place this student in this session as well.';
+        }
+
+        if (roleSelect) roleSelect.addEventListener('change', showRepeatPrompt);
+
+        // The held role stays selectable so the prompt above can appear at all,
+        // so the block has to happen here instead: refuse to submit while the
+        // conflict is unticked. The server re-checks the same rule, so a
+        // hand-crafted POST cannot skip it either.
+        const assignForm = document.getElementById('assignForm');
+        if (assignForm) {
+            assignForm.addEventListener('submit', function (event) {
+                const chosen = roleSelect ? roleSelect.value : '';
+                const held = chosen && (studentRoles[hidden.value] || []).filter(function (r) {
+                    return r.active && r.value === chosen;
+                })[0];
+                if (held && !document.getElementById('assignAgain').checked) {
+                    event.preventDefault();
+                    showRepeatPrompt();
+                }
+            });
+        }
+        drawResults();
+        render();
+        toggleEstablishment();
+    })();
+    </script>
+    {% endif %}
+</div>
+</div>
+{% block extra_js %}<script src="{% static 'js/role-dropdown.js' %}?v=20261011-1"></script>{% endblock %}
+{% endblock %}

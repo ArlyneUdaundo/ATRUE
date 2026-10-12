@@ -1,0 +1,53 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if aircraft %}Update Aircraft{% else %}Add Aircraft{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if aircraft %}Update Aircraft{% else %}Add Aircraft{% endif %} — {{ airline.name }}</h1><p>Aircraft/fleet registration.</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if aircraft.aircraft_id %}
+    <div class="form-group">
+        <label>Aircraft ID</label>
+        <input type="text" class="form-input" value="{{ aircraft.aircraft_id }}" disabled style="background:#f4f5f7">
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Model Name</label>
+            <input type="text" name="model_name" class="form-input" value="{{ aircraft.model_name|default:'' }}" placeholder="e.g. Airbus A320" required>
+        </div>
+        <div class="form-group">
+            <label>Aircraft Type</label>
+            <select name="aircraft_type" class="form-input">
+                <option value="NARROW_BODY" {% if aircraft.aircraft_type == 'NARROW_BODY' %}selected{% endif %}>Narrow-Body</option>
+                <option value="WIDE_BODY" {% if aircraft.aircraft_type == 'WIDE_BODY' %}selected{% endif %}>Wide-Body</option>
+                <option value="REGIONAL" {% if aircraft.aircraft_type == 'REGIONAL' %}selected{% endif %}>Regional</option>
+                <option value="TURBOPROP" {% if aircraft.aircraft_type == 'TURBOPROP' %}selected{% endif %}>Turboprop</option>
+                <option value="PRIVATE_JET" {% if aircraft.aircraft_type == 'PRIVATE_JET' %}selected{% endif %}>Private Jet</option>
+                <option value="OTHER" {% if aircraft.aircraft_type == 'OTHER' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Tail Number</label>
+        <input type="text" name="tail_number" class="form-input" value="{{ aircraft.tail_number|default:'' }}" placeholder="e.g. RP-C1234" required>
+    </div>
+    <div class="form-group">
+        <label>Seating Capacity</label>
+        <input type="number" name="seating_capacity" class="form-input" value="{{ aircraft.seating_capacity|default:'' }}" min="1" required>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="AVAILABLE" {% if aircraft.status == 'AVAILABLE' %}selected{% endif %}>Available</option>
+            <option value="ASSIGNED" {% if aircraft.status == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+            <option value="MAINTENANCE" {% if aircraft.status == 'MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            <option value="INACTIVE" {% if aircraft.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Aircraft</button>
+    <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

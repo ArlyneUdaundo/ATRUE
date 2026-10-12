@@ -1,0 +1,86 @@
+.establishment-modal[hidden] { display: none; }
+.establishment-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .56);
+    backdrop-filter: blur(3px);
+}
+.establishment-modal__panel {
+    display: flex;
+    flex-direction: column;
+    width: min(900px, 100%);
+    max-height: min(92vh, 920px);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #f8fafc;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .28);
+}
+.establishment-modal__top {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 22px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+}
+.establishment-modal__title { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.establishment-modal__title [data-establishment-modal-logo] { display: flex; flex: none; }
+.establishment-modal__title .airline-logo { width: 64px; height: 64px; border-radius: 12px; }
+.establishment-modal__top h2 { margin: 0; color: #172033; font-size: 18px; font-weight: 800; }
+.establishment-modal__close {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+}
+.establishment-modal__close:hover { background: #e2e8f0; color: #172033; }
+.establishment-modal__body { overflow: auto; padding: 20px 22px 24px; }
+.establishment-modal__body > .page-head { margin: 0 0 14px; }
+.establishment-modal__body .establishment-form-card { max-width: none !important; margin: 0 !important; }
+.establishment-modal__loading { display: flex; min-height: 180px; align-items: center; justify-content: center; gap: 10px; color: #64748b; font-weight: 700; }
+body.establishment-modal-open { overflow: hidden; }
+@media (max-width: 600px) {
+    .establishment-modal { padding: 8px; }
+    .establishment-modal__panel { max-height: 96vh; border-radius: 14px; }
+    .establishment-modal__top { padding: 12px 16px; }
+    .establishment-modal__body { padding: 14px 12px 18px; }
+}
+.establishment-modal .tour-guide-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 40px;
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #263449;
+    font-weight: 600;
+    cursor: pointer;
+}
+.establishment-modal .tour-guide-option input[type="checkbox"] {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    accent-color: #2563eb;
+}
+.establishment-modal__body .room-form-page-head { display: none; }
+
+.establishment-modal__body .hotel-form-page-head { display: none !important; }

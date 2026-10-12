@@ -1,0 +1,129 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ itinerary.itinerary_reference }} — {{ itinerary.route_label }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ itinerary.route_label }} <span class="badge badge-blue" style="font-size:13px">{{ itinerary.itinerary_reference }}</span></h1>
+        <p>{{ itinerary.airline.name }} · {{ itinerary.stops_label }} · {{ itinerary.segment_count }} segments ·
+           {{ timing.total_label }} door to door{% if itinerary.operating_days %} · {{ itinerary.operating_days }}{% endif %} (FR-017).</p>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit Journey</a>
+        <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-plane-departure"></i> <b>Departs:</b> {{ itinerary.departure_time|date:"M d, Y H:i" }} <span class="badge badge-gray">{{ itinerary.origin_airport.timezone|default:"UTC" }}</span></div>
+        <div class="meta"><i class="fas fa-plane-arrival"></i> <b>Arrives:</b> {{ itinerary.arrival_time|date:"M d, Y H:i" }} <span class="badge badge-gray">{{ itinerary.destination_airport.timezone|default:"UTC" }}</span></div>
+        <div class="meta"><i class="fas fa-route"></i> <b>Route:</b> {{ itinerary.route_label }} · <b>Scope:</b> {{ itinerary.get_route_scope_display }}</div>
+        <div class="meta"><i class="fas fa-chair"></i> <b>Seats left:</b> {{ remaining }} on the tightest leg</div>
+        <div class="meta"><i class="fas fa-money-bill"></i> <b>Total price:</b> ₱ {{ itinerary.total_price }} · <b>Base:</b> ₱ {{ itinerary.base_fare }}</div>
+        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if itinerary.status == 'SCHEDULED' %}badge-green{% elif itinerary.status == 'DELAYED' %}badge-amber{% elif itinerary.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ itinerary.get_status_display }}</span> · <b>Bookable:</b> {{ itinerary.booking_available|yesno:"Yes,No" }}</div>
+        <div class="meta"><i class="fas fa-arrows-rotate"></i> <b>Connection window:</b> min {{ itinerary.min_connection_minutes }} min{% if itinerary.max_connection_minutes %} · max {{ itinerary.max_connection_minutes }} min{% else %} · no upper limit{% endif %}</div>
+        <div class="meta"><i class="fas fa-suitcase"></i> <b>Baggage:</b> ₱ {{ itinerary.baggage_rate }}/kg · <b>Advance booking:</b> {{ itinerary.min_advance_booking_hours }}h</div>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-sitemap"></i> Journey Timeline</h3>
+    {% for entry in timing.legs %}
+    <div style="border-left:3px solid #2563eb;padding:0 0 0 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <b>Segment {{ forloop.counter }} — <a href="{% url 'airlines:flight_detail' entry.segment.slug %}">{{ entry.segment.flight_number }}</a></b>
+            <span class="badge badge-blue">{{ entry.label }}</span>
+        </div>
+        <div class="meta" style="margin-top:6px">
+            <i class="fas fa-plane-departure"></i>
+            {{ entry.segment.origin_airport.code }} {{ entry.segment.origin_airport.airport_name }}
+            — {{ entry.departure_local|date:"M d, Y H:i" }} {{ entry.segment.departure_timezone }}
+            {% if entry.segment.terminal %}· Terminal {{ entry.segment.terminal }}{% endif %}
+            {% if entry.segment.gate %}· Gate {{ entry.segment.gate }}{% endif %}
+        </div>
+        <div class="meta">
+            <i class="fas fa-plane-arrival"></i>
+            {{ entry.segment.destination_airport.code }} {{ entry.segment.destination_airport.airport_name }}
+            — {{ entry.arrival_local|date:"M d, Y H:i" }} {{ entry.segment.arrival_timezone }}
+            {% if entry.segment.arrival_terminal %}· Terminal {{ entry.segment.arrival_terminal }}{% endif %}
+            {% if entry.segment.arrival_gate %}· Gate {{ entry.segment.arrival_gate }}{% endif %}
+        </div>
+        <div class="meta">
+            <i class="fas fa-plane"></i>
+            {% if entry.segment.aircraft %}<a href="{% url 'airlines:aircraft_detail' entry.segment.aircraft.id %}">{{ entry.segment.aircraft.model_name }} ({{ entry.segment.aircraft.tail_number }})</a>{% else %}Not assigned{% endif %}
+            · {{ entry.segment.capacity }} seats
+            · Economy ₱ {{ entry.segment.economy_fare }}
+            {% if entry.segment.baggage_claim %}· Baggage claim {{ entry.segment.baggage_claim }}{% endif %}
+            {% if entry.segment.check_in_time %}· Check-in {{ entry.segment.check_in_time }}{% endif %}
+            {% if entry.segment.boarding_time %}· Boarding {{ entry.segment.boarding_time }}{% endif %}
+        </div>
+    </div>
+    {% if not forloop.last %}
+    {% with layover=timing.layovers|slice:forloop.counter0|last %}
+    <div style="margin:-6px 0 8px 16px;color:#64748b">
+        <i class="fas fa-shoe-prints"></i> Layover at <b>{{ layover.airport.code }} {{ layover.airport.airport_name }}</b> — {{ layover.label }}
+    </div>
+    {% endwith %}
+    {% endif %}
+    {% empty %}
+    <p>No segments on this itinerary yet.</p>
+    {% endfor %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-money-bill-wave"></i> Price Breakdown</h3>
+    <div class="grid-2">
+        {% for label, amount in itinerary.price_breakdown %}
+        <div class="meta"><i class="fas fa-tag"></i> <b>{{ label }}:</b> ₱ {{ amount }}</div>
+        {% endfor %}
+        <div class="meta"><i class="fas fa-percent"></i> <b>Discount:</b> −₱ {{ itinerary.discount }}</div>
+        <div class="meta"><i class="fas fa-receipt"></i> <b>Total:</b> ₱ {{ itinerary.total_price }}</div>
+    </div>
+    <h3 style="margin:18px 0 8px"><i class="fas fa-chair"></i> Seat Availability by Leg</h3>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Segment</th><th>Flight</th><th>Aircraft</th><th>Capacity</th><th>Remaining</th><th>Cabins</th></tr></thead>
+            <tbody>
+                {% for row in segment_maps %}
+                <tr>
+                    <td>{{ row.flight.segment_order }}</td>
+                    <td class="mono">{{ row.flight.flight_number }}</td>
+                    <td>{{ row.flight.aircraft.model_name|default:"—" }}</td>
+                    <td>{{ row.flight.capacity }}</td>
+                    <td>{{ row.remaining }}</td>
+                    <td>{% for c in row.cabin_classes %}<span class="badge badge-gray">{{ c }}</span> {% endfor %}</td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No segments.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0 0 12px"><i class="fas fa-ticket-alt"></i> Bookings ({{ itinerary.bookings.count }})</h3>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Passenger</th><th>Pax</th><th>Seats per leg</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in itinerary.bookings.all %}
+                <tr>
+                    <td class="mono">{{ b.booking_reference }}</td>
+                    <td>{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td>
+                    <td>{{ b.passengers_count }}</td>
+                    <td>
+                        {% for s in b.itinerary_seats %}
+                        <div>Seg {{ s.segment_order }}: {{ s.seat_number|default:"—" }}</div>
+                        {% empty %}No seat rows{% endfor %}
+                    </td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="7">No bookings on this itinerary yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

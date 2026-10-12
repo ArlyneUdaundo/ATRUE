@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ destination.name }} – ATRUE{% endblock %}
+{% block body_class %}destination-page{% endblock %}
+
+{% block extra_css %}
+<style>
+.destination-page { background:#f4f7fb; }
+.destination-hero {
+    min-height: 72vh; display:flex; align-items:flex-end; position:relative;
+    overflow:hidden; background-image:linear-gradient(180deg,rgba(3,12,30,.08),rgba(3,12,30,.82)),
+    url('{{ destination.image }}'); background-size:cover; background-position:center;
+}
+.destination-hero .overlay { width:100%; padding:120px 0 70px; }
+.destination-content { max-width:850px; color:#fff; }
+.destination-content .eyebrow { color:#bfdbfe; margin-bottom:14px; }
+.destination-content h1 { font-family:'Sora','Inter',sans-serif; font-size:clamp(42px,7vw,76px); line-height:1; margin-bottom:16px; }
+.destination-content p { font-size:19px; line-height:1.7; color:rgba(255,255,255,.88); max-width:720px; }
+.destination-country { display:inline-flex; padding:7px 13px; border-radius:999px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.2); margin-bottom:18px; }
+.destination-main { padding:70px 0; }
+.destination-card { max-width:1000px; margin:auto; background:#fff; border:1px solid #e3eaf5; border-radius:24px; padding:38px; box-shadow:0 20px 50px rgba(15,23,42,.08); }
+.destination-card h2 { font-family:'Sora','Inter',sans-serif; margin-bottom:14px; color:#0b1224; }
+.destination-card > p { color:#5b6b85; line-height:1.75; margin-bottom:24px; }
+.destination-highlights { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.destination-highlight { padding:18px; background:#f4f8ff; border:1px solid #e3eaf5; border-radius:16px; font-weight:700; color:#1e3a8a; }
+.destination-services { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:28px; }
+.destination-service { background:#fff; border:1px solid #e3eaf5; border-radius:18px; padding:22px; }
+.destination-service h3 { color:#0b1224; font-family:'Sora','Inter',sans-serif; margin-bottom:14px; }
+.destination-service h3 i { color:#1d4ed8; margin-right:8px; }
+.destination-service ul { list-style:none; display:grid; gap:9px; padding:0; margin:0; }
+.destination-service a { color:#1d4ed8; font-weight:650; }
+.destination-service .empty { color:#5b6b85; }
+.destination-actions { margin-top:28px; display:flex; gap:12px; flex-wrap:wrap; }
+.destination-actions a { display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:12px; font-weight:700; }
+.destination-primary { background:linear-gradient(135deg,#1d4ed8,#6366f1); color:#fff; }
+.destination-secondary { border:1px solid #dbe3ef; color:#1d4ed8; }
+@media(max-width:700px){.destination-highlights,.destination-services{grid-template-columns:1fr}.destination-card{padding:24px}.destination-hero{min-height:65vh}}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="destination-hero">
+    <div class="overlay">
+        <div class="container">
+            <div class="destination-content">
+                <div class="destination-country"><i class="fas fa-location-dot"></i>&nbsp; {{ destination.country }}</div>
+                <div class="eyebrow">Explore the destination</div>
+                <h1>{{ destination.name }}</h1>
+                <p>{{ destination.tagline }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="destination-main">
+    <div class="container">
+        <div class="destination-card">
+            <h2>Discover {{ destination.name }}</h2>
+            <p>Plan your next trip with ATRUE and explore the attractions and experiences available around {{ destination.name }}.</p>
+            <div class="destination-highlights">
+                {% for highlight in destination.highlights %}
+                <div class="destination-highlight"><i class="fas fa-check"></i> {{ highlight }}</div>
+                {% endfor %}
+            </div>
+            <div class="destination-actions">
+                <a class="destination-primary" href="{% url 'home' %}?q={{ destination.name|urlencode }}&destination={{ slug|urlencode }}&tab=all#live">Explore ATRUE services <i class="fas fa-arrow-right"></i></a>
+                <a class="destination-secondary" href="{% url 'home' %}">Back to home</a>
+            </div>
+        </div>
+        <div class="destination-services">
+            {% for section in sections %}
+            <div class="destination-service">
+                <h3><i class="fas {{ section.icon }}"></i>{{ section.title }} in {{ destination.name }}</h3>
+                <ul>
+                    {% for item in section.items %}
+                    <li><a href="{{ item.url }}">{{ item.name }} <i class="fas fa-arrow-up-right-from-square"></i></a></li>
+                    {% empty %}
+                    <li class="empty">No {{ section.title|lower }} are listed for this destination yet.</li>
+                    {% endfor %}
+                </ul>
+                <div class="destination-actions">
+                    <a class="destination-secondary" href="{{ section.search_url }}">Search {{ section.title|lower }}</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,197 @@
+.hotel-management-page .hotel-search-panel {
+    margin-bottom: 20px;
+    padding: 18px;
+}
+
+.hotel-management-page .hotel-search-heading {
+    margin-bottom: 14px;
+}
+
+.hotel-management-page .hotel-search-heading h2 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.3;
+    color: var(--text-1);
+}
+
+.hotel-management-page .hotel-search-heading p {
+    margin: 3px 0 0;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.hotel-management-page .hotel-search-top-row {
+    display: grid;
+    grid-template-columns: minmax(170px, 260px);
+    gap: 12px;
+    align-items: end;
+}
+
+.hotel-management-page .hotel-search-panel .form-group > label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.hotel-management-page .hotel-search-panel .form-input {
+    width: 100%;
+    min-height: 38px;
+    height: 38px;
+    padding: 7px 10px;
+    font-size: 13px;
+}
+
+.hotel-management-page .hotel-search-locations {
+    margin-top: 12px;
+}
+
+.hotel-management-page .hotel-search-locations .loc-cascade {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.hotel-management-page .hotel-search-locations .field-hint {
+    margin-top: 3px;
+    font-size: 11px;
+}
+
+.hotel-management-page .hotel-search-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+    .hotel-management-page .hotel-search-locations .loc-cascade {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .hotel-management-page .hotel-search-panel {
+        padding: 14px;
+    }
+
+    .hotel-management-page .hotel-search-top-row,
+    .hotel-management-page .hotel-search-locations .loc-cascade {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .hotel-management-page .hotel-search-heading h2 {
+        font-size: 18px;
+    }
+}
+
+.hotel-compact-filter-grid .form-input,
+.hotel-compact-search-field .form-input {
+    min-height: 36px;
+    height: 36px;
+    padding: 6px 9px;
+    font-size: 13px;
+}
+
+.hotel-compact-filter-grid .form-group > label,
+.hotel-compact-search-field > label {
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.hotel-compact-search-field {
+    grid-column: span 1;
+}
+
+.hotel-booking-filter-grid {
+    grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(130px, 1fr));
+    grid-template-areas:
+        "query query status sort"
+        "checkin checkout actions actions";
+    gap: 10px 12px;
+    align-items: end;
+}
+
+.hotel-booking-query {
+    grid-area: query;
+    justify-self: start;
+    width: 100%;
+    max-width: none;
+}
+.hotel-booking-hotel { grid-area: hotel; }
+.hotel-booking-status { grid-area: status; }
+.hotel-booking-check-in { grid-area: checkin; }
+.hotel-booking-check-out { grid-area: checkout; }
+.hotel-booking-sort { grid-area: sort; }
+
+.hotel-booking-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.hotel-booking-filter-grid .form-group {
+    margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .hotel-compact-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .hotel-compact-search-field {
+        grid-column: span 1;
+    }
+
+    .hotel-booking-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+            "query query"
+            "hotel status"
+            "checkin checkout"
+            "sort actions";
+    }
+
+    .hotel-booking-filter-grid--scoped {
+        grid-template-areas:
+            "query query"
+            "status status"
+            "checkin checkout"
+            "sort actions";
+    }
+}
+
+@media (max-width: 560px) {
+    .hotel-booking-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "query"
+            "hotel"
+            "status"
+            "checkin"
+            "checkout"
+            "sort"
+            "actions";
+    }
+
+    .hotel-booking-query {
+        justify-self: stretch;
+        max-width: none;
+    }
+
+    .hotel-booking-filter-grid--scoped {
+        grid-template-areas:
+            "query"
+            "status"
+            "checkin"
+            "checkout"
+            "sort"
+            "actions";
+    }
+}
+
+@media (max-width: 560px) {
+    .hotel-compact-filter-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}

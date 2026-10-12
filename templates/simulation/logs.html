@@ -1,0 +1,56 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Activity Logs by Session{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-logs.css' %}?v=20261009">
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Simulation Activity Logs</h1>
+        <p>Select a simulation session to view the activity logs recorded for it (BR-085).</p>
+    </div>
+</div>
+
+{% if sessions %}
+<div class="logs-session-grid">
+    {% for session in sessions %}
+    <a class="logs-session-card" href="{% url 'simulation:session_logs' session.id %}">
+        <div class="logs-session-card-head">
+            <span class="logs-session-icon"><i class="fas fa-layer-group"></i></span>
+            <div class="logs-session-copy">
+                <strong>{{ session.name }}</strong>
+                <small>{% if session.session_id %}{{ session.session_id }} · {% endif %}{{ session.get_status_display }}</small>
+            </div>
+            <i class="fas fa-chevron-right logs-session-arrow" aria-hidden="true"></i>
+        </div>
+        <div class="logs-session-stats">
+            <div class="logs-session-stat">
+                <b>{{ session.student_count }}</b>
+                <span>student{{ session.student_count|pluralize }}</span>
+            </div>
+            <div class="logs-session-stat">
+                <b>{{ session.log_count }}</b>
+                <span>activit{{ session.log_count|pluralize:"y,ies" }}</span>
+            </div>
+            <div class="logs-session-stat logs-session-stat-last">
+                <b>{% if session.last_activity %}{{ session.last_activity|date:"M j, Y" }}{% else %}—{% endif %}</b>
+                <span>last activity</span>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>No simulation sessions available</h3>
+        {% if not can_view_all %}<p>You must hold a role in a session to see its activity logs.</p>{% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

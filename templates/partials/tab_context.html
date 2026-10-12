@@ -1,0 +1,275 @@
+{% comment %}
+ATRUE per-tab context bootstrap (shared by base.html and dashboard_base.html).
+
+Cookies are SHARED by every tab in the browser, so a cookie alone cannot
+describe "who is signed in on THIS tab". Each tab therefore keeps a random,
+non-secret selector in sessionStorage and ships it with every request:
+
+  * ?ctx=...            full page navigations (links, back/forward, refresh)
+  * X-ATRUE-CTX header  fetch() / XMLHttpRequest
+  * hidden ctx field    form posts (incl. Enter key and submit())
+
+The token is a lookup key only. It carries no credentials, and the server
+re-derives request.user, roles and permissions from the session it points at,
+so a forged or stale token can never escalate access.
+
+Two rules matter for correctness:
+
+  1. The ?ctx= parameter is deliberately KEPT in the address bar. A full page
+     request cannot carry a custom header, so the query string is the only
+     transport that survives a manual refresh and a back/forward navigation.
+     Stripping it (as an earlier version did) silently logged tabs out on
+     refresh.
+
+  2. sessionStorage is CLONED when a tab is duplicated or opened from a link,
+     while window.name is not. If a token is present but this document has no
+     matching window.name marker, the tab is a copy, so it gets a brand new
+     token and reloads BEFORE the body renders. The server gives it a private
+     workflow session and may inherit only the source tab's account identity.
+{% endcomment %}
+<script>
+(function () {
+    var KEY = 'atrue_tab_ctx';
+    var MARK_PREFIX = 'atrue-tab:';
+    var TOKEN_MAX_LENGTH = 64;
+
+    function readStored() {
+        try { return sessionStorage.getItem(KEY); } catch (e) { return null; }
+    }
+    function writeStored(v) {
+        try { sessionStorage.setItem(KEY, v); } catch (e) { }
+    }
+    function newToken() {
+        var t;
+        try {
+            t = (window.crypto && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 't' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+        } catch (e) {
+            t = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+        }
+        return t;
+    }
+    function usable(t) {
+        return typeof t === 'string' && t.length > 0 && t.length <= TOKEN_MAX_LENGTH
+            && /^[A-Za-z0-9._-]+$/.test(t);
+    }
+    function mark(t) {
+        try { window.name = MARK_PREFIX + t; } catch (e) { }
+    }
+    function currentMark() {
+        try { return window.name; } catch (e) { return null; }
+    }
+    /* Rewrite this URL so it carries the given token. */
+    function withCtx(t, source) {
+        try {
+            var u = new URL(window.location.href);
+            u.searchParams.set('ctx', t);
+            if (source && usable(source) && source !== t) {
+                u.searchParams.set('source_ctx', source);
+            } else {
+                u.searchParams.delete('source_ctx');
+            }
+            return u.pathname + u.search + u.hash;
+        } catch (e) { return null; }
+    }
+
+    var stored = readStored();
+    if (!usable(stored)) {
+        stored = newToken();
+        writeStored(stored);
+    }
+    /* A cloned sessionStorage arrives with no matching window.name marker.
+       Mint a fresh identity for this tab and re-request the page so the server
+       resolves it as a new (anonymous) workspace. */
+    if (currentMark() !== MARK_PREFIX + stored) {
+        var source = null;
+        try { source = new URL(window.location.href).searchParams.get('ctx'); } catch (e) { }
+        stored = newToken();
+        writeStored(stored);
+        mark(stored);
+        var fresh = withCtx(stored, source);
+        if (fresh) { window.location.replace(fresh); return; }
+    }
+
+    var CTX = stored;
+    window.ATRUE_CTX = CTX;
+    function retarget(t) {
+        CTX = t;
+        window.ATRUE_CTX = t;
+        writeStored(t);
+        mark(t);
+    }
+
+    /* If this document was loaded WITHOUT ?ctx= (bookmark, pasted link,
+       back/forward, a hand-typed URL) the server resolved it against the
+       shared cookie session -- which is shared by every tab. Re-request the page scoped to this
+       tab before anything renders, so the user never sees another tab's
+       account and so the CSRF token on the page matches the session its forms
+       will be posted to. */
+    if (!hasCtx(window.location.href)) {
+        var scoped = withCtx(CTX);
+        if (scoped) { window.location.replace(scoped); return; }
+    }
+
+    /* The server uses this once to inherit the duplicated tab's identity, but
+       each tab keeps its own workflow session and future URLs carry only its
+       new selector. */
+    try {
+        var currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.has('source_ctx')) {
+            currentUrl.searchParams.delete('source_ctx');
+            window.history.replaceState(
+                window.history.state,
+                '',
+                currentUrl.pathname + currentUrl.search + currentUrl.hash
+            );
+        }
+    } catch (e) { }
+
+    /* Safety net for browsers that also copy window.name when duplicating a
+       tab. Existing tabs stay available to answer claims, so duplicates opened
+       later are detected too rather than only during a startup time window. */
+    try {
+        if (window.BroadcastChannel) {
+            var bc = new BroadcastChannel('atrue-tab-claim');
+            var instance = newToken();
+            bc.onmessage = function (ev) {
+                var data = ev && ev.data;
+                if (!data || data.sender === instance) return;
+                if (data.type === 'claim' && data.token === CTX) {
+                    bc.postMessage({
+                        type: 'conflict',
+                        token: CTX,
+                        target: data.sender,
+                        sender: instance
+                    });
+                } else if (data.type === 'conflict'
+                        && data.target === instance && data.token === CTX) {
+                    var source = CTX;
+                    retarget(newToken());
+                    var again = withCtx(CTX, source);
+                    if (again) { window.location.replace(again); return; }
+                }
+            };
+            bc.postMessage({ type: 'claim', token: CTX, sender: instance });
+            window.addEventListener('pagehide', function () { bc.close(); }, { once: true });
+        }
+    } catch (e) { }
+
+    /* Same-origin only: never leak the token to another origin, and never add
+       a header that would trigger a CORS preflight. */
+    function sameOrigin(url) {
+        try {
+            return new URL(url, window.location.href).origin === window.location.origin;
+        } catch (e) { return false; }
+    }
+    function hasCtx(url) {
+        try { return new URL(url, window.location.href).searchParams.has('ctx'); }
+        catch (e) { return false; }
+    }
+    function ctxify(url) {
+        if (!sameOrigin(url) || hasCtx(url)) return null;
+        try {
+            var u = new URL(url, window.location.href);
+            u.searchParams.set('ctx', CTX);
+            return u.pathname + u.search + u.hash;
+        } catch (e) { return null; }
+    }
+
+    function rewriteLinks() {
+        var links = document.querySelectorAll('a[href]');
+        for (var i = 0; i < links.length; i++) {
+            var a = links[i];
+            var href = a.getAttribute('href');
+            if (!href || href.charAt(0) === '#' || /^(javascript|mailto|tel):/i.test(href)) {
+                continue;
+            }
+            var next = ctxify(a.href);
+            if (next !== null && next !== href) {
+                try { a.setAttribute('href', next); } catch (e) { }
+            }
+        }
+    }
+    rewriteLinks();
+    document.addEventListener('DOMContentLoaded', rewriteLinks);
+
+    /* Every form carries the token, including Enter-key and programmatic
+       submits that never fire a click. */
+    function ensureFormCtx(form) {
+        var h = form.querySelector('input[name="ctx"]');
+        if (!h) {
+            h = document.createElement('input');
+            h.type = 'hidden';
+            h.name = 'ctx';
+            form.appendChild(h);
+        }
+        h.value = CTX;
+    }
+    document.addEventListener('submit', function (e) {
+        if (e.target && e.target.tagName === 'FORM') ensureFormCtx(e.target);
+    }, true);
+    function fillCtx() {
+        var nodes = document.querySelectorAll('input[name="ctx"]');
+        for (var i = 0; i < nodes.length; i++) { nodes[i].value = CTX; }
+    }
+    if (document.readyState !== 'loading') fillCtx();
+    document.addEventListener('DOMContentLoaded', fillCtx);
+
+    /* Links injected after load. Modified clicks (new tab, download, new
+       window) keep the browser's own target and the click-time rewrite below
+       turns into a plain navigation. */
+    document.addEventListener('click', function (e) {
+        var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+        if (!a || e.defaultPrevented) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button > 0) return;
+        var href = a.getAttribute('href') || '';
+        if (!href || hasCtx(href)) return;
+        var next = ctxify(a.href);
+        if (next !== null && next !== href) {
+            e.preventDefault();
+            window.location.assign(next);
+        }
+    }, true);
+
+    /* --- AJAX transport -------------------------------------------------- */
+    if (window.fetch) {
+        var nativeFetch = window.fetch;
+        window.fetch = function (input, init) {
+            try {
+                var url = (typeof input === 'string') ? input
+                    : (input && input.url ? input.url : null);
+                if (url && sameOrigin(url)) {
+                    init = init || {};
+                    var h = new Headers(init.headers || (input && input.headers) || {});
+                    if (!h.has('X-ATRUE-CTX')) h.set('X-ATRUE-CTX', CTX);
+                    init.headers = h;
+                    if (init.method && init.method.toUpperCase() !== 'GET'
+                        && !h.has('X-CSRFToken') && !h.has('X-CSRFToken'.toUpperCase())) {
+                        var meta = document.querySelector('input[name="csrfmiddlewaretoken"]')
+                            || document.querySelector('meta[name="csrf-token"]');
+                        var tok = meta ? (meta.value || meta.getAttribute('content')) : null;
+                        if (tok) h.set('X-CSRFToken', tok);
+                    }
+                    if (!init.credentials) init.credentials = 'same-origin';
+                }
+            } catch (e) { }
+            return nativeFetch.call(this, input, init);
+        };
+    }
+    if (window.XMLHttpRequest) {
+        var nativeOpen = XMLHttpRequest.prototype.open;
+        var nativeSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function (method, url) {
+            try { this._atrueSameOrigin = sameOrigin(url); } catch (e) { this._atrueSameOrigin = false; }
+            return nativeOpen.apply(this, arguments);
+        };
+        XMLHttpRequest.prototype.send = function () {
+            try {
+                if (this._atrueSameOrigin) this.setRequestHeader('X-ATRUE-CTX', CTX);
+            } catch (e) { }
+            return nativeSend.apply(this, arguments);
+        };
+    }
+})();
+</script>

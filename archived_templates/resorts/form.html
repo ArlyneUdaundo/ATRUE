@@ -1,0 +1,50 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if resort %}Update Resort{% else %}Add Resort{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if resort %}Update Resort{% else %}Add New Resort{% endif %}</h1><p>Resort establishment information.</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if resort %}
+    <div class="form-group">
+        <label>Resort ID</label>
+        <input type="text" class="form-input" value="{{ resort.resort_id }}" readonly>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Resort Name</label>
+        <input type="text" name="name" class="form-input" value="{{ resort.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Location / Address</label>
+        <input type="text" name="province" class="form-input" value="{{ resort.province|default:'' }}" placeholder="Province">
+        <div class="form-grid" style="margin-top:8px">
+            <input type="text" name="municipality" class="form-input" value="{{ resort.municipality|default:'' }}" placeholder="Municipality/City">
+            <input type="text" name="barangay" class="form-input" value="{{ resort.barangay|default:'' }}" placeholder="Barangay">
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" value="{{ resort.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Email Address</label><input type="email" name="email" class="form-input" value="{{ resort.email|default:'' }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Operating Schedule</label>
+        <input type="text" name="operating_schedule" class="form-input" value="{{ resort.operating_schedule|default:'' }}" placeholder="e.g. 8 AM - 10 PM daily">
+    </div>
+    {% if resort %}
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if resort.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if resort.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if resort.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if resort.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Resort</button>
+    <a href="{% url 'resorts:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

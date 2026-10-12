@@ -1,0 +1,105 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ airline.name }} — Airline{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div style="display:flex;align-items:center;gap:16px">
+        {% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--lg' %}
+        <div>
+            <h1>{{ airline.name }} <span class="badge badge-blue" style="font-size:13px">{{ airline.airline_id }}</span></h1>
+            <p>{{ airline.description|default:"Airline establishment information (FR-014)." }}</p>
+        </div>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'airlines:update_airline' airline.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:manage' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-phone"></i> <b>Contact:</b> {{ airline.contact_number|default:"—" }}</div>
+        <div class="meta"><i class="fas fa-envelope"></i> <b>Email:</b> {{ airline.email|default:"—" }}</div>
+        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if airline.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ airline.get_status_display }}</span></div>
+        <div class="meta"><i class="fas fa-calendar"></i> <b>Registered:</b> {{ airline.created_at|date:"M d, Y" }}</div>
+    </div>
+    {% if airline.operating_info %}<div class="meta" style="margin-top:10px"><i class="fas fa-info-circle"></i> {{ airline.operating_info }}</div>{% endif %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin:0"><i class="fas fa-plane-arrival"></i> Aircraft Fleet ({{ airline.aircrafts.count }})</h3>
+        <a href="{% url 'airlines:add_aircraft' airline.id %}" class="btn btn-brand btn-sm"><i class="fas fa-plus"></i> Add Aircraft</a>
+    </div>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Aircraft ID</th><th>Model</th><th>Type</th><th>Tail No.</th><th>Seats</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for ac in airline.aircrafts.all %}
+                <tr>
+                    <td class="mono">{{ ac.aircraft_id }}</td>
+                    <td>{{ ac.model_name }}</td>
+                    <td>{{ ac.get_aircraft_type_display }}</td>
+                    <td class="mono">{{ ac.tail_number }}</td>
+                    <td>{{ ac.seating_capacity }}</td>
+                    <td>{{ ac.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="7">No aircraft yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin:0"><i class="fas fa-concierge-bell"></i> Services ({{ airline.services.count }})</h3>
+        <a href="{% url 'airlines:add_service' airline.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-plus"></i> Add Service</a>
+    </div>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Service ID</th><th>Name</th><th>Rate</th><th>Hours</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for s in airline.services.all %}
+                <tr>
+                    <td class="mono">{{ s.service_id }}</td>
+                    <td>{{ s.name }}</td>
+                    <td>₱ {{ s.rate }}</td>
+                    <td>{{ s.operating_hours|default:"—" }}</td>
+                    <td>{{ s.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No services yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin:0"><i class="fas fa-fighter-jet"></i> Flights ({{ airline.flights.count }})</h3>
+        <a href="{% url 'airlines:add_flight' airline.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>
+    </div>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Flight</th><th>Aircraft</th><th>Route</th><th>Departure</th><th>Arrival</th><th>Economy</th><th>First</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for f in airline.flights.all %}
+                <tr>
+                    <td><b>{{ f.flight_number }}</b></td>
+                    <td class="mono">{% if f.aircraft %}{{ f.aircraft.tail_number }}{% else %}—{% endif %}</td>
+                    <td>{{ f.origin }} → {{ f.destination }}</td>
+                    <td>{{ f.departure_time|date:"M d, Y H:i" }}</td>
+                    <td>{{ f.arrival_time|date:"M d, Y H:i" }}</td>
+                    <td>₱ {{ f.economy_fare }}</td>
+                    <td>₱ {{ f.first_class_fare }}</td>
+                    <td>{{ f.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:flight_detail' f.slug %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="9">No flights yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

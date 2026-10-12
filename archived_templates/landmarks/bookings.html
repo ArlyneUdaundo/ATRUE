@@ -1,0 +1,50 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Attraction Ticket Bookings{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Ticket Bookings</h1><p>Search and manage tourist spot and landmark tickets (BR-059, BR-060).</p></div></div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ request.GET.q }}" placeholder="Reference or visitor"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option>
+                <option value="CONFIRMED" {% if status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+                <option value="MODIFIED" {% if status == 'MODIFIED' %}selected{% endif %}>Modified</option>
+                <option value="USED" {% if status == 'USED' %}selected{% endif %}>Used</option>
+                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Visitor</th><th>Destination</th><th>Visit</th><th>Visitors</th><th>Tour</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td class="mono">#{{ b.pk }}</td>
+                    <td>{{ b.primary_guest_name|default:b.customer.get_full_name }}</td>
+                    <td>{{ b.destination.name }}</td>
+                    <td>{{ b.visit_datetime|date:"M d, Y H:i" }}</td>
+                    <td>{{ b.number_of_visitors }}</td>
+                    <td>{{ b.get_guided_tour_display }}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'USED' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'landmarks:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No tickets</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

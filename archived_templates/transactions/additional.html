@@ -1,0 +1,68 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Additional Transactions{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Additional Transactions</h1><p>Separate charges added after your original booking (BR-018/BR-019).</p></div>
+    <a href="{% url 'transactions:additional_add' %}" class="btn btn-brand btn-sm"><i class="fas fa-plus"></i> Add New</a>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+    <div class="card-pad">
+        <h3><i class="fas fa-plus-circle"></i> Add Additional Transaction</h3>
+        <form method="post" action="{% url 'transactions:additional_add' %}" data-submit-loading>
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Booking</label>
+                <select name="booking_ref" class="form-input" required>
+                    <option value="">Select the booking to attach this charge to…</option>
+                    {% for item in booking_pairs %}
+                    <option value="{{ item.app_label }}:{{ item.model_name }}:{{ item.pk }}">
+                        {{ item.service|title }} — {{ item.reference }} ({{ item.label }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select name="transaction_type" class="form-input">
+                    {% for value, label in additional_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-input" placeholder="e.g. Airport transfer, extra meal, equipment rental…" required></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Quantity</label><input type="number" name="quantity" min="1" value="1" class="form-input"></div>
+                <div class="form-group"><label>Rate</label><input type="number" name="rate" step="0.01" class="form-input" placeholder="0.00" required></div>
+            </div>
+            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Add Transaction</button>
+        </form>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-list"></i> My Additional Transactions</h3>
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Ref</th><th>Type</th><th>Description</th><th>Qty</th><th>Total</th><th>Status</th><th>Added</th></tr></thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td class="mono">{{ r.transaction_reference }}</td>
+                    <td>{{ r.get_transaction_type_display }}</td>
+                    <td>{{ r.description }}</td>
+                    <td>{{ r.quantity }}</td>
+                    <td><b>₱ {{ r.total_amount }}</b></td>
+                    <td><span class="badge {% if r.status == 'PAID' %}badge-green{% elif r.status == 'CANCELLED' or r.status == 'REFUNDED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.get_status_display }}</span></td>
+                    <td>{{ r.created_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7"><div class="empty"><i class="fas fa-list"></i><h3>No additional transactions yet</h3><p>Add a charge directly to one of your bookings.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

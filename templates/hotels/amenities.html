@@ -1,0 +1,101 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Hotel Amenities{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hotel-management.css' %}?v=20261005">
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Hotel Amenity Management</h1>
+        <p>Search, filter, view and update amenities across all hotels (BR-011, BR-024).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if add_hotel_id %}
+        <a href="{% url 'hotels:add_amenity' add_hotel_id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-swimming-pool"></i> Add Amenity</a>
+        {% endif %}
+        <a href="{% url 'hotels:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Hotel Admin</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid hotel-compact-filter-grid" style="display:grid;{% if hotel_scoped_user %}grid-template-columns:minmax(180px, 1.2fr) minmax(140px, .8fr) auto;{% else %}grid-template-columns:minmax(180px, 1.2fr) minmax(140px, .8fr) minmax(180px, 1.2fr) auto;{% endif %}gap:12px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Amenity Name / ID</label>
+                <input type="text" name="q" class="form-input" placeholder="Amenity name or AMN- ID" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if not hotel_scoped_user %}
+            <div class="form-group" style="margin:0">
+                <label>Hotel</label>
+                <select name="hotel" class="form-input">
+                    <option value="">All hotels</option>
+                    {% for h in hotels %}
+                    <option value="{{ h.id }}" {% if hotel_id == h.id|stringformat:"s" %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'hotels:amenities' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if amenities %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Amenity</th>
+                    <th>Hotel</th>
+                    <th>Availability</th>
+                    <th>Status</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in amenities %}
+                <tr>
+                    <td>
+                        <b><a href="{% url 'hotels:amenity_detail' a.id %}" style="color:inherit">{{ a.name }}</a></b>
+                        <div class="meta" style="margin:0"><i class="fas fa-fingerprint"></i> {{ a.amenity_id }}</div>
+                    </td>
+                    <td>{{ a.hotel.name }}</td>
+                    <td>{{ a.operating_hours|default:"—" }}</td>
+                    <td><span class="badge {% if a.status == 'ACTIVE' %}badge-green{% elif a.status == 'UNAVAILABLE' or a.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ a.get_status_display }}</span></td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'hotels:amenity_detail' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        <a href="{% url 'hotels:update_amenity' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                        <form method="post" action="{% url 'hotels:delete_amenity' a.id %}" data-confirm="Are you sure you want to delete this?" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No amenities match your filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-swimming-pool"></i><h3>No amenities found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

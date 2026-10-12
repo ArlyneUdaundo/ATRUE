@@ -1,0 +1,1423 @@
+/* ============================================================
+   ATRUE booking / search pages — shared design system
+   Class prefix: bk- (booking)
+   ============================================================ */
+
+/* ---- tokens -------------------------------------------------- */
+:root {
+  --bk-blue: #1d4ed8;
+  --bk-blue-dark: #1642b0;
+  --bk-gradient: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+  --bk-ink: #111827;
+  --bk-muted: #6b7280;
+  --bk-faint: #9ca3af;
+  --bk-line: #e5e7eb;
+  --bk-soft: #f6f8fb;
+  --bk-card: #ffffff;
+  --bk-score: #0a66aa;
+  --bk-radius: 16px;
+  --bk-shadow: 0 6px 24px rgba(17, 24, 39, 0.08);
+  --bk-shadow-lg: 0 18px 48px rgba(17, 24, 39, 0.14);
+
+  /* Public establishment search is a LISTING page, so it uses the
+     roomy width (its original 1280px) rather than the narrower
+     booking/selection column. Declared here because the public search
+     pages load booking.css without dashboard.css. */
+  --shell-max: 1280px;
+  --shell-pad: 32px;
+}
+
+.bk-page {
+  max-width: var(--shell-max);
+  margin: 0 auto;
+  padding: 120px var(--shell-pad) 72px;
+}
+
+/* Public pages sit under the fixed transparent navbar, so keep space
+   above and force the navbar into its solid "scrolled" style. */
+body.subpage .navbar {
+  padding: 10px 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--sh-md);
+}
+body.subpage .brand-text b { color: var(--text-1); }
+body.subpage .brand-text small { color: var(--text-3); }
+body.subpage .nav-link { color: var(--text-2); }
+body.subpage .nav-actions .btn-ghost { border-color: var(--border); color: var(--text-1); }
+body.subpage .nav-link:hover { color: var(--text-1); background: var(--slate-100); }
+body.subpage .nav-link.active { color: var(--indigo); }
+body.subpage .nav-link.active .dot { transform: translateX(-50%) scale(1); }
+
+/* ---- category tabs (top pills) ------------------------------ */
+.bk-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.bk-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--bk-line);
+  background: var(--bk-card);
+  color: var(--bk-ink);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all .15s ease;
+}
+.bk-tab i { color: var(--bk-blue); font-size: 13px; }
+.bk-tab:hover { border-color: var(--bk-blue); color: var(--bk-blue); }
+.bk-tab.active {
+  background: var(--bk-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+.bk-tab.active i { color: #fff; }
+
+/* ---- hero search panel -------------------------------------- */
+.bk-hero {
+  margin-top: 18px;
+  background: var(--bk-card);
+  border: 1px solid var(--bk-line);
+  border-radius: 22px;
+  box-shadow: var(--bk-shadow);
+  padding: 22px;
+}
+.bk-hero-h { margin-bottom: 14px; }
+.bk-hero-h h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; color: var(--bk-ink); }
+.bk-hero-h p { margin: 0; color: var(--bk-muted); font-size: 14px; }
+
+.bk-search {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.bk-field {
+  position: relative;
+  flex: 1 1 180px;
+  min-width: 150px;
+  background: var(--bk-soft);
+  border: 1px solid var(--bk-line);
+  border-radius: 12px;
+  padding: 8px 12px 8px 38px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.bk-field:focus-within { border-color: var(--bk-blue); background: #fff; box-shadow: 0 0 0 3px rgba(29, 78, 216, .12); }
+.bk-field > i {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bk-faint);
+  font-size: 14px;
+}
+.bk-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--bk-muted);
+  margin-bottom: 2px;
+}
+.bk-field input,
+.bk-field select {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bk-ink);
+  padding: 0;
+}
+.bk-field input:focus { outline: none; }
+
+.bk-field-big { flex: 2 1 260px; }
+
+/* guests selector */
+.bk-drop {
+  position: relative;
+}
+.bk-gpop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 300px;
+  background: #fff;
+  border: 1px solid var(--bk-line);
+  border-radius: 14px;
+  box-shadow: var(--bk-shadow-lg);
+  padding: 12px;
+  display: none;
+}
+.bk-gpop.open { display: block; }
+.bk-grow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  border-bottom: 1px dashed var(--bk-line);
+}
+.bk-grow:last-child { border-bottom: 0; }
+.bk-grow-label b { display: block; font-size: 14px; color: var(--bk-ink); }
+.bk-grow-label span { font-size: 12px; color: var(--bk-muted); }
+.bk-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.bk-step button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--bk-line);
+  background: #fff;
+  color: var(--bk-blue);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.bk-step button:hover { border-color: var(--bk-blue); background: #eff6ff; }
+.bk-step button:disabled { opacity: .35; cursor: not-allowed; }
+.bk-step .bk-num { min-width: 22px; text-align: center; font-weight: 700; font-size: 14px; }
+
+/* search actions */
+.bk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 12px;
+  padding: 13px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s ease;
+  text-decoration: none;
+}
+.bk-btn-primary { background: var(--bk-gradient); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, .35); }
+.bk-btn-primary:hover { filter: brightness(1.05); box-shadow: 0 10px 22px rgba(37, 99, 235, .42); transform: translateY(-1px); }
+.bk-btn-outline { background: #fff; border: 1px solid var(--bk-line); color: var(--bk-ink); }
+.bk-btn-outline:hover { border-color: var(--bk-blue); color: var(--bk-blue); }
+.bk-btn-sm { padding: 9px 14px; border-radius: 10px; font-size: 13px; }
+.bk-btn-block { width: 100%; }
+.bk-btn-ghost { background: transparent; border: 1px solid var(--bk-line); color: var(--bk-blue); }
+
+/* destination suggestions */
+.bk-sugs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 2px 0; }
+.bk-sug {
+  font-size: 12.5px;
+  color: var(--bk-blue);
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s ease;
+}
+.bk-sug:hover { background: var(--bk-blue); color: #fff; }
+
+/* ---- layout -------------------------------------------------- */
+.bk-body {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 26px;
+  align-items: start;
+}
+
+/* ---- filter sidebar ----------------------------------------- */
+.bk-sidebar {
+  background: var(--bk-card);
+  border: 1px solid var(--bk-line);
+  border-radius: var(--bk-radius);
+  box-shadow: var(--bk-shadow);
+  padding: 6px 18px 16px;
+}
+.bk-sidebar-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid var(--bk-line);
+}
+.bk-sidebar-h b { font-size: 15px; color: var(--bk-ink); }
+.bk-sidebar-h a { font-size: 12.5px; color: var(--bk-blue); text-decoration: none; font-weight: 600; }
+.bk-sidebar-h a:hover { text-decoration: underline; }
+
+.bk-filter { padding: 14px 0; border-bottom: 1px solid var(--bk-line); }
+.bk-filter:last-child { border-bottom: 0; }
+.bk-filter-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.bk-filter-h b { font-size: 14px; color: var(--bk-ink); }
+.bk-filter-h i { color: var(--bk-faint); font-size: 12px; transition: transform .2s ease; }
+.bk-filter.closed .bk-filter-h i { transform: rotate(-90deg); }
+.bk-filter-body { padding-top: 10px; }
+.bk-filter.closed .bk-filter-body { display: none; }
+
+.bk-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 2px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--bk-ink);
+}
+.bk-opt input { margin-top: 3px; accent-color: var(--bk-blue); width: 15px; height: 15px; cursor: pointer; }
+.bk-opt .bk-oc {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bk-opt .bk-on { color: var(--bk-faint); }
+
+.bk-price { display: flex; align-items: center; gap: 8px; }
+.bk-price input {
+  width: 100%;
+  border: 1px solid var(--bk-line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bk-ink);
+}
+.bk-price input:focus { outline: none; border-color: var(--bk-blue); }
+.bk-price .bk-sep { color: var(--bk-faint); font-size: 12px; }
+
+.bk-reset {
+  margin-top: 12px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--bk-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--bk-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.bk-reset:hover { border-color: #ef4444; color: #dc2626; }
+
+/* ---- results column ---------------------------------------- */
+.bk-results { min-width: 0; }
+
+.bk-result-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.bk-kicker { font-size: 13px; color: var(--bk-muted); margin: 0; }
+.bk-kicker b { color: var(--bk-ink); font-size: 15px; }
+
+.bk-sorts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bk-sort {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--bk-line);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bk-muted);
+  cursor: pointer;
+  transition: all .15s ease;
+  text-decoration: none;
+}
+.bk-sort:hover { color: var(--bk-blue); border-color: var(--bk-blue); }
+.bk-sort.active { background: var(--bk-blue); border-color: var(--bk-blue); color: #fff; }
+.bk-sort-select { display: none; }
+
+/* ---- listing card ------------------------------------------- */
+.bk-card {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 232px;
+  /* start, not stretch: the photo column keeps its natural height so the main
+     image is never stretched to match a taller neighbour. */
+  align-items: start;
+  gap: 18px;
+  background: var(--bk-card);
+  border: 1px solid var(--bk-line);
+  border-radius: var(--bk-radius);
+  box-shadow: var(--bk-shadow);
+  padding: 14px;
+  margin-bottom: 16px;
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+.bk-card:hover { box-shadow: var(--bk-shadow-lg); transform: translateY(-2px); }
+
+/* gallery
+   Two stacked blocks, not an overlay: the main image owns a fixed height and
+   the thumbnail strip sits under it in normal flow with its own margin. Only
+   the photo-count / category badges are absolute, and they are scoped to
+   .bk-gallery-main so they can never drift onto the thumbnails. */
+.bk-gallery { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bk-gallery-main {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  /* Proportional rather than a fixed height, so the block follows the column
+     width and the card only grows as far as the image actually needs. */
+  aspect-ratio: 4 / 3;
+  background: var(--bk-soft);
+}
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  height: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  flex: none;
+  width: 100%;
+  height: clamp(220px, 34vw, 360px);
+  min-height: 0;
+  aspect-ratio: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  isolation: isolate;
+  background: linear-gradient(145deg, #eaf1fb, #dbe5f2);
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: none;
+  position: absolute;
+  z-index: 0;
+  inset: -12px;
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
+  object-fit: cover;
+  filter: blur(14px);
+  opacity: .34;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 0;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock { border-top: 0; margin-top: 0; padding-top: 0; }
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin-top: auto;
+  }
+}
+.bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: var(--bk-soft);
+}
+.bk-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.bk-cover i { font-size: 58px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
+/* Top-left of the image, clear of the thumbnails below it. */
+.bk-photo-count {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  background: rgba(17,24,39,.72);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+/* .bk-trip (the white "Hotel" category badge) was removed from the card. */
+/* Normal flow below the main image - never absolute. */
+.bk-thumbs { display: flex; gap: 8px; min-width: 0; }
+.bk-thumb {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--bk-line);
+  background: var(--bk-soft);
+  cursor: pointer;
+  transition: border-color .15s ease;
+}
+.bk-thumb:hover { border-color: var(--bk-blue); }
+
+
+/* info */
+.bk-card-info { min-width: 0; display: flex; flex-direction: column; }
+.bk-card-main { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.bk-card-info h3 { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: var(--bk-ink); line-height: 1.25; }
+.bk-card-info h3 a { color: inherit; text-decoration: none; }
+.bk-card-info h3 a:hover { color: var(--bk-blue); }
+.bk-stars { color: #f59e0b; font-size: 12px; letter-spacing: 1px; margin-top: 2px; }
+.bk-loc { color: var(--bk-muted); font-size: 13px; margin: 2px 0 8px; }
+.bk-loc i { color: var(--bk-faint); margin-right: 6px; font-size: 11px; }
+.bk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.bk-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--bk-soft);
+  border: 1px solid var(--bk-line);
+  color: var(--bk-muted);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.bk-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 8px; }
+.bk-meta span { font-size: 12.5px; color: var(--bk-muted); }
+.bk-meta i { color: var(--bk-blue); width: 15px; font-size: 12px; margin-right: 3px; }
+.bk-desc {
+  font-size: 13.5px;
+  color: var(--bk-muted);
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Tour package plan & inclusions */
+.bk-plan {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  background: var(--bk-soft);
+  border: 1px solid var(--bk-line);
+  border-radius: 12px;
+}
+.bk-plan-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--bk-ink);
+  margin: 0 0 6px;
+}
+.bk-plan-title i { color: var(--bk-blue); margin-right: 6px; }
+.bk-plan-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 132px;
+  overflow: hidden;
+}
+.bk-plan-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--bk-muted);
+  line-height: 1.4;
+}
+.bk-plan-list li i { color: #16a34a; font-size: 10.5px; margin-top: 2px; }
+
+/* score box
+   Stacked, right-aligned: the score box on top, then the label, then the review
+   count. Column layout plus a fixed 46px box means every card's box sits on the
+   same right-hand edge regardless of hotel name, amenity count or description
+   length, and whether the label reads "Good" or "Very good". */
+.bk-scorebox {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+.bk-score-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  background: var(--bk-score);
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 17px;
+}
+/* Fixed width keeps the two text lines on one vertical line beside the box. */
+.bk-score-meta { flex: 0 0 auto; width: 100%; min-width: 0; text-align: right; }
+.bk-score-label { font-size: 12px; font-weight: 700; color: var(--bk-ink); }
+.bk-score-rev { font-size: 11.5px; color: var(--bk-faint); margin-top: 1px; }
+
+/* price + cta */
+/* Right column: rating row, then divider + price, then the CTA. Fixed width
+   so every card's score box and button share one right edge; the centre column
+   grows on its own and can never move them. */
+.bk-pricebox {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  width: 232px;
+  min-width: 0;
+  text-align: right;
+}
+.bk-priceblock {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bk-line);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.bk-pricebox .bk-from { font-size: 11px; color: var(--bk-muted); margin-bottom: 2px; }
+.bk-pricebox .bk-price { font-size: 24px; font-weight: 800; color: var(--bk-ink); line-height: 1.1; }
+.bk-pricebox .bk-punit { font-size: 12px; color: var(--bk-muted); margin: 2px 0 0; }
+.bk-pricebox .bk-price-na { font-size: 15px; font-weight: 700; color: var(--bk-muted); margin: 2px 0 0; }
+/* Full width of the fixed right column, so every button is the same size and
+   shares the same right edge regardless of the label length. */
+.bk-pricebox .bk-btn { width: 100%; margin-top: 12px; flex: 0 0 auto; }
+.bk-card--establishment .bk-pricebox { align-self: stretch; }
+.bk-card--establishment .bk-card-info { align-self: stretch; justify-content: center; }
+.bk-card--establishment .bk-card-info h3 { transform: translateY(-8px); }
+.bk-card--establishment .bk-priceblock { margin-top: auto; border-top: 0; padding-top: 0; }
+
+/* ---- empty state -------------------------------------------- */
+.bk-empty {
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--bk-card);
+  border: 1px dashed var(--bk-line);
+  border-radius: var(--bk-radius);
+}
+.bk-empty i { font-size: 54px; color: var(--bk-faint); }
+.bk-empty h3 { margin: 14px 0 6px; font-size: 18px; color: var(--bk-ink); }
+.bk-empty p { margin: 0 0 18px; color: var(--bk-muted); font-size: 14px; }
+
+/* ---- lightbox ----------------------------------------------- */
+.bk-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 10, 20, .9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 30px;
+}
+.bk-lightbox.open { display: flex; }
+.bk-lb-img {
+  max-width: min(1100px, 92vw);
+  max-height: 76vh;
+  border-radius: 14px;
+  object-fit: contain;
+  background: #000;
+}
+/* Close control, pinned to the top-right corner of the lightbox and kept above
+   the image so it stays visible and clickable for the whole gallery session. */
+.bk-lb-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(17,24,39,.6);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background .15s ease;
+}
+.bk-lb-close:hover { background: rgba(255,255,255,.3); }
+.bk-lb-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.bk-lb-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+.bk-lb-nav:hover { background: rgba(255,255,255,.3); }
+.bk-lb-prev { left: 18px; }
+.bk-lb-next { right: 18px; }
+.bk-lb-count { color: #fff; font-size: 13px; margin-top: 12px; opacity: .8; }
+
+/* ---- mobile filter drawer ---------------------------------- */
+.bk-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(17,24,39,.45);
+  display: none;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.bk-backdrop.show { display: block; opacity: 1; }
+
+.bk-drawer-btn { display: none; }
+
+/* ---- floating filter fab (mobile) --------------------------- */
+.bk-fab {
+  display: none;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  z-index: 80;
+  background: var(--bk-gradient);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(37,99,235,.45);
+  cursor: pointer;
+  gap: 8px;
+  align-items: center;
+}
+.bk-fab .bk-fab-count {
+  background: #fff;
+  color: var(--bk-blue);
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 0 5px;
+}
+
+/* ---- responsive --------------------------------------------- */
+@media (max-width: 1023px) {
+  .bk-body { grid-template-columns: 1fr; gap: 0; }
+  .bk-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 86vw);
+    z-index: 100;
+    border-radius: 18px 0 0 18px;
+    box-shadow: var(--bk-shadow-lg);
+    transform: translateX(105%);
+    transition: transform .25s ease;
+    overflow-y: auto;
+    margin: 0;
+  }
+  .bk-sidebar.open { transform: translateX(0); }
+  .bk-card { grid-template-columns: 240px minmax(0, 1fr); }
+  article.bk-card.bk-card--package.bk-card--establishment { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  /* Narrower photo column, so the strip has to shrink to stay inside it. */
+  .bk-thumb { height: 52px; }
+  /* Below 1024px the third column no longer fits beside the photos, so the right
+     column drops to its own full-width row underneath. */
+  .bk-pricebox {
+    grid-column: 1 / -1;
+    width: auto;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    text-align: left;
+    padding-top: 12px;
+    border-top: 1px solid var(--bk-line);
+  }
+  /* Fixed width so the score box keeps one vertical line here too. */
+  .bk-score-num { flex: 0 0 46px; }
+  .bk-priceblock {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    border-top: 0;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .bk-pricebox .bk-punit { margin: 0; }
+  .bk-pricebox .bk-price-na { margin: 0; }
+  .bk-pricebox .bk-btn { width: auto; margin-top: 0; }
+  /* Row layout: score column becomes a horizontal row so it does not waste
+     vertical space next to the price. */
+  .bk-scorebox { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 10px; }
+  .bk-score-meta { width: auto; text-align: left; }
+  .bk-fab { display: inline-flex; }
+  .bk-drawer-close { display: inline-flex; }
+  .bk-sorts { display: none; }
+  .bk-sort-select { display: block; }
+}
+
+@media (max-width: 767px) {
+  .bk-page { padding: 12px 12px 96px; }
+  .bk-hero { padding: 16px; border-radius: 18px; }
+  .bk-search { flex-direction: column; }
+  .bk-field { width: 100%; }
+  .bk-actions { width: 100%; }
+  .bk-actions .bk-btn { flex: 1; }
+  .bk-card { grid-template-columns: 1fr; gap: 12px; }
+  article.bk-card.bk-card--package.bk-card--establishment { grid-template-columns: 1fr; gap: 12px; }
+  .bk-gallery-main { aspect-ratio: 16 / 10; }
+  .bk-thumb { height: 52px; }
+  .bk-pricebox {
+    justify-content: space-between;
+    gap: 10px 12px;
+  }
+  .bk-pricebox .bk-btn { width: 100%; }
+  .bk-priceblock { flex: 1 0 100%; justify-content: flex-end; }
+  .bk-card-info h3 { font-size: 16px; }
+  /* Single column, so the score block goes back to the desktop stack: box on
+     top, label then reviews beneath it, still right-aligned. */
+  .bk-scorebox { flex: 1 0 100%; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .bk-score-meta { width: 100%; text-align: right; }
+}
+/* Tour package search cards: image first, then the full-width details and booking row. */
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  width: 100%;
+  height: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: none;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-card-info {
+  min-width: 0;
+  justify-content: flex-start;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-card-info h3 {
+  transform: none;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  grid-column: 1 / -1;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--bk-line);
+  gap: 12px 18px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+@media (min-width: 1024px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin: 0;
+  }
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-card-info--package .bk-package-title {
+  margin: 0;
+}
+.bk-package-details { margin-top: 8px; }
+.bk-package-details > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bk-blue);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.bk-package-details > summary::-webkit-details-marker { display: none; }
+.bk-package-details > summary::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }`r`n.bk-package-details[open] > summary::after { transform: rotate(225deg); }
+.bk-package-details .bk-card-main { padding-top: 8px; }
+.bk-package-details .bk-see-details,
+.bk-package-details[open] .bk-hide-details { display: inline; }
+.bk-package-details .bk-hide-details,
+.bk-package-details[open] .bk-see-details { display: none; }
+/* Match Tour Package cards to the compact establishment card dimensions. */
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: 280px minmax(0, 1fr) 232px !important;
+  align-items: stretch;
+  gap: 18px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  height: 100%;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  grid-column: auto;
+  width: 232px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: 0;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  flex-direction: column;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--bk-line);
+  flex-direction: column;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  article.bk-card.bk-card--package.bk-card--establishment {
+    grid-template-columns: 240px minmax(0, 1fr) !important;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 12px;
+    border-top: 1px solid var(--bk-line);
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--bk-line);
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+    flex-direction: row;
+    align-items: center;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+/* Keep Tour Package cards vertical: full-width image first, title/details below. */
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch;
+  gap: 12px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  width: 100%;
+  height: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  width: 100%;
+  height: clamp(180px, 24vw, 260px);
+  min-height: 0;
+  aspect-ratio: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  grid-column: 1 / -1;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--bk-line);
+  gap: 12px 18px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+    height: clamp(170px, 52vw, 230px);
+  }
+}
+/* Tour package: let the complete artwork scale to the card width and use a right-side booking stack. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  background: #fff;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  width: 232px;
+  margin-left: auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: 0;
+  gap: 0;
+  text-align: right;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  flex-direction: column;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bk-line);
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    width: 100%;
+    margin-left: 0;
+    align-items: stretch;
+  }
+}
+/* Keep the full tour artwork visible in a compact, filled image panel. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  position: relative;
+  height: clamp(220px, 26vw, 300px);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--bk-soft);
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: block;
+  position: absolute;
+  z-index: 0;
+  inset: -12px;
+  width: calc(100% + 24px);
+  height: calc(100% + 24px);
+  object-fit: cover;
+  filter: blur(14px);
+  opacity: .5;
+  transform: scale(1.03);
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: block;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* Compact side-by-side Tour Package result card. */
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: 280px minmax(0, 1fr) 232px !important;
+  align-items: stretch;
+  gap: 18px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  width: 100%;
+  height: 100%;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-card-info--package {
+  justify-content: flex-start;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-title {
+  transform: none;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  grid-column: auto;
+  width: 232px;
+  margin-left: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  padding: 0;
+  border: 0;
+  gap: 0;
+  text-align: right;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  flex-direction: column;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--bk-line);
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  article.bk-card.bk-card--package.bk-card--establishment {
+    grid-template-columns: 240px minmax(0, 1fr) !important;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--bk-line);
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+    aspect-ratio: 16 / 10;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--bk-line);
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+    flex-direction: row;
+    align-items: center;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+/* Compact vertical Tour Package card: artwork above its title and booking details. */
+article.bk-card.bk-card--package.bk-card--establishment {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch;
+  gap: 10px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery {
+  width: 100%;
+  height: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  width: 100%;
+  height: 200px;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-card-info--package {
+  justify-content: flex-start;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-title {
+  transform: none;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--bk-line);
+  gap: 10px 16px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  flex-direction: row;
+  align-items: center;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  width: auto;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+    height: 180px;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    justify-content: space-between;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+    width: 100%;
+  }
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: none;
+}
+/* Show the complete Tour Package artwork edge to edge at its natural ratio. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-gallery-main {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  background: transparent;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-gmain {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-package-backdrop {
+  display: none;
+}
+/* Tour Package booking row: no divider and no overlap between score, price, and CTA. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  display: flex;
+  width: 100%;
+  grid-column: 1 / -1;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  padding: 0;
+  border: 0;
+  text-align: right;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  flex: 0 0 92px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-score-meta {
+  width: 100%;
+  text-align: right;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-direction: column;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  flex: 0 0 200px;
+  width: 200px;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+    flex: 1 0 100%;
+    width: 100%;
+  }
+}
+/* Put the score and price above the Tour Package booking button. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  justify-items: end;
+  gap: 10px 18px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: end;
+  width: 200px;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+    width: 100%;
+  }
+}
+/* Stack Tour Package rating above price, with the booking CTA below both. */
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-scorebox {
+  order: 1;
+  align-items: flex-end;
+  text-align: right;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-priceblock {
+  order: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  align-items: flex-end;
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  order: 3;
+  width: 200px;
+  margin: 0;
+}
+@media (max-width: 767px) {
+  article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+    width: 100%;
+  }
+}
+article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox .bk-btn {
+  flex: 0 0 42px;
+  height: 42px;
+  min-height: 42px;
+  padding-top: 0;
+  padding-bottom: 0;
+}

@@ -1,0 +1,92 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ hotel.name }} | Hotel{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ hotel.name }}</h1>
+        <p><span class="badge badge-blue">{{ hotel.accommodation_type }}</span> <span class="badge {% if hotel.status == 'ACTIVE' %}badge-green{% elif hotel.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ hotel.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'hotels:update_hotel' hotel.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'hotels:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
+        {% else %}
+        <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotels</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-hotel"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Establishment ID: <b>{{ hotel.establishment_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ hotel.location }}</div>
+            <div class="meta"><i class="fas fa-clock"></i> {{ hotel.operating_schedule|default:"Open daily" }}</div>
+        </div>
+        <div>
+            <div class="meta"><i class="fas fa-phone"></i> {{ hotel.contact_number|default:"—" }}</div>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> {{ hotel.email|default:"—" }}</div>
+        </div>
+    </div>
+</div>
+
+<h3 style="margin-bottom:10px"><i class="fas fa-bed"></i> Rooms</h3>
+<div class="ag-list">
+    {% for room in hotel.rooms.all %}
+    <article class="ag-card">
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3 style="margin:0"><a href="{% url 'hotels:room_detail' room.id %}" style="color:inherit;text-decoration:none">Room {{ room.room_number }} <i class="fas fa-external-link-alt" style="font-size:11px;color:var(--slate-400)"></i></a></h3>
+                    <div class="ag-loc">{{ room.get_room_type_display }} · {{ room.capacity_adults }}A / {{ room.capacity_children }}C</div>
+                    {% if room.features %}<div class="ag-loc"><i class="fas fa-bed"></i> {{ room.features }}</div>{% endif %}
+                </div>
+                <span class="ag-rate">{{ room.get_status_display }}</span>
+            </div>
+            <div class="ag-card-foot">
+                <div class="ag-price"><b>₱ {{ room.rate }}</b><span class="ag-per">/night</span></div>
+                {% if is_manager %}
+                <a href="{% url 'hotels:update_room' room.id %}" class="ag-btn ag-btn-muted btn-sm"><i class="fas fa-edit"></i> Manage</a>
+                {% elif room.status == 'AVAILABLE' %}
+                <a href="{% url 'hotels:book' room.id %}" class="ag-btn btn-sm"><i class="fas fa-bed"></i> Book</a>
+                {% else %}
+                <span class="badge badge-gray">Not bookable</span>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-bed"></i><h3>No rooms yet</h3><p>Rooms will be added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+
+<div class="form-grid">
+    <div>
+        <h3 style="margin-bottom:10px"><i class="fas fa-concierge-bell"></i> Services</h3>
+        {% if hotel.services.all %}
+        <div class="ag-chips">
+            {% for s in hotel.services.all %}
+            <a href="{% url 'hotels:service_detail' s.id %}" class="ag-chip" style="text-decoration:none"><i class="fas fa-check"></i> {{ s.name }}{% if s.rate %} · ₱ {{ s.rate }}{% endif %}</a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="meta">No services listed.</div>
+        {% endif %}
+    </div>
+    <div>
+        <h3 style="margin-bottom:10px"><i class="fas fa-swimming-pool"></i> Amenities</h3>
+        {% if hotel.amenities.all %}
+        <div class="ag-chips">
+            {% for a in hotel.amenities.all %}
+            <a href="{% url 'hotels:amenity_detail' a.id %}" class="ag-chip" style="text-decoration:none"><i class="fas fa-check"></i> {{ a.name }}</a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="meta">No amenities listed.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+# ATRUE Travel and Tours Booking Platform
+# Dependencies used by the Django project, PDF/QR output, and PostgreSQL setup.
+
+Django==6.0.7
+
+# PostgreSQL driver (psycopg 3). `psycopg[binary]` ships prebuilt wheels so no
+# local libpq build step is required on Windows or on Render.
+psycopg[binary]==3.3.4
+
+# Django REST Framework (JSON API layer).
+# Parses DATABASE_URL for Render / any hosted PostgreSQL instance.
+dj-database-url==3.1.2
+
+# Environment variables and image fields.
+python-dotenv==1.0.1
+Pillow==10.4.0
+qrcode[pil]==8.2
+reportlab==4.4.4

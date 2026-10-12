@@ -1,0 +1,150 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Ticket Booking Detail{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Ticket {{ booking.booking_reference }}</h1><p>Attraction ticket details, billing and status.</p></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if booking.status == 'CONFIRMED' or booking.status == 'USED' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
+        <a href="{% url 'landmarks:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
+        {% else %}
+        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting reservation officer confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
+        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'USED' %}badge-blue{% elif booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+    </div>
+</div>
+
+{% if booking.status == 'PENDING' and not can_manage %}
+<div class="alert alert-info">
+    <i class="fas fa-clock"></i>
+    <div>Your booking is <b>awaiting the landmark reservation officer's confirmation</b>. Once it is confirmed, the <b>Print E-Ticket</b> button will be unlocked and the ticket will go to the front desk for check-in.</div>
+</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-ticket-alt"></i> Visitor &amp; Destination</h3>
+        <div class="meta">Visitor: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
+        {% if booking.visitor_age %} <div class="meta">Age: {{ booking.visitor_age }}</div>{% endif %}
+        {% if booking.visitor_email %}<div class="meta">Email: {{ booking.visitor_email }}</div>{% endif %}
+        {% if booking.contact_number %}<div class="meta">Contact: {{ booking.contact_number }}</div>{% endif %}
+        <div class="meta">Payer: {{ booking.payer_name|default:"Same as visitor" }}</div>
+        <div class="meta">Destination: {{ booking.destination.name }} ({{ booking.get_destination_type_display }})</div>
+        <div class="meta">Visit: {{ booking.visit_datetime|date:"M d, Y H:i" }}</div>
+        <div class="meta">Visitors: {{ booking.number_of_visitors }}</div>
+        <div class="meta">Guided tour: {{ booking.get_guided_tour_display }}</div>
+        {% if booking.equipment_quantity %}<div class="meta">Equipment: {{ booking.equipment_quantity }} item(s) × ₱ {{ booking.equipment_rate }}</div>{% endif %}
+        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
+        {% if bill %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr><td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+        <div class="meta" style="margin-top:12px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+        </div>
+        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
+
+        {% if payments %}
+        <h4 style="margin-top:16px">Payments</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr><td class="mono">{{ p.pk }}</td><td>₱ {{ p.amount }}</td><td>{{ p.get_method_display }}</td><td>{{ p.paid_at|date:"M d, Y H:i" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-tasks"></i> Ticket Lifecycle</h3>
+    <form method="post" class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap">
+        {% csrf_token %}
+        {% if booking.status == 'PENDING' %}
+        {% if can_confirm %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm Booking</button>
+        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+        {% else %}
+        <span class="meta" style="align-self:center"><i class="fas fa-hourglass-half"></i> Awaits confirmation by the landmark reservation officer.</span>
+        {% endif %}
+        {% endif %}
+        {% if booking.status == 'CONFIRMED' %}
+        {% if can_checkin %}
+        <button name="action" value="use" class="btn btn-brand btn-sm"><i class="fas fa-user-check"></i> Check In</button>
+        {% endif %}
+        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this ticket?"><i class="fas fa-ban"></i> Cancel</button>
+        {% endif %}
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading data-visit-schedule>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="modify">
+        <h4>Modify Ticket</h4>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Visit Date &amp; Arrival Time</label>
+                <div class="landmark-arrival-fields">
+                    <input type="date" class="form-input" data-visit-date value="{{ booking.visit_datetime|date:'Y-m-d' }}" aria-label="Visit date" required>
+                    <input type="time" class="form-input" data-visit-time value="{{ booking.visit_datetime|date:'H:i' }}" aria-label="Arrival time" required>
+                </div>
+                <input type="hidden" name="visit_datetime" data-visit-datetime value="{{ booking.visit_datetime|date:'Y-m-d\TH:i' }}">
+            </div>
+            <div class="form-group"><label>Visitors</label><input type="number" name="visitors" class="form-input" value="{{ booking.number_of_visitors }}"></div>
+        </div>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <h4>Record Payment</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
+            <div class="form-group"><label>Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
+    </form>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    document.querySelectorAll('form[data-visit-schedule]').forEach(function (form) {
+        var date = form.querySelector('[data-visit-date]');
+        var time = form.querySelector('[data-visit-time]');
+        var combined = form.querySelector('[data-visit-datetime]');
+        if (!date || !time || !combined) return;
+        function syncVisitDateTime() {
+            combined.value = date.value && time.value ? date.value + 'T' + time.value : '';
+        }
+        date.addEventListener('change', syncVisitDateTime);
+        time.addEventListener('change', syncVisitDateTime);
+        form.addEventListener('submit', syncVisitDateTime);
+        syncVisitDateTime();
+    });
+})();
+</script>
+
+<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
+{% endblock %}

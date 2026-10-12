@@ -1,0 +1,127 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}User Accounts{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>User Account Management</h1>
+        <p>Search, filter and manage all user accounts (FR-002).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'accounts:account_create' %}" class="btn btn-brand"><i class="fas fa-user-plus"></i> Create Account</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Search</label>
+                <input type="text" name="q" class="form-input" placeholder="Name, username or email" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Account Type</label>
+                <select name="account_type" class="form-input">
+                    <option value="">All types</option>
+                    {% for value, label in account_type_choices %}
+                    <option value="{{ value }}" {% if account_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Role</label>
+                <select name="role" class="form-input">
+                    <option value="">All roles</option>
+                    {% for value, label in role_choices %}
+                    <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Sort By</label>
+                <select name="sort" class="form-input">
+                    {% for value, label in sort_choices %}
+                    <option value="{{ value }}" {% if sort == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="filter-grid" style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-top:14px">
+            <div class="form-group" style="margin:0">
+                <label>Date Created From</label>
+                <input type="date" name="date_from" class="form-input" value="{{ date_from }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Date Created To</label>
+                <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'accounts:account_list' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if accounts %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Date Created</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in accounts %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span class="avatar" style="width:34px;height:34px;border-radius:9px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:13px">{{ u.username|slice:":1" }}</span>
+                            <div>
+                                <b>{{ u.get_full_name|default:u.username }}</b>
+                                <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ u.username }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ u.email }}</td>
+                    <td><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
+                    <td><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
+                    <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'accounts:account_detail' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        <a href="{% url 'accounts:account_update' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                        {% if u.status == 'INACTIVE' %}
+                        <form method="post" action="{% url 'accounts:account_deactivate' u.id %}" data-confirm="Reactivate this account?" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-undo"></i> Reactivate</button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'accounts:account_deactivate_confirm' u.id %}" class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-users"></i><h3>No accounts found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

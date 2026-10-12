@@ -1,0 +1,143 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}System Administrator Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1><i class="fas fa-user-shield"></i> System Administrator Dashboard</h1>
+        <p>Full platform control: accounts, services, simulations, roles and reporting.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'accounts:account_create' %}" class="btn btn-brand"><i class="fas fa-user-plus"></i> Create Account</a>
+        <a href="{% url 'accounts:account_list' %}" class="btn btn-outline"><i class="fas fa-users"></i> Manage Users</a>
+        <a href="{% url 'simulation:assign' %}" class="btn btn-outline"><i class="fas fa-user-tag"></i> Assign Roles</a>
+        <a href="{% url 'simulation:role_list' %}" class="btn btn-ghost"><i class="fas fa-clipboard-list"></i> Role Assignments</a>
+        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-history"></i> Activity Logs</a>
+        {% if request.user.is_staff %}<a href="{% url 'admin:index' %}" class="btn btn-ghost"><i class="fas fa-cog"></i> Django Admin</a>{% endif %}
+    </div>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-ico ico-blue"><i class="fas fa-users"></i></div>
+        <div class="stat-val">{{ total_users }}</div>
+        <div class="stat-lbl">Total Users</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-red"><i class="fas fa-user-shield"></i></div>
+        <div class="stat-val">{{ total_system_admins }}</div>
+        <div class="stat-lbl">System Admins</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-amber"><i class="fas fa-briefcase"></i></div>
+        <div class="stat-val">{{ total_managers }}</div>
+        <div class="stat-lbl">Management Accounts</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-indigo"><i class="fas fa-ticket-alt"></i></div>
+        <div class="stat-val">{{ total_bookings }}</div>
+        <div class="stat-lbl">Bookings</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-green"><i class="fas fa-credit-card"></i></div>
+        <div class="stat-val">{{ total_payments }}</div>
+        <div class="stat-lbl">Payments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-green"><i class="fas fa-coins"></i></div>
+        <div class="stat-val">₱{{ total_revenue|floatformat:2 }}</div>
+        <div class="stat-lbl">Revenue</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+    <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+        <h3 style="margin-bottom:4px"><i class="fas fa-user-tag"></i> Role Registry</h3>
+        <p style="color:var(--slate-500);font-size:13.5px;margin:0">
+            Every role is available as an account type. Create an account per role to test its dashboard.
+        </p>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Role</th><th>Users With This Type</th><th>Simulation Assignments</th></tr></thead>
+            <tbody>
+                {% for r in role_matrix %}
+                <tr>
+                    <td><span class="badge badge-blue">{{ r.label }}</span></td>
+                    <td>{{ r.users }}</td>
+                    <td>{{ r.assignments }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-pad" style="text-align:right"><a href="{% url 'simulation:assign' %}" class="btn btn-outline"><i class="fas fa-user-tag"></i> Assign a Role</a></div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <h3 style="margin-bottom:4px"><i class="fas fa-chart-pie"></i> Bookings by Service</h3>
+            <p style="color:var(--slate-500);font-size:13.5px;margin:0">{{ total_bookings }} total booking(s) across the platform.</p>
+        </div>
+        <div class="card-pad">
+            {% for name, count, icon in service_breakdown %}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:13px">
+                <span class="stat-ico" style="width:32px;height:32px;font-size:13px;border-radius:9px;flex-shrink:0;background:var(--slate-100);color:var(--indigo)"><i class="fas {{ icon }}"></i></span>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:4px">
+                        <b style="font-weight:600">{{ name }}</b>
+                        <span style="color:var(--slate-500)">{{ count }}</span>
+                    </div>
+                    <div style="height:7px;background:var(--slate-100);border-radius:99px;overflow:hidden">
+                        <div style="width:{% widthratio count max_bookings 100 %}%;height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#6366f1)"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:20px">
+            <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+                <h3 style="margin-bottom:4px"><i class="fas fa-toolbox"></i> Module Administration</h3>
+                <p style="color:var(--slate-500);font-size:13.5px;margin:0">Manage every service module from one place.</p>
+            </div>
+            <div class="card-pad" style="display:flex;flex-wrap:wrap;gap:10px">
+                <a href="{% url 'airlines:manage' %}" class="btn btn-ghost"><i class="fas fa-plane-departure"></i> Airline Admin</a>
+                <a href="{% url 'hotels:manage' %}" class="btn btn-ghost"><i class="fas fa-hotel"></i> Hotel Admin</a>
+                <a href="{% url 'resorts:manage' %}" class="btn btn-ghost"><i class="fas fa-umbrella-beach"></i> Resort Admin</a>
+                <a href="{% url 'staycations:manage' %}" class="btn btn-ghost"><i class="fas fa-couch"></i> Staycation Admin</a>
+                <a href="{% url 'restaurants:manage' %}" class="btn btn-ghost"><i class="fas fa-utensils"></i> Restaurant Admin</a>
+                <a href="{% url 'transportation:manage' %}" class="btn btn-ghost"><i class="fas fa-bus"></i> Transport Admin</a>
+                <a href="{% url 'landmarks:manage' %}" class="btn btn-ghost"><i class="fas fa-landmark"></i> Attraction Admin</a>
+                <a href="{% url 'activities:manage' %}" class="btn btn-ghost"><i class="fas fa-hiking"></i> Activity Admin</a>
+                <a href="{% url 'tour_package:manage' %}" class="btn btn-ghost"><i class="fas fa-luggage-cart"></i> Tour Package Admin</a>
+                <a href="{% url 'transactions:admin_list' %}" class="btn btn-ghost"><i class="fas fa-file-invoice-dollar"></i> Transactions</a>
+                <a href="{% url 'records:list' %}" class="btn btn-ghost"><i class="fas fa-book"></i> Transaction Records</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+                <h3 style="margin:0"><i class="fas fa-history"></i> Recent Activity</h3>
+            </div>
+            {% if recent_logs %}
+            <div class="card-pad-list">
+                {% for log in recent_logs %}
+                <div style="padding:11px 18px;border-bottom:1px solid var(--slate-200)">
+                    <b style="font-size:13.5px">{{ log.user.get_full_name|default:log.user.username }}</b>
+                    <div style="font-size:13px;color:var(--slate-500);margin-top:1px">{{ log.action }}</div>
+                    <div class="meta" style="margin-top:3px"><i class="fas fa-clock"></i> {{ log.timestamp|date:"M d, Y H:i" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty"><i class="fas fa-history"></i><h3>No activity yet</h3></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

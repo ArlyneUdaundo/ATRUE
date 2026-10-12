@@ -1,0 +1,71 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Update Airline{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Update {{ airline.name }}</h1><p>Airline establishment information (BR-040). Airlines are predefined in the database; schedule flights to add services to an operator.</p></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;max-width:720px;margin:0 auto" data-submit-loading>
+    {% csrf_token %}
+    {% if airline.airline_id %}
+    <div class="form-group">
+        <label>Airline ID</label>
+        <input type="text" class="form-input" value="{{ airline.airline_id }}" disabled style="background:#f4f5f7">
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Airline Name</label>
+        <input type="text" name="name" class="form-input" value="{{ airline.name|default:'' }}" required>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ airline.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Email Address</label><input type="email" name="email" class="form-input" value="{{ airline.email|default:'' }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Airline Logo <span class="meta" style="display:block">Shown on flight search results, bookings and tickets. Leave empty to keep the current logo.</span></label>
+        <div style="display:flex;align-items:center;gap:16px">
+            {% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--lg' %}
+            <div style="flex:1;min-width:0">
+                <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="form-input">
+                <div class="meta" style="margin-top:6px">PNG, JPG, WebP or SVG. A square image with a transparent background looks best.</div>
+                {% if airline.logo_photo %}
+                <label class="meta" style="display:block;margin-top:8px"><input type="checkbox" name="remove_logo" value="1"> Remove current logo</label>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ airline.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Operating Information</label>
+        <textarea name="operating_info" class="form-input" rows="2">{{ airline.operating_info|default:'' }}</textarea>
+    </div>
+    {% if airline %}
+    <div class="form-group">
+        <label>Fleet <span class="meta" style="display:block">The aircraft types this airline operates. Each one gets its own real cabin, and every flight on it draws that cabin on the booking page.</span></label>
+        {% if fleet_types %}
+        <div class="meta" style="margin-bottom:8px">
+            {% for t in fleet_types %}{{ t.label }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+        <a href="{% url 'airlines:airline_fleet' airline.id %}" class="btn btn-outline btn-sm">Manage fleet</a>
+        {% else %}
+        <div class="meta" style="margin-bottom:8px">No aircraft types yet, so this airline cannot be scheduled.</div>
+        <a href="{% url 'airlines:airline_fleet' airline.id %}" class="btn btn-brand btn-sm">Add aircraft types</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if airline.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if airline.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if airline.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if airline.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Airline</button>
+    <a href="{% url 'airlines:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

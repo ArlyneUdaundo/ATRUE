@@ -1,0 +1,73 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Room {{ room.room_number }} | {{ room.hotel.name }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Room {{ room.room_number }}</h1>
+        <p><a href="{% url 'hotels:detail' room.hotel.slug %}" style="color:var(--indigo)">{{ room.hotel.name }}</a> · <span class="badge {% if room.status == 'AVAILABLE' %}badge-green{% elif room.status == 'MAINTENANCE' %}badge-red{% elif room.status == 'OCCUPIED' %}badge-blue{% else %}badge-amber{% endif %}">{{ room.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'hotels:update_room' room.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
+        <form method="post" action="{% url 'hotels:delete_room' room.id %}" data-confirm="Delete Room {{ room.room_number }}? This cannot be undone." style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+        <a href="{% url 'hotels:rooms' %}?hotel={{ room.hotel.id }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Rooms</a>
+        {% elif available_for_dates %}
+        <a href="{% url 'hotels:group_start' room.hotel_id %}?rooms=1&check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-brand"><i class="fas fa-bed"></i> Book This Room</a>
+        <a href="{% url 'hotels:detail' room.hotel.slug %}?check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        {% else %}
+        <span class="badge badge-gray" style="align-self:center">Not available for {{ check_in|date:'M d, Y' }} – {{ check_out|date:'M d, Y' }}</span>
+        <a href="{% url 'hotels:detail' room.hotel.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:30px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-bed"></i></span>
+        <div style="flex:1;min-width:250px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Room ID: <b>{{ room.room_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-hotel"></i> {{ room.hotel.name }} — {{ room.hotel.location }}</div>
+            <div class="meta"><i class="fas fa-tag"></i> {{ room.get_room_type_display }} · {{ room.capacity_adults }}A / {{ room.capacity_children }}C</div>
+        </div>
+        <div style="text-align:right">
+            <div class="ag-price"><b>₱ {{ room.rate }}</b><span class="ag-per">/night</span></div>
+            {% if room.additional_guest_charge %}<div class="meta">+ ₱ {{ room.additional_guest_charge }} extra guest/night</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if room.photos.all %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-images"></i> Photos</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+        {% for photo in room.photos.all %}
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:room.room_number }}" style="width:100%;height:160px;object-fit:cover;border-radius:10px">
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="form-grid">
+    <div class="card card-pad">
+        <h3 style="margin:0 0 10px"><i class="fas fa-align-left"></i> Description</h3>
+        {% if room.description %}
+        <div style="white-space:pre-line">{{ room.description }}</div>
+        {% else %}
+        <div class="meta">No description provided.</div>
+        {% endif %}
+    </div>
+    <div class="card card-pad">
+        <h3 style="margin:0 0 10px"><i class="fas fa-star"></i> Features</h3>
+        {% if room.features %}
+        <div style="white-space:pre-line">{{ room.features }}</div>
+        {% else %}
+        <div class="meta">No features listed.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

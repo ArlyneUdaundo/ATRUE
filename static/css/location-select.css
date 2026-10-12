@@ -1,0 +1,152 @@
+/* ATRUE searchable location dropdown (combobox) — matches the country/region
+   dropdown reference: white surface, rounded border, dark text, dropdown arrow,
+   clear focus state, scrollable list with wrapped panel. */
+
+.loc-select {
+    position: relative;
+    width: 100%;
+}
+
+.loc-select .loc-select-input {
+    width: 100%;
+    padding: 12px 38px 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #1f2430;
+    border: 1.5px solid #d7dbe2;
+    border-radius: 11px;
+    background: #fff;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.loc-select .loc-select-input:hover {
+    border-color: #c4c9d3;
+}
+
+.loc-select .loc-select-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, .14);
+}
+
+.loc-select .loc-select-input::placeholder {
+    color: #9aa3b2;
+}
+
+.loc-select-arrow {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #7a8291;
+    font-size: 12px;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+.loc-select-arrow:hover {
+    background: #eff2f6;
+    color: #1f2430;
+}
+
+.loc-select-arrow.open {
+    transform: translateY(-50%) rotate(180deg);
+    color: #2563eb;
+}
+
+.loc-select-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 500;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #e2e6ec;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+    padding: 6px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+}
+
+.loc-select.up .loc-select-panel {
+    top: auto;
+    bottom: calc(100% + 6px);
+    transform: translateY(4px);
+}
+
+.loc-select-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.loc-select-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.loc-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    margin: 1px 0;
+    font-size: 14px;
+    color: #2b313e;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.loc-option:hover,
+.loc-option.keyed {
+    background: #f1f4f8;
+}
+
+.loc-option.active {
+    background: rgba(37, 99, 235, .09);
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.loc-option.active::after {
+    content: "\f00c";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 12px;
+    color: #2563eb;
+}
+
+.loc-select-empty {
+    display: block;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #7a8291;
+    text-align: center;
+}
+
+/* Structured address group (Country/Region → Province → City → Street → ZIP) */
+.loc-field-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 640px) {
+    .loc-field-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,39 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Tour Package Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Tour Package Management</h1><p>Compose packages from valid components and manage bookings (BR-071 to BR-081).</p></div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'tour_package:add_package' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>
+        <a href="{% url 'tour_package:bookings' %}" class="btn btn-ghost"><i class="fas fa-list"></i> Package Bookings</a>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-luggage-cart"></i> Packages</h3>
+{% for p in packages %}
+<div class="card card-pad" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1">
+            <h4 style="margin:0">{{ p.name }}
+                <span class="badge {% if p.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span>
+            </h4>
+            <div class="meta">₱ {{ p.price }} · {{ p.included_headcount }} heads · extra ₱ {{ p.extra_person_rate }}/head ·
+                Valid {{ p.validity_start_date|date:"M d, Y" }} – {{ p.validity_end_date|date:"M d, Y" }}</div>
+            <div class="meta" style="margin-top:4px">
+                {% for h in p.included_hotels.all %}<span class="service-chip">Hotel: {{ h.name }}</span>{% endfor %}
+                {% for r in p.included_resorts.all %}<span class="service-chip">Resort: {{ r.name }}</span>{% endfor %}
+                {% for f in p.included_flights.all %}<span class="service-chip">Flight: {{ f.flight_number }}</span>{% endfor %}
+                {% for a in p.included_activities.all %}<span class="service-chip">Activity: {{ a.name }}</span>{% endfor %}
+                {% for rest in p.included_restaurants.all %}<span class="service-chip">Restaurant: {{ rest.name }}</span>{% endfor %}
+                {% for t in p.included_transport.all %}<span class="service-chip">Transport: {{ t.name }}</span>{% endfor %}
+            </div>
+        </div>
+        <a href="{% url 'tour_package:update_package' p.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-luggage-cart"></i><h3>No packages yet</h3><p>Add a package to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>My Bookings</h1><p>Every reservation you've made across all ATRUE services in one place.</p></div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service</th><th>Reference</th><th>Details</th><th>Status</th><th>Booked On</th><th></th></tr></thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td><span class="badge badge-blue">{{ r.service|title }}</span></td>
+                    <td class="mono">{{ r.reference }}</td>
+                    <td>{{ r.details }}</td>
+                    <td><span class="badge {% if r.status == 'CONFIRMED' or r.status == 'COMPLETED' or r.status == 'CHECKED_OUT' or r.status == 'USED' %}badge-green{% elif r.status == 'CANCELLED' or r.status == 'DECLINED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.status|title }}</span></td>
+                    <td>{{ r.created|date:"M d, Y" }}</td>
+                    <td>
+                        {% if r.detail_url %}
+                        <a class="btn btn-brand btn-sm" href="{{ r.detail_url }}">View</a>
+                        {% endif %}
+                        {% if r.bill %}
+                        <a class="btn btn-outline btn-sm" href="{% url 'transactions:bill_detail' r.bill.pk %}">View Bill</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6"><div class="empty"><i class="fas fa-bookmark"></i><h3>No bookings yet</h3><p>Your bookings from every service will appear here.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book Hotel Room{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Confirm Hotel Booking</h1><p>Choose your dates, guest details and complete payment (BR-029 to BR-032).</p></div></div>
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3 style="margin-bottom:8px">{{ room.hotel.name }}</h3>
+        <div class="meta" style="margin-bottom:14px">{{ room.hotel.location }}</div>
+        <div class="agoda-establishment-gallery" data-gallery style="margin-top:12px">
+            <div class="agoda-gallery-track">{% for photo in room.photos.all|slice:':4' %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ room.get_room_type_display }} Room {{ room.room_number }}">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-bed"></i><span>No room photos uploaded yet</span></div>{% endfor %}</div>
+            {% if room.photos.all %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}
+        </div>
+        <span class="badge badge-green">{{ room.get_status_display }}</span>
+        <div style="margin-top:16px;color:var(--slate-500);font-size:14px">
+            <i class="fas fa-bed"></i> {{ room.get_room_type_display }} · Room {{ room.room_number }}<br>
+            <i class="fas fa-users"></i> Capacity: {{ room.capacity_adults }} adult(s) / {{ room.capacity_children }} child(ren)<br>
+            {% if room.features %}<i class="fas fa-star"></i> {{ room.features }}<br>{% endif %}
+            <i class="fas fa-phone"></i> {{ room.hotel.contact_number }}
+        </div>
+        <div style="margin-top:20px" class="price">Rate: <b>₱ {{ room.rate }}</b> /night</div>
+        {% if room.additional_guest_charge %}<div class="meta">Extra guest charge: ₱ {{ room.additional_guest_charge }}/night</div>{% endif %}
+    </div>
+
+    {% if booking_error %}
+    <div class="alert alert-danger" style="background:#fef2f2;color:#991b1b;padding:12px 16px;border-radius:12px;margin-bottom:12px">
+        <i class="fas fa-exclamation-circle"></i> {{ booking_error }}
+    </div>
+    {% endif %}
+
+    <form method="post" class="card card-pad" data-submit-loading>
+        {% csrf_token %}
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Check-in</label>
+                <input type="date" name="check_in" class="form-input" value="{{ check_in|date:'Y-m-d' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Check-out</label>
+                <input type="date" name="check_out" class="form-input" value="{{ check_out|date:'Y-m-d' }}" required>
+            </div>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Adults</label>
+                <input type="number" name="adults" class="form-input" value="1" min="1" max="{{ room.capacity_adults }}">
+            </div>
+            <div class="form-group">
+                <label>Children</label>
+                <input type="number" name="children" class="form-input" value="0" min="0" max="{{ room.capacity_children }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Special Requests</label>
+            <textarea name="special_requests" class="form-input" rows="2"></textarea>
+        </div>
+        {% if services %}
+        <div class="form-group">
+            <label>Services</label>
+            {% for s in services %}
+            <label class="checkbox"><input type="checkbox" name="services" value="{{ s.id }}"> {{ s.name }} {% if s.rate %}— ₱ {{ s.rate }}{% endif %}</label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if amenities %}
+        <div class="form-group">
+            <label>Amenities</label>
+            {% for a in amenities %}
+            <label class="checkbox"><input type="checkbox" name="amenities" value="{{ a.id }}"> {{ a.name }}</label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label>Payer Name (optional)</label>
+            <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label>Payment Method</label>
+            <select name="payment_method" class="form-input">
+                <option value="GCASH">GCash</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+                <option value="CREDIT_CARD">Credit Card</option>
+                <option value="DEBIT_CARD">Debit Card</option>
+            </select>
+        </div>
+        <label class="checkbox" style="margin-bottom:12px">
+            <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+        </label>
+        <button type="submit" class="btn btn-brand" style="width:100%;padding:14px"><i class="fas fa-lock"></i> Confirm Booking</button>
+        
+        <button type="submit" name="book_and_add" value="1" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Room</button>
+        <a href="{% url 'hotels:list' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+    </form>
+</div>
+{% endblock %}

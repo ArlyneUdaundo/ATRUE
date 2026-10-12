@@ -1,0 +1,30 @@
+/* Additions for the shared establishment flow (templates/establishments/*).
+ *
+ * Deliberately tiny. The Hotels page is the master template, so this file adds
+ * NOTHING to the guest-information card, the optional-services / amenities
+ * sections or the booking computation: those come from .bk-guest-* and
+ * .bk-sum-* in rooms.css, and the fields use .form-grid / .form-group /
+ * .form-input / .checkbox from dashboard.css, exactly as the Hotels page does.
+ * .ag-* comes from agoda.css and .rm-* from rooms.css.
+ *
+ * Only the two pieces no existing stylesheet provides are defined here.
+ */
+
+/* ---- A category with no stored rate (Restaurants) ---------------------- */
+.rm-price-noprice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--slate-300, #cbd5e1);
+  border-radius: 12px;
+  background: var(--slate-50, #f8fafc);
+  color: var(--slate-700, #334155);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.rm-price-noprice i { color: var(--indigo, #4f46e5); flex: 0 0 auto; }
+
+.rm-modal-desc { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--slate-600, #475569); }
+

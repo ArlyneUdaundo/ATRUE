@@ -1,0 +1,194 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% comment %}
+Shared establishment detail step.
+
+Resorts, Staycations, Restaurants and Tour Packages already ship their own
+detail.html and are left untouched. Landmarks and Activities had no detail page
+at all, so both render this one from the same normalised adapter data that
+drives the selection page, and hand off to it via the single primary action.
+{% endcomment %}
+
+{% block title %}{{ est_name }}{% endblock %}
+
+{% block content_class %}rm-wide{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261002modalfix">
+<link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20260930a">
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ est_name }}</h1>
+        <p>{{ category_label }}{% if est_location %} &middot; {{ est_location }}{% endif %}</p>
+    </div>
+    <a href="{{ list_url }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All {{ category_label }}</a>
+</div>
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        {% with first=cards.0 %}
+        {% if first.photos %}
+        <div class="rm-media" style="border-radius:18px;overflow:hidden;margin-bottom:18px;aspect-ratio:16/7;background:var(--slate-100)">
+            {% for photo in first.photos %}
+            <img class="rm-shot{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ est_name }} — photo {{ forloop.counter }}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="card card-pad" style="margin-bottom:18px">
+            <div class="rm-facts">
+                {% for fact in facts %}
+                <div class="rm-fact">
+                    <i class="fas {{ fact.0 }}"></i>
+                    <span><b>{{ fact.1 }}</b><small>{{ fact.2 }}</small></span>
+                </div>
+                {% endfor %}
+            </div>
+            {% with first=cards.0 %}
+            {% if first.description %}
+            <p style="margin:14px 0 0;font-size:14px;line-height:1.65;color:var(--slate-600)">{{ first.description }}</p>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        <div class="rm-toolbar">
+            <div>
+                <h2>Choose your {{ item_noun_plural|lower }}</h2>
+                <p>{{ check_in|date:'M d, Y' }}{% if show_end_date %} – {{ check_out|date:'M d, Y' }} &middot; {{ nights }} night{{ nights|pluralize }}{% endif %}
+                   — {{ cards|length }} option{{ cards|length|pluralize }} available.</p>
+            </div>
+            <div class="rm-toolbar-actions">
+                <span class="badge badge-blue" style="font-size:13px;padding:8px 14px">{{ cards|length }} available</span>
+            </div>
+        </div>
+
+        <div class="rm-list">
+            {% for card in cards %}
+            <article class="rm-card{% if not card.bookable %} is-unavailable{% endif %}">
+                <div class="rm-info">
+                    <div class="rm-badges">
+                        {% for badge in card.badges %}
+                        <span class="rm-badge rm-badge-{{ badge.tone }}"><i class="fas {{ badge.icon }}"></i> {{ badge.label }}</span>
+                        {% endfor %}
+                        <span class="rm-badge rm-badge-muted">
+                            {% if card.bookable %}<i class="fas fa-circle-check"></i>{% else %}<i class="fas fa-circle-ban"></i>{% endif %}
+                            {{ card.display_status }}
+                        </span>
+                    </div>
+                    <div class="rm-title">
+                        <div>
+                            <h3>{{ card.name }}</h3>
+                            <div class="meta"><i class="fas fa-fingerprint"></i> {{ category_label }} ID {{ est.pk|stringformat:'05d' }}</div>
+                        </div>
+                        <div class="rm-score">
+                            <span class="rm-stars" role="img" aria-label="ATrUE Guest Score {{ card.score.score }} out of {{ card.score.scale }}">
+                                <span class="rm-stars-base">★★★★★</span>
+                                <span class="rm-stars-fill" style="--score-width:{% widthratio card.score.score card.score.scale 100 %}%">★★★★★</span>
+                            </span>
+                            <span class="rm-score-num">{{ card.score.score }}</span>
+                            <span class="rm-score-txt">
+                                <b>{{ card.score.label }}</b>
+                                <small>ATrUE Guest Score / {{ card.score.scale }}</small>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="rm-facts">
+                        {% for fact in card.facts %}
+                        <div class="rm-fact">
+                            <i class="fas {{ fact.0 }}"></i>
+                            <span><b>{{ fact.1 }}</b><small>{{ fact.2 }}</small></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if card.includes %}
+                    <div class="rm-amen-head"><span>Includes</span></div>
+                    <ul class="rm-perks">
+                        {% for perk in card.includes %}
+                        <li class="rm-perk"><i class="fas {{ perk.icon }}"></i> {{ perk.text }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                <div class="rm-rate-wrap">
+                    <div class="rm-rate">
+                        <div class="rm-rate-top rm-rate-group">
+                            <span class="rm-rate-label">{{ item_noun_plural }}</span>
+                            {% if card.rate %}
+                            <div class="rm-price">
+                                {% if card.rate.rate_is_free %}
+                                <span class="rm-price-now rm-price-free">Free</span>
+                                <span class="rm-price-per">no charge per {{ card.rate.unit_noun }}</span>
+                                {% else %}
+                                <span class="rm-price-now"><span class="cur">&#8369;</span>{{ card.rate.rate_amount }}</span>
+                                <span class="rm-price-per">per {{ card.rate.unit_noun }}</span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <div class="rm-price-noprice">
+                                <i class="fas fa-phone"></i> {{ price_missing_note|default:'Contact establishment for pricing' }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="rm-rate-group rm-rate-book">
+                            <div class="rm-rate-foot">
+                                {% if card.bookable %}
+                                <a class="rm-book" href="{{ select_url }}?check_in={{ check_in|date:'Y-m-d' }}{% if show_end_date %}&amp;check_out={{ check_out|date:'Y-m-d' }}{% endif %}{% if show_time %}&amp;time={{ request.GET.time|default:'' }}{% endif %}">
+                                    <i class="fas fa-circle-check"></i> Select
+                                </a>
+                                {% else %}
+                                <button type="button" class="rm-book is-disabled" disabled aria-disabled="true">
+                                    <i class="fas fa-circle-ban"></i> {{ card.display_status }}
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-compass"></i> <b>{{ est_name }}</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas {{ adapter.icon }}"></i></span>
+                <div><b>{{ est_name }}</b><small>{{ est_location }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>{{ date_label }}</span><b>{{ check_in|date:'M d, Y' }}</b></div>
+                {% if show_end_date %}
+                <div class="ag-pb-row"><span>{{ end_date_label }}</span><b>{{ check_out|date:'M d, Y' }}</b></div>
+                {% endif %}
+                <div class="ag-pb-row"><span>Options</span><b>{{ cards|length }}</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row">
+                    <span>Guest information<br><small>Entered on the next step</small></span>
+                    <b>—</b>
+                </div>
+            </div>
+        </div>
+        <div class="ag-pb-actions">
+            {% with first=cards.0 %}
+            {% if first.bookable %}
+            <a class="ag-btn ag-btn-block" href="{{ select_url }}?check_in={{ check_in|date:'Y-m-d' }}{% if show_end_date %}&amp;check_out={{ check_out|date:'Y-m-d' }}{% endif %}{% if show_time %}&amp;time={{ request.GET.time|default:'' }}{% endif %}">
+                <i class="fas fa-arrow-right"></i> Select &amp; continue
+            </a>
+            {% else %}
+            <button class="ag-btn ag-btn-block" disabled><i class="fas fa-circle-ban"></i> Not available</button>
+            {% endif %}
+            {% endwith %}
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> One booking &middot; one transaction</div>
+            <div class="ag-pb-note"><a href="{{ list_url }}">Back to all {{ category_label|lower }}</a></div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

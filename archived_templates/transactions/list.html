@@ -1,0 +1,111 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>My Transactions</h1><p>Official bills, payments, receipts and the full audit trail.</p></div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-file-invoice"></i> Bills</h3>
+<div class="card" style="margin-bottom:24px">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Bill</th><th>Service</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in bills %}
+                <tr>
+                    <td class="mono">{{ b.bill_reference }}</td>
+                    <td>{{ b.service|title }}</td>
+                    <td><b>₱ {{ b.total_amount }}</b></td>
+                    <td>₱ {{ b.amount_paid }}</td>
+                    <td><b>₱ {{ b.balance_due }}</b></td>
+                    <td><span class="badge {% if b.status == 'FULLY_PAID' %}badge-green{% elif b.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a class="btn btn-outline btn-sm" href="{% url 'transactions:bill_detail' b.pk %}">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7"><div class="empty"><i class="fas fa-file-invoice"></i><h3>No bills yet</h3><p>An official bill is generated the moment you book a service.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div>
+        <h3 style="margin-bottom:14px"><i class="fas fa-receipt"></i> Receipts</h3>
+        <div class="card">
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Receipt</th><th>Amount</th><th>Issued</th><th></th></tr></thead>
+                    <tbody>
+                        {% for r in receipts %}
+                        <tr>
+                            <td class="mono">{{ r.receipt_reference }}</td>
+                            <td><b>₱ {{ r.amount }}</b></td>
+                            <td>{{ r.issued_at|date:"M d, Y H:i" }}</td>
+                            <td><a class="btn btn-outline btn-sm" href="{% url 'transactions:receipt_detail' r.pk %}" target="_blank"><i class="fas fa-print"></i> View</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4"><div class="empty"><i class="fas fa-receipt"></i><h3>No receipts yet</h3><p>Every completed payment issues an official receipt (BR-092).</p></div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div>
+        <h3 style="margin-bottom:14px"><i class="fas fa-plus-circle"></i> Additional Transactions</h3>
+        <div class="card">
+            <div class="card-pad">
+                <p class="meta">Separate charges after your original booking stay independently identifiable (BR-018/BR-019).</p>
+                <a class="btn btn-brand btn-sm" href="{% url 'transactions:additional_add' %}"><i class="fas fa-plus"></i> Add Additional Transaction</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px;margin-top:24px"><i class="fas fa-credit-card"></i> Payments</h3>
+<div class="card" style="margin-bottom:24px">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Payment</th><th>Bill</th><th>Amount</th><th>Method</th><th>Status</th><th>Paid On</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td class="mono">{{ p.payment_reference }}</td>
+                    <td class="mono">{{ p.bill.bill_reference|default:"—" }}</td>
+                    <td><b>₱ {{ p.amount }}</b></td>
+                    <td>{{ p.get_method_display }}</td>
+                    <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
+                    <td>{{ p.paid_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6"><div class="empty"><i class="fas fa-credit-card"></i><h3>No payments yet</h3><p>Payments appear here after your first checkout.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-history"></i> Transaction Records</h3>
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Type</th><th>Reference</th><th>Remarks</th><th>Recorded</th></tr></thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td><b>{{ r.get_record_type_display }}</b></td>
+                    <td class="mono">{{ r.reference_number }}</td>
+                    <td><span class="text-truncate" title="{{ r.remarks }}">{{ r.remarks }}</span></td>
+                    <td>{{ r.recorded_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4"><div class="empty"><i class="fas fa-history"></i><h3>No records yet</h3><p>Transaction records appear here once you start booking.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

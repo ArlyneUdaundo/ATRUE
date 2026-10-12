@@ -1,0 +1,169 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Reserve Restaurant Table{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your table</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+{% if booking_error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
+{% endif %}
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-utensils"></i></span>
+                <div>
+                    <h3>{{ table.restaurant.name }}</h3>
+                    <p>{{ table.restaurant.location }}</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-chair"></i> Table {{ table.table_number }} · {{ table.get_seating_area_display }}</div>
+            <div class="ag-detail-row"><i class="fas fa-users"></i> Seats up to {{ table.capacity }}</div>
+            {% if table.restaurant.cuisine_type %}<div class="ag-detail-row"><i class="fas fa-utensil-spoon"></i> {{ table.restaurant.cuisine_type }}</div>{% endif %}
+            {% if table.restaurant.operating_hours %}<div class="ag-detail-row"><i class="fas fa-clock"></i> {{ table.restaurant.operating_hours }}</div>{% endif %}
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Reservation details</h3><p>Time, seating and guest details (BR-055, BR-056)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Reservation Date &amp; Time</label>
+                    <input type="datetime-local" name="reservation_datetime" class="form-input" value="{{ default_when|date:'Y-m-d\TH:i' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Number of Guests</label>
+                    <input type="number" name="guests" id="guests" class="form-input" value="2" min="1" max="{{ table.capacity }}" oninput="updateDeposit()">
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Seating Preference</label>
+                    <select name="seating_preference" class="form-input">
+                        <option value="INDOOR">Indoor</option>
+                        <option value="OUTDOOR">Outdoor</option>
+                        <option value="BAR">Bar/Counter</option>
+                        <option value="PRIVATE">Private Area</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Occasion</label>
+                    <select name="occasion" class="form-input">
+                        {% for value, label in occasions %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:18px">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Lead guest &amp; payer</h3><p>Contact details come from your account (BR-001, BR-003, BR-006)</p></div>
+                </div>
+                <div class="ag-customer-box">
+                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+                </div>
+                <label class="checkbox" style="margin-bottom:10px">
+                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead guest
+                </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Special Requests</label>
+                    <textarea name="special_requests" class="form-input" rows="1"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Additional Notes</label>
+                    <textarea name="additional_notes" class="form-input" rows="1"></textarea>
+                </div>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (reservation stays pending)
+            </label>
+            <script>
+                function togglePayer() {
+                    var same = document.getElementById('payer-same');
+                    if (!same) return;
+                    var lock = same.checked;
+                    var name = document.getElementById('payer-name');
+                    var contact = document.getElementById('payer-contact');
+                    if (name) {
+                        name.readOnly = lock;
+                        name.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
+                    }
+                    if (contact) {
+                        contact.readOnly = lock;
+                        contact.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
+                    }
+                }
+                togglePayer();
+                var DEPOSIT_PER_GUEST = {{ deposit_per_guest }};
+                function updateDeposit() {
+                    var guests = parseInt(document.getElementById('guests').value) || 1;
+                    document.getElementById('pb-guests').textContent = guests;
+                    document.getElementById('pb-total').textContent = '₱ ' + (guests * DEPOSIT_PER_GUEST).toFixed(2);
+                }
+                updateDeposit();
+            </script>
+            <a href="{% url 'restaurants:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Reservation summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-utensils"></i></span>
+                <div><b>{{ table.restaurant.name }}</b><small>Table {{ table.table_number }} · {{ table.get_seating_area_display }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Deposit</span><b>₱ {{ deposit_per_guest }} /guest</b></div>
+                <div class="ag-pb-row"><span>Guests</span><b><span id="pb-guests">2</span> guests</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Estimated deposit</span><b><span id="pb-total">₱ {{ deposit_per_guest }}</span></b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm Reservation</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured reservation · Free simulation</div>
+            <div class="ag-pb-note">*Deposit total is computed by the system after applying guest count.</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

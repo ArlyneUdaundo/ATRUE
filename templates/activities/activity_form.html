@@ -1,0 +1,110 @@
+﻿{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if activity %}Update Activity{% else %}Add Activity{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if activity %}Update{% else %}Add{% endif %} Activity</h1><p>Activity registration details.</p></div></div>
+
+<form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:760px" enctype="multipart/form-data" data-submit-loading data-activity-form>
+    {% csrf_token %}
+    {% if not activity %}<input type="hidden" name="provider" value="{{ selected_provider.id|default:'' }}">{% endif %}
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" class="form-input" value="{{ activity.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ activity.description|default:'' }}</textarea>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Category</label>
+            <select name="category" class="form-input">
+                <option value="OUTDOOR" {% if activity.category == 'OUTDOOR' %}selected{% endif %}>Outdoor and Adventure</option>
+                <option value="WATER" {% if activity.category == 'WATER' %}selected{% endif %}>Water Activities</option>
+                <option value="CULTURAL" {% if activity.category == 'CULTURAL' %}selected{% endif %}>Cultural and Sightseeing</option>
+                <option value="THEME" {% if activity.category == 'THEME' %}selected{% endif %}>Theme Parks and Attractions</option>
+                <option value="WELLNESS" {% if activity.category == 'WELLNESS' %}selected{% endif %}>Wellness and Leisure</option>
+                <option value="NIGHTLIFE" {% if activity.category == 'NIGHTLIFE' %}selected{% endif %}>Nightlife and Entertainment</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Duration</label>
+            <div style="display:flex;gap:8px">
+                <input type="number" name="duration_minutes" class="form-input" value="{{ activity.duration_minutes|default:60 }}" style="flex:1">
+                <select name="duration_unit" class="form-input" style="flex:1">
+                    <option value="MINUTES" {% if activity.duration_unit == 'MINUTES' or not activity.duration_unit %}selected{% endif %}>Minutes</option>
+                    <option value="HOURS" {% if activity.duration_unit == 'HOURS' %}selected{% endif %}>Hours</option>
+                    <option value="DAYS" {% if activity.duration_unit == 'DAYS' %}selected{% endif %}>Days</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="loc-field-grid">
+        <div class="form-group"><label>Address / Location</label><input type="text" name="location" class="form-input" value="{{ activity.location|default:'' }}"></div>
+        <div class="form-group"><label>Meeting Point</label><input type="text" name="meeting_point" class="form-input" value="{{ activity.meeting_point|default:'' }}"></div>
+    </div>
+    <div style="margin-top:12px">
+        {% include 'search/_loc_cascade_field.html' with country_name='location_country' country_value=activity.location_country province_name='location_province' province_value=activity.location_province municipality_name='location_municipality' municipality_value=activity.location_municipality barangay_name='location_barangay' barangay_value=activity.location_barangay %}
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Schedule Date</label><input type="date" name="schedule_date" class="form-input" value="{{ activity.schedule_date|date:'Y-m-d' }}"></div>
+        <div class="form-group"><label>Schedule Time</label><input type="time" name="schedule_time" class="form-input" value="{{ activity.schedule_time|date:'H:i' }}"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Rate (₱ / participant)</label><input type="number" name="fee" step="0.01" class="form-input" value="{{ activity.fee|default:0 }}" required></div>
+        <div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="{{ activity.capacity|default:1 }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Requirements (age restrictions, skill levels, prerequisites)</label>
+        <textarea name="requirements" class="form-input" rows="2">{{ activity.requirements|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Required Equipment / Services</label>
+        <textarea name="required_equipment" class="form-input" rows="2">{{ activity.required_equipment|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Required Documents</label>
+        <textarea name="required_documents" class="form-input" rows="2" placeholder="e.g. government-issued ID, signed waiver">{{ activity.required_documents|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Cover Photo</label>
+        <input type="file" name="image" accept="image/*" class="form-input">
+        {% if activity.image %}<p style="font-size:12px;color:var(--slate-500);margin-top:6px">Photo saved; upload a new one to replace it.</p>{% endif %}
+    </div>
+    <div class="form-group">
+        <label>Activity Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+    </div>
+    {% if activity and activity.photos.all %}
+    <div class="form-group">
+        <label>Existing Activity Photos</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in activity.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:activity.name }}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">
+                <span class="meta">{% if photo.is_primary %}Primary · {% endif %}<input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <label class="checkbox" style="align-self:center">
+            <input type="checkbox" name="guide_required" {% if activity.guide_required %}checked{% endif %}> Guide required
+        </label>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="ACTIVE" {% if activity.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                <option value="INACTIVE" {% if activity.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                <option value="SUSPENDED" {% if activity.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                <option value="UNDER_MAINTENANCE" {% if activity.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Activity</button>
+    <a href="{% url 'activities:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}
+

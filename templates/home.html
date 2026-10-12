@@ -1,0 +1,1945 @@
+{% extends 'base.html' %}
+{% load hotel_photos %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block body_class %}home-page{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Light scoped navbar for the home page (overrides dark base navbar at top) */
+.home-page .navbar { padding: 8px 0; background: rgba(255,255,255,0.72); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); border-bottom: 1px solid var(--hm-line); }
+.home-page .navbar .brand-text b { color: var(--hm-ink); }
+.home-page .navbar .brand-text small { color: var(--hm-mut); }
+.home-page .navbar .nav-link { padding: 6px 11px; color: var(--hm-mut); }
+.home-page .navbar .nav-link:hover { color: var(--hm-ink); background: var(--hm-bg); }
+.home-page .navbar .nav-link.active { color: var(--hm-acc); }
+.home-page .navbar .mobile-toggle span { background: var(--hm-ink); }
+.home-page .navbar .btn-ghost { color: var(--hm-ink); border-color: var(--hm-line); }
+.home-page .navbar .btn { padding: 9px 15px; font-size: 13px; }
+.home-page .navbar .btn-ghost:hover { background: var(--hm-bg); }
+.home-page .navbar .has-dropdown .nav-link { color: var(--hm-mut); }
+.home-page .navbar.has-dropdown:hover .nav-link { color: var(--hm-ink); }
+.home-page .brand-mark { width: 50px; height: 50px; border-radius: 0; background: none !important; box-shadow: none; }
+.home-page .brand-mark img { object-fit: contain; }
+.home-page .brand-text b { font-size: 24px; }
+.home-page .brand-text small { font-size: 12px; }
+@media (max-width: 640px) {
+    .home-page .brand-mark { width: 44px; height: 44px; border-radius: 0; }
+    .home-page .brand-text b { font-size: 20px; }
+    .home-page .brand-text small { font-size: 10.5px; }
+}
+
+/* Full-width container for the homepage */
+.home-page .container { max-width: 90%; padding: 0 24px; }
+@media (min-width: 1600px) { .home-page .container { padding: 0 40px; } }
+
+:root {
+    --hm-bg: #eef3fb;
+    --hm-card: #ffffff;
+    --hm-ink: #0b1224;
+    --hm-mut: #5b6b85;
+    --hm-line: #e3eaf5;
+    --hm-acc: #1d4ed8;
+    --hm-acc-2: #0ea5e9;
+    --hm-grad: linear-gradient(120deg, #1d4ed8, #38bdf8);
+    --hm-grad-2: linear-gradient(120deg, #f59e0b, #f43f5e);
+    --hm-deep: #050a1e;
+    --hm-radius: 20px;
+    --hm-sh: 0 1px 2px rgba(11,18,36,0.05), 0 18px 44px -22px rgba(11,18,36,0.18);
+    --hm-sh-hover: 0 2px 4px rgba(11,18,36,0.05), 0 30px 64px -26px rgba(11,18,36,0.28);
+    --hm-font-display: 'Sora', 'Inter', sans-serif;
+}
+
+/* ===================== HERO ===================== */
+.hm-hero {
+    position: relative;
+    overflow: visible;
+    padding: 128px 0 0;
+    background: #0b2035;
+    scroll-margin-top: 80px;
+}
+.hero-bg { position: absolute; z-index: 0; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.hm-hero-slide { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center 48%; opacity: 0; transition: opacity 1.5s ease-in-out; }
+.hm-hero-slide.is-active { opacity: 1; }
+.hm-hero-overlay { position: absolute; z-index: 1; inset: 0; background: linear-gradient(90deg, rgba(4,12,28,.82) 0%, rgba(4,12,28,.60) 52%, rgba(4,12,28,.40) 100%); }
+@media (max-width: 720px) { .hm-hero-slide { object-position: center; } .hm-hero-overlay { background: rgba(4,12,28,.58); } }
+@media (prefers-reduced-motion: reduce) { .hm-hero-slide { transition: none; } }
+
+.hm-hero-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+}
+.hm-hero-inner > div:first-child {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+.hm-hero-inner > div:first-child .hm-lede { margin: 0 auto 34px; }
+.hm-hero-inner .hm-search { width: min(1400px, calc(100% + 120px)); max-width: none; }
+.hm-hero-inner .hm-trust { width: 100%; max-width: 1040px; justify-content: center; }
+.hm-eyebrow {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #93c5fd;
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.16);
+    padding: 8px 15px; border-radius: 999px;
+    margin-bottom: 24px;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.hm-hero h1 {
+    font-family: var(--hm-font-display);
+    font-size: clamp(36px, 5vw, 62px);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+    color: #f6fbff;
+    font-weight: 800;
+    margin-bottom: 20px;
+}
+.hm-hero h1 .grad {
+    background: linear-gradient(120deg, #93c5fd, #38bdf8 55%, #1d4ed8);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.hm-hero h1 .wave {
+    display: inline-block; position: relative;
+}
+.hm-hero h1 .wave::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q 15 0, 30 6 T 60 6 T 90 6 T 120 6' fill='none' stroke='%23f59e0b' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x bottom / 120px 12px;
+    opacity: .9;
+}
+.hm-lede {
+    font-size: 17.5px; color: rgba(235,245,255,0.82);
+    max-width: 500px; line-height: 1.75; margin-bottom: 34px;
+}
+.hm-cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 38px; }
+.hm-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 15px 26px; border-radius: 14px;
+    font-weight: 700; font-size: 15px;
+    font-family: var(--hm-font-display);
+    transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+    cursor: pointer;
+}
+.hm-btn:hover { transform: translateY(-2px); }
+.hm-btn:hover:active { transform: scale(0.97); }
+.hm-btn-solid {
+    color: var(--hm-deep);
+    background: linear-gradient(120deg, #bfdbfe, #7dd3fc);
+    box-shadow: 0 14px 34px -12px rgba(29,78,216,0.55);
+}
+.hm-btn-solid:hover { box-shadow: 0 20px 44px -14px rgba(29,78,216,0.7); }
+.hm-btn-glass {
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.28);
+    background: rgba(255,255,255,0.10);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.hm-btn-glass:hover { background: rgba(255,255,255,0.18); }
+
+/* Agoda-style search widget — enlarged, still landscape */
+.hm-search {
+    background: #fff;
+    border-radius: 26px;
+    padding: 20px;
+    box-shadow: 0 34px 70px -28px rgba(0,0,0,0.55);
+    margin-bottom: 26px;
+}
+.hm-search-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; padding: 0 6px 12px; }
+.hm-search-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+.hm-search-tabs label {
+    display: inline-flex; align-items: center; gap: 8px;
+    justify-content: center; min-width: 0; white-space: nowrap;
+    font-size: 13.5px; font-weight: 700; font-family: var(--hm-font-display);
+    color: var(--hm-mut); cursor: pointer;
+    padding: 10px 8px; border-radius: 12px;
+    transition: background .2s var(--ease), color .2s var(--ease);
+}
+.hm-search-tabs label:hover { background: var(--hm-bg); color: var(--hm-acc); }
+.hm-search-tabs input[type="radio"]:checked + label { background: #dbeafe; color: var(--hm-acc); }
+.hm-search-tabs label i { color: var(--hm-acc-2); }
+.hm-trip-type { display: flex; align-items: center; gap: 12px; padding: 0 6px 14px; }
+.hm-trip-type[hidden] { display: none; }
+.hm-tt-options { display: inline-flex; gap: 10px; padding: 0; border-radius: 999px; background: transparent; }
+.hm-tt-options input { position: absolute; opacity: 0; pointer-events: none; }
+.hm-tt-options label { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #334155; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.hm-tt-options input:checked + label { border-color: #2563eb; background: #eaf2ff; color: #1d4ed8; box-shadow: none; }
+.hm-tt-options label i { color: inherit; }
+.hm-search .field[hidden] { display: none; }
+.hm-search-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hm-search .field.grow { grid-column: span 2; }
+.hm-search .hm-date-range { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-height: 74px; border: 1.5px solid var(--hm-line); border-radius: 16px; background: #fbfdff; overflow: hidden; transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.hm-search .hm-date-range.has-return { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hm-search .hm-date-range:focus-within { border-color: var(--hm-acc); box-shadow: 0 0 0 4px rgba(29,78,216,0.12); }
+.hm-search .hm-date-range > .field { min-width: 0; min-height: 64px; padding: 7px 17px 8px; border: 0; border-radius: 0; background: transparent; }
+.hm-search .hm-date-range > #returnField { border-left: 1px solid var(--hm-line); }
+.hm-search .hm-date-range > .field:focus-within { border-color: transparent; box-shadow: none; }
+.hm-search-fields.is-flight-search { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hm-search-fields.is-flight-search > .field.grow { grid-column: auto; }
+.hm-search .hm-flight-details { display: flex; flex-direction: column; justify-content: center; position: relative; }
+.hm-search .hm-flight-details > label { margin-bottom: 7px; }
+.hm-search .hm-passenger-trigger { width: 100%; min-height: 23px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: 0; background: transparent; color: var(--hm-ink); cursor: pointer; text-align: left; }
+.hm-search .hm-passenger-trigger > i { color: #94a3b8; font-size: 12px; }
+.hm-search .hm-passenger-summary { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 10px; font-size: 15px; }
+.hm-search .hm-passenger-summary strong { font-weight: 700; }
+.hm-search .hm-flight-value { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; opacity: 0; pointer-events: none; }
+.hm-search .hm-passenger-popover { position: absolute; z-index: 80; top: calc(100% + 12px); right: 0; width: min(500px, calc(100vw - 36px)); padding: 16px 18px 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,.18); }
+.hm-search .hm-passenger-popover[hidden] { display: none; }
+.hm-search .hm-passenger-counts { padding: 0 4px; }
+.hm-search .hm-passenger-row { min-height: 60px; display: grid; grid-template-columns: 36px 40px 1fr 36px; align-items: center; gap: 8px; border-bottom: 1px solid #d8dee8; }
+.hm-search .hm-passenger-row > span:nth-child(2) { color: #528df4; font-size: 23px; text-align: center; }
+.hm-search .hm-passenger-row > span:nth-child(3) { display: flex; align-items: baseline; gap: 7px; color: #8b93a1; }
+.hm-search .hm-passenger-row strong { color: #737d8d; font-size: 14px; font-weight: 500; }
+.hm-search .hm-passenger-row small { font-size: 13px; }
+.hm-search .hm-passenger-row > button { border: 0; background: transparent; color: #528df4; font-size: 21px; cursor: pointer; }
+.hm-search .hm-passenger-row > button:disabled { color: #d5d9df; cursor: default; }
+.hm-search .hm-fare-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 22px; }
+.hm-search .hm-fare-options button { min-height: 48px; border: 1px solid #3976ff; border-radius: 5px; background: #fff; color: #528df4; font: inherit; cursor: pointer; box-shadow: 0 2px 5px rgba(15,23,42,.18); }
+.hm-search .hm-fare-options button.is-selected { background: #528df4; color: white; }
+.hm-search .hm-fare-options button:hover { background: #eaf2ff; }
+.hm-search .hm-fare-options button.is-selected:hover { background: #3976e8; }
+.hm-search .hm-flight-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-width: 0; }
+.hm-search .hm-flight-selects select { min-width: 0; border: none; outline: none; background: transparent; font-family: 'Inter', sans-serif; font-size: 15.5px; font-weight: 700; color: var(--hm-ink); width: 100%; cursor: pointer; }
+.hm-search .field {
+    position: relative;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    border: 1.5px solid var(--hm-line); border-radius: 16px;
+    padding: 14px 17px 15px; background: #fbfdff;
+    min-height: 74px;
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.hm-search .field:focus-within { border-color: var(--hm-acc); box-shadow: 0 0 0 4px rgba(29,78,216,0.12); }
+.hm-search .field label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--hm-mut); margin-bottom: 7px;
+}
+.hm-search .field label i { color: var(--hm-acc); font-size: 12px; }
+.hm-search .field input, .hm-search .field select {
+    border: none; outline: none; background: transparent;
+    font-family: 'Inter', sans-serif; font-size: 15.5px; font-weight: 700;
+    color: var(--hm-ink); width: 100%; appearance: none; -webkit-appearance: none;
+}
+.hm-search .field input::placeholder { color: #94a3b8; font-weight: 600; }
+.hm-search .field select { cursor: pointer; }
+.hm-search .adp-trigger {
+    color: var(--hm-ink); font-size: 15.5px; font-weight: 700;
+    background: transparent; border-color: transparent; padding: 2px 2px;
+    min-height: 22px;
+}
+.hm-search .adp-trigger:hover,
+.hm-search .adp-trigger:focus-visible { background: transparent; border-color: transparent; box-shadow: none; }
+.hm-search .adp-trigger .adp-trigger-placeholder { color: #8fa0b5; font-weight: 500; }
+.hm-search .gd-field {
+    position: relative;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    border: 1.5px solid var(--hm-line); border-radius: 16px;
+    padding: 14px 17px 15px; background: #fbfdff;
+    min-height: 74px;
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.hm-search .gd-field[hidden] { display: none; }
+.hm-search .gd-field:focus-within { border-color: var(--hm-acc); box-shadow: 0 0 0 4px rgba(29,78,216,0.12); }
+.hm-search .gd-field label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--hm-mut); margin-bottom: 7px;
+}
+.hm-search .gd-field label i { color: var(--hm-acc); font-size: 12px; }
+.hm-search .gd-field .gd-toggle {
+    border: none; outline: none; background: transparent;
+    font-family: 'Inter', sans-serif; font-size: 15.5px; font-weight: 700;
+    color: var(--hm-ink); width: 100%; appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.hm-search .field .atrue-airport-wrap { width: 100%; }
+.hm-search .field .atrue-airport-trigger {
+    border: 0; background: transparent; padding: 0; min-height: 0; border-radius: 0; gap: 6px;
+}
+.hm-search .field .atrue-airport-trigger:hover { border-color: transparent; }
+.hm-search .field .atrue-airport-placeholder,
+.hm-search .field .atrue-airport-value { font-size: 15.5px; font-weight: 700; }
+.hm-search-errors { margin: 0 6px 14px; display: grid; gap: 6px; }
+.hm-search-errors p { margin: 0; padding: 10px 13px; border-radius: 11px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 12.5px; font-weight: 600; }
+.hm-search-error { margin: 0 6px 14px; padding: 10px 13px; border-radius: 11px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 12.5px; font-weight: 600; }
+.hm-search-error[hidden] { display: none; }
+.hm-place-suggestions {
+    position: absolute; z-index: 9000; top: calc(100% + 6px); left: 0; right: 0;
+    max-height: min(46vh, 320px); overflow-y: auto; padding: 10px;
+    border: 1px solid #dfe5ee; border-radius: 12px; background: #fff; text-align: left;
+    box-shadow: 0 16px 40px rgba(15, 28, 50, 0.18);
+    display: flex; flex-direction: column; gap: 4px;
+}
+.hm-place-suggestions[hidden] { display: none; }
+.hm-place-suggestion {
+    display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px;
+    background: transparent; color: var(--hm-ink); text-align: left; cursor: pointer;
+}
+.hm-place-suggestion:hover, .hm-place-suggestion:focus-visible { background: var(--hm-bg); outline: none; }
+.hm-place-suggestion b { display: block; font-size: 13px; }
+.hm-place-suggestion span { display: block; margin-top: 3px; color: var(--hm-mut); font-size: 11px; }
+.hm-place-suggestion-status { padding: 11px 12px; color: var(--hm-mut); font-size: 12px; }
+.hm-destination-option {
+    display: flex; align-items: center; gap: 11px; width: 100%; flex: none;
+    border: 0; border-radius: 10px; background: #fff; padding: 9px 8px;
+    color: #1a2b3c; text-align: left; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 14px;
+}
+.hm-destination-option:hover, .hm-destination-option:focus-visible { background: #f2f6fc; outline: none; }
+.hm-destination-option[hidden] { display: none; }
+.hm-destination-option-ico {
+    width: 34px; height: 34px; flex: none; display: inline-flex; align-items: center;
+    justify-content: center; border-radius: 9px; background: #eaf2ff; color: #0a58ca; font-size: 13px;
+}
+.hm-destination-option-name { font-weight: 700; font-size: 14px; }
+.hm-search-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #fff; font-size: 16px; font-weight: 800; font-family: var(--hm-font-display);
+    border: none; cursor: pointer;
+    border-radius: 16px; padding: 0 30px; align-self: stretch;
+    grid-column: 1 / -1; justify-self: center; width: min(380px, 100%);
+    min-height: 74px;
+    box-shadow: 0 14px 30px -12px rgba(29,78,216,0.6);
+    transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.hm-search-btn:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -14px rgba(29,78,216,0.75); }
+.hm-search-btn:hover:active { transform: scale(.97); }
+
+.hm-trust {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    color: rgba(235,245,255,0.9); font-size: 13.5px; font-weight: 600;
+    padding: 13px 18px; border-radius: 15px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.hm-trust span { display: inline-flex; align-items: center; gap: 8px; }
+.hm-trust i { color: #5eead4; }
+
+@media (min-width: 1101px) {
+    .hm-hero { height: auto; min-height: 760px; box-sizing: border-box; padding-top: 115px; }
+    .hm-hero h1 { font-size: 56px; margin-bottom: 16px; }
+    .hm-hero-inner > div:first-child .hm-lede {
+        font-size: 16.5px; line-height: 1.6; margin-bottom: 19px;
+    }
+    .hm-search { padding: 14px 18px; }
+    .hm-search-tabs { padding-bottom: 12px; }
+    .hm-trip-type { padding-bottom: 10px; }
+    .hm-search .field { min-height: 64px; padding: 7px 17px 8px; }
+    .hm-search-btn { min-height: 58px; }
+    .hm-trust { display: none; }
+}
+
+/* ===================== MARQUEE ===================== */
+.hm-marquee {
+    background: #fff; border-bottom: 1px solid var(--hm-line);
+    overflow: hidden; padding: 15px 0; position: relative;
+}
+.hm-marquee .track { display: flex; width: max-content; animation: hm-scroll 32s linear infinite; }
+.hm-marquee:hover .track { animation-play-state: paused; }
+.hm-marquee .trip { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--hm-mut); margin: 0 28px; white-space: nowrap; }
+.hm-marquee .trip b { color: var(--hm-ink); font-family: var(--hm-font-display); }
+.hm-marquee .trip i { color: var(--hm-acc); }
+.hm-marquee .trip .star { color: #f59e0b; font-size: 10px; }
+@keyframes hm-scroll { to { transform: translateX(-50%); } }
+.hm-marquee .trip { cursor: pointer; transition: color .2s ease, transform .2s ease; }
+.hm-marquee .trip:hover { color: var(--hm-acc); transform: translateY(-1px); }
+.hm-marquee .trip:hover b { color: var(--hm-acc); }
+
+
+/* ===================== SECTIONS ===================== */
+.hm-section { padding: 96px 0; scroll-margin-top: 84px; position: relative; }
+.hm-section.alt { background: #fff; border-top: 1px solid var(--hm-line); border-bottom: 1px solid var(--hm-line); }
+.hm-head { text-align: center; max-width: 660px; margin: 0 auto 54px; }
+.hm-head .hm-eyebrow { color: var(--hm-acc); background: #dbeafe; border-color: #bfdbfe; margin-bottom: 16px; }
+.hm-head h2 { font-family: var(--hm-font-display); font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -0.02em; color: var(--hm-ink); line-height: 1.14; margin-bottom: 14px; }
+.hm-head h2 .grad { background: var(--hm-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hm-head p { color: var(--hm-mut); font-size: 16.5px; line-height: 1.7; }
+
+/* Services */
+.hm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.hm-card {
+    text-decoration: none; color: inherit; cursor: pointer;
+    position: relative; overflow: hidden;
+    background: var(--hm-card);
+    border: 1px solid var(--hm-line);
+    border-radius: var(--hm-radius);
+    box-shadow: var(--hm-sh);
+    display: flex; flex-direction: column;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease);
+}
+.hm-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--hm-grad); opacity: 0; transition: opacity .3s var(--ease);
+}
+.hm-card:hover { transform: translateY(-6px); box-shadow: var(--hm-sh-hover); border-color: rgba(29,78,216,0.3); }
+.hm-card:hover::before { opacity: 1; }
+.hm-card:hover:active { transform: scale(0.98); }
+.hm-card .cover {
+    height: 220px; position: relative;
+    background-size: cover; background-position: center;
+    overflow: hidden;
+}
+.hm-card .cover::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(5,10,30,0.05) 45%, rgba(5,10,30,0.55) 100%);
+}
+.hm-card:hover .cover img { transform: scale(1.06); }
+.hm-card .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .5s var(--ease); }
+.hm-card .cover .ico-chip {
+    position: absolute; left: 16px; bottom: -20px; z-index: 2;
+    width: 44px; height: 44px; border-radius: 13px;
+    display: grid; place-items: center;
+    background: var(--hm-grad); color: #fff; font-size: 17px;
+    box-shadow: 0 10px 22px -8px rgba(29,78,216,0.55), 0 0 0 4px #fff;
+}
+.g-view { background: linear-gradient(135deg, #0ea5e9, #38bdf8); }
+.g-ind { background: linear-gradient(150deg, #4f46e5, #818cf8); }
+.g-cyan { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+.g-teal { background: linear-gradient(150deg, #0d9488, #2dd4bf); }
+.g-amb { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+.g-sky { background: linear-gradient(150deg, #0284c7, #38bdf8); }
+.g-grn { background: linear-gradient(135deg, #15803d, #4ade80); }
+.g-ros { background: linear-gradient(150deg, #be123c, #f43f5e); }
+.g-vio { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+.hm-card .body { padding: 32px 24px 20px; flex: 1; display: flex; flex-direction: column; }
+.hm-card h3 { font-family: var(--hm-font-display); font-size: 17.5px; color: var(--hm-ink); letter-spacing: -0.01em; margin-bottom: 8px; }
+.hm-card p { color: var(--hm-mut); font-size: 14.5px; line-height: 1.62; flex: 1; }
+.hm-card .feat { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 18px; }
+.hm-card .feat span { font-size: 12px; font-weight: 600; color: var(--hm-mut); background: var(--hm-bg); border: 1px solid var(--hm-line); border-radius: 999px; padding: 4px 11px; }
+.hm-card .link {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 700; color: var(--hm-acc);
+    border-top: 1px solid var(--hm-line); padding-top: 16px; margin-top: 2px;
+}
+.hm-card .link i { transition: transform .2s var(--ease); }
+.hm-card:hover .link i { transform: translateX(5px); }
+
+/* Live listings */
+.hm-live-sec {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.hm-live-title { display: flex; align-items: center; gap: 13px; }
+.hm-live-title .ico {
+    width: 46px; height: 46px; border-radius: 14px;
+    display: grid; place-items: center;
+    color: #fff; font-size: 16px;
+    box-shadow: 0 10px 22px -10px rgba(11,18,36,0.35);
+}
+.hm-live-title h3 { font-family: var(--hm-font-display); font-size: 17px; color: var(--hm-ink); letter-spacing: -0.01em; }
+.hm-live-title p { font-size: 13.5px; color: var(--hm-mut); }
+.hm-more {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 700; color: var(--hm-acc);
+    padding: 10px 18px; border: 1px solid var(--hm-line); border-radius: 12px;
+    background: #fff; transition: border-color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease);
+}
+.hm-more:hover { border-color: rgba(13,148,136,0.4); box-shadow: var(--hm-sh); transform: translateY(-2px); }
+.hm-more:hover:active { transform: scale(0.96); }
+.hm-live-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 52px; }
+.hm-live-grid.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.hm-item {
+    text-decoration: none; color: inherit; cursor: pointer;
+    background: #fff; border: 1px solid var(--hm-line);
+    border-radius: var(--hm-radius); overflow: hidden;
+    box-shadow: var(--hm-sh);
+    display: flex; flex-direction: column;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.hm-item:hover { transform: translateY(-4px); box-shadow: var(--hm-sh-hover); }
+.hm-item:hover:active { transform: scale(0.98); }
+.hm-item .cover {
+    height: 168px; position: relative; overflow: hidden;
+    display: flex; align-items: flex-start; justify-content: flex-end;
+    padding: 14px;
+    background-size: cover; background-position: center;
+}
+.hm-item .cover::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(5,10,30,0.12) 0%, rgba(5,10,30,0.02) 35%, rgba(5,10,30,0.35) 100%);
+}
+.hm-item .cover .bg-ico { display: none; }
+.hm-item .cover .badge {
+    position: relative; z-index: 1;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--hm-deep); background: rgba(255,255,255,0.92);
+    padding: 5px 12px; border-radius: 999px; margin-left: auto;
+}
+.hm-item .body { padding: 18px 20px 4px; flex: 1; }
+.hm-item .body h4 { font-family: var(--hm-font-display); font-size: 16px; color: var(--hm-ink); letter-spacing: -0.01em; margin-bottom: 6px; }
+.hm-item .body .meta { font-size: 13px; color: var(--hm-mut); line-height: 1.55; }
+.hm-item .body .meta i { color: var(--hm-acc-2); margin-right: 3px; }
+.hm-item .foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 18px; }
+.hm-item .foot .price b { font-size: 17px; color: var(--hm-ink); font-family: var(--hm-font-display); }
+.hm-item .foot .price span { font-size: 12.5px; color: var(--hm-mut); }
+.hm-item .foot .mini {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; color: var(--hm-acc);
+    padding: 8px 14px; border: 1px solid var(--hm-line); border-radius: 10px;
+    transition: background .2s var(--ease), color .2s var(--ease), transform .2s var(--ease);
+}
+.hm-item .foot .mini:hover { background: var(--hm-acc); color: #fff; border-color: var(--hm-acc); }
+.hm-item .foot .mini:hover:active { transform: scale(0.94); }
+.hm-empty {
+    grid-column: 1 / -1; text-align: center; color: var(--hm-mut);
+    background: #fff; border: 1px dashed var(--hm-line);
+    border-radius: var(--hm-radius); padding: 44px 20px;
+}
+
+/* About */
+.hm-about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.hm-about-copy h2 { font-family: var(--hm-font-display); font-size: clamp(28px, 3.2vw, 40px); color: var(--hm-ink); letter-spacing: -0.02em; line-height: 1.14; margin-bottom: 16px; }
+.hm-about-copy h2 .grad { background: var(--hm-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hm-about-copy .lede { color: var(--hm-mut); line-height: 1.75; margin-bottom: 30px; }
+.hm-feat-item { display: flex; gap: 15px; padding: 17px 0; border-top: 1px solid var(--hm-line); align-items: flex-start; }
+.hm-feat-item .num {
+    font-family: var(--hm-font-display); font-weight: 800; font-size: 15px;
+    color: #fff; background: var(--hm-grad);
+    flex: 0 0 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center;
+}
+.hm-feat-item h4 { font-family: var(--hm-font-display); font-size: 15.5px; color: var(--hm-ink); margin-bottom: 3px; }
+.hm-feat-item p { font-size: 14px; color: var(--hm-mut); line-height: 1.6; }
+.hm-about-photo {
+    position: relative; border-radius: 28px;
+    aspect-ratio: 1 / 0.92;
+    background:
+        radial-gradient(90% 90% at 15% 12%, rgba(255,255,255,0.5), transparent 55%),
+        linear-gradient(150deg, #0f3d52, #1d4ed8 70%, #38bdf8);
+    overflow: hidden;
+    box-shadow: var(--hm-sh-hover);
+}
+.hm-about-photo .big-ico {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 110px; color: rgba(255,255,255,0.16);
+}
+.hm-about-photo .wave-w {
+    position: absolute; left: -10%; right: -10%; bottom: -6%;
+    height: 38%; opacity: .5;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 26' preserveAspectRatio='none'%3E%3Cpath d='M0 14 Q 15 4, 30 14 T 60 14 T 90 14 T 120 14 V 30 H 0 Z' fill='%232563eb'/%3E%3C/svg%3E") repeat-x bottom / 180px 26px;
+}
+.hm-about-photo .island {
+    position: absolute; bottom: 16%; left: 18%;
+    width: 64%; height: 30%;
+    background: linear-gradient(180deg, #fbbf24, #f59e0b);
+    border-radius: 42% 58% 40% 60% / 60% 40% 60% 40%;
+    box-shadow: inset 0 14px 30px -14px rgba(0,0,0,0.25);
+}
+.hm-bubbles { position: absolute; inset: 0; pointer-events: none; }
+.hm-bubbles span {
+    position: absolute;
+    background: rgba(255,255,255,0.92); border: 1px solid var(--hm-line);
+    border-radius: 14px; box-shadow: var(--hm-sh);
+    padding: 10px 13px; font-size: 12.5px; font-weight: 700; color: var(--hm-ink);
+}
+.hm-bubbles span i { margin-right: 7px; color: var(--hm-acc); }
+.hm-bubbles .b1 { top: 14%; left: -12px; }
+.hm-bubbles .b2 { bottom: 20%; right: -8px; }
+.hm-bubbles .b3 { top: 30%; right: 6%; }
+
+/* Roles */
+.hm-roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.hm-role {
+    position: relative; overflow: hidden;
+    background: #fff; border: 1px solid var(--hm-line);
+    border-radius: 18px; padding: 22px;
+    box-shadow: var(--hm-sh);
+    display: flex; gap: 14px; align-items: flex-start;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.hm-role:hover { transform: translateY(-4px); box-shadow: var(--hm-sh-hover); }
+.hm-role:hover:active { transform: scale(0.98); }
+.hm-role .num {
+    position: absolute; top: 8px; right: 16px;
+    font-family: var(--hm-font-display); font-weight: 800; font-size: 44px;
+    color: rgba(11,18,36,0.06); line-height: 1;
+}
+.hm-role .ico {
+    flex: 0 0 42px; height: 42px; border-radius: 13px;
+    display: grid; place-items: center;
+    font-size: 15px; color: #fff; box-shadow: 0 8px 18px -8px rgba(11,18,36,0.4);
+}
+.hm-role h4 { font-family: var(--hm-font-display); font-size: 14.5px; color: var(--hm-ink); margin-bottom: 4px; }
+.hm-role p { font-size: 13px; color: var(--hm-mut); line-height: 1.55; }
+
+/* CTA */
+.hm-cta {
+    position: relative; overflow: hidden;
+    border-radius: 28px;
+    background: linear-gradient(135deg, #0f3d52 0%, #1d4ed8 55%, #2563eb 120%);
+    color: #fff; padding: 64px; text-align: center;
+    box-shadow: 0 30px 70px -30px rgba(29,78,216,0.55);
+}
+.hm-cta::before {
+    content: ""; position: absolute; inset: -60% -30% auto auto;
+    width: 60%; height: 100%;
+    background: radial-gradient(circle at 40% 30%, rgba(255,255,255,0.28), transparent 55%);
+}
+.hm-cta::after {
+    content: ""; position: absolute; left: -8%; right: -8%; bottom: -4%;
+    height: 30%; opacity: .35;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 26' preserveAspectRatio='none'%3E%3Cpath d='M0 14 Q 15 4, 30 14 T 60 14 T 90 14 T 120 14 V 30 H 0 Z' fill='%232563eb'/%3E%3C/svg%3E") repeat-x bottom / 200px 26px;
+}
+.hm-cta h2 { font-family: var(--hm-font-display); font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.02em; margin-bottom: 14px; position: relative; }
+.hm-cta p { color: rgba(255,255,255,0.9); max-width: 540px; margin: 0 auto 30px; font-size: 16px; position: relative; }
+.hm-cta .btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; }
+.hm-btn-white {
+    color: var(--hm-ink); background: #fff;
+    box-shadow: 0 14px 32px -14px rgba(0,0,0,0.45);
+}
+.hm-btn-outline { color: #fff; border: 1.5px solid rgba(255,255,255,0.55); }
+.hm-btn-white:hover, .hm-btn-outline:hover { transform: translateY(-2px); }
+
+/* Contact */
+.hm-contact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.hm-contact-card {
+    background: #fff; border: 1px solid var(--hm-line);
+    border-radius: 18px; padding: 20px 22px;
+    display: flex; gap: 14px; align-items: flex-start;
+    box-shadow: var(--hm-sh);
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+}
+.hm-contact-card:hover { transform: translateY(-4px); box-shadow: var(--hm-sh-hover); }
+.hm-contact-card:hover:active { transform: scale(0.97); }
+.hm-contact-card .ico {
+    flex: 0 0 42px; height: 42px; border-radius: 13px;
+    display: grid; place-items: center; color: #fff; font-size: 15px;
+}
+.hm-contact-card h4 { font-family: var(--hm-font-display); font-size: 14px; color: var(--hm-ink); margin-bottom: 3px; }
+.hm-contact-card p { font-size: 13.5px; color: var(--hm-mut); line-height: 1.55; }
+
+/* Tourism click glow for home cards */
+.hm-card:active .cover, .hm-item:active .cover, .hm-role:active .ico, .hm-contact-card:active .ico {
+    box-shadow: 0 0 22px rgba(6,182,212,0.55), inset 0 0 0 1px rgba(255,255,255,0.4);
+}
+.hm-eyebrow:active { background: rgba(20,184,166,0.18); }
+.hm-search-btn:active { box-shadow: 0 0 22px rgba(244,63,94,0.6); }
+.hm-trust span:active i { color: #ffd9a0; }
+
+/* Enhanced hover glow on service cards */
+.hm-card::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: radial-gradient(circle at 50% 0%, rgba(13,148,136,0.08), transparent 60%);
+    opacity: 0; transition: opacity .3s var(--ease); pointer-events: none;
+}
+.hm-card:hover::after { opacity: 1; }
+
+/* Subtle float on featured listings */
+.hm-item { animation: hm-float-gentle 6s ease-in-out infinite; }
+.hm-item:nth-child(2) { animation-delay: -1.5s; }
+.hm-item:nth-child(3) { animation-delay: -3s; }
+@keyframes hm-float-gentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+.hm-item:hover { animation-play-state: paused; }
+
+/* Search tab indicator slide */
+.hm-search-tabs label::after {
+    content: ""; position: absolute; bottom: 0; left: 50%; width: 0; height: 2px;
+    background: var(--hm-acc); border-radius: 2px;
+    transition: width .25s var(--ease), left .25s var(--ease);
+}
+.hm-search-tabs label { position: relative; }
+
+@media (max-width: 1100px) {
+    .hm-hero-inner .hm-search { width: 100%; }
+    .hm-search-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .hm-grid, .hm-live-grid, .hm-roles-grid { grid-template-columns: repeat(2, 1fr); }
+    .hm-contact-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+    .hm-search-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .hm-search-fields { grid-template-columns: 1fr 1fr; }
+    .hm-search .field.grow { grid-column: span 2; }
+    .hm-cta { padding: 48px 32px; }
+}
+@media (max-width: 640px) {
+    .home-page .container { padding: 0 20px; }
+    .hm-hero { padding-top: 84px; }
+    .hm-section { padding: 72px 0; }
+    .hm-grid, .hm-live-grid, .hm-live-grid.grid-2, .hm-roles-grid { grid-template-columns: 1fr; }
+    .hm-contact-grid { grid-template-columns: 1fr; }
+    .hm-cta { padding: 42px 24px; }
+    .hm-search-fields { grid-template-columns: 1fr; }
+    .hm-search .field.grow { grid-column: auto; }
+    .hm-search-btn { min-height: 52px; }
+}
+@media (max-width: 480px) {
+    .home-page .container { padding: 0 16px; }
+    .hm-section { padding: 64px 0; }
+    .hm-head { margin-bottom: 40px; }
+    .hm-cta { padding: 36px 20px; border-radius: 22px; }
+    .hm-cta .btns .hm-btn { width: 100%; }
+    .hm-search-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+    .hm-search-tabs label { padding: 8px 4px; font-size: 12.5px; }
+    .hm-live-title { align-items: flex-start; }
+    .hm-more { padding: 9px 14px; font-size: 13px; }
+    .hm-about-photo { border-radius: 22px; }
+    .hm-feat-item { padding: 14px 0; }
+}
+
+/* Landing-page sign-in dialog */
+.home-page .mobile-signin-trigger {
+    padding: 14px 18px;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    color: var(--text-1);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+.home-page .mobile-signin-trigger:hover { background: var(--slate-100); color: var(--indigo); }
+.hm-signin-modal[hidden] { display: none !important; }
+.hm-signin-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: radial-gradient(circle at 50% 38%, rgba(37,99,235,.13), transparent 42%), rgba(10, 17, 34, .42);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+.hm-signin-dialog {
+    position: relative;
+    width: min(100%, 480px);
+    max-height: min(92vh, 720px);
+    overflow: auto;
+    padding: 36px 38px 32px;
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 26px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 32px 72px -24px rgba(2,6,23,.55), 0 0 0 1px rgba(255,255,255,.08);
+    animation: hm-signin-enter .2s ease-out both;
+}
+.hm-signin-dialog::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 5px;
+    border-radius: 0 0 12px 12px;
+    background: linear-gradient(90deg, #3b82f6, #6366f1 50%, #2563eb);
+}
+.hm-signin-brand { display: flex; flex-direction: column; align-items: center; margin: 0 0 26px; text-align: center; }
+.hm-signin-brand .cb-logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 0 14px;
+    border-radius: 20px;
+    background: transparent;
+    box-shadow: none;
+}
+.hm-signin-brand h2 { margin: 0; color: #111827; font-size: 27px; font-weight: 800; letter-spacing: -.02em; }
+.hm-signin-sub { margin: 4px 0 0; color: #64748b; font-size: 14.5px; }
+.hm-signin-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 0;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+}
+.hm-signin-dialog .form-group { margin-bottom: 16px; }
+.hm-signin-dialog .form-group label { display: block; margin-bottom: 8px; color: #172033; font-size: 13px; font-weight: 600; }
+.hm-signin-dialog .input-wrap { position: relative; }
+.hm-signin-dialog .form-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 49px;
+    min-height: 49px;
+    padding: 12px 44px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 13px;
+    background: #f8fafc;
+    color: #111827;
+    font-size: 14.5px;
+    text-align: left;
+    outline: none;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.hm-signin-dialog .form-input::-ms-reveal { display: none; }
+.hm-signin-dialog .form-input:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 4px rgba(99,102,241,.14); }
+.hm-signin-dialog .form-input::placeholder { color: #94a3b8; }
+.hm-signin-dialog .pw-toggle {
+    position: absolute;
+    top: 50%;
+    right: 9px;
+    transform: translateY(-50%);
+    padding: 9px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+}
+.hm-signin-dialog .pw-toggle:hover { color: #4f46e5; background: #eef2ff; }
+.hm-signin-dialog .btn {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 8px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #2563eb, #6366f1);
+    box-shadow: 0 16px 34px -10px rgba(99,102,241,.55);
+    font-weight: 700;
+}
+.hm-signin-error {
+    margin: 0 0 16px;
+    padding: 11px 13px;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 13px;
+}
+.hm-signin-foot { margin: 18px 0 0; color: #6366f1; text-align: center; font-size: 14px; font-weight: 700; }
+.hm-signin-foot button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.hm-signin-foot button:hover { color: #4338ca; }
+@keyframes hm-signin-enter {
+    from { opacity: 0; transform: translateY(8px) scale(.98); }
+    to { opacity: 1; transform: none; }
+}
+@media (max-width: 520px) {
+    .hm-signin-dialog { padding: 34px 24px 28px; border-radius: 22px; }
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===================== HERO ===================== -->
+<section class="hm-hero" id="top">
+    <div class="hero-bg">
+        <img class="hm-hero-slide is-active" src="{% get_media_prefix %}landmark_photos/white-beach-boracay--01.jpg" alt="" aria-hidden="true" fetchpriority="high" decoding="async">
+        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/kawasan-falls--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
+        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/mayon-volcano--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
+        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/banaue-rice-terraces--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
+        <div class="hm-hero-overlay"></div>
+    </div>
+    <div class="container hm-hero-inner">
+        <div>
+            <span class="hm-eyebrow"><i class="fas fa-graduation-cap"></i> SJC Baggao &middot; Simulation Training</span>
+            <h1>One account for your<br><span class="grad">entire travel journey.</span></h1>
+            <p class="hm-lede">
+                ATRUE brings the travel &amp; hospitality industry into the classroom —
+                book flights, hotels, resorts, restaurants and tours across integrated
+                service modules in a safe, guided simulation environment.
+            </p>
+            <form class="hm-search" method="get" action="{% url 'home' %}" data-reveal id="homeSearchForm">
+                <input type="hidden" name="search_submit" value="1">
+                <div class="hm-search-tabs">
+                    <input type="radio" name="tab" id="tb-flights" value="flights" {% if search_tab == 'flights' or not search_active %}checked{% endif %}>
+                    <label for="tb-flights"><i class="fas fa-plane"></i> Flights</label>
+                    <input type="radio" name="tab" id="tb-hotels" value="hotels" {% if search_tab == 'hotels' %}checked{% endif %}>
+                    <label for="tb-hotels"><i class="fas fa-hotel"></i> Hotels</label>
+                    <input type="radio" name="tab" id="tb-resorts" value="resorts" {% if search_tab == 'resorts' %}checked{% endif %}>
+                    <label for="tb-resorts"><i class="fas fa-umbrella-beach"></i> Resorts</label>
+                    <input type="radio" name="tab" id="tb-staycations" value="staycations" {% if search_tab == 'staycations' %}checked{% endif %}>
+                    <label for="tb-staycations"><i class="fas fa-couch"></i> Staycations</label>
+                    <input type="radio" name="tab" id="tb-restaurants" value="restaurants" {% if search_tab == 'restaurants' %}checked{% endif %}>
+                    <label for="tb-restaurants"><i class="fas fa-utensils"></i> Restaurants</label>
+                    <input type="radio" name="tab" id="tb-tours" value="tours" {% if search_tab == 'tours' %}checked{% endif %}>
+                    <label for="tb-tours"><i class="fas fa-suitcase-rolling"></i> Tours</label>
+                    <input type="radio" name="tab" id="tb-land-transportation" value="landtransportation" {% if search_tab == 'landtransportation' %}checked{% endif %}>
+                    <label for="tb-land-transportation"><i class="fas fa-bus"></i> Land Transport</label>
+                    <input type="radio" name="tab" id="tb-activities" value="activities" {% if search_tab == 'activities' %}checked{% endif %}>
+                    <label for="tb-activities"><i class="fas fa-running"></i> Activities</label>
+                    <input type="radio" name="tab" id="tb-landmarks" value="landmarks" {% if search_tab == 'landmarks' %}checked{% endif %}>
+                    <label for="tb-landmarks"><i class="fas fa-landmark"></i> Landmarks</label>
+                </div>
+                <div class="hm-trip-type" id="flightTripTypeField">
+                    <div class="hm-tt-options" role="radiogroup" aria-label="Trip type">
+                        <input type="radio" name="trip_type" id="tt-oneway" value="ONE_WAY" {% if search_trip_type == 'ONE_WAY' %}checked{% endif %}>
+                        <label for="tt-oneway"><i class="fas fa-arrow-right"></i> One-way</label>
+                        <input type="radio" name="trip_type" id="tt-roundtrip" value="ROUND_TRIP" {% if search_trip_type == 'ROUND_TRIP' %}checked{% endif %}>
+                        <label for="tt-roundtrip"><i class="fas fa-repeat"></i> Round-trip</label>
+                    </div>
+                </div>
+                {% if search_errors %}
+                <div class="hm-search-errors" role="alert">
+                    {% for error in search_errors %}<p><i class="fas fa-circle-exclamation"></i> {{ error }}</p>{% endfor %}
+                </div>
+                {% endif %}
+                <div class="hm-search-error" id="homeSearchError" role="alert" hidden></div>
+                <div class="hm-search-fields">
+                    <div class="field grow" id="homePropertyField">
+                        <label><i class="fas fa-location-dot"></i> <span id="destinationLabel">Destination or property</span></label>
+                        <input type="text" id="homeDestinationInput" name="q" value="{{ search_query }}" placeholder="Search destination" aria-label="Destination or property" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="destinationSuggestions">
+                        <div class="hm-place-suggestions" id="destinationSuggestions" role="listbox" hidden>
+                            {% for option in destination_search_options %}<button type="button" class="hm-destination-option" role="option" data-destination="{{ option.name }}" data-categories="{{ option.categories }}"><span class="hm-destination-option-ico"><i class="fas fa-location-dot"></i></span><span class="hm-destination-option-name">{{ option.name }}</span></button>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="field" id="homeFlightOriginField" hidden>
+                        <label><i class="fas fa-plane-departure"></i> Flying from</label>
+                        {% include 'search/_airport_field.html' with field_name='origin_airport' airport=search_flight_origin_airport placeholder='Search worldwide airports' %}
+                    </div>
+                    <div class="field" id="homeFlightDestinationField" hidden>
+                        <label><i class="fas fa-plane-arrival"></i> Flying to</label>
+                        {% include 'search/_airport_field.html' with field_name='destination_airport' airport=search_flight_airport placeholder='Search worldwide airports' %}
+                    </div>
+                    <div class="hm-date-range" id="dateRangeField">
+                        <div class="field" id="departureField">
+                            <label><i class="fas fa-calendar-days"></i> <span id="departureLabel">Departure date</span></label>
+                            <input type="date" name="check_in" value="{{ search_check_in }}" aria-label="Departure date">
+                        </div>
+                        <div class="field" id="returnField" hidden>
+                            <label><i class="fas fa-calendar-days"></i> <span id="returnLabel">Return date</span></label>
+                            <input type="date" name="check_out" value="{{ search_check_out }}" aria-label="Return date">
+                        </div>
+                    </div>
+                    <div class="field" id="reservationTimeField" hidden>
+                        <label><i class="fas fa-clock"></i> Reservation time</label>
+                        <input type="time" name="reservation_time" value="{{ search_reservation_time }}" aria-label="Reservation time">
+                    </div>
+                    <div class="field hm-flight-details" id="passengersField" hidden>
+                        <label><i class="fas fa-user-group"></i> <span id="guestLabel">Passengers</span> &amp; Class</label>
+                        <button type="button" class="hm-passenger-trigger" aria-haspopup="dialog" aria-expanded="false" aria-label="Choose passengers and class">
+                            <span class="hm-passenger-summary"><strong data-adult-summary>2 Adults</strong><strong data-class-summary>Economy</strong></span>
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <select name="guests" aria-label="Passengers" class="hm-flight-value">
+                            {% for count in "123456789" %}
+                            <option value="{{ forloop.counter }}" {% if search_guests == forloop.counter|stringformat:'s' or not search_guests and forloop.counter == 2 %}selected{% endif %}>{{ forloop.counter }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="fare_class" aria-label="Flight class" class="hm-flight-value">
+                            <option value="ECONOMY" {% if search_flight_class == 'ECONOMY' or not search_flight_class %}selected{% endif %}>Economy</option>
+                            <option value="PREMIUM_ECONOMY" {% if search_flight_class == 'PREMIUM_ECONOMY' %}selected{% endif %}>Premium economy</option>
+                            <option value="BUSINESS" {% if search_flight_class == 'BUSINESS' %}selected{% endif %}>Business</option>
+                            <option value="FIRST_CLASS" {% if search_flight_class == 'FIRST_CLASS' %}selected{% endif %}>First</option>
+                        </select>
+                        <div class="hm-passenger-popover" role="dialog" aria-label="Passengers and class" hidden>
+                            <div class="hm-passenger-counts">
+                                <div class="hm-passenger-row"><button type="button" data-count-change="adults" data-delta="-1" aria-label="Remove adult">-</button><span data-count="adults">2</span><span><strong>Adults</strong><small>12 yrs and above</small></span><button type="button" data-count-change="adults" data-delta="1" aria-label="Add adult">+</button></div>
+                                <div class="hm-passenger-row"><button type="button" data-count-change="children" data-delta="-1" aria-label="Remove child">-</button><span data-count="children">0</span><span><strong>Children</strong><small>2-11 yrs</small></span><button type="button" data-count-change="children" data-delta="1" aria-label="Add child">+</button></div>
+                                <div class="hm-passenger-row"><button type="button" data-count-change="infants" data-delta="-1" aria-label="Remove infant">-</button><span data-count="infants">0</span><span><strong>Infants</strong><small>Below 2 yrs</small></span><button type="button" data-count-change="infants" data-delta="1" aria-label="Add infant">+</button></div>
+                            </div>
+                            <div class="hm-fare-options">
+                                <button type="button" data-fare="ECONOMY">Economy</button><button type="button" data-fare="PREMIUM_ECONOMY">Premium economy</button>
+                                <button type="button" data-fare="BUSINESS">Business</button><button type="button" data-fare="FIRST_CLASS">First</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gd-field" id="guestsRoomsField" hidden>
+                        <label><i class="fas fa-user-group"></i> Guests &amp; Rooms</label>
+                        <input type="text" class="gd-toggle" readonly
+                               value="{{ search_adults|default:'2' }} Adult{{ search_adults|default:'0'|pluralize }}{% if search_children and search_children != '0' %} · {{ search_children }} {% if search_children == '1' %}Child{% else %}Children{% endif %}{% endif %} · {{ search_rooms|default:'1' }} {{ search_rooms|default:'1'|pluralize:'Room,Rooms' }}"
+                               aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and rooms">
+                        <div class="gd-panel" data-gd-panel>
+                            <div class="gd-head">
+                                <span class="gd-title">Guests &amp; Rooms</span>
+                                <button type="button" class="gd-x" data-gd-close aria-label="Close guests and rooms"><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Adults</b><span>Ages 12+</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove adult"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_adults|default:'2' }}</span>
+                                    <input type="hidden" name="adults" value="{{ search_adults|default:'2' }}" data-min="1" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add adult"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <div class="gd-row" data-gd-row data-gd-skipzero>
+                                <span class="gd-label"><b>Children</b><span>Ages 0–11</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="0" aria-label="Remove child"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_children|default:'0' }}</span>
+                                    <input type="hidden" name="children" value="{{ search_children|default:'0' }}" data-min="0" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add child"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Rooms</b><span>Number of rooms</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove room"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_rooms|default:'1' }}</span>
+                                    <input type="hidden" name="rooms" value="{{ search_rooms|default:'1' }}" data-min="1" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add room"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+                        </div>
+                    </div>
+                    <div class="gd-field" id="guestsUnitsField" hidden>
+                        <label><i class="fas fa-user-group"></i> Guests &amp; Units</label>
+                        <input type="text" class="gd-toggle" readonly
+                               value="{{ search_adults|default:'2' }} Adult{{ search_adults|default:'0'|pluralize }}{% if search_children and search_children != '0' %} · {{ search_children }} {% if search_children == '1' %}Child{% else %}Children{% endif %}{% endif %} · {{ search_rooms|default:'1' }} {{ search_rooms|default:'1'|pluralize:'Unit,Units' }}"
+                               aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and units">
+                        <div class="gd-panel" data-gd-panel>
+                            <div class="gd-head">
+                                <span class="gd-title">Guests &amp; Units</span>
+                                <button type="button" class="gd-x" data-gd-close aria-label="Close guests and units"><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Adults</b><span>Ages 12+</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove adult"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_adults|default:'2' }}</span>
+                                    <input type="hidden" name="adults" value="{{ search_adults|default:'2' }}" data-min="1" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add adult"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <div class="gd-row" data-gd-row data-gd-skipzero>
+                                <span class="gd-label"><b>Children</b><span>Ages 0–11</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="0" aria-label="Remove child"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_children|default:'0' }}</span>
+                                    <input type="hidden" name="children" value="{{ search_children|default:'0' }}" data-min="0" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add child"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Units</b><span>Number of units</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove unit"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_rooms|default:'1' }}</span>
+                                    <input type="hidden" name="rooms" value="{{ search_rooms|default:'1' }}" data-min="1" data-max="9">
+                                    <button type="button" data-gd-plus data-max="9" aria-label="Add unit"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+                        </div>
+                    </div>
+                    <div class="gd-field" id="touristsGuestsField" hidden>
+                        <label><i class="fas fa-user-group"></i> Tourists</label>
+                        <input type="text" class="gd-toggle" readonly
+                               value="{{ search_adults|default:'2' }} Tourist{{ search_adults|default:'0'|pluralize }}"
+                               aria-haspopup="dialog" aria-expanded="false" aria-label="Tourists">
+                        <div class="gd-panel" data-gd-panel>
+                            <div class="gd-head">
+                                <span class="gd-title">Tourists</span>
+                                <button type="button" class="gd-x" data-gd-close aria-label="Close tourists"><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Tourists</b><span>Number of tourists</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove tourist"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_adults|default:'2' }}</span>
+                                    <input type="hidden" name="adults" value="{{ search_adults|default:'2' }}" data-min="1" data-max="30">
+                                    <button type="button" data-gd-plus data-max="30" aria-label="Add tourist"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+                        </div>
+                    </div>
+                    <div class="gd-field" id="guestsTablesField" hidden>
+                        <label><i class="fas fa-user-group"></i> Guests &amp; Tables</label>
+                        <input type="text" class="gd-toggle" readonly
+                               value="{{ search_guests|default:'2' }} Guest{{ search_guests|default:'2'|pluralize }} · {{ search_tables|default:'1' }} Table{{ search_tables|default:'1'|pluralize }}"
+                               aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and tables">
+                        <div class="gd-panel" data-gd-panel>
+                            <div class="gd-head">
+                                <span class="gd-title">Guests &amp; Tables</span>
+                                <button type="button" class="gd-x" data-gd-close aria-label="Close guests and tables"><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Guests</b><span>Number of guests</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove guest"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_guests|default:'2' }}</span>
+                                    <input type="hidden" name="guests" value="{{ search_guests|default:'2' }}" data-min="1" data-max="30">
+                                    <button type="button" data-gd-plus data-max="30" aria-label="Add guest"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <div class="gd-row" data-gd-row>
+                                <span class="gd-label"><b>Tables</b><span>Number of tables</span></span>
+                                <span class="gd-step">
+                                    <button type="button" data-gd-minus data-min="1" aria-label="Remove table"><i class="fas fa-minus"></i></button>
+                                    <span class="gd-num">{{ search_tables|default:'1' }}</span>
+                                    <input type="hidden" name="tables" value="{{ search_tables|default:'1' }}" data-min="1" data-max="20">
+                                    <button type="button" data-gd-plus data-max="20" aria-label="Add table"><i class="fas fa-plus"></i></button>
+                                </span>
+                            </div>
+                            <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="hm-search-btn" id="homeSearchButton"><i class="fas fa-magnifying-glass"></i> Search</button>
+                </div>
+            </form>
+            <div class="hm-trust" data-reveal>
+                <span><i class="fas fa-circle-check"></i> No reservation fees</span>
+                <span><i class="fas fa-tags"></i> Best-price guarantee</span>
+                <span><i class="fas fa-rotate-left"></i> Easy cancellations</span>
+                <span><i class="fas fa-headset"></i> 24/7 student support</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== MARQUEE ===================== -->
+<div class="hm-marquee" aria-label="Popular destinations">
+    <div class="track">
+        <a class="trip" href="{% url 'destination_detail' 'palawan' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Palawan</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'boracay' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Boracay</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'siargao' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Siargao</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'palaui-island' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Palaui Island</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'batanes' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Batanes</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'cebu' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Cebu</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'davao' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Davao</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'el-nido' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>El Nido</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'vigan' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Vigan</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'baguio' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Baguio</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'manila' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Manila</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'palawan' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Palawan</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'boracay' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Boracay</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'siargao' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Siargao</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'palaui-island' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Palaui Island</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'batanes' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Batanes</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'cebu' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Cebu</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'davao' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Davao</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'el-nido' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>El Nido</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'vigan' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Vigan</b> <span class="star">★★★★★</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'baguio' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Baguio</b> <span class="star">★★★★☆</span></a>
+        <a class="trip" href="{% url 'destination_detail' 'manila' %}" target="_blank" rel="noopener"><i class="fas fa-location-dot"></i><b>Manila</b> <span class="star">★★★★★</span></a>
+    </div>
+</div>
+
+<!-- ===================== SERVICES ===================== -->
+<section class="hm-section" id="services">
+    <div class="container">
+        <div class="hm-head" data-reveal>
+            <span class="hm-eyebrow">What we offer</span>
+            <h2>Every service, <span class="grad">one platform</span></h2>
+            <p>From the moment a traveler books a flight to checking into a resort, ATRUE simulates the full journey across the entire travel and hospitality industry.</p>
+        </div>
+
+        <div class="hm-grid">
+            <a class="hm-card" data-reveal href="{% url 'airlines:list' %}" target="_blank" rel="noopener" aria-label="Open Flights">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Flight Bookings</h3>
+                    <p>Search, compare and book flights across multiple airlines with real seat selection and scheduling.</p>
+                    <div class="feat"><span>Multi-airline</span><span>Seat selection</span><span>Live schedules</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'hotels:list' %}" target="_blank" rel="noopener" aria-label="Open Hotels">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Hotel Reservations</h3>
+                    <p>Browse multiple room types, check availability and manage guest bookings with ease.</p>
+                    <div class="feat"><span>Room types</span><span>Availability</span><span>Guests</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'resorts:list' %}" target="_blank" rel="noopener" aria-label="Open Resorts">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Resort Bookings</h3>
+                    <p>Reserve villas, rooms and cabanas at top resorts with integrated service add-ons.</p>
+                    <div class="feat"><span>Villas</span><span>Service add-ons</span><span>Flexible stays</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'staycations:list' %}" target="_blank" rel="noopener" aria-label="Open Staycations">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Staycations</h3>
+                    <p>Discover cozy staycation spots with self check-in and included amenities for quick getaways.</p>
+                    <div class="feat"><span>Self check-in</span><span>Amenities</span><span>Flexible</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'restaurants:list' %}" target="_blank" rel="noopener" aria-label="Open Restaurants">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Restaurant Reservations</h3>
+                    <p>Reserve tables across partner restaurants, browse cuisines and manage dining schedules.</p>
+                    <div class="feat"><span>Cuisines</span><span>Tables</span><span>Group size</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'transportation:list' %}" target="_blank" rel="noopener" aria-label="Open Transportation">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Transportation</h3>
+                    <p>Book vans, buses and cars with assigned drivers and flexible pickup and drop-off schedules.</p>
+                    <div class="feat"><span>Vehicles</span><span>Drivers</span><span>Pickup</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'landmarks:list' %}" target="_blank" rel="noopener" aria-label="Open Landmarks & Tourist Spots">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Landmarks &amp; Tourist Spots</h3>
+                    <p>Purchase tickets for famous destinations with date-based scheduling and group visits.</p>
+                    <div class="feat"><span>Tickets</span><span>Group visits</span><span>Scheduling</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'activities:list' %}" target="_blank" rel="noopener" aria-label="Open Activities & Adventures">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Activities &amp; Adventures</h3>
+                    <p>Sign up for ziplining, diving, trekking and more with certified activity providers.</p>
+                    <div class="feat"><span>Certified</span><span>Slots</span><span>Participants</span></div>
+                </div>
+            </a>
+
+            <a class="hm-card" data-reveal href="{% url 'tour_package:list' %}" target="_blank" rel="noopener" aria-label="Open Tour Packages">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=60')">
+                    
+                </div>
+                <div class="body">
+                    <h3>Tour Packages</h3>
+                    <p>All-inclusive packages combining flights, hotels, activities and transportation in one itinerary.</p>
+                    <div class="feat"><span>All-inclusive</span><span>Itineraries</span><span>Best value</span></div>
+                </div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== LIVE LISTINGS ===================== -->
+<section class="hm-section alt" id="live">
+    <div class="container">
+        <div class="hm-head" data-reveal>
+            {% if search_active %}
+            <span class="hm-eyebrow">Search results</span>
+            <h2>Results for <span class="grad">&lsquo;{{ search_query }}&rsquo;</span></h2>
+            <p>{{ search_count }} {{ search_count|pluralize:"item,items" }} found across the platform &middot;
+                <a href="{% url 'home' %}" style="color:var(--hm-acc);font-weight:700;text-decoration:underline;text-underline-offset:3px">Clear search</a></p>
+            {% else %}
+            <span class="hm-eyebrow">Live from the platform</span>
+            <h2>Featured right now, <span class="grad">ready to book</span></h2>
+            <p>Real listings pulled straight from the ATRUE database — no mock-ups, no placeholders.</p>
+            {% endif %}
+        </div>
+
+        {% if show_flights %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(135deg,#1d4ed8,#38bdf8)"><i class="fas fa-plane-departure"></i></span>
+                <div><h3>Available Flights</h3><p>Live routes currently open for booking</p></div>
+            </div>
+            <a href="{% url 'airlines:list' %}" class="hm-more">View all flights <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for f in featured_flights %}
+            <div class="hm-item" data-open-url="{% url 'airlines:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{{ f.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ f.flight_number }} <span style="color:var(--hm-mut);font-weight:500;font-size:13px">· {{ f.airline.name }}</span></h4>
+                    <p class="meta">{{ f.origin }} <i class="fas fa-arrow-right"></i> {{ f.destination }} &middot; {{ f.departure_time|date:"M j, g:i a" }}</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ f.economy_fare }}</b> <span>/passenger</span></div>
+                    <a href="{% url 'airlines:list' %}" class="mini">Book <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No flights available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_hotels %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(150deg,#1e40af,#60a5fa)"><i class="fas fa-hotel"></i></span>
+                <div><h3>Featured Hotels</h3><p>Handpicked places to stay this week</p></div>
+            </div>
+            <a href="{% url 'hotels:list' %}" class="hm-more">View all hotels <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for h in featured_hotels %}
+            {% with hotel_image=h.photos.all|usable_urls|first %}
+            <div class="hm-item" data-open-url="{% url 'hotels:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('{{ hotel_image|default:'/static/img/hotel-placeholder.svg' }}')">
+                    <span class="badge">{{ h.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ h.name }}</h4>
+                    <p class="meta"><i class="fas fa-location-dot"></i> {{ h.municipality }}, {{ h.province }} &middot; {{ h.rooms.count }} rooms</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ h.from_rate }}</b> <span>/night from</span></div>
+                    <a href="{% url 'hotels:list' %}" class="mini">View rooms <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% endwith %}
+            {% empty %}
+            <div class="hm-empty">No hotels available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_resorts %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"><i class="fas fa-umbrella-beach"></i></span>
+                <div><h3>Top Resorts</h3><p>Beachside escapes across the roster</p></div>
+            </div>
+            <a href="{% url 'resorts:list' %}" class="hm-more">View all resorts <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for r in featured_resorts %}
+            <div class="hm-item" data-open-url="{% url 'resorts:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{{ r.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ r.name }}</h4>
+                    <p class="meta"><i class="fas fa-location-dot"></i> {{ r.municipality }}, {{ r.province }} &middot; {{ r.units.count }} villas</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ r.from_rate }}</b> <span>/night from</span></div>
+                    <a href="{% url 'resorts:list' %}" class="mini">View units <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No resorts available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_staycations %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(150deg,#2563eb,#7dd3fc)"><i class="fas fa-couch"></i></span>
+                <div><h3>Staycations</h3><p>Cozy quick getaways with self check-in</p></div>
+            </div>
+            <a href="{% url 'staycations:list' %}" class="hm-more">View all staycations <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for s in featured_staycations %}
+            <div class="hm-item" data-open-url="{% url 'staycations:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{{ s.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ s.name }}</h4>
+                    <p class="meta"><i class="fas fa-location-dot"></i> {{ s.municipality }}, {{ s.province }}</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ s.rate }}</b> <span>/night from</span></div>
+                    <a href="{% url 'staycations:list' %}" class="mini">View <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No staycations available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_activities %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(135deg,#0369a1,#38bdf8)"><i class="fas fa-person-hiking"></i></span>
+                <div><h3>Adventure Activities</h3><p>Thrills and tours with open slots</p></div>
+            </div>
+            <a href="{% url 'activities:list' %}" class="hm-more">View all activities <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for a in featured_activities %}
+            <div class="hm-item" data-open-url="{% url 'activities:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{% if a.slots > 0 %}Available{% else %}Full{% endif %}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ a.name }}</h4>
+                    <p class="meta">{{ a.description|truncatewords:8 }} &middot; {{ a.provider.name }}</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ a.fee }}</b> <span>/person</span></div>
+                    <a href="{% url 'activities:list' %}" class="mini">Book <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No activities available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_spots %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(135deg,#1d4ed8,#60a5fa)"><i class="fas fa-landmark"></i></span>
+                <div><h3>Tourist Spots</h3><p>Must-see landmarks with tickets open</p></div>
+            </div>
+            <a href="{% url 'landmarks:list' %}" class="hm-more">View all spots <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid" data-reveal>
+            {% for s in featured_spots %}
+            <div class="hm-item" data-open-url="{% url 'landmarks:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{{ s.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ s.name }}</h4>
+                    <p class="meta"><i class="fas fa-location-dot"></i> {{ s.municipality }}, {{ s.province }}</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ s.entry_fee }}</b> <span>/pax</span></div>
+                    <a href="{% url 'landmarks:list' %}" class="mini">Get tickets <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No tourist spots available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if show_packages %}
+        <div class="hm-live-sec" data-reveal>
+            <div class="hm-live-title">
+                <span class="ico" style="background:linear-gradient(150deg,#1e3a8a,#3b82f6)"><i class="fas fa-suitcase-rolling"></i></span>
+                <div><h3>Tour Packages</h3><p>All-inclusive itineraries at your price point</p></div>
+            </div>
+            <a href="{% url 'tour_package:list' %}" class="hm-more">View all packages <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hm-live-grid grid-2" data-reveal>
+            {% for p in featured_packages %}
+            <div class="hm-item" data-open-url="{% url 'tour_package:list' %}" role="link" tabindex="0">
+                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=700&q=60')">
+                    <span class="badge">{{ p.status|title }}</span>
+                </div>
+                <div class="body">
+                    <h4>{{ p.name }}</h4>
+                    <p class="meta">{{ p.description|truncatewords:8 }}</p>
+                </div>
+                <div class="foot">
+                    <div class="price"><b>₱{{ p.price }}</b> <span>/person</span></div>
+                    <a href="{% url 'tour_package:list' %}" class="mini">View <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="hm-empty">No packages available yet.</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ===================== ABOUT ===================== -->
+<section class="hm-section" id="about">
+    <div class="container hm-about-grid">
+        <div class="hm-about-copy" data-reveal="left">
+            <span class="hm-eyebrow" style="color:var(--hm-acc);background:#dbeafe;border-color:#bfdbfe">Why ATRUE</span>
+            <h2>Real-world simulation for <span class="grad">real careers</span></h2>
+            <p class="lede">
+                ATRUE (Automated Travel, Reservation &amp; Unified Ecosystem) is built exclusively for
+                <strong>Saint Joseph College of Baggao</strong> to give students hands-on experience with
+                the actual workflows used across the travel and hospitality industry.
+            </p>
+            <div class="hm-feat-item">
+                <span class="num">01</span>
+                <div><h4>9+ Industry Roles</h4><p>From guests and passengers to tour managers and billing officers.</p></div>
+            </div>
+            <div class="hm-feat-item">
+                <span class="num">02</span>
+                <div><h4>Full Activity Logging</h4><p>Every action is tracked for assessment and performance evaluation.</p></div>
+            </div>
+            <div class="hm-feat-item">
+                <span class="num">03</span>
+                <div><h4>14 Integrated Modules</h4><p>Airlines, hotels, resorts, restaurants, transport and more.</p></div>
+            </div>
+        </div>
+
+        <div class="hm-about-photo" data-reveal="right">
+            <span class="big-ico"><i class="fas fa-globe-asia"></i></span>
+            <div class="island"></div>
+            <div class="wave-w"></div>
+            <div class="hm-bubbles">
+                <span class="b1"><i class="fas fa-plane"></i>Airlines</span>
+                <span class="b2"><i class="fas fa-hotel"></i>Hotels</span>
+                <span class="b3"><i class="fas fa-suitcase-rolling"></i>Packages</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== ROLES ===================== -->
+<section class="hm-section alt" id="simulation">
+    <div class="container">
+        <div class="hm-head" data-reveal>
+            <span class="hm-eyebrow" style="color:var(--hm-acc);background:#dbeafe;border-color:#bfdbfe">Simulation training</span>
+            <h2>Master every <span class="grad">industry role</span></h2>
+            <p>Students take on real responsibilities across the travel value chain, learning how every piece of the hospitality ecosystem fits together.</p>
+        </div>
+
+        <div class="hm-roles-grid">
+            <div class="hm-role" data-reveal>
+                <span class="num">01</span>
+                <span class="ico" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"><i class="fas fa-bed"></i></span>
+                <div><h4>Guest &mdash; Hotel</h4><p>Practice check-in, room service and guest relations management.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">02</span>
+                <span class="ico" style="background:linear-gradient(150deg,#4f46e5,#818cf8)"><i class="fas fa-plane"></i></span>
+                <div><h4>Passenger &mdash; Airline</h4><p>Experience flight booking, boarding and in-flight services.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">03</span>
+                <span class="ico" style="background:linear-gradient(135deg,#06b6d4,#22d3ee)"><i class="fas fa-shopping-cart"></i></span>
+                <div><h4>Customer &mdash; Tour</h4><p>Simulate the complete tour booking and travel experience.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">04</span>
+                <span class="ico" style="background:linear-gradient(150deg,#0d9488,#2dd4bf)"><i class="fas fa-user-tie"></i></span>
+                <div><h4>Tour Manager</h4><p>Oversee tour operations, itineraries and group coordination.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">05</span>
+                <span class="ico" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)"><i class="fas fa-concierge-bell"></i></span>
+                <div><h4>Hotel Manager</h4><p>Manage hotel operations, availability and guest satisfaction.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">06</span>
+                <span class="ico" style="background:linear-gradient(150deg,#7c3aed,#a78bfa)"><i class="fas fa-building"></i></span>
+                <div><h4>Travel Agency Manager</h4><p>Lead the agency, manage bookings and coordinate services.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">07</span>
+                <span class="ico" style="background:linear-gradient(135deg,#0284c7,#38bdf8)"><i class="fas fa-headset"></i></span>
+                <div><h4>Travel Consultant</h4><p>Assist customers with planning and booking recommendations.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">08</span>
+                <span class="ico" style="background:linear-gradient(135deg,#15803d,#4ade80)"><i class="fas fa-clipboard-list"></i></span>
+                <div><h4>Tour Coordinator</h4><p>Coordinate tour logistics, schedules and participant activities.</p></div>
+            </div>
+            <div class="hm-role" data-reveal>
+                <span class="num">09</span>
+                <span class="ico" style="background:linear-gradient(150deg,#be123c,#f43f5e)"><i class="fas fa-file-invoice-dollar"></i></span>
+                <div><h4>Billing Officer</h4><p>Process payments, cancellations and all financial transactions.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="hm-section" id="cta">
+    <div class="container">
+        <div class="hm-cta" data-reveal>
+            <h2>Ready to start your simulation?</h2>
+            <p>Experience the complete travel and hospitality workflow — book, manage and transact across the entire platform, then see how everything connects.</p>
+            <div class="btns">
+                <a href="{% url 'accounts:register' %}" class="hm-btn hm-btn-white"><i class="fas fa-rocket"></i> Get Started</a>
+                <a href="#contact" class="hm-btn hm-btn-outline"><i class="fas fa-envelope"></i> Get in Touch</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== CONTACT ===================== -->
+<section class="hm-section alt" id="contact">
+    <div class="container">
+        <div class="hm-head" data-reveal>
+            <span class="hm-eyebrow" style="color:var(--hm-acc);background:#dbeafe;border-color:#bfdbfe">Get in touch</span>
+            <h2>We'd love to <span class="grad">hear from you</span></h2>
+            <p>Questions about the platform or simulation training? Reach out to Saint Joseph College of Baggao.</p>
+        </div>
+
+        <div class="hm-contact-grid" data-reveal>
+            <div class="hm-contact-card">
+                <span class="ico" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"><i class="fas fa-map-marker-alt"></i></span>
+                <div><h4>Location</h4><p>Saint Joseph College of Baggao, Cagayan, Philippines</p></div>
+            </div>
+            <div class="hm-contact-card">
+                <span class="ico" style="background:linear-gradient(150deg,#0d9488,#2dd4bf)"><i class="fas fa-phone"></i></span>
+                <div><h4>Phone</h4><p>+63 (000) 000-0000</p></div>
+            </div>
+            <div class="hm-contact-card">
+                <span class="ico" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)"><i class="fas fa-envelope"></i></span>
+                <div><h4>Email</h4><p>info@atrue.sjcb.edu.ph</p></div>
+            </div>
+            <div class="hm-contact-card">
+                <span class="ico" style="background:linear-gradient(150deg,#7c3aed,#a78bfa)"><i class="fas fa-clock"></i></span>
+                <div><h4>Hours</h4><p>Monday &ndash; Friday<br>8:00 AM &ndash; 5:00 PM</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+{% url 'dashboard' as dashboard_url %}<div class="hm-signin-modal" id="landingSignInModal" hidden>
+    <section class="hm-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="landingSignInTitle">
+        <button type="button" class="hm-signin-close" data-signin-close aria-label="Close sign in"><i class="fas fa-xmark"></i></button>
+        <div class="hm-signin-brand">
+            <span class="cb-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+            <h2 id="landingSignInTitle">Log In</h2>
+            <p class="hm-signin-sub">Sign in to your ATRUE account</p>
+        </div>
+        <div class="hm-signin-error" id="landingSignInError" role="alert" hidden></div>
+        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url %}
+        <p class="hm-signin-foot"><button type="button" data-signin-close>&larr; Back to Home</button></p>
+    </section>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+    'use strict';
+    const slides = Array.from(document.querySelectorAll('.hm-hero-slide'));
+    if (slides.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let active = 0;
+    window.setInterval(function () {
+        for (let step = 1; step < slides.length; step += 1) {
+            const next = (active + step) % slides.length;
+            if (!slides[next].complete || slides[next].naturalWidth === 0) continue;
+            slides[active].classList.remove('is-active');
+            active = next;
+            slides[active].classList.add('is-active');
+            break;
+        }
+    }, 5000);
+})();
+</script>
+<script>
+(function () {
+    var modal = document.getElementById('landingSignInModal');
+    var form = document.getElementById('landingSignInForm');
+    if (!modal || !form) return;
+    var errorBox = document.getElementById('landingSignInError');
+    var submit = document.getElementById('landingSignInSubmit');
+    var username = form.querySelector('input[name="username"]');
+    var previousFocus = null;
+
+    function openModal(event) {
+        if (event) event.preventDefault();
+        previousFocus = document.activeElement;
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        window.setTimeout(function () { username.focus(); }, 20);
+    }
+    function closeModal() {
+        modal.hidden = true;
+        document.body.style.overflow = '';
+        if (previousFocus && previousFocus.focus) previousFocus.focus();
+    }
+
+    document.querySelectorAll('[data-signin-open]').forEach(function (link) {
+        link.addEventListener('click', openModal);
+    });
+    modal.querySelectorAll('[data-signin-close]').forEach(function (button) {
+        button.addEventListener('click', closeModal);
+    });
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (!modal.hidden && event.key === 'Escape') closeModal();
+    });
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+        submit.disabled = true;
+        submit.textContent = 'Signing in?';
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-ATRUE-LOGIN-MODAL': '1' },
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok || !data.ok) throw data;
+                var destination = new URL(data.redirect, window.location.origin);
+                if (window.ATRUE_CTX) destination.searchParams.set('ctx', window.ATRUE_CTX);
+                window.location.assign(destination.pathname + destination.search + destination.hash);
+            });
+        }).catch(function (data) {
+            var messages = [];
+            if (data && data.errors) {
+                Object.keys(data.errors).forEach(function (key) {
+                    messages = messages.concat(data.errors[key] || []);
+                });
+            }
+            errorBox.textContent = messages.join(' ') || 'Sign in failed. Please check your details and try again.';
+            errorBox.hidden = false;
+            submit.disabled = false;
+            submit.innerHTML = 'Log In &rarr;';
+            form.querySelector('input[name="password"]').value = '';
+        });
+    });
+})();
+</script>
+<script>
+(function () {
+    const form = document.getElementById('homeSearchForm');
+    if (!form) return;
+
+    const tabs = Array.from(form.querySelectorAll('input[name="tab"]'));
+    const tripTypeField = document.getElementById('flightTripTypeField');
+    const tripTypes = Array.from(form.querySelectorAll('input[name="trip_type"]'));
+    const returnField = document.getElementById('returnField');
+    const dateRangeField = document.getElementById('dateRangeField');
+    const returnInput = returnField.querySelector('input');
+    const departureInput = form.querySelector('input[name="check_in"]');
+    const departureLabel = document.getElementById('departureLabel');
+    const returnLabel = document.getElementById('returnLabel');
+    const guestLabel = document.getElementById('guestLabel');
+    const passengersField = document.getElementById('passengersField');
+    const guestsRoomsField = document.getElementById('guestsRoomsField');
+    const guestsUnitsField = document.getElementById('guestsUnitsField');
+    const touristsGuestsField = document.getElementById('touristsGuestsField');
+    const guestsTablesField = document.getElementById('guestsTablesField');
+    const guestFields = [passengersField, guestsRoomsField, guestsUnitsField, touristsGuestsField, guestsTablesField].filter(Boolean);
+    const flightGuestSelect = passengersField?.querySelector('select[name="guests"]');
+    const flightClassSelect = passengersField?.querySelector('select[name="fare_class"]');
+    const passengerTrigger = passengersField?.querySelector('.hm-passenger-trigger');
+    const passengerPopover = passengersField?.querySelector('.hm-passenger-popover');
+    const passengerCounts = { adults: Number(flightGuestSelect?.value || 2), children: 0, infants: 0 };
+    function syncPassengerPicker() {
+        if (!passengersField) return;
+        const adultCount = passengerCounts.adults;
+        passengersField.querySelector('[data-count="adults"]').textContent = adultCount;
+        passengersField.querySelector('[data-count="children"]').textContent = passengerCounts.children;
+        passengersField.querySelector('[data-count="infants"]').textContent = passengerCounts.infants;
+        passengersField.querySelector('[data-adult-summary]').textContent = `${adultCount} ${adultCount === 1 ? 'Adult' : 'Adults'}`;
+        passengersField.querySelector('[data-class-summary]').textContent = flightClassSelect?.selectedOptions[0]?.textContent || 'Economy';
+        passengersField.querySelectorAll('[data-count-change="adults"]').forEach(button => {
+            button.disabled = button.dataset.delta === '-1' && adultCount <= 1 || button.dataset.delta === '1' && adultCount >= 9;
+        });
+        passengersField.querySelectorAll('[data-count-change="children"], [data-count-change="infants"]').forEach(button => {
+            button.disabled = button.dataset.delta === '-1' && passengerCounts[button.dataset.countChange] <= 0;
+        });
+        passengersField.querySelectorAll('[data-fare]').forEach(button => button.classList.toggle('is-selected', button.dataset.fare === flightClassSelect?.value));
+    }
+    function closePassengerPicker() {
+        if (!passengerPopover || !passengerTrigger) return;
+        passengerPopover.hidden = true;
+        passengerTrigger.setAttribute('aria-expanded', 'false');
+    }
+    passengerTrigger?.addEventListener('click', () => {
+        passengerPopover.hidden = !passengerPopover.hidden;
+        passengerTrigger.setAttribute('aria-expanded', String(!passengerPopover.hidden));
+    });
+    passengersField?.querySelectorAll('[data-count-change]').forEach(button => button.addEventListener('click', () => {
+        const key = button.dataset.countChange;
+        const next = passengerCounts[key] + Number(button.dataset.delta);
+        passengerCounts[key] = key === 'adults' ? Math.max(1, Math.min(9, next)) : Math.max(0, next);
+        if (key === 'adults' && flightGuestSelect) flightGuestSelect.value = String(passengerCounts.adults);
+        syncPassengerPicker();
+    }));
+    passengersField?.querySelectorAll('[data-fare]').forEach(button => button.addEventListener('click', () => {
+        if (flightClassSelect) flightClassSelect.value = button.dataset.fare;
+        syncPassengerPicker();
+        closePassengerPicker();
+    }));
+    flightGuestSelect?.addEventListener('change', () => { passengerCounts.adults = Number(flightGuestSelect.value || 1); syncPassengerPicker(); });
+    flightClassSelect?.addEventListener('change', syncPassengerPicker);
+    document.addEventListener('click', event => { if (passengersField && !passengersField.contains(event.target)) closePassengerPicker(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closePassengerPicker(); });
+    syncPassengerPicker();
+    const reservationTimeField = document.getElementById('reservationTimeField');
+    const reservationTimeInput = reservationTimeField ? reservationTimeField.querySelector('input') : null;
+    const flightFields = form.querySelector('.hm-search-fields');
+    const searchButton = document.getElementById('homeSearchButton');
+    const destinationInput = document.getElementById('homeDestinationInput');
+    const destinationSuggestions = document.getElementById('destinationSuggestions');
+    const destinationOptions = destinationSuggestions
+        ? Array.from(destinationSuggestions.querySelectorAll('.hm-destination-option'))
+        : [];
+    const propertyField = document.getElementById('homePropertyField');
+    const originField = document.getElementById('homeFlightOriginField');
+    const originValueInput = originField ? originField.querySelector('[data-airport-value]') : null;
+    const destinationField = document.getElementById('homeFlightDestinationField');
+    const destinationValueInput = destinationField ? destinationField.querySelector('[data-airport-value]') : null;
+    const searchError = document.getElementById('homeSearchError');
+    function showSearchError(message) {
+        if (!searchError) return;
+        searchError.textContent = message;
+        searchError.hidden = false;
+    }
+
+    function clearSearchError() {
+        if (!searchError) return;
+        searchError.hidden = true;
+        searchError.textContent = '';
+    }
+
+    function closePlaceSuggestions() {
+        if (!destinationSuggestions) return;
+        destinationSuggestions.hidden = true;
+        destinationInput.setAttribute('aria-expanded', 'false');
+    }
+
+    function filterDestinationOptions(query) {
+        if (!destinationSuggestions) return;
+        const activeTab = (tabs.find(input => input.checked)?.value || '').toLowerCase();
+        const tabCategories = { hotels: 'hotels', resorts: 'resorts', staycations: 'staycations', restaurants: 'restaurants', tours: 'tours', activities: 'activities', landmarks: 'landmarks', landtransportation: 'landtransportation' };
+        const category = tabCategories[activeTab];
+        const needle = (query || '').trim().toLowerCase();
+        let visible = 0;
+        destinationOptions.forEach(option => {
+            const name = (option.dataset.destination || '').toLowerCase();
+            const cats = (option.dataset.categories || '').split(' ');
+            const matchesTab = !category || cats.includes(category);
+            const matchesQuery = !needle || name.includes(needle);
+            option.hidden = !matchesTab || !matchesQuery;
+            if (!option.hidden) visible += 1;
+        });
+        destinationSuggestions.hidden = visible === 0;
+        destinationInput.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    }
+
+    destinationInput.addEventListener('input', () => {
+        destinationInput.dataset.geonameId = '';
+        filterDestinationOptions(destinationInput.value);
+    });
+    destinationInput.addEventListener('focus', () => {
+        if (destinationInput.value.trim()) filterDestinationOptions(destinationInput.value);
+    });
+    destinationOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            destinationInput.value = option.dataset.destination || '';
+            destinationInput.dataset.geonameId = '';
+            closePlaceSuggestions();
+        });
+    });
+    destinationInput.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closePlaceSuggestions();
+    });
+    document.addEventListener('click', event => {
+        if (destinationSuggestions && !destinationSuggestions.contains(event.target) && event.target !== destinationInput) {
+            closePlaceSuggestions();
+        }
+    });
+
+    function syncSearchFields() {
+        const tab = tabs.find(input => input.checked)?.value || 'flights';
+        const isFlights = tab === 'flights';
+        const isRestaurant = tab === 'restaurants';
+        const isTours = tab === 'tours';
+        const isActivities = tab === 'activities';
+        const isLandmarks = tab === 'landmarks';
+        const isLandTransportation = tab === 'landtransportation';
+        const trip = tripTypes.find(input => input.checked)?.value || 'ONE_WAY';
+        const hasReturn = isFlights ? trip === 'ROUND_TRIP' : ['hotels', 'resorts', 'staycations'].includes(tab);
+
+        form.closest('.hm-hero')?.classList.toggle('has-extra-search-row', hasReturn);
+        tripTypeField.hidden = !isFlights;
+        returnField.hidden = !hasReturn;
+        if (dateRangeField) dateRangeField.classList.toggle('has-return', hasReturn);
+        returnInput.disabled = !hasReturn;
+        returnInput.required = hasReturn;
+        returnInput.min = departureInput.value || '';
+        departureInput.required = tab !== 'all';
+        departureLabel.textContent = isFlights
+            ? 'Departure date'
+            : isRestaurant || isTours || isActivities || isLandmarks ? 'Date'
+            : isLandTransportation ? 'Travel date' : 'Check-in';
+        returnLabel.textContent = isFlights ? 'Return date' : 'Check-out';
+        departureInput.setAttribute('aria-label', departureLabel.textContent);
+        returnInput.setAttribute('aria-label', returnLabel.textContent);
+        guestLabel.textContent = isFlights ? 'Passengers' : 'Guests';
+        const activeGuestField = isFlights
+            ? passengersField
+            : isRestaurant ? guestsTablesField
+            : (isTours || isActivities || isLandmarks) ? touristsGuestsField
+            : isLandTransportation ? null
+            : tab === 'resorts' ? guestsUnitsField
+            : guestsRoomsField;
+        guestFields.forEach(field => {
+            const isActive = field === activeGuestField;
+            if (field) {
+                field.hidden = !isActive;
+                field.querySelectorAll('input, select, button').forEach(el => {
+                    el.disabled = !isActive;
+                });
+            }
+        });
+        if (flightFields) flightFields.classList.toggle('is-flight-search', isFlights);
+        if (originField) originField.hidden = !isFlights;
+        if (originValueInput) originValueInput.disabled = !isFlights;
+        if (reservationTimeField) reservationTimeField.hidden = !isRestaurant;
+        if (reservationTimeInput) {
+            reservationTimeInput.disabled = !isRestaurant;
+            reservationTimeInput.required = isRestaurant;
+        }
+        if (propertyField) propertyField.hidden = isFlights;
+        if (destinationField) destinationField.hidden = !isFlights;
+        if (destinationValueInput) destinationValueInput.disabled = !isFlights;
+        if (destinationInput) destinationInput.disabled = isFlights;
+        if (!isFlights) clearSearchError();
+        searchButton.innerHTML = '<i class="fas fa-magnifying-glass"></i> ' +
+            (isFlights ? 'Search' : 'Search');
+    }
+
+    tabs.forEach(input => {
+        input.addEventListener('change', syncSearchFields);
+        input.addEventListener('change', () => filterDestinationOptions(destinationInput.value));
+    });
+    tripTypes.forEach(input => input.addEventListener('change', syncSearchFields));
+    departureInput.addEventListener('change', syncSearchFields);
+    form.addEventListener('submit', event => {
+        clearSearchError();
+        const activeTab = tabs.find(input => input.checked)?.value;
+        const isFlights = activeTab === 'flights';
+        if (isFlights) {
+            if (destinationValueInput && !destinationValueInput.value) {
+                event.preventDefault();
+                showSearchError('Select a flying-to airport.');
+                return;
+            }
+        }
+        if (activeTab === 'restaurants' && reservationTimeInput && !reservationTimeInput.value) {
+            event.preventDefault();
+            reservationTimeInput.setCustomValidity('Select a reservation time.');
+            reservationTimeInput.reportValidity();
+            reservationTimeInput.addEventListener('input', () => reservationTimeInput.setCustomValidity(''), { once: true });
+            return;
+        }
+        const isRoundTrip = tabs.find(input => input.checked)?.value === 'flights'
+            && tripTypes.some(input => input.checked && input.value === 'ROUND_TRIP');
+        if (isRoundTrip && returnInput.value && departureInput.value
+            && returnInput.value < departureInput.value) {
+            event.preventDefault();
+            returnInput.setCustomValidity('Return date cannot be earlier than departure.');
+            returnInput.reportValidity();
+            returnInput.addEventListener('input', () => returnInput.setCustomValidity(''), { once: true });
+        }
+    });
+    syncSearchFields();
+})();
+</script>
+{% endblock %}
+

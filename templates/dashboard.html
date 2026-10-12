@@ -1,0 +1,96 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
+        <p>Overview of your simulation activity across the ATRUE platform.</p>
+    </div>
+</div>
+
+{% if q is not None %}
+<div class="card" style="margin-bottom:24px">
+    <div class="card-pad">
+        <h3 style="margin-bottom:4px">Search results for "<span class="mono">{{ q }}</span>"</h3>
+        <p style="color:var(--slate-500);font-size:14px;margin-bottom:14px">{{ search_results|length }} booking(s) matched.</p>
+    </div>
+    {% if search_results %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service</th><th>Reference</th><th>Details</th><th>Status</th><th>Booked</th></tr></thead>
+            <tbody>
+                {% for row in search_results %}
+                <tr>
+                    <td><b>{{ row.service }}</b></td>
+                    <td class="mono">{{ row.reference }}</td>
+                    <td><span class="text-truncate" title="{{ row.details }}">{{ row.details }}</span></td>
+                    <td><span class="badge {% if row.status == 'CONFIRMED' %}badge-green{% elif row.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ row.status|title }}</span></td>
+                    <td>{{ row.created|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty" style="padding-top:10px"><i class="fas fa-search"></i><h3>No matches</h3><p>Try a reference like "AIR" or a service name such as "hotel".</p></div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-ico ico-blue"><i class="fas fa-ticket-alt"></i></div>
+        <div class="stat-val">{{ total_bookings }}</div>
+        <div class="stat-lbl">Total Bookings</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-green"><i class="fas fa-credit-card"></i></div>
+        <div class="stat-val">{{ total_payments }}</div>
+        <div class="stat-lbl">Payments Made</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-amber"><i class="fas fa-user-tag"></i></div>
+        <div class="stat-val">{{ role_count }}</div>
+        <div class="stat-lbl">Simulation Roles</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-ico ico-indigo"><i class="fas fa-history"></i></div>
+        <div class="stat-val">{{ activity_count }}</div>
+        <div class="stat-lbl">Activities Logged</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3 style="margin-bottom:8px"><i class="fas fa-plane"></i> Quick Start</h3>
+        <p style="color:var(--slate-500);font-size:14px;margin-bottom:18px">Jump into a service simulation to practice your role.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <a href="{% url 'airlines:list' %}" class="btn btn-ghost"><i class="fas fa-plane"></i> Flights</a>
+            <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-hotel"></i> Hotels</a>
+            <a href="{% url 'resorts:list' %}" class="btn btn-ghost"><i class="fas fa-umbrella-beach"></i> Resorts</a>
+            <a href="{% url 'staycations:list' %}" class="btn btn-ghost"><i class="fas fa-couch"></i> Staycations</a>
+            <a href="{% url 'restaurants:list' %}" class="btn btn-ghost"><i class="fas fa-utensils"></i> Restaurants</a>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">
+            <a href="{% url 'transportation:list' %}" class="btn btn-ghost"><i class="fas fa-bus"></i> Transport</a>
+            <a href="{% url 'landmarks:list' %}" class="btn btn-ghost"><i class="fas fa-landmark"></i> Landmarks</a>
+            <a href="{% url 'activities:list' %}" class="btn btn-ghost"><i class="fas fa-hiking"></i> Activities</a>
+            <a href="{% url 'tour_package:list' %}" class="btn btn-ghost"><i class="fas fa-suitcase-rolling"></i> Tour Packages</a>
+        </div>
+    </div>
+    <div class="card card-pad">
+        <h3 style="margin-bottom:8px"><i class="fas fa-user-tag"></i> Current Role</h3>
+        {% if current_role %}
+            <p style="color:var(--slate-500);font-size:14px;margin-bottom:14px">Your active simulation assignment:</p>
+            <span class="badge badge-blue">{{ current_role.get_role_display }}</span>
+            <div class="meta" style="margin-top:14px"><i class="fas fa-play-circle"></i> {{ current_role.simulation_activity }}</div>
+            <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ current_role.assigned_at|date:"M d, Y H:i" }}</div>
+        {% else %}
+            <p style="color:var(--slate-500);font-size:14px">No role assigned yet. Ask your instructor to assign one, then start practicing.</p>
+            <div style="margin-top:14px"><a href="{% url 'simulation:workspace' %}" class="btn btn-brand"><i class="fas fa-play"></i> Go to Workspace</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

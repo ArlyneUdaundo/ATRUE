@@ -1,0 +1,20 @@
+{% extends 'dashboard_base.html' %}
+{% block title %}Trip Cart{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1><i class="fas fa-cart-shopping"></i> Trip Cart</h1><p>Combine hotel rooms, flights, restaurants, activities, packages and transportation into one checkout.</p></div></div>
+<div class="card card-pad">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"><strong style="width:100%">Build your trip</strong><a class="btn btn-outline btn-sm" href="{% url 'hotels:list' %}">Hotels</a><a class="btn btn-outline btn-sm" href="{% url 'airlines:list' %}">Flights</a><a class="btn btn-outline btn-sm" href="{% url 'restaurants:list' %}">Restaurants</a><a class="btn btn-outline btn-sm" href="{% url 'transportation:list' %}">Land Transport</a><a class="btn btn-outline btn-sm" href="{% url 'activities:list' %}">Activities</a><a class="btn btn-outline btn-sm" href="{% url 'tour_package:list' %}">Packages</a></div>
+{% if rows %}
+  {% for row in rows %}
+  <div class="cart-line" style="display:flex;justify-content:space-between;gap:18px;align-items:center;padding:16px 0;border-bottom:1px solid var(--slate-100)">
+    <div><span class="badge badge-blue">{{ row.service }}</span><h3 style="margin:7px 0 3px">{{ row.description }}</h3><div class="meta">Booking {{ row.booking.booking_reference }}</div></div>
+    <div style="display:flex;align-items:center;gap:14px"><strong>₱ {{ row.amount }}</strong><form method="post" action="{% url 'transactions:cart_remove' %}">{% csrf_token %}<input type="hidden" name="key" value="{{ row.key }}"><button class="btn btn-outline btn-sm" type="submit">Remove</button></form></div>
+  </div>
+  {% endfor %}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px"><div><strong>{{ count }} booking item{{ count|pluralize }}</strong><div class="meta">One combined transaction at checkout.</div></div><div style="text-align:right"><div class="meta">TOTAL</div><div class="price">₱ {{ total }}</div></div></div>
+  <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><a class="btn btn-outline" href="{% url 'home' %}">Continue browsing</a><form method="post" action="{% url 'transactions:cart_clear' %}">{% csrf_token %}<button class="btn btn-outline" type="submit">Clear cart</button></form><a class="btn btn-brand" href="{% url 'transactions:cart_checkout' %}"><i class="fas fa-credit-card"></i> Checkout {{ count }} item{{ count|pluralize }} as ONE transaction</a></div>
+{% else %}
+  <div class="empty"><i class="fas fa-cart-shopping"></i><h3>Your trip cart is empty</h3><p>On any booking form, choose <b>Add to Trip Cart</b> to combine it with another hotel, flight, restaurant, activity or transport booking.</p><a class="btn btn-brand" href="{% url 'home' %}">Browse ATRUE</a></div>
+{% endif %}
+</div>
+{% endblock %}

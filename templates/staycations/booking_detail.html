@@ -1,0 +1,142 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Staycation Reservation Detail{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Staycation reservation details, billing and status.</p></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
+        <a href="{% url 'staycations:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
+        {% else %}
+        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
+        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+    </div>
+</div>
+
+{% if booking.status == 'PENDING' and not can_manage %}
+<div class="alert alert-info">
+    <i class="fas fa-clock"></i>
+    <div>Your booking is <b>awaiting front desk confirmation</b>. Once the front desk confirms, you'll get a notification and the <b>Print E-Ticket</b> button will be unlocked.</div>
+</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-home"></i> Guest &amp; Staycation</h3>
+        <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
+        <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
+        <div class="meta">Staycation: {{ booking.staycation.name }} — {{ booking.staycation.location }}</div>
+        <div class="meta">Check-in: {{ booking.check_in|date:"M d, Y" }} · Check-out: {{ booking.check_out|date:"M d, Y" }} · {{ booking.nights }} night(s)</div>
+        {% if booking.checked_in_at %}<div class="meta"><i class="fas fa-sign-in-alt"></i> Actual check-in: {{ booking.checked_in_at|date:"M d, Y H:i" }}</div>{% endif %}
+        {% if booking.checked_out_at %}<div class="meta"><i class="fas fa-sign-out-alt"></i> Actual check-out: {{ booking.checked_out_at|date:"M d, Y H:i" }}</div>{% endif %}
+        <div class="meta">Guests: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C</div>
+        {% if booking.additional_guests.all %}
+        <div class="meta">Additional Guests:
+            {% for g in booking.additional_guests.all %}<span class="service-chip">{{ g.first_name }} {{ g.last_name }}{% if g.country %} ({{ g.country }}){% endif %}</span>{% endfor %}
+        </div>
+        {% endif %}
+        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
+        {% if booking.services.all %}
+        <div class="meta">Add-ons: {% for svc in booking.services.all %}<span class="service-chip">{{ svc.name }} (₱ {{ svc.rate }})</span>{% endfor %}</div>
+        {% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
+        {% if bill %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr><td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+        <div class="meta" style="margin-top:12px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+        </div>
+        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
+
+        {% if payments %}
+        <h4 style="margin-top:16px">Payments</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr><td class="mono">{{ p.pk }}</td><td>₱ {{ p.amount }}</td><td>{{ p.get_method_display }}</td><td>{{ p.paid_at|date:"M d, Y H:i" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-tasks"></i> Reservation Lifecycle</h3>
+    {% if is_owner and not is_manager %}
+    <div class="alert alert-info" style="margin-bottom:12px"><i class="fas fa-door-open"></i> Self check-in / check-out: follow the property's posted instructions. The system records the actual time.</div>
+    {% endif %}
+    <form method="post" class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap">
+        {% csrf_token %}
+        {% if booking.status == 'PENDING' %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
+        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+        {% endif %}
+        {% if booking.status == 'CONFIRMED' %}
+        {% if is_owner and not is_manager %}
+        <button name="action" value="self_checkin" class="btn btn-brand btn-sm"><i class="fas fa-key"></i> Self Check-In</button>
+        {% else %}
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In</button>
+        {% endif %}
+        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this reservation?"><i class="fas fa-ban"></i> Cancel</button>
+        {% endif %}
+        {% if booking.status == 'CHECKED_IN' %}
+        {% if is_owner and not is_manager %}
+        <button name="action" value="self_checkout" class="btn btn-brand btn-sm"><i class="fas fa-key"></i> Self Check-Out</button>
+        {% else %}
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out</button>
+        {% endif %}
+        {% endif %}
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="modify">
+        <h4>Modify Reservation</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Check-in</label><input type="date" name="check_in" class="form-input" value="{{ booking.check_in|date:'Y-m-d' }}"></div>
+            <div class="form-group"><label>Check-out</label><input type="date" name="check_out" class="form-input" value="{{ booking.check_out|date:'Y-m-d' }}"></div>
+        </div>
+        <div class="form-grid">
+            <div class="form-group"><label>Adults</label><input type="number" name="adults" class="form-input" value="{{ booking.number_of_adults }}"></div>
+            <div class="form-group"><label>Children</label><input type="number" name="children" class="form-input" value="{{ booking.number_of_children }}"></div>
+        </div>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <h4>Record Payment</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
+            <div class="form-group"><label>Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
+    </form>
+</div>
+{% endif %}
+
+<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Hotel Bookings{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hotel-management.css' %}?v=20261005">
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Hotel Bookings</h1><p>Search and manage hotel reservations (BR-016, BR-017).</p></div>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid hotel-booking-filter-grid{% if hotel_scoped_user %} hotel-booking-filter-grid--scoped{% endif %}">
+        <div class="form-group hotel-booking-query">
+            <label>Search Keyword</label>
+            <input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Booking reference or guest / customer name">
+        </div>
+        {% if not hotel_scoped_user %}
+        <div class="form-group hotel-booking-hotel">
+            <label>Hotel</label>
+            <select name="hotel" class="form-input">
+                <option value="">All hotels</option>
+                {% for h in hotels %}
+                <option value="{{ h.id }}" {% if request.GET.hotel == h.id|stringformat:'s' %}selected{% endif %}>{{ h.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="form-group hotel-booking-status">
+            <label>Booking Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option>
+                <option value="CONFIRMED" {% if status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+                <option value="MODIFIED" {% if status == 'MODIFIED' %}selected{% endif %}>Modified</option>
+                <option value="CHECKED_IN" {% if status == 'CHECKED_IN' %}selected{% endif %}>Checked-In</option>
+                <option value="CHECKED_OUT" {% if status == 'CHECKED_OUT' %}selected{% endif %}>Checked-Out</option>
+                <option value="DECLINED" {% if status == 'DECLINED' %}selected{% endif %}>Declined</option>
+                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="form-group hotel-booking-check-in">
+            <label>Check-in From</label>
+            <input type="date" name="check_in" class="form-input" value="{{ check_in }}">
+        </div>
+        <div class="form-group hotel-booking-check-out">
+            <label>Check-out To</label>
+            <input type="date" name="check_out" class="form-input" value="{{ check_out }}">
+        </div>
+        <div class="form-group hotel-booking-sort">
+            <label>Sort By</label>
+            <select name="sort" class="form-input">
+                <option value="booking_date" {% if sort == 'booking_date' or not sort %}selected{% endif %}>Booking Date</option>
+                <option value="check_in" {% if sort == 'check_in' %}selected{% endif %}>Check-in Date</option>
+                <option value="check_out" {% if sort == 'check_out' %}selected{% endif %}>Check-out Date</option>
+                <option value="status" {% if sort == 'status' %}selected{% endif %}>Status</option>
+            </select>
+        </div>
+        <div class="hotel-booking-actions">
+            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'hotels:bookings' %}" class="btn btn-outline btn-sm">Reset</a>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Photo</th><th>Reference</th><th>Guest</th><th>Hotel / Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{% with room=b.rooms.all|first %}{% with photo=room.hotel.photos.all|first %}{% if photo %}<img src="{{ photo.image.url }}" alt="{{ room.hotel.name }}" style="width:72px;height:52px;object-fit:cover;border-radius:8px">{% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ room.hotel.name }}" style="width:72px;height:52px;object-fit:cover;border-radius:8px">{% endif %}{% endwith %}{% endwith %}</td>
+                    <td class="mono">{{ b.booking_reference }}</td>
+                    <td>{{ b.primary_guest_name|default:b.customer.get_full_name }}</td>
+                    <td>
+                        {% for r in b.rooms.all %}{{ r.hotel.name }} — {{ r.room_number }}{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}
+                    </td>
+                    <td>{{ b.check_in|date:"M d, Y" }}</td>
+                    <td>{{ b.check_out|date:"M d, Y" }}</td>
+                    <td>{{ b.number_of_guests }}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'hotels:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Buy Attraction Ticket{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your visit</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+{% if booking_error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
+{% endif %}
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-ticket-alt"></i></span>
+                <div>
+                    <h3>{{ name }}</h3>
+                    {% if remaining is not None %}<p>{{ remaining }} slot(s) remaining today</p>{% endif %}
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-ticket-alt"></i> Entry pass — one ticket per visitor</div>
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading data-visit-schedule>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Your visit details</h3><p>Date, visitors and guided tour (BR-059, BR-063)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Visit Date &amp; Arrival Time</label>
+                    <div class="landmark-arrival-fields">
+                        <input type="date" class="form-input" data-visit-date value="{{ default_date|date:'Y-m-d' }}" aria-label="Visit date" required>
+                        <input type="time" class="form-input" data-visit-time value="{{ default_date|date:'H:i' }}" aria-label="Arrival time" required>
+                    </div>
+                    <input type="hidden" name="visit_datetime" data-visit-datetime value="{{ default_date|date:'Y-m-d\TH:i' }}">
+                </div>
+                <div class="form-group">
+                    <label>Number of Visitors</label>
+                    <input type="number" name="visitors" class="form-input" value="1" min="1"{% if remaining is not None %} max="{{ remaining }}"{% endif %}>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Guided Tour</label>
+                <select name="guided_tour" class="form-input">
+                    <option value="NONE">No Guided Tour</option>
+                    <option value="STANDARD">Standard Guided Tour{% if guided_tour_rate %} (₱ {{ guided_tour_rate }}/visitor){% endif %}</option>
+                    <option value="PRIVATE">Private Guided Tour{% if private_tour_rate %} (₱ {{ private_tour_rate }}){% endif %}</option>
+                </select>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Equipment Rate (₱ / item)</label>
+                    <input type="number" name="equipment_rate" step="0.01" class="form-input" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Equipment Quantity</label>
+                    <input type="number" name="equipment_quantity" class="form-input" value="0" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Special Requests</label>
+                <textarea name="special_requests" class="form-input" rows="1"></textarea>
+            </div>
+            <div style="margin-top:18px">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Visitor &amp; payer</h3><p>Contact details come from your account (BR-001, BR-003, BR-006)</p></div>
+                </div>
+                <div class="ag-customer-box">
+                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+                </div>
+                <label class="checkbox" style="margin-bottom:10px">
+                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead visitor
+                </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (ticket stays pending)
+            </label>
+            <script>
+                (function () {
+                    var form = document.getElementById('booking-form');
+                    var date = form && form.querySelector('[data-visit-date]');
+                    var time = form && form.querySelector('[data-visit-time]');
+                    var combined = form && form.querySelector('[data-visit-datetime]');
+                    if (!form || !date || !time || !combined) return;
+                    function syncVisitDateTime() {
+                        combined.value = date.value && time.value ? date.value + 'T' + time.value : '';
+                    }
+                    date.addEventListener('change', syncVisitDateTime);
+                    time.addEventListener('change', syncVisitDateTime);
+                    form.addEventListener('submit', syncVisitDateTime);
+                    syncVisitDateTime();
+                })();
+                function togglePayer() {
+                    var same = document.getElementById('payer-same');
+                    if (!same) return;
+                    var lock = same.checked;
+                    var name = document.getElementById('payer-name');
+                    var contact = document.getElementById('payer-contact');
+                    if (name) {
+                        name.readOnly = lock;
+                        name.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
+                    }
+                    if (contact) {
+                        contact.readOnly = lock;
+                        contact.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
+                    }
+                }
+                togglePayer();
+            </script>
+            <a href="{% url 'landmarks:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Order summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-ticket-alt"></i></span>
+                <div><b>{{ name }}</b><small>Entry pass · one ticket per visitor</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Entry fee</span><b>₱ {{ fee }} /visitor</b></div>
+                {% if guided_tour_rate %}<div class="ag-pb-row"><span>Std guided tour</span><b>₱ {{ guided_tour_rate }}/visitor</b></div>{% endif %}
+                {% if private_tour_rate %}<div class="ag-pb-row"><span>Private tour</span><b>₱ {{ private_tour_rate }}</b></div>{% endif %}
+                <div class="ag-pb-row"><span>Visitors</span><b>1 visitor</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b>₱ {{ fee }}*</b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>
+        
+        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Attraction</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured purchase · Free simulation</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying visitors, tour and equipment.</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

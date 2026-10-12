@@ -1,0 +1,66 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Resorts{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Available Resorts</h2>
+        <p>{{ resorts|length }} resort{% if resorts|length != 1 %}s{% endif %} found · Browse villas, cabanas and services</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'resorts:add' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Resort</a>
+    {% endif %}
+</div>
+
+<div class="ag-list">
+    {% for r in resorts %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-umbrella-beach"></i></span>
+            <span class="ag-media-badges"><span class="badge badge-green">{{ r.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <a href="{% url 'resorts:detail' r.id %}" style="text-decoration:none;color:inherit"><h3>{{ r.name }} <small style="color:var(--slate-500);font-size:12px">{{ r.resort_id }}</small></h3></a>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ r.location }} · <i class="fas fa-phone"></i> {{ r.contact_number }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-star"></i> {{ r.units.count }}</span>
+            </div>
+
+            {% if r.services.all %}
+            <div class="ag-chips">
+                {% for s in r.services.all %}<a href="{% url 'resorts:service_detail' s.id %}" class="ag-chip" style="text-decoration:none;color:inherit"><i class="fas fa-concierge-bell"></i> {{ s.name }}{% if s.rate %} · ₱ {{ s.rate }}{% endif %}</a>{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if r.units.all %}
+            <div style="margin-top:4px">
+                {% for unit in r.units.all %}
+                <div class="ag-option">
+                    <a href="{% url 'resorts:unit_detail' unit.id %}" class="ag-opt-info" style="flex:1;min-width:0;text-decoration:none;color:inherit">
+                        <b>Unit {{ unit.unit_number }} <small style="color:var(--slate-500)">· {{ unit.get_unit_type_display }}</small></b>
+                        <small>{{ unit.capacity }} guest(s) · {% if unit.features %}{{ unit.features }}{% else %}Standard amenities{% endif %}</small>
+                    </a>
+                    <span class="ag-opt-price">₱ {{ unit.rate }}<small style="font-weight:600;color:var(--slate-500);font-size:11px">/night</small></span>
+                    {% if request.user.is_platform_manager %}
+                    <span class="ag-manage-note" style="border:none;padding:0"><i class="fas fa-user-shield"></i> Manage only</span>
+                    {% elif unit.status == 'AVAILABLE' %}
+                    <a href="{% url 'resorts:unit_detail' unit.id %}" class="ag-btn btn-sm"><i class="fas fa-umbrella-beach"></i> View &amp; Book</a>
+                    {% else %}
+                    <span class="badge badge-gray">{{ unit.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="ag-manage-note"><i class="fas fa-umbrella-beach"></i> Villas and cabanas will appear here once added by the administrator.</div>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-umbrella-beach"></i><h3>No resorts yet</h3><p>Resorts will be listed here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

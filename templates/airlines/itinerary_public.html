@@ -1,0 +1,114 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ itinerary.itinerary_reference }} — {{ itinerary.route_label }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ itinerary.route_label }}</h1>
+        <p>{{ itinerary.airline.name }} · {{ itinerary.stops_label }} · {{ itinerary.segment_count }} segments ·
+           {{ timing.total_label }} door to door.</p>
+    </div>
+    <div style="display:flex;gap:10px">
+        {% if not request.user.is_airline_booking_restricted %}
+        <a href="{% url 'airlines:book_itinerary' itinerary.id %}" class="btn btn-brand"><i class="fas fa-ticket-alt"></i> Book Itinerary</a>
+        {% endif %}
+        <a href="{% url 'airlines:list' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Flights</a>
+    </div>
+</div>
+
+{% comment %}
+One journey, one card, every leg.
+
+Only this itinerary is shown. Nothing here links to another flight and nothing
+here offers ground transport: the passenger asked for one journey from MNL to
+DXB, so the page is that journey and nothing else.
+{% endcomment %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-clock"></i> <b>Departs:</b> {{ itinerary.departure_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-plane-arrival"></i> <b>Arrives:</b> {{ itinerary.arrival_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-chair"></i> <b>Seats left:</b> {{ remaining }} on the tightest leg</div>
+        <div class="meta"><i class="fas fa-mountain"></i> <b>Total journey:</b> {{ timing.total_label }}</div>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 14px"><i class="fas fa-route"></i> Your Journey</h3>
+    {% for entry in timing.legs %}
+    <div style="border-left:3px solid #2563eb;padding:0 0 0 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <b>Segment {{ forloop.counter }} · {{ entry.segment.flight_number }}</b>
+            <span class="badge badge-gray">{{ entry.label }} in the air</span>
+        </div>
+        <div class="ag-detail-row" style="margin-top:8px"><i class="fas fa-plane-departure"></i> <b>{{ entry.segment.origin_airport.code }}</b> {{ entry.segment.origin_airport.city }} — {{ entry.departure_local|date:"M d, Y H:i" }} ({{ entry.segment.departure_timezone }})</div>
+        <div class="ag-detail-row"><i class="fas fa-plane-arrival"></i> <b>{{ entry.segment.destination_airport.code }}</b> {{ entry.segment.destination_airport.city }} — {{ entry.arrival_local|date:"M d, Y H:i" }} ({{ entry.segment.arrival_timezone }})</div>
+        <div class="ag-detail-row"><i class="fas fa-plane"></i> {% if entry.segment.aircraft %}{{ entry.segment.aircraft.model_name }} ({{ entry.segment.aircraft.tail_number }}){% else %}Aircraft to be confirmed{% endif %}</div>
+        {% if entry.segment.terminal or entry.segment.gate or entry.segment.arrival_terminal %}
+        <div class="ag-detail-row"><i class="fas fa-door-open"></i> Departs T{{ entry.segment.terminal|default:"—" }} Gate {{ entry.segment.gate|default:"—" }} · Arrives T{{ entry.segment.arrival_terminal|default:"—" }} Gate {{ entry.segment.arrival_gate|default:"—" }}</div>
+        {% endif %}
+    </div>
+    {% if not forloop.last %}
+    {% with layover=timing.layovers|slice:forloop.counter0|last %}
+    <div style="margin:-6px 0 8px 16px;color:#64748b">
+        <i class="fas fa-shoe-prints"></i> Change at <b>{{ layover.airport.code }} {{ layover.airport.airport_name }}</b> — {{ layover.label }} layover
+    </div>
+    {% endwith %}
+    {% endif %}
+    {% endfor %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-money-bill-wave"></i> Fare</h3>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Segment</th><th>Flight</th><th>Route</th><th>Fare / passenger</th></tr></thead>
+            <tbody>
+                {% for leg in legs %}
+                <tr>
+                    <td>{{ leg.segment_order }}</td>
+                    <td class="mono">{{ leg.flight_number }}</td>
+                    <td>{{ leg.origin_airport.code }} → {{ leg.destination_airport.code }}</td>
+                    <td>₱ {{ leg.economy_fare }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3">Total per passenger</th>
+                    <th>₱ {{ itinerary.total_price }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <div class="grid-2" style="margin-top:12px">
+        <div class="meta"><i class="fas fa-suitcase"></i> Extra baggage ₱ {{ itinerary.baggage_rate }}/kg on any segment</div>
+        <div class="meta"><i class="fas fa-arrows-rotate"></i> {% if itinerary.is_changeable %}Changeable for ₱ {{ itinerary.change_fee }}{% else %}Not changeable{% endif %}</div>
+        <div class="meta"><i class="fas fa-undo"></i> {% if itinerary.is_refundable %}Refundable{% else %}Non-refundable{% endif %}</div>
+        <div class="meta"><i class="fas fa-clock"></i> Book at least {{ itinerary.min_advance_booking_hours }}h before departure</div>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0 0 8px"><i class="fas fa-chair"></i> Seats by Segment</h3>
+    <p style="color:#64748b;margin:0 0 12px">Each segment is a different aircraft, so you choose a seat on every one of them.</p>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Segment</th><th>Flight</th><th>Aircraft</th><th>Seats left</th></tr></thead>
+            <tbody>
+                {% for row in segment_rows %}
+                <tr>
+                    <td>{{ row.flight.segment_order }}</td>
+                    <td class="mono">{{ row.flight.flight_number }}</td>
+                    <td>{{ row.flight.aircraft.model_name|default:"—" }}</td>
+                    <td>{{ row.remaining }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not request.user.is_airline_booking_restricted %}
+    <a href="{% url 'airlines:book_itinerary' itinerary.id %}" class="btn btn-brand" style="margin-top:14px"><i class="fas fa-ticket-alt"></i> Book Itinerary</a>
+    {% endif %}
+</div>
+{% endblock %}

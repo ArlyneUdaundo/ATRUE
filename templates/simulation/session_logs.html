@@ -1,0 +1,235 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Activity Logs – {{ session.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-logs.css' %}?v=20261009">
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ session.name }}</h1>
+        <p>{% if session.session_id %}{{ session.session_id }} · {% endif %}{{ session.get_status_display }} — activity logs recorded for this session.</p>
+    </div>
+    <div>
+        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Sessions</a>
+    </div>
+</div>
+
+<div class="logs-breadcrumb">
+    <a href="{% url 'simulation:logs' %}">Activity Logs</a>
+    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+    <span>{{ session.name }}</span>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <form method="get" class="logs-filter-grid">
+        <div class="form-group" style="margin:0">
+            <label>Search Student</label>
+            <input type="text" name="q" class="form-input" placeholder="Name or username" value="{{ q }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Establishment</label>
+            <select name="establishment" class="form-input">
+                <option value="">All establishments</option>
+                {% for e in establishments %}
+                <option value="{{ e.id }}" {% if establishment == e.id|stringformat:'s' %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Role</label>
+            <select name="role" class="form-input">
+                <option value="">All roles</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Activity</label>
+            <input type="text" name="activity" class="form-input" placeholder="e.g. Started simulation task" value="{{ activity }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>From Date</label>
+            <input type="date" name="from" class="form-input" value="{{ date_from }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>To Date</label>
+            <input type="date" name="to" class="form-input" value="{{ date_to }}">
+        </div>
+        <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'simulation:session_logs' session.id %}" class="btn btn-outline">Reset</a>
+        </div>
+    </form>
+</div>
+
+{% if rows %}
+<div class="table-wrap">
+    <table class="table logs-table">
+        <thead>
+            <tr>
+                <th class="col-datetime">Date &amp; Time</th>
+                <th class="col-student">Student</th>
+                <th class="col-session">Session</th>
+                <th class="col-establishment">Establishment</th>
+                <th class="col-role">Role</th>
+                <th class="col-activity">Activity</th>
+                <th class="col-details">Details</th>
+                <th class="col-status">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr class="log-row is-clickable" tabindex="0" role="button"
+                aria-haspopup="dialog" aria-label="View details for {{ row.student.get_full_name|default:row.student.username }}: {{ row.log.action }}"
+                data-idx="{{ forloop.counter0 }}">
+                <td class="col-datetime">
+                    <span class="meta" style="display:block">{{ row.log.timestamp|date:"F j, Y" }}</span>
+                    <span class="meta" style="display:block">{{ row.log.timestamp|time:"g:i A" }}</span>
+                </td>
+                <td class="col-student">{{ row.student.get_full_name|default:row.student.username }}</td>
+                <td class="col-session">{{ session.name }}</td>
+                <td class="col-establishment">{{ row.establishment }}</td>
+                <td class="col-role">{{ row.role_label }}</td>
+                <td class="col-activity"><span class="meta" style="display:block">{{ row.log.action }}</span></td>
+                <td class="col-details"><span class="meta" style="display:block">{{ row.log.details|default:"—" }}</span></td>
+                <td class="col-status">
+                    {% if row.status != '—' %}
+                    <span class="badge {% if row.status == 'Active' %}badge-blue{% else %}badge-gray{% endif %}">{{ row.status }}</span>
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="logs-tap-hint"><i class="fas fa-hand-pointer"></i> Tap any activity to view its full details.</p>
+{% else %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>No activity logs have been recorded for this session yet.</h3>
+    </div>
+</div>
+{% endif %}
+
+{{ rows_json|json_script:"session-log-data" }}
+
+<div class="log-modal" id="log-modal" role="dialog" aria-modal="true"
+     aria-labelledby="log-modal-title" hidden>
+    <div class="log-modal-backdrop" data-log-close></div>
+    <div class="log-modal-panel" role="document">
+        <header class="log-modal-head">
+            <h2 id="log-modal-title">Activity Details</h2>
+            <button type="button" class="log-modal-close" data-log-close
+                    aria-label="Close activity details">&times;<span class="visually-hidden">Close</span></button>
+        </header>
+        <div class="log-modal-body">
+            <div class="log-detail"><span class="log-detail-key">Student</span><span class="log-detail-value" data-log-field="student"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Session</span><span class="log-detail-value" data-log-field="session"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Establishment</span><span class="log-detail-value" data-log-field="establishment"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Establishment Type</span><span class="log-detail-value" data-log-field="establishment_type"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Assigned Role</span><span class="log-detail-value" data-log-field="role"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Activity</span><span class="log-detail-value" data-log-field="activity"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Description</span><span class="log-detail-value" data-log-field="description"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Date</span><span class="log-detail-value" data-log-field="date"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Time</span><span class="log-detail-value" data-log-field="time"></span></div>
+            <div class="log-detail"><span class="log-detail-key">Status</span><span class="log-detail-value" data-log-field="status"></span></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+    var modal = document.getElementById('log-modal');
+    var data = document.getElementById('session-log-data');
+    if (!modal || !data) { return; }
+    var records = JSON.parse(data.textContent);
+
+    var lastFocus = null;
+    var panel = modal.querySelector('.log-modal-panel');
+    var closeBtn = modal.querySelector('.log-modal-close');
+
+    function shortStatus(status) {
+        return (status || '') === '-' ? '' : (status || '');
+    }
+
+    function openModal(idx) {
+        var record = records[idx];
+        if (!record) { return; }
+        lastFocus = document.activeElement;
+        Array.prototype.forEach.call(
+            document.querySelectorAll('[data-log-field]'),
+            function (node) {
+                var key = node.getAttribute('data-log-field');
+                node.textContent = record[key] || '';
+            });
+        modal.hidden = false;
+        document.body.classList.add('log-modal-open');
+        closeBtn.focus();
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        document.body.classList.remove('log-modal-open');
+        if (lastFocus && typeof lastFocus.focus === 'function') {
+            lastFocus.focus();
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        var row = event.target.closest('.log-row[data-idx]');
+        if (row) {
+            openModal(parseInt(row.getAttribute('data-idx'), 10));
+            return;
+        }
+        if (event.target.closest('[data-log-close]')) {
+            closeModal();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) {
+            closeModal();
+            return;
+        }
+        if (event.key === 'Tab' && !modal.hidden) {
+            var focusable = panel.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusable.length === 0) { return; }
+            var first = focusable[0];
+            var last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+    });
+
+    Array.prototype.forEach.call(
+        document.querySelectorAll('.log-row.is-clickable'),
+        function (row) {
+            if (row.addEventListener) {
+                row.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openModal(parseInt(row.getAttribute('data-idx'), 10));
+                    }
+                });
+            }
+        });
+}());
+</script>
+{% endblock %}

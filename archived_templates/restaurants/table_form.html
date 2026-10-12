@@ -1,0 +1,49 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if table %}Update Table{% else %}Add Table{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if table %}Update Table{% else %}Add Table{% endif %} — {{ restaurant.name }}</h1><p>Restaurant table management.</p></div></div>
+
+{% if error %}
+<div class="alert alert-danger" style="max-width:720px"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+{% endif %}
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if table %}
+    <div class="form-group" style="margin-bottom:22px">
+        <label>Table ID</label>
+        <div class="form-readonly">{{ table.table_id }}</div>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Table Number</label>
+            <input type="text" name="table_number" class="form-input" value="{{ table.table_number|default:'' }}" placeholder="e.g. 1, A2, NearWindow" required>
+        </div>
+        <div class="form-group">
+            <label>Seating Area</label>
+            <select name="seating_area" class="form-input">
+                {% for value, label in seating_area_choices %}
+                <option value="{{ value }}" {% if table.seating_area == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Capacity</label>
+        <input type="number" name="capacity" class="form-input" value="{{ table.capacity|default:2 }}" min="1">
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if table.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Table</button>
+    <a href="{% url 'restaurants:update_restaurant' restaurant.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% comment %}
+One leg's seat map.
+
+Every cabin is drawn the same way, and always as a cabin, never as a column:
+
+    A   B   C        D   E   F        G   H   J
+1   []  []  []      []  []  []      []  []  []
+2   []  []  []      []  []  []      []  []  []
+3   []  []  []      []  []  []      []  []  []
+
+Rows run across the page and stack downwards, one row number down the left, the
+aisle a real gap between seat groups, and the seat letters head their own
+columns.  The header row and the seat rows are built from the same seat blocks,
+which is what lines a letter up over the seat it belongs to.
+
+How wide a cabin is, and how many rows and letters it has, comes entirely from
+the database: the aircraft's configuration decides the blocks, and the Seat rows
+decide the letters and the positions.  A 3-3 reads "A B C | D E F" and a 3-4-3
+reads "A B C | D E F G | H J K" without anything here changing.
+
+Usage:
+  {% include 'airlines/_seat_map.html' with seat_map=seat_map side='departure' %}
+
+  - seat_map: output of airlines.views._seat_map
+  - side: 'departure' or 'return'; scopes the tile lookups so the page can
+    carry two independent maps (a round trip's two legs) without one seat
+    click leaking into the other leg.
+{% endcomment %}
+<div class="seat-map-block">
+    <div class="seat-map-caption">
+        <b>{{ seat_map.aircraft }}{% if seat_map.tail_number %} <span class="tail">{{ seat_map.tail_number }}</span>{% endif %}</b>
+        <span class="meta">{{ seat_map.seat_map }} &middot; {{ seat_map.total_seats }} seats</span>
+    </div>
+
+    <div class="seat-grid" data-layout="{{ seat_map.key }}" data-seat-side="{{ side }}">
+        {% for cabin in seat_map.cabins %}
+        {% comment %}
+        One section per cabin the aircraft actually flies.  No cabin is drawn
+        differently from any other: same header, same rows, same blocks.
+        {% endcomment %}
+        <section class="seat-cabin seat-cabin-{{ cabin.key|lower }}" data-cabin-section="{{ cabin.key }}">
+            <div class="seat-cabin-name">
+                <span class="seat-cabin-title">{{ cabin.label }}</span>
+                <span class="seat-cabin-meta">{{ cabin.seat_count }} seats &middot; &#8369; {{ cabin.fare }} each</span>
+            </div>
+
+            <div class="seat-cabin-deck">
+                {% comment %}Column headings: the seat letters over their seats.{% endcomment %}
+                <div class="seat-row seat-row-head">
+                    <span class="seat-row-no"></span>
+                    {% for block in cabin.head_blocks %}
+                    {% for label in block.labels %}
+                    <span class="seat-col-label">{{ label }}</span>
+                    {% endfor %}
+                    {% if not forloop.last %}<span class="seat-aisle-gap"></span>{% endif %}
+                    {% endfor %}
+                </div>
+
+                {% for row in cabin.rows %}
+                {% if row.before == 'galley' %}
+                <div class="seat-divider"><i class="fas fa-mug-hot"></i><span>Galley</span></div>
+                {% endif %}
+                <div class="seat-row"{% if row.is_exit %} data-exit="1"{% endif %}>
+                    <span class="seat-row-no">{{ row.row }}</span>
+                    {% for block in row.blocks %}
+                    {% for col in block.cols %}
+                    {% comment %}
+                    Three states, and only three: free (light blue, clickable),
+                    unavailable (grey with an X, disabled because another
+                    passenger already holds it) and picked (green with a
+                    passenger icon, this user's own seat).
+                    {% endcomment %}
+                    <button type="button" class="seat-tile seat-{{ col.position }}{% if col.taken %} taken{% endif %}" data-seat="{{ col.seat }}" data-cabin="{{ cabin.key }}" {% if col.taken %}disabled title="Seat {{ col.seat }} — unavailable"{% else %}title="Seat {{ col.seat }} — free"{% endif %}><span class="seat-letter">{{ col.label }}</span><i class="fas fa-times seat-icon seat-icon-taken"></i><i class="fas fa-user seat-icon seat-icon-picked"></i></button>
+                    {% endfor %}
+                    {% if not forloop.last %}<span class="seat-aisle-gap"></span>{% endif %}
+                    {% endfor %}
+                    {% comment %}
+                    A fixed-width spacer at the end of every row. It once held a
+                    green emergency-exit marker, which read as decoration beside the
+                    seats; the width is kept so rows stay aligned, the marker is not.
+                    {% endcomment %}
+                    <span class="seat-exit"></span>
+                </div>
+                {% if row.after == 'lavatory' %}
+                <div class="seat-divider"><i class="fas fa-restroom"></i><span>Lavatory</span></div>
+                {% elif row.after == 'galley' %}
+                <div class="seat-divider"><i class="fas fa-mug-hot"></i><span>Galley</span></div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+</div>

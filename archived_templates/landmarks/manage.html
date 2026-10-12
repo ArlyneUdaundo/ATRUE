@@ -1,0 +1,47 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Tourist Spots & Landmarks Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Attractions Management</h1><p>Create, update and manage tourist spots and landmarks (BR-059 to BR-063).</p></div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'landmarks:add_spot' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Tourist Spot</a>
+        <a href="{% url 'landmarks:add_landmark' %}" class="btn btn-ghost"><i class="fas fa-plus"></i> Add Landmark</a>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-hiking"></i> Tourist Spots</h3>
+{% for t in spots %}
+<div class="card card-pad" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-blue"><i class="fas fa-mountain"></i></span>
+        <div style="flex:1">
+            <h4 style="margin:0">{{ t.name }}</h4>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ t.location }} · Entry ₱ {{ t.entry_fee }} · Cap {{ t.capacity|default:"Unlimited" }}</div>
+        </div>
+        <span class="badge {% if t.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ t.get_status_display }}</span>
+        <a href="{% url 'landmarks:update_spot' t.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-mountain"></i><h3>No tourist spots yet</h3><p>Add a tourist spot to begin.</p></div></div>
+{% endfor %}
+
+<h3 style="margin:26px 0 14px"><i class="fas fa-landmark"></i> Landmarks</h3>
+{% for l in landmarks %}
+<div class="card card-pad" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-blue"><i class="fas fa-landmark"></i></span>
+        <div style="flex:1">
+            <h4 style="margin:0">{{ l.name }}</h4>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ l.location }} · Entry ₱ {{ l.entry_fee }} · Cap {{ l.capacity|default:"Unlimited" }}</div>
+        </div>
+        <span class="badge {% if l.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ l.get_status_display }}</span>
+        <a href="{% url 'landmarks:update_landmark' l.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-landmark"></i><h3>No landmarks yet</h3><p>Add a landmark to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

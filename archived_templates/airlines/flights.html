@@ -1,0 +1,57 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Flights{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Flight Schedule</h1><p>All managed flights across airlines (FR-017).</p></div></div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Flight number, origin or destination"></div>
+        <div class="form-group">
+            <label>Airline</label>
+            <select name="airline" class="form-input">
+                <option value="">All airlines</option>
+                {% for a in airlines %}<option value="{{ a.id }}" {% if airline == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="SCHEDULED" {% if status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                <option value="DELAYED" {% if status == 'DELAYED' %}selected{% endif %}>Delayed</option>
+                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+        <div class="form-group"><label>From</label><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
+        <div class="form-group"><label>To</label><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+    {% for f in flights %}
+    <article class="card card-pad">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+            <div>
+                <h3 style="margin:0">{{ f.flight_number }}</h3>
+                <div class="meta">{{ f.airline.name }}</div>
+            </div>
+            <span class="badge {% if f.status == 'SCHEDULED' %}badge-green{% elif f.status == 'DELAYED' %}badge-amber{% elif f.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ f.get_status_display }}</span>
+        </div>
+        <div class="meta" style="margin-top:10px"><i class="fas fa-route"></i> {{ f.origin }} → {{ f.destination }}</div>
+        <div class="meta"><i class="fas fa-plane"></i> {{ f.aircraft.model_name }} · <span class="mono">{{ f.aircraft.tail_number }}</span></div>
+        <div class="meta"><i class="fas fa-plane-departure"></i> {{ f.departure_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-plane-arrival"></i> {{ f.arrival_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-money-bill"></i> Economy ₱ {{ f.economy_fare }} · First ₱ {{ f.first_class_fare }}</div>
+        <div style="margin-top:14px">
+            <a href="{% url 'airlines:flight_detail' f.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+        </div>
+    </article>
+    {% empty %}
+    <div class="card card-pad" style="grid-column:1/-1"><div class="empty"><i class="fas fa-fighter-jet"></i><h3>No flights found</h3></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

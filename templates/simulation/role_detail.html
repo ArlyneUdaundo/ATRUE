@@ -1,0 +1,165 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ assignment.get_role_display }} | Simulation Role{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Simulation Role</h1>
+        <p>Assigned role details and applicable permissions (FR View Simulation Role).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if can_manage %}
+        <a href="{% url 'simulation:role_list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to List</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <div style="display:flex;align-items:center;gap:14px">
+                <span class="scard-ico" style="background:var(--grad);color:#fff"><i class="fas fa-user-tag"></i></span>
+                <div style="flex:1">
+                    <h3 style="margin:0">{{ assignment.get_role_display }}</h3>
+                    <div class="meta" style="margin-top:2px"><i class="fas fa-user-graduate"></i> {{ assignment.student.get_full_name|default:assignment.student.username }} (@{{ assignment.student.username }})</div>
+                </div>
+                <span class="badge {% if assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ assignment.get_status_display }}</span>
+            </div>
+        </div>
+        <div class="card-pad">
+            <div class="filter-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px 22px">
+                <div><div class="meta" style="margin:0"><i class="fas fa-tasks"></i> Simulation Activity</div><b style="font-size:14px">{{ assignment.activity_name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-user-cog"></i> Assigned By</div><b style="font-size:14px">{{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username|default:"—" }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-building"></i> Establishment</div><b style="font-size:14px">{{ assignment.establishment.name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-calendar"></i> Simulation Date</div><b style="font-size:14px">{% if assignment.simulation_date %}{{ assignment.simulation_date|date:"M d, Y" }}{% else %}—{% endif %}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-clock"></i> Time</div><b style="font-size:14px">{% if assignment.start_time and assignment.end_time %}{{ assignment.start_time|time:"g:i A" }} – {{ assignment.end_time|time:"g:i A" }}{% else %}—{% endif %}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-calendar"></i> Assigned On</div><b style="font-size:14px">{{ assignment.assigned_at|date:"M d, Y H:i" }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-hashtag"></i> Assignment ID</div><b style="font-size:14px">#{{ assignment.id }}</b></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <h3 style="margin:0"><i class="fas fa-shield-alt"></i> Role Permissions</h3>
+        </div>
+        {% if permissions %}
+        <div class="card-pad-list">
+            {% for perm in permissions %}
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--slate-200)">
+                <span class="stat-ico" style="width:30px;height:30px;font-size:12px;border-radius:8px;flex-shrink:0;background:var(--slate-100);color:var(--indigo)"><i class="fas fa-check"></i></span>
+                <span style="font-size:13.5px">{{ perm }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-shield-alt"></i><h3>No permissions listed</h3><p>Specific permissions are defined by the instructor for this activity.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage and assignment.status != 'DONE' %}
+<div class="card card-pad" style="margin-top:20px" id="update-role">
+    <h3 style="margin:0 0 14px"><i class="fas fa-edit"></i> Update Role</h3>
+    <form method="post" action="{% url 'simulation:role_update' assignment.id %}" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:end">
+        {% csrf_token %}
+        <div class="form-group" style="margin:0">
+            <label>New Role</label>
+            <select name="role" id="editRole" class="form-input" required>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if assignment.role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0" id="editEstablishmentGroup">
+            <label>Assigned Establishment</label>
+            <select name="establishment" id="editEstablishment" class="form-input" disabled data-current="{{ assignment.establishment_id|default_if_none:'' }}">
+                <option value="">Select establishment</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Reason <em class="muted-hint">Optional</em></label>
+            <input type="text" name="reason" class="form-input" placeholder="Reason for change">
+        </div>
+        {% if assignment.status == 'ACTIVE' %}
+        <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> Save Update</button>
+        {% else %}
+        <button type="submit" class="btn btn-brand" disabled>Inactive – Reactivate to update</button>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+{% if can_manage and assignment.status != 'DONE' %}
+{{ role_establishment_types|json_script:"editRoleEstablishmentTypes" }}
+{{ establishments_by_type|json_script:"editEstablishmentData" }}
+{{ guest_destinations|json_script:"editGuestDestinations" }}
+<script>
+(function () {
+    const types = JSON.parse(document.getElementById('editRoleEstablishmentTypes').textContent || '{}');
+    const byType = JSON.parse(document.getElementById('editEstablishmentData').textContent || '{}');
+    const guestDest = JSON.parse(document.getElementById('editGuestDestinations').textContent || '{}');
+    const roleSelect = document.getElementById('editRole');
+    const group = document.getElementById('editEstablishmentGroup');
+    const select = document.getElementById('editEstablishment');
+    const currentId = select.dataset.current || '';
+
+    function fill(type) {
+        // Rebuilt from scratch each time: the option list is what makes the
+        // picker trustworthy, and a stale id from another type must not survive
+        // the role being changed. The server re-checks the type regardless.
+        select.innerHTML = '<option value="">Select establishment</option>';
+        (byType[type] || []).forEach(function (row) {
+            const option = document.createElement('option');
+            option.value = row.id;
+            option.textContent = row.name;
+            option.selected = String(row.id) === String(currentId);
+            select.appendChild(option);
+        });
+    }
+
+    function toggle() {
+        const value = roleSelect.value;
+        // A guest role has no operational establishment type but may still be
+        // pointed at one place of its module's own type, optionally.
+        const operational = types[value] || '';
+        const guest = guestDest[value] || '';
+        const type = guest || operational;
+        group.style.display = type ? '' : 'none';
+        select.disabled = !type;
+        if (type) { fill(type); } else { select.innerHTML = '<option value="">Select establishment</option>'; }
+    }
+
+    roleSelect.addEventListener('change', toggle);
+    toggle();
+})();
+</script>
+{% endif %}
+
+<div class="card" style="margin-top:20px">
+    <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+        <h3 style="margin:0"><i class="fas fa-history"></i> Student's Completed Roles</h3>
+        <p style="color:var(--slate-500);font-size:13.5px;margin:0">Other simulation roles {{ assignment.student.get_full_name|default:assignment.student.username }} has already completed.</p>
+    </div>
+    {% if student_roles %}
+    <div class="table-wrap">
+        <table class="table">
+                <thead><tr><th>Role</th><th>Simulation Activity</th><th>Establishment</th><th>Status</th><th>Assigned On</th></tr></thead>
+                <tbody>
+                    {% for r in student_roles %}
+                    <tr>
+                        <td><span class="badge badge-blue">{{ r.get_role_display }}</span></td>
+                        <td>{{ r.activity_name }}</td>
+                        <td>{{ r.establishment.name|default:"—" }}</td>
+                    <td><span class="badge {% if r.status == 'ACTIVE' %}badge-green{% else %}badge-red{% endif %}">{{ r.get_status_display }}</span></td>
+                    <td>{{ r.assigned_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-check-double"></i><h3>No other roles yet</h3><p>This student has not completed any other simulation role.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

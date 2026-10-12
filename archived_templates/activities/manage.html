@@ -1,0 +1,50 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Activity Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Activity Management</h1><p>Manage providers, activities, capacity and availability (BR-064 to BR-069).</p></div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'activities:add_provider' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Provider</a>
+        <a href="{% url 'activities:add_activity' %}" class="btn btn-ghost"><i class="fas fa-plus"></i> Add Activity</a>
+    </div>
+</div>
+
+<h3 style="margin-bottom:14px"><i class="fas fa-user-tie"></i> Providers</h3>
+{% for p in providers %}
+<div class="card card-pad" style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1">
+            <h4 style="margin:0">{{ p.name }}
+                {% if p.verified %}<span class="badge badge-green">Verified</span>{% else %}<span class="badge badge-yellow">Unverified</span>{% endif %}
+                <span class="badge {% if p.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span>
+            </h4>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ p.location }}
+                {% if p.bookable %}<span style="color:var(--brand)"> · bookable</span>{% endif %}</div>
+        </div>
+        <a href="{% url 'activities:update_provider' p.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-user-tie"></i><h3>No providers yet</h3></div></div>
+{% endfor %}
+
+<h3 style="margin:26px 0 14px"><i class="fas fa-hiking"></i> Activities</h3>
+{% for a in activities %}
+<div class="card card-pad" style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1">
+            <h4 style="margin:0">{{ a.name }}</h4>
+            <div class="meta">{{ a.provider.name }} · {{ a.get_category_display }} · ₱ {{ a.fee }} · Cap {{ a.capacity }} ·
+                <span class="badge {% if a.bookable %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}{% if not a.bookable %} (unavailable){% endif %}</span>
+            </div>
+        </div>
+        <a href="{% url 'activities:update_activity' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'activities:bookings' %}" class="btn btn-ghost btn-sm"><i class="fas fa-list"></i> Bookings</a>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-hiking"></i><h3>No activities yet</h3><p>Add an activity to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

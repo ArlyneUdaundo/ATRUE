@@ -1,0 +1,40 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %} — {{ hotel.name }}</h1><p>{% if amenity %}Hotel amenities management (BR-011, BR-024).{% else %}This amenity will be added to all hotels you manage.{% endif %}</p></div></div>
+
+<form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" data-submit-loading data-amenity-form data-modal-title="{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %}">
+    {% csrf_token %}
+    {% if amenity %}
+    <div class="form-group">
+        <label>Amenity ID</label>
+        <input type="text" class="form-input" value="{{ amenity.amenity_id }}" readonly disabled>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Amenity Name</label>
+        <input type="text" name="name" class="form-input" value="{{ amenity.name|default:'' }}" placeholder="Wi-Fi, Pool, Gym" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ amenity.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Availability / Operating Hours</label>
+        <input type="text" name="operating_hours" class="form-input" value="{{ amenity.operating_hours|default:'' }}">
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if amenity.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if amenity.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if amenity.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNAVAILABLE" {% if amenity.status == 'UNAVAILABLE' %}selected{% endif %}>Unavailable</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Amenity</button>
+    <a href="{% url 'hotels:update_hotel' hotel.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

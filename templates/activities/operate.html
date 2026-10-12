@@ -1,0 +1,73 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Operate Assigned Activity{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Operate Assigned Activity</h1><p>Attend and complete bookings and update operational status for the activity you are assigned to.</p></div></div>
+
+{% for row in rows %}
+{% with activity=row.activity %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="card-title-row">
+        <h3 style="margin:0"><i class="fas fa-person-hiking"></i> {{ activity.name }}</h3>
+        <span class="badge {% if activity.status == 'ACTIVE' %}badge-green{% else %}badge-yellow{% endif %}">{{ activity.get_status_display }}</span>
+    </div>
+    <p class="meta" style="margin:6px 0 14px">{{ activity.provider.name }} · {{ activity.full_location }} · ₱ {{ activity.fee }} / participant · capacity {{ activity.capacity }}</p>
+
+    <form method="post" class="form-inline" style="margin-bottom:16px">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_status">
+        <input type="hidden" name="activity_id" value="{{ activity.id }}">
+        <select name="status" class="form-input" style="width:auto">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if activity.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-save"></i> Update status</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Customer</th><th>Date</th><th>Participants</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in row.bookings %}
+                <tr>
+                    <td class="mono">#{{ b.pk }}</td>
+                    <td>{{ b.customer.get_full_name|default:b.customer.username }}</td>
+                    <td>{{ b.schedule_date|date:"M d, Y" }}</td>
+                    <td>{{ b.participant_count }}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' or b.status == 'COMPLETED' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td>
+                        {% if b.status == 'CONFIRMED' or b.status == 'PENDING' %}
+                        <form method="post" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="attend">
+                            <input type="hidden" name="activity_id" value="{{ activity.id }}">
+                            <input type="hidden" name="booking_id" value="{{ b.id }}">
+                            <button type="submit" class="btn btn-ghost btn-sm">Attend</button>
+                        </form>
+                        {% endif %}
+                        {% if b.status == 'CHECKED_IN' %}
+                        <form method="post" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="complete">
+                            <input type="hidden" name="activity_id" value="{{ activity.id }}">
+                            <input type="hidden" name="booking_id" value="{{ b.id }}">
+                            <button type="submit" class="btn btn-brand btn-sm">Complete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7"><div class="empty"><i class="fas fa-calendar-check"></i><h3>No bookings for this activity yet</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endwith %}
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-person-hiking"></i><h3>No activity assigned to you</h3><p>Ask your instructor to assign you an activity to operate.</p></div></div>
+{% endfor %}
+{% endblock %}

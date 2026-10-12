@@ -1,0 +1,68 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Unit {{ unit.unit_number }} | {{ unit.resort.name }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Unit {{ unit.unit_number }}</h1>
+        <p><a href="{% url 'resorts:detail' unit.resort.slug %}" style="color:var(--indigo)">{{ unit.resort.name }}</a> · <span class="badge {% if unit.status == 'AVAILABLE' %}badge-green{% elif unit.status == 'MAINTENANCE' %}badge-red{% elif unit.status == 'OCCUPIED' %}badge-blue{% else %}badge-amber{% endif %}">{{ unit.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'resorts:units' %}?resort={{ unit.resort.id }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Units</a>
+        {% elif unit.status == 'AVAILABLE' %}
+        <a href="{% url 'resorts:book' unit.id %}" class="btn btn-brand"><i class="fas fa-umbrella-beach"></i> Book This Unit</a>
+        <a href="{% url 'resorts:detail' unit.resort.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resort</a>
+        {% else %}
+        <a href="{% url 'resorts:detail' unit.resort.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resort</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-holly-berry"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Unit ID: <b>{{ unit.unit_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-umbrella-beach"></i> {{ unit.resort.name }} — {{ unit.resort.location }}</div>
+            <div class="meta"><i class="fas fa-tag"></i> {{ unit.get_unit_type_display }} · {{ unit.capacity_adults }}A / {{ unit.capacity_children }}C</div>
+        </div>
+        <div style="text-align:right">
+            <div class="ag-price"><b>₱ {{ unit.rate }}</b><span class="ag-per">/night</span></div>
+            {% if unit.additional_guest_charge %}<div class="meta">+ ₱ {{ unit.additional_guest_charge }} extra guest/night</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if unit.photos.all %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-images"></i> Photos</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+        {% for photo in unit.photos.all %}
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:unit.unit_number }}" style="width:100%;height:160px;object-fit:cover;border-radius:10px">
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="form-grid">
+    <div class="card card-pad">
+        <h3 style="margin:0 0 10px"><i class="fas fa-align-left"></i> Description</h3>
+        {% if unit.description %}
+        <div style="white-space:pre-line">{{ unit.description }}</div>
+        {% else %}
+        <div class="meta">No description provided.</div>
+        {% endif %}
+    </div>
+    <div class="card card-pad">
+        <h3 style="margin:0 0 10px"><i class="fas fa-star"></i> Features</h3>
+        {% if unit.features %}
+        <div style="white-space:pre-line">{{ unit.features }}</div>
+        {% else %}
+        <div class="meta">No features listed.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

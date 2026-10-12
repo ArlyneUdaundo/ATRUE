@@ -1,0 +1,109 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Activity Booking Detail{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Booking {{ booking.booking_reference }}</h1><p>Activity booking details, billing and status.</p></div>
+    <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CHECKED_IN' %}badge-blue{% elif booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+</div>
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-hiking"></i> Booking</h3>
+        <div class="meta">Activity: <b>{{ booking.activity.name }}</b></div>
+        <div class="meta">Provider: {{ booking.activity.provider.name }}</div>
+        <div class="meta">Customer: {{ booking.customer.get_full_name|default:booking.customer.username }}</div>
+        <div class="meta">Primary participant: {{ booking.primary_participant_name|default:"Same as customer" }}</div>
+        {% if booking.first_name or booking.last_name %}<div class="meta">Participant: {{ booking.first_name }} {{ booking.middle_name }} {{ booking.last_name }}</div>{% endif %}
+        {% if booking.age %} <div class="meta">Age: {{ booking.age }} · Gender: {{ booking.gender }}</div>{% endif %}
+        {% if booking.email %}<div class="meta">Email: {{ booking.email }}</div>{% endif %}
+        {% if booking.contact_number %}<div class="meta">Contact: {{ booking.contact_number }}</div>{% endif %}
+        <div class="meta">Schedule: {{ booking.schedule_date|date:"M d, Y" }}{% if booking.start_time %} · {{ booking.start_time|date:"H:i" }}{% if booking.end_time %}–{{ booking.end_time|date:"H:i" }}{% endif %}{% endif %}</div>
+        <div class="meta">Participants: {{ booking.participant_count }}</div>
+        {% if booking.emergency_contact_name %}<div class="meta">Emergency contact: {{ booking.emergency_contact_name }} ({{ booking.emergency_contact_relationship }} · {{ booking.emergency_contact_number }})</div>{% endif %}
+        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
+        {% if bill %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr><td>{{ item.label }}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+        <div class="meta" style="margin-top:12px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+        </div>
+        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
+
+        {% if payments %}
+        <h4 style="margin-top:16px">Payments</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
+            <tbody>
+                {% for py in payments %}
+                <tr><td class="mono">{{ py.pk }}</td><td>₱ {{ py.amount }}</td><td>{{ py.get_method_display }}</td><td>{{ py.paid_at|date:"M d, Y H:i" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-tasks"></i> Lifecycle</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">
+        {% csrf_token %}
+        {% if booking.status == 'PENDING' %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
+        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+        {% endif %}
+        {% if booking.status == 'CONFIRMED' %}
+        <button name="action" value="attend" class="btn btn-brand btn-sm"><i class="fas fa-user-check"></i> Mark Attended</button>
+        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking?"><i class="fas fa-ban"></i> Cancel</button>
+        {% endif %}
+        {% if booking.status == 'CHECKED_IN' %}
+        <button name="action" value="complete" class="btn btn-brand btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
+        {% endif %}
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="modify">
+        <h4>Modify Booking</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Schedule Date</label><input type="date" name="schedule_date" class="form-input" value="{{ booking.schedule_date|date:'Y-m-d' }}"></div>
+            <div class="form-group"><label>Participants</label><input type="number" name="participants" class="form-input" value="{{ booking.participant_count }}"></div>
+        </div>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <h4>Record Payment</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
+            <div class="form-group"><label>Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
+    </form>
+</div>
+{% endif %}
+
+<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
+{% endblock %}

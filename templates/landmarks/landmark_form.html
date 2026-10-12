@@ -1,0 +1,64 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if landmark %}Update Landmark{% else %}Add Landmark{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if landmark %}Update Landmark{% else %}Add New Landmark{% endif %}</h1><p>Landmark information, fees, tours and capacity.</p></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:760px" data-submit-loading data-landmark-form>
+    {% csrf_token %}
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" class="form-input" value="{{ landmark.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ landmark.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+    </div>
+    {% if landmark and landmark.photos.all %}
+    <div class="form-group">
+        <label>Existing Photos</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in landmark.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="{{ landmark.name }}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">
+                <span class="meta">{% if photo.is_primary %}Primary · {% endif %}<input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Country / Region of Location</label>
+        {# The cascade owns Country and Region. A second free-text control with the same name used to submit alongside the cascade's select, and Django kept only the last one, so the visible Country box was silently discarded. #}
+        {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=landmark.country region_name='region' region_value=landmark.region province_name='province' province_value=landmark.province municipality_name='municipality' municipality_value=landmark.municipality barangay_name='barangay' barangay_value=landmark.barangay %}
+    </div>
+    <div class="form-grid" style="margin-top:10px">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ landmark.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Open Hours</label><input type="text" name="open_hours" class="form-input" value="{{ landmark.open_hours|default:'' }}" placeholder="8 AM - 6 PM"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Entry Fee (â‚± / visitor)</label><input type="number" name="entry_fee" step="0.01" class="form-input" value="{{ landmark.entry_fee|default:0 }}"></div>
+        <div class="form-group"><label>Daily Capacity (0 = unlimited)</label><input type="number" name="capacity" class="form-input" value="{{ landmark.capacity|default:0 }}"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Standard Guided Tour (â‚± / visitor)</label><input type="number" name="guided_tour_rate" step="0.01" class="form-input" value="{{ landmark.guided_tour_rate|default:0 }}"></div>
+        <div class="form-group"><label>Private Guided Tour (â‚± flat)</label><input type="number" name="private_tour_rate" step="0.01" class="form-input" value="{{ landmark.private_tour_rate|default:0 }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if landmark.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if landmark.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if landmark.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if landmark.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Landmark</button>
+    <a href="{% url 'landmarks:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

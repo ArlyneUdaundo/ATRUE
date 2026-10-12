@@ -1,0 +1,17 @@
+{% extends 'dashboard_base.html' %}
+{% block title %}Review Hotel Booking{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Review Your Booking</h1><p>Check every room and guest before payment. Nothing is finalized until you pay.</p></div></div>
+<div class="card card-pad" style="margin-bottom:18px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge badge-green">1 Search</span><i class="fas fa-arrow-right"></i><span class="badge badge-green">2 Rooms</span><i class="fas fa-arrow-right"></i><span class="badge badge-green">3 Guest Information</span><i class="fas fa-arrow-right"></i><span class="badge badge-blue">4 Review</span><i class="fas fa-arrow-right"></i><span class="badge badge-gray">5 Payment</span></div></div>
+<div class="grid-2">
+<div>
+<div class="card card-pad" style="margin-bottom:16px"><h2 style="margin:0">{{ hotel.name }}</h2><div class="meta">{{ hotel.location }}</div><div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px"><span><b>Check-in:</b> {{ check_in|date:'M d, Y' }}</span><span><b>Check-out:</b> {{ check_out|date:'M d, Y' }}</span><span><b>Nights:</b> {{ nights }}</span><span><b>Rooms:</b> {{ lines|length }}</span></div></div>
+{% for line in lines %}
+<div class="card card-pad" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:10px"><div><span class="badge badge-blue">ROOM {{ line.index }}</span><h3 style="margin:8px 0 3px">{{ line.room.get_room_type_display }} Room</h3><div class="meta">Room {{ line.room.room_number }}</div></div><strong>₱ {{ line.amount }}</strong></div><div style="margin-top:14px"><b>Guest:</b> {{ line.guest.first_name }} {{ line.guest.middle_name }} {{ line.guest.last_name }}<br><span class="meta">{{ line.guest.email }} · {{ line.guest.contact }}</span><br><span class="meta">Adults: {{ line.guest.adults }} · Children: {{ line.guest.children }}</span></div><div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb"><div>Room charge: ₱ {{ line.room_total }}</div>{% if line.extra_count %}<div style="color:#b45309">Additional guests: {{ line.extra_count }} × ₱ {{ line.room.additional_guest_charge }} × {{ nights }} night(s) = ₱ {{ line.extra_total }}</div>{% endif %}{% if line.services_total %}<div>Services: ₱ {{ line.services_total }}</div>{% endif %}</div></div>
+{% endfor %}
+</div>
+<div>
+<div class="card card-pad" style="position:sticky;top:20px"><h3>Price Breakdown</h3><div style="display:flex;justify-content:space-between;margin:10px 0"><span>Room charges</span><b>₱ {{ room_subtotal }}</b></div>{% if extra_subtotal %}<div style="display:flex;justify-content:space-between;font-size:14px"><span>Additional guest charges</span><span>₱ {{ extra_subtotal }}</span></div>{% endif %}{% if services_subtotal %}<div style="display:flex;justify-content:space-between;font-size:14px"><span>Services</span><span>₱ {{ services_subtotal }}</span></div>{% endif %}<div style="border-top:1px solid #e5e7eb;margin-top:14px;padding-top:14px;display:flex;justify-content:space-between;font-size:24px"><b>Total</b><b>₱ {{ grand_total }}</b></div><div style="display:flex;gap:10px;margin-top:18px"><form method="post" style="flex:1">{% csrf_token %}<button name="action" value="edit" class="btn btn-outline" style="width:100%">Edit Booking</button></form><form method="post" style="flex:1">{% csrf_token %}<button name="action" value="proceed_payment" class="btn btn-brand" style="width:100%">Proceed to Payment</button></form></div></div>
+</div>
+</div>
+{% endblock %}

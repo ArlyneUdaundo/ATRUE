@@ -1,0 +1,160 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+{% load hotel_photos %}
+
+{% block title %}Hotel Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hotel-management.css' %}?v=20261005">
+{% endblock %}
+
+{% block content %}
+<div class="hotel-management-page">
+{% if active_assignment %}
+<div class="card card-pad" style="margin-bottom:20px;border-left:4px solid var(--brand)">
+    <h2 style="margin:0 0 6px;font-size:18px">Welcome, {{ user.first_name|default:user.username }}!</h2>
+    <p style="margin:0 0 12px;color:var(--muted)">This is your training environment. Everything you see below belongs to your assigned hotel.</p>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;font-size:14px">
+        <div><strong>Your Assignment</strong></div>
+        <div>Role: <strong>{{ active_assignment.get_role_display }}</strong></div>
+        <div>Hotel: <strong>{{ active_assignment.hotel.name }}</strong></div>
+        <div>Session: <strong>{{ active_assignment.activity_name }}</strong></div>
+    </div>
+</div>
+{% endif %}
+<div class="page-head">
+    <div>
+        <h1>Hotel Management</h1>
+        <p>Create, update and manage hotel establishments, rooms, services and amenities.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'hotels:rooms' %}" class="btn btn-ghost"><i class="fas fa-bed"></i> Rooms</a>
+        <a href="{% url 'hotels:services' %}" class="btn btn-ghost"><i class="fas fa-concierge-bell"></i> Services</a>
+        <a href="{% url 'hotels:amenities' %}" class="btn btn-ghost"><i class="fas fa-swimming-pool"></i> Amenities</a>
+        <a href="{% url 'hotels:bookings' %}" class="btn btn-ghost"><i class="fas fa-calendar-check"></i> Bookings</a>
+        {% if not hotel_scoped_user %}<a href="{% url 'hotels:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Hotel</a>{% endif %}
+    </div>
+</div>
+
+{% if not active_assignment and not hotel_scoped_user %}
+<section class="card card-pad hotel-search-panel" aria-labelledby="hotel-search-title">
+    <div class="hotel-search-heading">
+        <h2 id="hotel-search-title">Filter Hotels</h2>
+        <p>Refine the hotels you manage by status or location.</p>
+    </div>
+    <form method="get" class="hotel-search-form">
+        <div class="hotel-search-top-row">
+            <div class="form-group" style="margin:0">
+                <label for="hotel-search-status">Status</label>
+                <select id="hotel-search-status" name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="hotel-search-locations">
+            {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=country province_name='province' province_value=province municipality_name='municipality' municipality_value=municipality barangay_name='barangay' barangay_value=barangay %}
+        </div>
+        <div class="hotel-search-actions">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'hotels:manage' %}" class="btn btn-outline">Reset</a>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+{% for h in hotels %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        {% with hotel_image=h.photos.all|usable_urls|first %}
+        {% if hotel_image %}<img src="{{ hotel_image }}" alt="{{ h.name }}" loading="lazy" style="width:96px;height:72px;object-fit:cover;border-radius:12px;flex:none">
+        {% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ h.name }}" loading="lazy" style="width:96px;height:72px;object-fit:cover;border-radius:12px;flex:none">{% endif %}
+        {% endwith %}
+        <div style="flex:1">
+            <h3 style="margin:0">{{ h.name }}</h3>
+            <div class="meta"><i class="fas fa-fingerprint"></i> <b>{{ h.establishment_id|default:"HTL-" }}</b> · <i class="fas fa-map-marker-alt"></i> {{ h.location }}</div>
+        </div>
+        <span class="badge {% if h.status == 'ACTIVE' %}badge-green{% elif h.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ h.get_status_display }}</span>
+        <a href="{% url 'hotels:detail' h.slug %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+        <a href="{% url 'hotels:update_hotel' h.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        {% if not hotel_scoped_user %}
+        <form method="post" action="{% url 'hotels:delete_hotel' h.id %}" data-confirm="Delete hotel '{{ h.name }}' and all of its rooms, services and amenities? This cannot be undone." style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'hotels:add_room' h.id %}" class="btn btn-brand btn-sm" data-establishment-create><i class="fas fa-bed"></i> Add Room</a>
+        <a href="{% url 'hotels:add_service' h.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-concierge-bell"></i> Service</a>
+        <a href="{% url 'hotels:add_amenity' h.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-swimming-pool"></i> Amenity</a>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-bed"></i> Rooms</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Room</th><th>Type</th><th>Capacity</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for room in h.rooms.all %}
+                <tr>
+                    <td><b><a href="{% url 'hotels:room_detail' room.id %}" style="color:inherit">{{ room.room_number }}</a></b></td>
+                    <td>{{ room.get_room_type_display }}</td>
+                    <td>{{ room.capacity_adults }}A / {{ room.capacity_children }}C</td>
+                    <td>₱ {{ room.rate }}</td>
+                    <td>{{ room.get_status_display }}</td>
+                    <td><a href="{% url 'hotels:room_detail' room.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'hotels:update_room' room.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a>
+                        <form method="post" action="{% url 'hotels:delete_room' room.id %}" data-confirm="Delete Room {{ room.room_number }}? This cannot be undone." style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+                        </form></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No rooms.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-concierge-bell"></i> Services</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service</th><th>Rate</th><th>Hours</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for s in h.services.all %}
+                <tr>
+                    <td>{{ s.name }}</td><td>₱ {{ s.rate }}</td><td>{{ s.operating_hours }}</td>
+                    <td>{{ s.get_status_display }}</td>
+                    <td><a href="{% url 'hotels:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'hotels:update_service' s.id %}" class="btn btn-ghost btn-sm">Edit</a>
+                        <form method="post" action="{% url 'hotels:delete_service' s.id %}" data-confirm="Delete service '{{ s.name }}'? This cannot be undone." style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+                        </form></td>
+                </tr>
+                {% empty %}<tr><td colspan="5">No services.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-swimming-pool"></i> Amenities</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Amenity</th><th>Availability</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for a in h.amenities.all %}
+                <tr>
+                    <td>{{ a.name }}</td><td>{{ a.operating_hours }}</td>
+                    <td>{{ a.get_status_display }}</td>
+                    <td><a href="{% url 'hotels:amenity_detail' a.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'hotels:update_amenity' a.id %}" class="btn btn-ghost btn-sm">Edit</a>
+                        <form method="post" action="{% url 'hotels:delete_amenity' a.id %}" data-confirm="Are you sure you want to delete this?" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+                        </form></td>
+                </tr>
+                {% empty %}<tr><td colspan="4">No amenities.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-hotel"></i><h3>No hotels yet</h3><p>Add your first hotel to begin.</p></div></div>
+{% endfor %}
+</div>
+{% endblock %}

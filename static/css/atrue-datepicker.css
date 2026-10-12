@@ -1,0 +1,581 @@
+/* ============================================================
+   ATRUE Date Picker — single reusable calendar component.
+   Matches the ATRUE time picker visual language: white popup,
+   rounded corners, soft shadow, blue accent, month header,
+   weekday labels, clear calendar grid, rounded date cells,
+   blue selected highlight, muted disabled dates, today ring,
+   smooth hover, X close, full-width blue Done, responsive.
+   ============================================================ */
+
+:root {
+    --adp-accent: #0a58ca;
+    --adp-accent-soft: #eaf2ff;
+    --adp-range: #dbeafe;
+    --adp-ink: #1a2b3c;
+    --adp-muted: #7c8aa0;
+    --adp-line: #e7ecf4;
+    --adp-bg: #ffffff;
+    --adp-font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --adp-danger: #d64545;
+}
+
+/* ---- field enhancement ---- */
+.adp-anchor {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
+.adp-anchor > input.adp-native,
+.adp-anchor > input[type="date"].adp-native {
+    position: absolute !important;
+    left: -9999px !important;
+    top: auto !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+.adp-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1.5px solid #e3e9f2;
+    border-radius: 11px;
+    background: #fbfdff;
+    color: inherit;
+    font-family: var(--adp-font);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.adp-trigger:hover,
+.adp-trigger:focus-visible {
+    border-color: var(--adp-accent);
+    background: #ffffff;
+}
+
+.adp-trigger:focus-visible {
+    box-shadow: 0 0 0 4px rgba(10, 88, 202, 0.12);
+}
+
+.adp-trigger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #f1f4f8;
+}
+
+.adp-trigger.adp-invalid {
+    border-color: var(--adp-danger);
+    box-shadow: 0 0 0 4px rgba(214, 69, 69, 0.12);
+}
+
+.adp-trigger .adp-trigger-value,
+.adp-trigger .adp-trigger-placeholder {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.adp-trigger .adp-trigger-placeholder {
+    color: var(--adp-muted);
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+.adp-trigger .adp-trigger-value {
+    color: inherit;
+}
+
+.adp-trigger .adp-trigger-icon {
+    flex: none;
+    color: var(--adp-accent);
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: var(--adp-accent-soft);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.adp-trigger:hover .adp-trigger-icon,
+.adp-trigger:focus-visible .adp-trigger-icon {
+    background: var(--adp-accent);
+    color: #ffffff;
+}
+
+/* ---- inline validity message ---- */
+.adp-error {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 31011;
+    max-width: calc(100vw - 24px);
+    padding: 7px 10px;
+    box-sizing: border-box;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #991b1b;
+    font-family: var(--adp-font);
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 8px 20px rgba(153, 27, 27, 0.12);
+}
+
+/* ---- popup shell ---- */
+.adp-popup {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 8px);
+    z-index: 31010;
+    width: 250px;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+    background: var(--adp-bg);
+    border: 1px solid #dfe5ee;
+    border-radius: 16px;
+    box-shadow: 0 20px 48px rgba(13, 31, 61, 0.18);
+    font-family: var(--adp-font);
+    color: var(--adp-ink);
+    text-align: left;
+    overflow: hidden;
+    display: none;
+}
+
+.adp-popup:not(.is-range) {
+    width: 250px;
+}
+
+.adp-popup:not(.is-range) .adp-display {
+    display: none;
+}
+
+.adp-popup:not(.is-range) .adp-months {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}
+.adp-popup.is-range {
+    width: 250px;
+}
+
+.adp-popup.is-open {
+    display: block;
+    animation: adp-pop-in 0.18s ease;
+}
+
+@keyframes adp-pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ---- header ---- */
+.adp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 14px 2px;
+}
+
+.adp-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--adp-ink);
+}
+
+.adp-title i {
+    color: var(--adp-accent);
+}
+
+.adp-x {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--adp-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.adp-x:hover,
+.adp-x:focus-visible {
+    background: #f2f5fa;
+    color: var(--adp-ink);
+}
+
+/* ---- large selected-date display ---- */
+.adp-display {
+    padding: 8px 14px 12px;
+    text-align: center;
+}
+
+.adp-display-cells {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 10px;
+}
+
+.adp-display-cell {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--adp-line);
+    border-radius: 12px;
+    background: #fbfdff;
+}
+
+.adp-display-cell.adp-display-single {
+    flex: none;
+    min-width: 200px;
+}
+
+.adp-display-cell.is-empty {
+    border-style: dashed;
+}
+
+.adp-display-cell-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--adp-muted);
+}
+
+.adp-display-cell-value {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--adp-ink);
+}
+
+.adp-display-cell.is-empty .adp-display-cell-value {
+    color: #c8d2e0;
+}
+
+/* ---- calendar grid ---- */
+.adp-months {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 6px 14px 4px;
+}
+
+.adp-month {
+    min-width: 0;
+}
+
+.adp-month-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding-bottom: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--adp-ink);
+    letter-spacing: 0.01em;
+}
+
+.adp-nav {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--adp-muted);
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.adp-nav:hover:not(:disabled),
+.adp-nav:focus-visible:not(:disabled) {
+    background: var(--adp-accent-soft);
+    color: var(--adp-accent);
+}
+
+.adp-nav:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.adp-weekdays,
+.adp-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.adp-weekday {
+    padding: 4px 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--adp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.adp-days {
+    row-gap: 2px;
+    column-gap: 2px;
+}
+
+.adp-day {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--adp-ink);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.adp-day:hover:not(:disabled):not(.is-start):not(.is-end) {
+    background: var(--adp-accent-soft);
+    color: var(--adp-accent);
+}
+
+.adp-day.is-empty {
+    cursor: default;
+}
+
+.adp-day:disabled {
+    color: #c8d2e0;
+    cursor: not-allowed;
+    background: transparent;
+}
+
+.adp-day.is-selected,
+.adp-day.is-start,
+.adp-day.is-end {
+    background: var(--adp-accent);
+    color: #ffffff;
+    border-radius: 8px;
+    z-index: 1;
+}
+
+.adp-day.is-start::after,
+.adp-day.is-end::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: var(--adp-range);
+    z-index: -1;
+}
+
+.adp-day.is-start::after { left: auto; right: -6px; }
+.adp-day.is-end::after { left: -6px; right: auto; }
+
+.adp-day.in-range {
+    background: var(--adp-range);
+    border-radius: 0;
+    color: var(--adp-ink);
+}
+
+.adp-day.in-range:first-child,
+.adp-day.in-range.is-start {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.adp-day.in-range:last-child,
+.adp-day.in-range.is-end {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* ---- footer ---- */
+.adp-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 2px 14px 0;
+}
+
+.adp-btn-clear {
+    flex: none;
+    border: 0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--adp-muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.adp-btn-clear:hover {
+    background: #f2f5fa;
+    color: var(--adp-ink);
+}
+
+/* ---- footer action ---- */
+.adp-foot {
+    padding: 12px 14px 14px;
+}
+
+.adp-btn-done {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--adp-accent);
+    color: #ffffff;
+    font-family: var(--adp-font);
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.adp-btn-done:hover:not(:disabled) {
+    background: #08428f;
+}
+
+.adp-btn-done:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 720px) {
+    .adp-popup,
+    .adp-popup.is-range {
+        width: min(250px, calc(100vw - 24px));
+    }
+    .adp-popup:not(.is-range) {
+        width: min(250px, calc(100vw - 24px));
+    }
+    .adp-popup .adp-months {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .adp-display-cell.adp-display-single {
+        min-width: 0;
+    }
+    .adp-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    .adp-btn-clear {
+        align-self: flex-end;
+    }
+}
+
+/* Tour Package validity calendars share the width of their own date field,
+   so the two desktop popups sit beside one another without an empty center gap. */
+#tour-package-validity .adp-popup {
+    width: min(250px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+}
+#tour-package-validity .adp-popup .adp-display {
+    display: none;
+}
+#tour-package-validity .adp-popup .adp-months {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+#tour-package-validity .adp-popup .adp-days {
+    grid-template-rows: none;
+}
+#tour-package-validity .adp-popup .adp-footer {
+    padding-bottom: 0;
+}
+#tour-package-validity .adp-popup .adp-foot {
+    padding: 6px 10px 10px;
+}
+@media (max-width: 720px) {
+    .adp-popup,
+    .adp-popup.is-range {
+        width: min(250px, calc(100vw - 24px));
+    }
+    .adp-popup:not(.is-range) {
+        width: min(250px, calc(100vw - 24px));
+    }
+    .adp-popup .adp-months {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .adp-display-cell.adp-display-single {
+        min-width: 0;
+    }
+    .adp-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    .adp-btn-clear {
+        align-self: flex-end;
+    }
+}
+/* Keep compact range calendars readable at the shared 250px popup width. */
+.adp-popup.is-range .adp-months {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}

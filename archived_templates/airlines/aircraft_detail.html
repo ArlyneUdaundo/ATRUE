@@ -1,0 +1,48 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ aircraft.aircraft_id }} — Aircraft{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ aircraft.model_name }} <span class="badge badge-blue" style="font-size:13px">{{ aircraft.aircraft_id }}</span></h1>
+        <p>{{ aircraft.airline.name }} fleet aircraft (FR-016).</p>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'airlines:update_aircraft' aircraft.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:aircrafts' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-plane"></i> <b>Tail Number:</b> <span class="mono">{{ aircraft.tail_number }}</span></div>
+        <div class="meta"><i class="fas fa-tag"></i> <b>Type:</b> {{ aircraft.get_aircraft_type_display }}</div>
+        <div class="meta"><i class="fas fa-chair"></i> <b>Capacity:</b> {{ aircraft.seating_capacity }} seats</div>
+        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if aircraft.status == 'AVAILABLE' %}badge-green{% elif aircraft.status == 'ASSIGNED' %}badge-blue{% else %}badge-yellow{% endif %}">{{ aircraft.get_status_display }}</span></div>
+        <div class="meta"><i class="fas fa-calendar"></i> <b>Registered:</b> {{ aircraft.created_at|date:"M d, Y" }}</div>
+        <div class="meta"><i class="fas fa-plane-departure"></i> <b>Flights:</b> {{ aircraft.flights.count }}</div>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0"><i class="fas fa-fighter-jet"></i> Assigned Flights</h3>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Flight</th><th>Route</th><th>Departure</th><th>Arrival</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for f in aircraft.flights.all %}
+                <tr>
+                    <td><b>{{ f.flight_number }}</b></td>
+                    <td>{{ f.origin }} → {{ f.destination }}</td>
+                    <td>{{ f.departure_time|date:"M d, Y H:i" }}</td>
+                    <td>{{ f.arrival_time|date:"M d, Y H:i" }}</td>
+                    <td>{{ f.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:flight_detail' f.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">This aircraft has no assigned flights.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

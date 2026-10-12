@@ -1,0 +1,44 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if airline %}Update Airline{% else %}Add Airline{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if airline %}Update Airline{% else %}Add New Airline{% endif %}</h1><p>Airline establishment information (BR-040).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if airline.airline_id %}
+    <div class="form-group">
+        <label>Airline ID</label>
+        <input type="text" class="form-input" value="{{ airline.airline_id }}" disabled style="background:#f4f5f7">
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Airline Name</label>
+        <input type="text" name="name" class="form-input" value="{{ airline.name|default:'' }}" required>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" value="{{ airline.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Email Address</label><input type="email" name="email" class="form-input" value="{{ airline.email|default:'' }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ airline.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Operating Information</label>
+        <textarea name="operating_info" class="form-input" rows="2">{{ airline.operating_info|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if airline.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if airline.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if airline.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if airline.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Airline</button>
+    <a href="{% url 'airlines:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

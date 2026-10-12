@@ -1,0 +1,613 @@
+.simulation-session-list {
+    display: grid;
+    gap: 12px;
+}
+
+.simulation-workspace-actions,
+.simulation-session-activities-head,
+.simulation-role-actions,
+.simulation-session-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.simulation-workspace-actions {
+    justify-content: flex-end;
+}
+
+.simulation-session-activities-head {
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.simulation-session-form-wrap {
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.simulation-session-form-actions {
+    margin-top: 18px;
+}
+
+.simulation-session-list-title {
+    margin: 0;
+    font-size: 20px;
+    color: var(--text-1);
+}
+
+.simulation-session-list-intro {
+    margin: -8px 0 4px;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.simulation-session {
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--white);
+    box-shadow: var(--sh-sm);
+}
+
+.simulation-session-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 72px;
+    padding: 14px 18px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.simulation-session-summary::-webkit-details-marker {
+    display: none;
+}
+
+.simulation-session-summary:hover {
+    background: var(--slate-50);
+}
+
+.simulation-session--modal .simulation-session-summary {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+}
+
+.simulation-session--modal .simulation-session-summary:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.45);
+    outline-offset: -3px;
+}
+
+.simulation-session--modal .simulation-session-chevron {
+    transform: rotate(-90deg);
+}
+
+.simulation-session-icon {
+    display: grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--grad-brand-soft);
+    color: var(--indigo-deep);
+}
+
+.simulation-session-copy {
+    display: grid;
+    flex: 1;
+    gap: 3px;
+    min-width: 0;
+}
+
+.simulation-session-copy strong {
+    color: var(--text-1);
+    font-size: 15px;
+}
+
+.simulation-session-copy small,
+.simulation-session-count {
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.simulation-session-chevron {
+    color: var(--text-3);
+    transition: transform var(--t-fast);
+}
+
+.simulation-session[open] .simulation-session-chevron {
+    transform: rotate(180deg);
+}
+
+.simulation-session-activities {
+    padding: 16px 18px 4px;
+    border-top: 1px solid var(--border);
+    background: var(--slate-50);
+}
+
+.simulation-session-activities > h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: var(--text-2);
+}
+
+.simulation-session-activities-head > h3 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-2);
+}
+
+.simulation-session-empty {
+    margin: 0 0 12px;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.simulation-session-activities .cards {
+    margin-bottom: 12px;
+}
+
+/* Session page: expandable class roster and the assign/edit modal --------- */
+
+.simulation-session-student-count {
+    margin-left: 8px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--slate-100, #eef2f7);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.simulation-student-list {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.simulation-student-row {
+    display: grid;
+    grid-template-columns: 40px minmax(150px, 1.1fr) minmax(120px, .9fr) minmax(190px, 1.2fr) max-content;
+    grid-template-areas:
+        "avatar who role establishment actions"
+        "avatar who role schedule actions";
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--white);
+}
+
+.simulation-student-avatar {
+    grid-area: avatar;
+
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--grad-brand-soft);
+    color: var(--indigo-deep);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.simulation-student-avatar-photo {
+    object-fit: cover;
+    display: block;
+}
+
+.simulation-student-who {
+    grid-area: who;
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.simulation-student-who strong {
+    color: var(--text-1);
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.simulation-student-who small,
+.simulation-student-meta {
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.simulation-student-establishment { grid-area: establishment; min-width: 0; overflow-wrap: anywhere; }
+.simulation-student-schedule { grid-area: schedule; min-width: 0; }
+.simulation-student-schedule > span { display: block; }
+
+.simulation-student-role {
+    grid-area: role;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.simulation-student-extra {
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.simulation-student-meta .muted,
+.simulation-student-establishment .muted {
+    color: var(--text-3);
+}
+
+.simulation-student-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+    .simulation-student-row {
+        grid-template-columns: 40px 1fr;
+        grid-template-areas:
+            "avatar who"
+            "role role"
+            "establishment establishment"
+            "schedule schedule"
+            "actions actions";
+        row-gap: 8px;
+    }
+
+    .simulation-student-avatar {
+    grid-area: avatar;
+
+        grid-area: avatar;
+    }
+
+    .simulation-student-who {
+    grid-area: who;
+        grid-area: who;
+    }
+
+    .simulation-student-establishment { grid-area: establishment; min-width: 0; overflow-wrap: anywhere; }
+.simulation-student-schedule { grid-area: schedule; min-width: 0; }
+.simulation-student-schedule > span { display: block; }
+
+.simulation-student-role {
+    grid-area: role;
+        grid-area: role;
+    }
+
+    .simulation-student-establishment {
+        grid-area: establishment;
+    }
+
+    .simulation-student-schedule {
+        grid-area: schedule;
+    }
+
+    .simulation-student-actions {
+    grid-area: actions;
+        grid-area: actions;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        white-space: normal;
+    }
+}
+
+body.sim-modal-open {
+    overflow: hidden;
+}
+
+.sim-session-modal,
+.sim-assign-modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.sim-session-modal {
+    z-index: 1000;
+}
+
+.sim-session-modal[hidden] {
+    display: none;
+}
+
+.sim-session-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+}
+
+.sim-session-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1120px;
+    max-height: calc(100vh - 36px);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg, 16px);
+    background: var(--white);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.sim-session-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sim-session-head h2 {
+    margin: 0;
+    color: var(--text-1);
+    font-size: 20px;
+}
+
+.sim-session-meta {
+    margin: 5px 0 0;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.sim-session-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 20px 4px;
+    overscroll-behavior: contain;
+}
+
+.sim-session-body .simulation-session-activities {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.sim-session-notice {
+    margin: 12px 20px 0;
+    padding: 10px 12px;
+    border: 1px solid #a7dfc1;
+    border-radius: var(--r-md);
+    background: #eefaf3;
+    color: #176b3a;
+    font-size: 13px;
+}
+
+.sim-session-notice[hidden] {
+    display: none;
+}
+
+.sim-session-foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+}
+
+.sim-assign-modal {
+    z-index: 1010;
+}
+
+.sim-assign-modal[hidden] {
+    display: none;
+}
+
+.sim-assign-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.44);
+}
+
+.sim-assign-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    border-radius: var(--r-lg, 16px);
+    background: var(--white);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.sim-assign-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sim-assign-head h2 {
+    margin: 0;
+    color: var(--text-1);
+    font-size: 18px;
+}
+
+.sim-assign-sub {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.sim-assign-close {
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.sim-assign-body {
+    display: grid;
+    gap: 16px;
+    padding: 16px 20px;
+}
+
+.sim-assign-student {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--slate-50);
+}
+
+.sim-assign-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 12px;
+}
+
+.sim-assign-sublabel {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.sim-assign-repeat {
+    padding: 12px;
+    border: 1px solid #f0c36d;
+    border-radius: var(--r-md);
+    background: #fff8ec;
+}
+
+.sim-assign-repeat[hidden] {
+    display: none;
+}
+
+.sim-assign-repeat label {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.sim-assign-hint {
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.sim-assign-errors {
+    padding: 10px 12px;
+    border: 1px solid #f3b4b4;
+    border-radius: var(--r-md);
+    background: #fdecec;
+    color: #9b1c1c;
+    font-size: 13px;
+}
+
+.sim-assign-errors[hidden] {
+    display: none;
+}
+
+.sim-assign-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 560px) {
+    .sim-session-modal,
+    .sim-assign-modal {
+        padding: 10px;
+    }
+
+    .sim-session-dialog {
+        max-height: calc(100vh - 20px);
+        border-radius: 14px;
+    }
+
+    .sim-session-head {
+        padding: 14px 14px 12px;
+    }
+
+    .sim-session-head h2 {
+        font-size: 18px;
+    }
+
+    .sim-session-body {
+        padding: 12px 12px 2px;
+    }
+
+    .sim-session-foot {
+        padding: 10px 14px 14px;
+    }
+
+    .sim-assign-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sim-assign-dialog {
+        max-height: calc(100vh - 20px);
+        border-radius: 14px;
+    }
+
+    .sim-assign-head {
+        padding: 14px 14px 12px;
+    }
+
+    .sim-assign-body {
+        gap: 12px;
+        padding: 12px 14px;
+    }
+
+    .sim-assign-foot {
+        padding: 12px 14px 14px;
+    }
+}
+
+@media (max-width: 560px) {
+    .simulation-workspace-actions {
+        justify-content: flex-start;
+    }
+
+    .simulation-session-summary {
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .simulation-session-icon {
+        flex-basis: 36px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .simulation-session-count {
+        display: none;
+    }
+
+    .simulation-session-activities {
+        padding: 14px 12px 2px;
+    }
+
+    .simulation-session-activities-head {
+        align-items: flex-start;
+    }
+}

@@ -1,0 +1,51 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %} — {{ agency.name }}</h1><p>Vehicle fleet registration with rate per kilometer (BR-054).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Vehicle Type</label>
+            <select name="vehicle_type" class="form-input">
+                <option value="CAR" {% if vehicle.vehicle_type == 'CAR' %}selected{% endif %}>Car</option>
+                <option value="VAN" {% if vehicle.vehicle_type == 'VAN' %}selected{% endif %}>Van</option>
+                <option value="BUS" {% if vehicle.vehicle_type == 'BUS' %}selected{% endif %}>Bus</option>
+                <option value="PUV" {% if vehicle.vehicle_type == 'PUV' %}selected{% endif %}>Public Utility Vehicle</option>
+                <option value="OTHER" {% if vehicle.vehicle_type == 'OTHER' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Vehicle Name</label>
+            <input type="text" name="vehicle_name" class="form-input" value="{{ vehicle.vehicle_name|default:'' }}" placeholder="e.g. Toyota Hiace">
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Plate Number</label>
+            <input type="text" name="plate_number" class="form-input" value="{{ vehicle.plate_number|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Capacity (pax)</label>
+            <input type="number" name="capacity" class="form-input" value="{{ vehicle.capacity|default:4 }}" min="1">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Rate per Kilometer (₱)</label>
+        <input type="number" name="rate_per_km" step="0.01" class="form-input" value="{{ vehicle.rate_per_km|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="AVAILABLE" {% if vehicle.status == 'AVAILABLE' %}selected{% endif %}>Available</option>
+            <option value="IN_USE" {% if vehicle.status == 'IN_USE' %}selected{% endif %}>In Use</option>
+            <option value="MAINTENANCE" {% if vehicle.status == 'MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Vehicle</button>
+    <a href="{% url 'transportation:update_agency' agency.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

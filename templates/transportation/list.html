@@ -1,0 +1,93 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transportation{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step active"><i>1</i> Travel agency</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>2</i> Type of car</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Book land transport</div>
+</div>
+
+<div class="page-head">
+    <div>
+        <h2>Transportation</h2>
+        <p>Step 1 of 3: pick your travel agency first, then we&rsquo;ll show you its cars.</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'transportation:add_agency' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</a>
+    {% endif %}
+</div>
+
+{% if not request.user.is_platform_manager %}
+<div class="card card-pad" style="margin-bottom:16px">
+    <form method="get" class="ag-search mb" style="max-width:none;margin:0" data-landtransport-schedule>
+        <input type="hidden" name="q" value="{{ search_query }}">
+        <div class="ag-search-fields filter-grid" style="grid-template-columns:1fr auto">
+            <div class="ag-field">
+                <label><i class="fas fa-calendar-alt"></i> Travel date &amp; time</label>
+                <div class="transport-schedule-controls">
+                    <div class="ag-field"><label>Date</label><input type="date" data-landtransport-date placeholder="Select date" value="{{ schedule|date:'Y-m-d' }}" required></div>
+                    <div class="ag-field"><label>Time</label><input type="time" data-landtransport-time value="{{ schedule|date:'H:i' }}" required></div>
+                </div>
+                <input type="hidden" name="schedule" data-landtransport-schedule-value value="{{ schedule|date:'Y-m-d\TH:i' }}">
+            </div>
+            <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
+        </div>
+    </form>
+    <div class="meta"><i class="fas fa-info-circle"></i> Vehicle availability is shown for {{ schedule|date:'M d, Y g:i A' }}. Change the date/time above to update. Vehicles already reserved for that time are not bookable.</div>
+</div>
+{% endif %}
+
+<div class="cards cards-transport">
+    {% for a in agencies %}
+    <div class="scard">
+        <div class="scard-body">
+            <div class="scard-top">
+                <div class="scard-photo">
+                    {% with cover=a.agency.photos.all|first %}
+                    {% if cover %}
+                    <img src="{{ cover.image.url }}" alt="{{ a.agency.name }}">
+                    {% else %}
+                    <img src="https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75" alt="Transportation photo">
+                    {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            <h3>{{ a.agency.name }}</h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ a.agency.location }}</div>
+            <div class="meta"><i class="fas fa-phone"></i> {{ a.agency.contact_number }}</div>
+            {% if a.agency.operating_hours %}<div class="meta"><i class="fas fa-clock"></i> {{ a.agency.operating_hours }}</div>{% endif %}
+            <div class="meta"><i class="fas fa-car"></i> {{ a.vehicles|length }} vehicle(s)</div>
+
+            {% if request.user.is_platform_manager %}
+            <a href="{% url 'transportation:update_agency' a.agency.id %}" data-establishment-create class="btn btn-outline btn-sm transport-agency-action"><i class="fas fa-cog"></i> Manage agency</a>
+            {% elif a.vehicles %}
+            <a href="{% url 'transportation:agency_vehicles' a.agency.id %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-brand btn-sm transport-agency-action"><i class="fas fa-car-side"></i> View its cars &amp; book</a>
+            {% else %}
+            <div class="meta" style="margin-top:12px"><i class="fas fa-car"></i> No vehicles yet — added by the administrator.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="card"><div class="empty"><i class="fas fa-bus"></i><h3>No transport agencies yet</h3><p>Agencies will be listed here once added by the administrator.</p></div></div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.querySelector('[data-landtransport-schedule]');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        var date = form.querySelector('[data-landtransport-date]').value;
+        var time = form.querySelector('[data-landtransport-time]').value;
+        form.querySelector('[data-landtransport-schedule-value]').value = date + 'T' + time;
+    });
+});
+</script>
+{% endblock %}

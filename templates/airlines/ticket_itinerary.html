@@ -1,0 +1,215 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}E-Ticket Itinerary · {{ ticket.booking_info.booking_reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.eti-page{max-width:1120px;margin:0 auto;color:#172b4d}
+.eti-toolbar{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin:0 0 14px}
+.eti-document{background:#fff;border:1px solid #d9e5f1;border-radius:12px;overflow:hidden;box-shadow:0 12px 35px rgba(27,68,112,.08)}
+.eti-header{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr);gap:22px;padding:20px 28px;border-bottom:1px solid #d9e5f1}
+.eti-header-main{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:22px;min-width:0}
+.eti-brand{display:flex;align-items:center;gap:14px;min-width:0}
+.eti-brand img{width:68px;height:68px;object-fit:contain;flex:none}
+.eti-brand-name{font-size:20px;font-weight:800;letter-spacing:.06em;color:#143b66}
+.eti-brand-tag{font-size:10px;font-weight:700;letter-spacing:.2em;color:#71839a;margin-top:3px}
+.eti-title{font-size:23px;line-height:1.2;font-weight:800;margin:0 0 3px;color:#172b4d}
+.eti-subtitle{font-size:13px;color:#667991}
+.eti-head-right{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:center;border-left:1px solid #e5edf5;padding-left:24px}
+.eti-kv span,.eti-label{display:block;color:#74859a;text-transform:uppercase;letter-spacing:.08em;font-size:9px;font-weight:800;margin-bottom:4px}
+.eti-kv b{display:block;font-size:13px;overflow-wrap:anywhere}
+.eti-status{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:5px 10px;border-radius:999px;background:#eef5ff;color:#2457a6;font-size:11px;font-weight:800}
+.eti-section{padding:17px 28px;border-bottom:1px solid #e5edf5}
+.eti-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 11px}
+.eti-section-title{margin:0;font-size:15px;font-weight:800;color:#193552}
+.eti-section-title i{color:#2778c9;margin-right:7px}
+.eti-airline{display:flex;align-items:center;gap:9px;color:#53667e;font-size:12px;font-weight:700;text-align:right}
+.eti-airline img{max-width:90px;max-height:30px;object-fit:contain}
+.eti-airline h3{margin:0;font-size:12px;color:#53667e}
+.eti-passenger-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(190px,1fr);gap:12px;align-items:stretch}
+.eti-passengers{border:1px solid #dce7f2;border-radius:7px;overflow:hidden}
+.eti-passenger{display:grid;grid-template-columns:1.4fr 1fr 1.2fr;gap:10px;padding:10px 13px;min-width:0;border-top:1px solid #e4edf6}
+.eti-passenger:first-child{border-top:0}
+.eti-passenger-head{background:#edf6ff;color:#58769a;font-size:10px;font-weight:700}
+.eti-passenger strong{font-size:12px;overflow-wrap:anywhere}
+.eti-passenger small{display:block;color:#71839a;font-size:10px;margin-top:3px}
+.eti-reminder{display:flex;align-items:center;gap:11px;margin:0;padding:12px;border-radius:7px;background:#f1f7fd;color:#536b85;font-size:10px;line-height:1.5}
+.eti-reminder i{font-size:20px;color:#2877c4;flex:none}
+.eti-flight-layout{display:block}
+.eti-flight-stack{min-width:0}
+.eti-flight{margin-top:9px;border:1px solid #d7e4f1;border-radius:9px;overflow:hidden;break-inside:avoid}
+.eti-flight-title{padding:8px 12px;background:#edf6ff;color:#245580;font-size:11px;font-weight:800;letter-spacing:.04em}
+.eti-route{display:grid;grid-template-columns:minmax(0,1fr) 150px minmax(0,1fr);gap:14px;align-items:center;padding:17px 16px 14px}
+.eti-point{min-width:0}
+.eti-point:last-child{text-align:right}
+.eti-code{font-size:27px;line-height:1;font-weight:800;color:#173e68}
+.eti-city{font-size:13px;font-weight:700;margin-top:5px;overflow-wrap:anywhere}
+.eti-airport{font-size:10px;color:#70839a;margin-top:3px;overflow-wrap:anywhere}
+.eti-date{font-size:11px;font-weight:700;margin-top:8px}
+.eti-meta{font-size:10px;color:#6c7f95;margin-top:3px}
+.eti-route-mid{text-align:center;color:#587590;font-size:10px}
+.eti-route-line{position:relative;border-top:1px solid #83b8e7;margin:0 4px 8px}
+.eti-plane{position:absolute;left:50%;top:-11px;transform:translateX(-50%);padding:0 8px;background:#fff;color:#2375bf;font-size:17px}
+.eti-flight-strip{display:flex;flex-wrap:wrap;gap:6px 18px;padding:9px 13px;background:#f7faff;border-top:1px solid #e3edf6;color:#526a83;font-size:10px}
+.eti-flight-strip b{color:#294966}
+.eti-segments{padding:12px 14px;border-top:1px solid #e5edf5}
+.eti-segments h4{font-size:11px;margin:0 0 8px;color:#4a6682}
+.eti-segment{display:grid;grid-template-columns:28px 1fr 1fr 1fr 1fr;gap:10px;padding:8px 0;border-top:1px solid #edf2f7;font-size:10px;align-items:start}
+.eti-segment:first-of-type{border-top:0}
+.eti-segment span{display:block;color:#78899d;font-size:9px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.eti-segment .eti-segment-logo{max-width:70px;max-height:19px;object-fit:contain;display:block;margin:3px 0}
+.eti-layover{grid-column:2/-1;color:#60758c;font-size:10px;padding:5px 8px;background:#f7faff;border-radius:5px}
+.eti-info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.eti-info{background:#f5f9fd;border:1px solid #e2ebf4;border-radius:7px;padding:10px;min-width:0}
+.eti-info strong{display:block;font-size:11px;color:#354f6a;margin-bottom:5px}
+.eti-info p{margin:0;color:#677b91;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.eti-booking-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 16px}
+.eti-booking-grid .eti-kv{padding:5px 0;border-bottom:1px dotted #d5e1ed;min-width:0}
+.eti-fare{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;background:#f7faff;border:1px solid #e2ebf4;border-radius:8px;padding:11px 13px}
+.eti-fare span{display:block;color:#74859a;text-transform:uppercase;letter-spacing:.06em;font-size:9px;font-weight:800;margin-bottom:4px}
+.eti-fare b{font-size:13px}
+.eti-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 28px;background:#edf6ff;color:#536d87;font-size:10px}
+.eti-footer-brand{display:flex;align-items:center;gap:9px;font-weight:800;color:#1a4e7c}
+.eti-footer-brand img{width:34px;height:34px;object-fit:contain}
+.eti-disclaimer{text-align:right;max-width:620px;line-height:1.5}
+@media(max-width:760px){.eti-header{grid-template-columns:1fr}.eti-head-right{border-left:0;border-top:1px solid #e5edf5;padding:14px 0 0}.eti-section{padding:15px 17px}.eti-route{grid-template-columns:1fr 100px 1fr;gap:7px;padding:14px 10px}.eti-code{font-size:22px}.eti-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eti-booking-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eti-footer{padding:12px 17px}}
+@media(max-width:560px){.eti-header-main{grid-template-columns:1fr;gap:12px}.eti-brand{gap:9px}.eti-title{font-size:20px}.eti-passenger-layout{grid-template-columns:1fr}.eti-passenger{grid-template-columns:1.2fr 1fr 1fr;gap:6px;padding:9px}.eti-flight-layout{grid-template-columns:1fr}}
+@media(max-width:480px){.eti-head-right{grid-template-columns:1fr 1fr;gap:9px}.eti-route{grid-template-columns:1fr;gap:12px}.eti-point:last-child{text-align:left}.eti-route-mid{order:2}.eti-point:last-child{order:3}.eti-route-line{margin:0 25px 8px}.eti-flight-strip{gap:5px 12px}.eti-segment{grid-template-columns:22px 1fr 1fr;gap:7px}.eti-segment>div:nth-child(4),.eti-segment>div:nth-child(5){grid-column:2}.eti-layover{grid-column:2/-1}.eti-fare{grid-template-columns:1fr}.eti-footer{align-items:flex-start;flex-direction:column}.eti-disclaimer{text-align:left}}
+@media print{
+ @page{size:A4 landscape;margin:9mm}
+ html,body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .site-header,.topbar,.top-nav,.breadcrumbs,.eti-toolbar,.main-footer{display:none!important}
+ .main,.content{padding:0!important;margin:0!important;width:100%!important;max-width:none!important}
+ .eti-page{max-width:none;margin:0}.eti-document{border:0;border-radius:0;box-shadow:none}
+ .eti-header,.eti-section{padding:10px 14px}.eti-brand img{width:54px;height:54px}
+ .eti-title{font-size:20px;margin-top:8px}.eti-section-title{font-size:12px}
+ .eti-flight,.eti-passenger,.eti-info,.eti-fare{break-inside:avoid}
+ .eti-footer{padding:9px 14px}
+ .eti-toolbar button,.eti-toolbar a{display:none!important}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eti-page">
+    <div class="eti-toolbar">
+        <a href="{% url 'airlines:booking_detail' ticket.booking.id %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Booking</a>
+        <button type="button" class="btn btn-outline" onclick="window.print()"><i class="fas fa-print"></i> Print E-Ticket</button>
+        <a class="btn btn-brand" href="{% url 'airlines:ticket_pdf' ticket.booking.id %}"><i class="fas fa-file-pdf"></i> Download PDF</a>
+    </div>
+
+    <article class="eti-document">
+        <header class="eti-header">
+            <div class="eti-header-main">
+                <div class="eti-brand">
+                    <img src="{% static 'img/atrue-logo-transparent.png' %}" alt="ATRUE logo">
+                    <div><div class="eti-brand-name">ATRUE</div><div class="eti-brand-tag">TRAVEL &amp; TOURS</div></div>
+                </div>
+                <div><h1 class="eti-title">E-Ticket Itinerary</h1><div class="eti-subtitle">Flight Booking Confirmation</div></div>
+            </div>
+            <div class="eti-head-right">
+                <div class="eti-kv"><span>Issued Date</span><b>{{ ticket.issued_on }}</b></div>
+                <div class="eti-kv"><span>ATRUE Booking Number</span><b>{{ ticket.booking_info.booking_reference }}</b></div>
+                <div class="eti-kv"><span>Airline PNR</span><b>{% if ticket.booking_info.airline_pnr %}{{ ticket.booking_info.airline_pnr }}{% else %}Not available{% endif %}</b></div>
+                <div class="eti-kv"><span>Booking Status</span><b class="eti-status">{{ ticket.booking_info.status }}</b></div>
+                <div class="eti-kv"><span>Payment Status</span><b>{{ ticket.booking_info.payment_status }}</b></div>
+            </div>
+        </header>
+
+        <section class="eti-section">
+            <div class="eti-section-head">
+                <h2 class="eti-section-title"><i class="fas fa-user-group"></i> Passenger Details</h2>
+                <span class="eti-label">{{ ticket.passenger_count }} passenger{% if ticket.passenger_count != 1 %}s{% endif %}</span>
+            </div>
+            <div class="eti-passenger-layout">
+              <div class="eti-passengers">
+                <div class="eti-passenger eti-passenger-head"><span>Passenger Name</span><span>Passenger Type</span><span>E-Ticket Number</span></div>
+                {% for p in ticket.passengers %}
+                <div class="eti-passenger">
+                    <div><strong>{{ p.name }}</strong><small>Seat {{ p.seat }}{% if ticket.return_flight %} · Return {{ p.return_seat|default:'Not assigned' }}{% endif %}</small></div>
+                    <div>{% if p.passenger_type %}{{ p.passenger_type }}{% else %}Not provided{% endif %}</div>
+                    <div>{% if p.ticket_number %}{{ p.ticket_number }}{% else %}Not issued{% endif %}</div>
+                </div>
+                {% endfor %}
+              </div>
+              <aside class="eti-reminder"><i class="far fa-file-alt"></i><span>Please keep this e-ticket for your reference. You may need to present it during check-in. ATRUE booking document only; airline ticket status is shown by the booking record.</span></aside>
+            </div>
+        </section>
+
+        <section class="eti-section">
+            <div class="eti-section-head">
+                <h2 class="eti-section-title"><i class="fas fa-plane"></i> Flight Details</h2>
+                <div class="eti-airline">
+                    {% if ticket.airline.logo_url %}<img src="{{ ticket.airline.logo_url }}" alt="{{ ticket.airline.name }} logo">{% endif %}
+                    <h3>{{ ticket.airline.name }}</h3>
+                </div>
+            </div>
+
+            <div class="eti-flight-layout"><div class="eti-flight-stack">
+            {% if ticket.is_itinerary %}
+            <div class="eti-flight">
+                <div class="eti-flight-title">Outbound Flight · {{ ticket.itinerary.stops_label }} · {{ ticket.itinerary.segment_count }} segment{% if ticket.itinerary.segment_count != 1 %}s{% endif %}</div>
+                <div class="eti-route">
+                    <div class="eti-point"><div class="eti-code">{{ ticket.itinerary.origin_code }}</div><div class="eti-city">{{ ticket.segments.0.origin_city }}</div><div class="eti-airport">{{ ticket.segments.0.origin }}</div><div class="eti-date">{{ ticket.segments.0.departure_date }} · {{ ticket.segments.0.departure_time }}</div>{% if ticket.segments.0.terminal %}<div class="eti-meta">Terminal {{ ticket.segments.0.terminal }}{% if ticket.segments.0.gate %} · Gate {{ ticket.segments.0.gate }}{% endif %}</div>{% endif %}</div>
+                    <div class="eti-route-mid"><div class="eti-route-line"><span class="eti-plane"><i class="fas fa-plane"></i></span></div>{{ ticket.itinerary.stops_label }} · Total {{ ticket.itinerary.total_duration }}</div>
+                    {% with last_segment=ticket.segments|last %}<div class="eti-point"><div class="eti-code">{{ ticket.itinerary.destination_code }}</div><div class="eti-city">{{ last_segment.destination_city }}</div><div class="eti-airport">{{ last_segment.destination }}</div><div class="eti-date">{{ last_segment.arrival_date }} · {{ last_segment.arrival_time }}</div>{% if last_segment.arrival_terminal %}<div class="eti-meta">Terminal {{ last_segment.arrival_terminal }}{% if last_segment.arrival_gate %} · Gate {{ last_segment.arrival_gate }}{% endif %}</div>{% endif %}</div>{% endwith %}
+                </div>
+                <div class="eti-segments">
+                    <h4>Flight segments</h4>
+                    {% for seg in ticket.segments %}
+                    <div class="eti-segment">
+                        <b>{{ seg.order }}</b>
+                        <div><span>Flight</span><b>{{ seg.flight_number }}</b><br>{% if seg.airline_logo_url %}<img class="eti-segment-logo" src="{{ seg.airline_logo_url }}" alt="{{ seg.airline_name }}">{% else %}{{ seg.airline_name }}<br>{% endif %}{{ seg.origin_code }} → {{ seg.destination_code }}<br>{{ seg.origin_city }} to {{ seg.destination_city }}<br>{{ seg.origin_airport_name|default:'Airport name not provided' }}</div>
+                        <div><span>Departure</span>{{ seg.departure_date }}<br>{{ seg.departure_time }}{% if seg.terminal %}<br>Terminal {{ seg.terminal }}{% endif %}</div>
+                        <div><span>Arrival</span>{{ seg.arrival_date }}<br>{{ seg.arrival_time }}{% if seg.arrival_terminal %}<br>Terminal {{ seg.arrival_terminal }}{% endif %}<br>{{ seg.destination_airport_name|default:'Airport name not provided' }}</div>
+                        <div><span>Duration / aircraft</span>{{ seg.duration }}<br>{{ seg.aircraft }}</div>
+                        {% if seg.layover_before %}<div class="eti-layover"><i class="fas fa-clock"></i> {{ seg.layover_before }} layover at {{ seg.layover_airport }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="eti-flight">
+                <div class="eti-flight-title">Outbound Flight</div>
+                <div class="eti-route">
+                    <div class="eti-point"><div class="eti-code">{{ ticket.flight.origin_code }}</div><div class="eti-city">{{ ticket.flight.origin_city }}</div><div class="eti-airport">{{ ticket.flight.origin_airport }}</div><div class="eti-date">{{ ticket.flight.departure_day }}, {{ ticket.flight.departure_date }} · {{ ticket.flight.departure_time }}</div>{% if ticket.flight.terminal %}<div class="eti-meta">Terminal {{ ticket.flight.terminal }}{% if ticket.flight.gate %} · Gate {{ ticket.flight.gate }}{% endif %}</div>{% endif %}</div>
+                    <div class="eti-route-mid"><div class="eti-route-line"><span class="eti-plane"><i class="fas fa-plane"></i></span></div>{{ ticket.flight.duration }} · Direct</div>
+                    <div class="eti-point"><div class="eti-code">{{ ticket.flight.destination_code }}</div><div class="eti-city">{{ ticket.flight.destination_city }}</div><div class="eti-airport">{{ ticket.flight.destination_airport }}</div><div class="eti-date">{{ ticket.flight.arrival_date }} · {{ ticket.flight.arrival_time }}</div>{% if ticket.flight.arrival_terminal %}<div class="eti-meta">Terminal {{ ticket.flight.arrival_terminal }}{% if ticket.flight.arrival_gate %} · Gate {{ ticket.flight.arrival_gate }}{% endif %}</div>{% endif %}</div>
+                </div>
+                <div class="eti-flight-strip"><span><b>{{ ticket.airline.name }} · {{ ticket.flight.number }}</b></span>{% if ticket.flight.aircraft %}<span>Aircraft: {{ ticket.flight.aircraft }}</span>{% endif %}<span>Class: {{ ticket.booking_info.fare_type }}</span>{% if ticket.flight.checked_baggage_kg %}<span>Checked baggage: {{ ticket.flight.checked_baggage_kg }} kg</span>{% endif %}{% if ticket.flight.cabin_baggage_kg %}<span>Cabin baggage: {{ ticket.flight.cabin_baggage_kg }} kg</span>{% endif %}</div>
+            </div>
+            {% endif %}
+
+            {% if ticket.return_flight %}
+            <div class="eti-flight">
+                <div class="eti-flight-title">Return Flight · {% if ticket.return_airline.logo_url %}<img class="eti-segment-logo" src="{{ ticket.return_airline.logo_url }}" alt="{{ ticket.return_airline.name }} logo" style="display:inline-block;vertical-align:middle">{% endif %}{{ ticket.return_airline.name }}</div>
+                <div class="eti-route">
+                    <div class="eti-point"><div class="eti-code">{{ ticket.return_flight.origin_code }}</div><div class="eti-city">{{ ticket.return_flight.origin_city }}</div><div class="eti-airport">{{ ticket.return_flight.origin_airport }}</div><div class="eti-date">{{ ticket.return_flight.departure_day }}, {{ ticket.return_flight.departure_date }} · {{ ticket.return_flight.departure_time }}</div>{% if ticket.return_flight.terminal %}<div class="eti-meta">Terminal {{ ticket.return_flight.terminal }}{% if ticket.return_flight.gate %} · Gate {{ ticket.return_flight.gate }}{% endif %}</div>{% endif %}</div>
+                    <div class="eti-route-mid"><div class="eti-route-line"><span class="eti-plane"><i class="fas fa-plane"></i></span></div>{{ ticket.return_flight.duration }} · Direct</div>
+                    <div class="eti-point"><div class="eti-code">{{ ticket.return_flight.destination_code }}</div><div class="eti-city">{{ ticket.return_flight.destination_city }}</div><div class="eti-airport">{{ ticket.return_flight.destination_airport }}</div><div class="eti-date">{{ ticket.return_flight.arrival_date }} · {{ ticket.return_flight.arrival_time }}</div>{% if ticket.return_flight.arrival_terminal %}<div class="eti-meta">Terminal {{ ticket.return_flight.arrival_terminal }}{% if ticket.return_flight.arrival_gate %} · Gate {{ ticket.return_flight.arrival_gate }}{% endif %}</div>{% endif %}</div>
+                </div>
+                <div class="eti-flight-strip"><span><b>{{ ticket.return_airline.name }} · {{ ticket.return_flight.number }}</b></span>{% if ticket.return_flight.aircraft %}<span>Aircraft: {{ ticket.return_flight.aircraft }}</span>{% endif %}<span>Class: {{ ticket.return_fare_type }}</span>{% if ticket.return_flight.checked_baggage_kg %}<span>Checked baggage: {{ ticket.return_flight.checked_baggage_kg }} kg</span>{% endif %}{% if ticket.return_flight.cabin_baggage_kg %}<span>Cabin baggage: {{ ticket.return_flight.cabin_baggage_kg }} kg</span>{% endif %}</div>
+            </div>
+            {% endif %}
+            </div>
+            </div>
+        </section>
+
+        <section class="eti-section">
+            <div class="eti-section-head"><h2 class="eti-section-title"><i class="fas fa-circle-info"></i> Important Travel Information</h2></div>
+            <div class="eti-info-grid">
+                <div class="eti-info"><strong>Check-in Instructions</strong><p>{% if ticket.flight.check_in_time %}Outbound check-in time: {{ ticket.flight.check_in_time }}.{% else %}Check the airline's official check-in instructions and airport arrival guidance.{% endif %}{% if ticket.flight.boarding_time %}<br>Boarding: {{ ticket.flight.boarding_time }}.{% endif %}</p></div>
+                <div class="eti-info"><strong>Travel Documents</strong><p>Bring the valid travel documents required for your route. Keep your ATRUE booking number available for reference.</p></div>
+                <div class="eti-info"><strong>Baggage Allowance</strong><p>{% if ticket.flight.checked_baggage_kg %}Checked: {{ ticket.flight.checked_baggage_kg }} kg{% else %}Checked baggage: Not specified{% endif %}{% if ticket.flight.cabin_baggage_kg %}<br>Cabin: {{ ticket.flight.cabin_baggage_kg }} kg{% else %}<br>Cabin baggage: Not specified{% endif %}</p></div>
+                <div class="eti-info"><strong>Reminders</strong><p>Flight times and status can change. Confirm current details with the airline before departure. Booking status: {{ ticket.booking_info.status }}.</p></div>
+            </div>
+        </section>
+
+        <footer class="eti-footer">
+            <div class="eti-footer-brand"><img src="{% static 'img/atrue-logo-transparent.png' %}" alt="ATRUE logo"><span>ATRUE<br><small>Discover more. Travel further.</small></span></div>
+            <div class="eti-disclaimer">SIMULATION / ACADEMIC USE ONLY — This document reflects ATRUE booking data. It is not an airline-issued ticket or boarding pass. No airline PNR or e-ticket number is available unless provided by an airline or booking provider.</div>
+        </footer>
+    </article>
+</div>
+{% endblock %}

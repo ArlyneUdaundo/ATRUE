@@ -1,0 +1,72 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Operate Assigned Tour Package{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Operate Assigned Tour Package</h1><p>Attend and complete bookings and update operational status for the tour package you are assigned to.</p></div></div>
+
+{% for row in rows %}
+{% with package=row.package %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="card-title-row">
+        <h3 style="margin:0"><i class="fas fa-suitcase-rolling"></i> {{ package.name }}</h3>
+        <span class="badge {% if package.status == 'ACTIVE' %}badge-green{% else %}badge-yellow{% endif %}">{{ package.get_status_display }}</span>
+    </div>
+    <p class="meta" style="margin:6px 0 14px">{{ package.get_type_display }} · {{ package.duration_days }} days / {{ package.duration_nights }} nights · ₱ {{ package.price }} / pax</p>
+
+    {% if can_update_package_status %}<form method="post" class="form-inline" style="margin-bottom:16px">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_status">
+        <input type="hidden" name="package_id" value="{{ package.id }}">
+        <select name="status" class="form-input" style="width:auto">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if package.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-save"></i> Update status</button>
+    </form>{% endif %}
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Customer</th><th>Guests</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in row.bookings %}
+                <tr>
+                    <td class="mono">#{{ b.pk }}</td>
+                    <td>{{ b.customer.get_full_name|default:b.customer.username }}</td>
+                    <td>{{ b.guests.all|join:", " }}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' or b.status == 'COMPLETED' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td>
+                        {% if b.status == 'CONFIRMED' or b.status == 'PENDING' %}
+                        <form method="post" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="attend">
+                            <input type="hidden" name="package_id" value="{{ package.id }}">
+                            <input type="hidden" name="booking_id" value="{{ b.id }}">
+                            <button type="submit" class="btn btn-ghost btn-sm">Attend</button>
+                        </form>
+                        {% endif %}
+                        {% if b.status == 'CHECKED_IN' %}
+                        <form method="post" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="complete">
+                            <input type="hidden" name="package_id" value="{{ package.id }}">
+                            <input type="hidden" name="booking_id" value="{{ b.id }}">
+                            <button type="submit" class="btn btn-brand btn-sm">Complete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6"><div class="empty"><i class="fas fa-calendar-check"></i><h3>No bookings for this tour package yet</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endwith %}
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-suitcase-rolling"></i><h3>No tour package assigned to you</h3><p>Ask your instructor to assign you a tour package to operate.</p></div></div>
+{% endfor %}
+{% endblock %}

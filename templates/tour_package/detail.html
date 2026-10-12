@@ -1,0 +1,123 @@
+{% extends 'dashboard_base.html' %}
+{% load static tour_package_tags %}
+
+{% block title %}{{ package.name }} | Tour Package{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ package.name }}</h1>
+        <p><span class="badge badge-blue">{{ package.destination_name|default:"—" }}</span> <span class="badge badge-green">Valid until {{ package.validity_end_date|date:"M d, Y" }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'tour_package:update_package' package.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'tour_package:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
+        {% elif can_book %}
+        <a href="{% url 'tour_package:flow_select' package.id %}" class="btn btn-brand"><i class="fas fa-shopping-cart"></i> Book Package</a>
+        <a href="{% url 'tour_package:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Packages</a>
+        {% else %}
+        <a href="{% url 'tour_package:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Packages</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-suitcase-rolling"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ package.destination_city|default:package.destination_name|default:"—" }}{% if package.destination_province %}, {{ package.destination_province }}{% endif %}{% if package.destination_country %} · {{ package.destination_country }}{% endif %}</div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-clock"></i> {{ package.duration_days }} day(s) · <i class="fas fa-users"></i> {{ package.included_headcount }} pax included</div>
+            <div class="meta"><i class="fas fa-calendar-check"></i> Valid {{ package.validity_start_date|date:"M d, Y" }} – {{ package.validity_end_date|date:"M d, Y" }}</div>
+        </div>
+        <div>
+            <div class="meta"><i class="fas fa-tag"></i> Base price: ₱ {{ package.base_price }}</div>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-percent"></i> Discount: ₱ {{ package.discount }}</div>
+            {% if package.extra_person_rate %}<div class="meta" style="margin-top:4px"><i class="fas fa-plus-circle"></i> Extra head: ₱ {{ package.extra_person_rate }}/pax</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if package.photos.all %}
+<div class="tp-gallery" style="margin-bottom:18px">
+    {% for url in package.photos.all|photo_urls %}
+    <div class="tp-gallery-item" style="{{ forloop.first|yesno:',display:none' }}">
+        <img src="{{ url }}" alt="{{ package.name }} photo" style="display:block;width:auto;max-width:100%;max-height:360px;height:auto;object-fit:contain;border-radius:16px;margin:0 auto">
+    </div>
+    {% endfor %}
+    {% if package.photos.all|photo_urls|length > 1 %}
+    <div class="tp-thumbs" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        {% for url in package.photos.all|photo_urls %}
+        <img src="{{ url }}" alt="" style="width:86px;height:60px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="document.querySelectorAll('.tp-gallery-item').forEach((el,i)=>el.style.display=(i==={{ forloop.counter0 }})?'block':'none')">
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if package.description %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin-bottom:10px"><i class="fas fa-align-left"></i> About this package</h3>
+    <p style="color:var(--slate-600)">{{ package.description }}</p>
+</div>
+{% endif %}
+
+<div class="form-grid" style="margin-bottom:18px">
+    <div class="card card-pad">
+        <h3 style="margin-bottom:10px"><i class="fas fa-route"></i> Tour Plan &amp; What's Included</h3>
+        {% if package.inclusions %}
+        <ul class="ag-plan-list" style="margin:0;padding-left:0;list-style:none">
+            {% for line in package.inclusions|lines %}
+            <li class="ag-plan-item"><i class="fas fa-check"></i> {{ line }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <div class="ag-chips" style="margin-top:8px">
+            {% for h in package.included_hotels.all %}<span class="ag-chip"><i class="fas fa-hotel"></i> Hotel: {{ h.name }}</span>{% endfor %}
+            {% for r in package.included_resorts.all %}<span class="ag-chip"><i class="fas fa-umbrella-beach"></i> Resort: {{ r.name }}</span>{% endfor %}
+            {% for f in package.included_flights.all %}<span class="ag-chip"><i class="fas fa-plane"></i> Flight: {{ f.flight_number }} {{ f.origin }} → {{ f.destination }}</span>{% endfor %}
+            {% for a in package.included_activities.all %}<span class="ag-chip"><i class="fas fa-hiking"></i> Activity: {{ a.name }}</span>{% endfor %}
+            {% for rest in package.included_restaurants.all %}<span class="ag-chip"><i class="fas fa-utensils"></i> Restaurant: {{ rest.name }}</span>{% endfor %}
+            {% for t in package.included_transport.all %}<span class="ag-chip"><i class="fas fa-bus"></i> Transport: {{ t.name }}</span>{% endfor %}
+        </div>
+        {% if package.included_tour_guide %}<div class="ag-detail-row" style="margin-top:8px"><i class="fas fa-user-tie"></i> Tour guide included</div>{% endif %}
+        {% if package.included_other_services %}
+        <h4 style="margin:14px 0 6px;font-size:14px"><i class="fas fa-concierge-bell"></i> Other included services</h4>
+        <ul class="ag-plan-list" style="margin:0;padding-left:0;list-style:none">
+            {% for line in package.included_other_services|lines %}
+            <li class="ag-plan-item"><i class="fas fa-check"></i> {{ line }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3 style="margin-bottom:10px"><i class="fas fa-times-circle"></i> Exclusions &amp; policies</h3>
+        {% if package.exclusions %}
+        <ul class="ag-plan-list" style="margin:0;padding-left:0;list-style:none">
+            {% for line in package.exclusions|lines %}
+            <li class="ag-plan-item ag-plan-item-x"><i class="fas fa-times"></i> {{ line }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if package.terms_and_conditions %}<div class="ag-detail-row" style="margin-top:8px"><i class="fas fa-file-contract"></i> {{ package.terms_and_conditions }}</div>{% endif %}
+        {% if package.cancellation_policy %}<div class="ag-detail-row" style="margin-top:8px"><i class="fas fa-ban"></i> {{ package.cancellation_policy }}</div>{% endif %}
+        {% if not package.exclusions and not package.terms_and_conditions and not package.cancellation_policy %}
+        <div class="meta">No exclusions or policies listed.</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+        <div class="meta">Confirmed package price</div>
+        <div style="font-size:26px;font-weight:800;color:var(--indigo)">₱ {{ package.price }}<small style="font-size:13px;font-weight:500">/pack</small></div>
+        <div class="meta" style="margin-top:4px">Included headcount: {{ package.included_headcount }} · Extra head: ₱ {{ package.extra_person_rate }}/pax</div>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Platform managers manage packages here</span>
+    {% elif can_book %}
+        <a href="{% url 'tour_package:flow_select' package.id %}" class="btn btn-brand btn-lg"><i class="fas fa-shopping-cart"></i> Book Package</a>
+    {% endif %}
+</div>
+{% endblock %}

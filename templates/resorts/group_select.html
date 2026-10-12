@@ -1,0 +1,161 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book {{ resort.name }}{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your dates</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Pick your villas</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Review &amp; pay</div>
+</div>
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <form method="post" id="group-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-umbrella-beach"></i></span>
+                    <div>
+                        <h3>{{ resort.name }}</h3>
+                        <p>{{ resort.location }} · {{ nights }} night(s), {{ check_in|date:"M d, Y" }} → {{ check_out|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Check-in</label>
+                        <input type="date" name="check_in" class="form-input" value="{{ check_in|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Check-out</label>
+                        <input type="date" name="check_out" class="form-input" value="{{ check_out|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Adults</label>
+                        <input type="number" name="adults" class="form-input" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Children</label>
+                        <input type="number" name="children" class="form-input" value="0" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-holly-berry"></i></span>
+                    <div><h3>Select villas</h3><p>Choose one or more available villas. Everything you pick is charged together in ONE transaction.</p></div>
+                </div>
+                {% if available_units %}
+                <div class="cards">
+                    {% for unit in available_units %}
+                    <label class="card card-pad group-villa-card" for="villa-{{ unit.id }}">
+                        <input type="checkbox" name="villa_ids" id="villa-{{ unit.id }}" value="{{ unit.id }}" hidden data-rate="{{ unit.rate }}" data-svc="{{ services.count }}">
+                        <div class="group-villa-head">
+                            <div>
+                                <b>{{ unit.get_unit_type_display }} {{ unit.unit_number }}</b>
+                                <div class="meta">{{ unit.capacity_adults }}A / {{ unit.capacity_children }}C</div>
+                            </div>
+                            <span class="group-villa-check"><i class="fas fa-check"></i></span>
+                        </div>
+                        {% with photo=unit.photos.all.first %}
+                        {% if photo %}
+                        <img src="{{ photo.image.url }}" alt="{{ unit.unit_number }}" class="group-villa-img">
+                        {% else %}
+                        <div class="group-villa-img group-villa-placeholder"><i class="fas fa-holly-berry"></i></div>
+                        {% endif %}
+                        {% endwith %}
+                        <div class="meta" style="margin:8px 0">₱ {{ unit.rate }} /night{% if unit.additional_guest_charge %} · +₱ {{ unit.additional_guest_charge }} extra guest{% endif %}</div>
+                        {% if services %}
+                        <div class="group-svc-list">
+                            <b class="meta">Add-ons for this villa</b>
+                            {% for s in services %}
+                            <label class="checkbox"><input type="checkbox" name="services_{{ unit.id }}" value="{{ s.id }}" data-rate="{{ s.rate }}"> {{ s.name }}{% if s.rate %} — ₱ {{ s.rate }}{% endif %}</label>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">No villas are available for the selected dates. Try a different date range or check back later.</div>
+                {% endif %}
+                <div class="group-selected-count" style="margin-top:12px"><i class="fas fa-layer-group"></i> <span id="villa-count">0</span> villa(s) selected · <span id="villa-total">₱ 0.00</span> est.</div>
+            </div>
+
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                    <div><h3>Requests &amp; payer</h3></div>
+                </div>
+                <div class="form-group">
+                    <label>Special Requests</label>
+                    <textarea name="special_requests" class="form-input" rows="2"></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}">
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Group booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-umbrella-beach"></i></span>
+                <div><b>{{ resort.name }}</b><small>{{ nights }} night(s) · {{ check_in|date:"M d" }} → {{ check_out|date:"M d" }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Villas</span><b><span id="pb-villas">0</span></b></div>
+                <div class="ag-pb-row"><span>Nights</span><b>{{ nights }}</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ 0.00</span></b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="group-form" class="ag-btn ag-btn-block"><i class="fas fa-arrow-right"></i> Continue to Review</button>
+            <a href="{% url 'resorts:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function recalcGroup() {
+    var total = 0, count = 0;
+    document.querySelectorAll('input[name="villa_ids"]:checked').forEach(function (cb) {
+        count += 1;
+        total += (parseFloat(cb.dataset.rate) || 0) * {{ nights }};
+        var card = cb.closest('.group-villa-card');
+        card.querySelectorAll('input[type="checkbox"][name^="services_"]:checked').forEach(function (s) {
+            total += (parseFloat(s.dataset.rate) || 0);
+        });
+    });
+    document.getElementById('villa-count').textContent = count;
+    document.getElementById('pb-villas').textContent = count;
+    document.getElementById('villa-total').textContent = '\u20b1 ' + total.toFixed(2);
+    document.getElementById('pb-total').textContent = '\u20b1 ' + total.toFixed(2);
+}
+document.querySelectorAll('input[name="villa_ids"]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+        var card = this.closest('.group-villa-card');
+        card.classList.toggle('picked', this.checked);
+        recalcGroup();
+    });
+});
+document.querySelectorAll('input[name^="services_"]').forEach(function (s) {
+    s.addEventListener('change', recalcGroup);
+});
+recalcGroup();
+</script>
+{% endblock %}

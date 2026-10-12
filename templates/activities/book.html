@@ -1,0 +1,146 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book Activity{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your activity</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+{% if booking_error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
+{% endif %}
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-hiking"></i></span>
+                <div>
+                    <h3>{{ activity.name }}</h3>
+                    <p>{{ activity.provider.name }} · {{ activity.get_category_display }}</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-clock"></i> {{ activity.duration }} · Capacity {{ activity.capacity }}</div>
+            <div class="ag-detail-row"><i class="fas fa-map-marker-alt"></i> {{ activity.full_location }}</div>
+            {% if activity.meeting_point %}<div class="ag-detail-row"><i class="fas fa-compass"></i> Meet: {{ activity.meeting_point }}</div>{% endif %}
+            {% if activity.requirements %}<div class="ag-detail-row"><i class="fas fa-info-circle"></i> {{ activity.requirements }}</div>{% endif %}
+            {% if remaining is not None %}<div class="ag-detail-row"><i class="fas fa-users"></i> {{ remaining }} slot(s) remaining on the preset date</div>{% endif %}
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Your activity details</h3><p>Schedule, participants and requests (BR-070, BR-087)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Schedule Date</label>
+                    <input type="date" name="schedule_date" class="form-input" value="{{ default_date|date:'Y-m-d' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Participants</label>
+                    <input type="number" name="participants" class="form-input" value="1" min="1"{% if remaining is not None %} max="{{ remaining }}"{% endif %}>
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label>Start Time</label><input type="time" name="start_time" class="form-input" value="{{ activity.schedule_time|date:'H:i' }}"></div>
+                <div class="form-group"><label>End Time</label><input type="time" name="end_time" class="form-input"></div>
+            </div>
+            <div class="form-group">
+                <label>Special Requests / Requirements</label>
+                <textarea name="special_requests" class="form-input" rows="1"></textarea>
+            </div>
+            <div style="margin-top:18px">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Lead participant &amp; payer</h3><p>Participant info comes from your account (BR-068, BR-069)</p></div>
+                </div>
+                <div class="ag-customer-box">
+                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-calendar-alt"></i> Date of birth: {{ request.user.date_of_birth|date:"M d, Y"|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-venus-mars"></i> Sex: {{ request.user.get_sex_display|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+                </div>
+                <label class="checkbox" style="margin-bottom:10px">
+                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead participant
+                </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+            </label>
+            <script>
+                function togglePayer() {
+                    var same = document.getElementById('payer-same');
+                    if (!same) return;
+                    var lock = same.checked;
+                    var name = document.getElementById('payer-name');
+                    var contact = document.getElementById('payer-contact');
+                    if (name) {
+                        name.readOnly = lock;
+                        name.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
+                    }
+                    if (contact) {
+                        contact.readOnly = lock;
+                        contact.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
+                    }
+                }
+                togglePayer();
+            </script>
+            <a href="{% url 'activities:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-hiking"></i></span>
+                <div><b>{{ activity.name }}</b><small>{{ activity.get_category_display }} · {{ activity.duration }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Activity rate</span><b>₱ {{ activity.fee }} /participant</b></div>
+                <div class="ag-pb-row"><span>Participants</span><b>1 pax</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Total</span><b>₱ {{ activity.fee }}*</b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>
+        
+        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Activity</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying participant count.</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

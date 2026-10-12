@@ -1,0 +1,61 @@
+{% load flight_cards %}
+<article class="fcard{% if is_return_card %} fcard-return-option{% endif %}" data-flight-id="flight-{{ flight.id }}"{% if is_return_card %} data-return-card data-outbound-id="{{ flight.search_outbound_id }}" hidden{% endif %}>
+    <div class="fcard-head-row">
+        <button type="button" class="fcard-summary-toggle" aria-expanded="false" aria-label="Show details for {{ flight.airline.name }} {{ flight.flight_number }}">
+            {% with logo=airline_logos|get_item:flight.airline_id %}
+            {% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='fcard-logo' %}
+            {% endwith %}
+            <span class="fcard-main">
+                <span class="fcard-title">{{ flight.airline.name }}{% if not is_return_card %}{% if 'cheapest' in badges|get_item:flight.id %}<span class="fcard-tag">Cheapest</span>{% endif %}{% if 'best' in badges|get_item:flight.id %}<span class="fcard-tag fcard-tag-best">Best</span>{% endif %}{% endif %}{% if is_round_trip_search %}<span class="fcard-badge badge-blue">{% if is_return_card %}Return flight{% else %}Outbound flight{% endif %}</span>{% endif %}{% if flight.status == 'DELAYED' %}<span class="fcard-badge badge-amber">{{ flight.get_status_display }}</span>{% endif %}</span>
+                <span class="fcard-flight-no">{{ flight.flight_number }}{% if flight.cabin_baggage_kg or flight.checked_baggage_kg %} · {% if flight.checked_baggage_kg %}{{ flight.checked_baggage_kg }} kg checked{% endif %}{% if flight.checked_baggage_kg and flight.cabin_baggage_kg %}, {% endif %}{% if flight.cabin_baggage_kg %}{{ flight.cabin_baggage_kg }} kg cabin{% endif %}{% endif %}</span>
+            </span>
+            <span class="fcard-stop"><b>{{ flight.origin_airport.code|default:flight.origin_code }}</b><span class="fcard-stop-sub">{{ flight.origin_airport.city|default:flight.origin }}</span></span>
+            <span class="fcard-mid"><b>{{ flight.departure_time|date:"H:i" }}</b><span class="fcard-mid-sub">{{ flight.departure_time|date:"D, M d" }}</span></span>
+            <span class="fcard-duration-summary">{{ flight.duration_label }}<span aria-hidden="true"> ─── </span>Direct</span>
+            <span class="fcard-stop fcard-stop-end"><b>{{ flight.destination_airport.code|default:flight.destination_code }}</b><span class="fcard-stop-sub">{{ flight.destination_airport.city|default:flight.destination }}</span></span>
+            <span class="fcard-mid fcard-mid-end"><b>{{ flight.arrival_time|date:"H:i" }}{% if flight.arrival_time|date:"Y-m-d" != flight.departure_time|date:"Y-m-d" %}<sup>+1</sup>{% endif %}</b><span class="fcard-mid-sub">{{ flight.arrival_time|date:"D, M d" }}</span></span>
+            <span class="fcard-price"><span class="fcard-amount">₱{{ display_fare|floatformat:0 }}</span><span class="fcard-per">/passenger</span></span>
+            <span class="fcard-chev" aria-hidden="true"></span>
+        </button>
+        {% if request.user.is_platform_manager %}
+            {% if is_return_card %}<a href="{% url 'airlines:flight_detail' flight.slug %}" class="btn btn-outline fcard-select">Details</a>{% else %}<a href="{% url 'airlines:flight_detail' flight.slug %}" class="btn btn-outline fcard-select">Details</a>{% endif %}
+        {% elif request.user.is_airline_booking_restricted %}
+            <span class="badge badge-blue fcard-select">Ticketing access</span>
+        {% elif is_round_trip_search %}
+            {% if is_return_card %}
+            <button type="button" class="btn btn-brand fcard-select js-select-return" data-outbound-id="{{ flight.search_outbound_id }}" data-flight-id="{{ flight.id }}" data-fare="{{ display_fare }}" {% if flight.search_remaining_seats < passengers %}disabled{% endif %}>Select return</button>
+            {% else %}
+            <button type="button" class="btn btn-brand fcard-select js-select-outbound" data-flight-id="{{ flight.id }}" data-return-id="{{ flight.return_flight.id }}" data-fare="{{ display_fare }}" data-total="{{ flight.search_fare }}" data-book-url="{% url 'airlines:book' flight.id %}?trip_type={{ trip_type }}&amp;departure_date={{ departure_date }}&amp;return_date={{ return_date }}&amp;fare_class={{ fare_class }}&amp;passengers={{ passengers }}" {% if flight.remaining_seats < passengers or flight.return_remaining_seats < passengers %}disabled{% endif %}>Select outbound</button>
+            {% endif %}
+        {% elif flight.remaining_seats > 0 %}
+            <a href="{% url 'airlines:book' flight.id %}?trip_type={{ trip_type }}&amp;departure_date={{ departure_date }}&amp;return_date={{ return_date }}&amp;fare_class={{ fare_class }}&amp;passengers={{ passengers }}" class="btn btn-brand fcard-select">Select</a>
+        {% else %}<span class="badge badge-red fcard-sold-out">Sold out</span>{% endif %}
+    </div>
+    <div class="fcard-body" hidden>
+        <div class="fcard-detail-grid">
+            <div class="fcard-timeline">
+                <div class="fcard-timeline-stop">
+                    <time><b>{{ flight.departure_time|date:"H:i" }}</b><span>{{ flight.departure_time|date:"D, M d, Y" }}</span></time>
+                    <span class="fcard-timeline-marker" aria-hidden="true"></span>
+                    <div><strong>{{ flight.origin_airport.code|default:flight.origin_code }} · {{ flight.origin_airport.airport_name|default:flight.origin }}</strong><span>{% if flight.origin_airport.city %}{{ flight.origin_airport.city }}{% endif %}{% if flight.terminal %}{% if flight.origin_airport.city %} · {% endif %}Terminal {{ flight.terminal }}{% endif %}</span></div>
+                </div>
+                <div class="fcard-timeline-duration">{{ flight.duration_label }}</div>
+                <div class="fcard-timeline-stop">
+                    <time><b>{{ flight.arrival_time|date:"H:i" }}</b><span>{{ flight.arrival_time|date:"D, M d, Y" }}</span></time>
+                    <span class="fcard-timeline-marker" aria-hidden="true"></span>
+                    <div><strong>{{ flight.destination_airport.code|default:flight.destination_code }} · {{ flight.destination_airport.airport_name|default:flight.destination }}</strong><span>{% if flight.destination_airport.city %}{{ flight.destination_airport.city }}{% endif %}{% if flight.arrival_terminal %}{% if flight.destination_airport.city %} · {% endif %}Terminal {{ flight.arrival_terminal }}{% endif %}</span></div>
+                </div>
+            </div>
+            <aside class="fcard-detail-side">
+                <div class="fcard-detail-airline">{% with logo=airline_logos|get_item:flight.airline_id %}{% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='airline-logo airline-logo--sm' %}{% endwith %}<div><strong>{{ flight.airline.name }}</strong><span>{{ flight.flight_number }} · {% if is_round_trip_search %}{% if is_return_card %}Round-trip return{% else %}Round-trip outbound{% endif %}{% else %}One-way{% endif %}</span></div></div>
+                <div class="fcard-detail-facts">
+                    {% if flight.aircraft %}<span><small>Aircraft</small><b>{{ flight.aircraft.model_name }}</b></span>{% endif %}
+                    {% if fare_class %}<span><small>Cabin class</small><b>{{ fare_class|cut:"_"|title }}</b></span>{% else %}{% with layout=flight.seat_layout_record %}{% if layout %}<span><small>Cabin class</small><b>{% for cabin in layout.cabins.all %}{{ cabin.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</b></span>{% endif %}{% endwith %}{% endif %}
+                    {% if flight.cabin_baggage_kg %}<span><small>Cabin baggage</small><b>{{ flight.cabin_baggage_kg }} kg</b></span>{% endif %}
+                    {% if flight.checked_baggage_kg %}<span><small>Checked baggage</small><b>{{ flight.checked_baggage_kg }} kg</b></span>{% endif %}
+                    {% with layout=flight.seat_layout_record %}{% if layout and layout.seat_map %}<span><small>Seat configuration</small><b>{{ layout.seat_map }}</b></span>{% endif %}{% endwith %}
+                </div>
+            </aside>
+        </div>
+    </div>
+</article>

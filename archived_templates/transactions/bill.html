@@ -1,0 +1,167 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Bill {{ bill.bill_reference }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Bill {{ bill.bill_reference }}</h1><p>{{ bill.service|title }} billing and payment records.</p></div>
+    <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:14px">{{ bill.get_status_display }}</span>
+</div>
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Line Items</h3>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for item in bill.items %}
+                    <tr>
+                        <td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td>
+                        <td>{{ item.quantity|default:"—" }}</td>
+                        <td>₱ {{ item.rate }}</td>
+                        <td>₱ {{ item.amount }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4">No line items.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="meta" style="margin-top:14px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+        </div>
+        {% if booking %}
+        <div class="meta" style="margin-top:6px">Linked booking: <b>{{ booking.booking_reference }}</b> ({{ bill.service|title }})</div>
+        {% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-credit-card"></i> Payments &amp; Receipts</h3>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>Status</th><th>On</th><th></th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td class="mono">{{ p.payment_reference }}</td>
+                    <td>₱ {{ p.amount }}</td>
+                    <td>{{ p.get_method_display }}</td>
+                    <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
+                    <td>{{ p.paid_at|date:"M d, Y H:i" }}</td>
+                    <td>
+                        {% if p.status == 'PAID' %}
+                        <form method="post" onsubmit="return confirm('Refund this payment of ₱ {{ p.amount }}?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="refund">
+                            <input type="hidden" name="payment_id" value="{{ p.pk }}">
+                            <button class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Refund</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6"><div class="empty"><h3>No payments on this bill yet</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% if receipts %}
+        <h4 style="margin-top:16px">Official Receipts (BR-092)</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Receipt</th><th>Amount</th><th>Issued</th><th></th></tr></thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td class="mono">{{ r.receipt_reference }}</td>
+                    <td>₱ {{ r.amount }}</td>
+                    <td>{{ r.issued_at|date:"M d, Y H:i" }}</td>
+                    <td><a class="btn btn-outline btn-sm" href="{% url 'transactions:receipt_detail' r.pk %}" target="_blank"><i class="fas fa-print"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2" style="margin-top:18px">
+    <div class="card card-pad">
+        <h3><i class="fas fa-credit-card"></i> Record Payment</h3>
+        {% if bill.balance_due > 0 %}
+        <form method="post" data-submit-loading>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pay">
+            <div class="form-grid">
+                <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due }}"></div>
+                <div class="form-group"><label>Method</label>
+                    <select name="payment_method" class="form-input">
+                        <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                        <option value="E_WALLET">E-Wallet</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-cash-register"></i> Pay &amp; Issue Receipt</button>
+        </form>
+        {% else %}
+        <div class="empty"><h3>Bill is fully settled</h3><p>No balance due.</p></div>
+        {% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-plus-circle"></i> Add Additional Transaction (BR-018)</h3>
+        {% if booking %}
+        <form method="post" data-submit-loading>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="additional">
+            <div class="form-group">
+                <label>Type</label>
+                <select name="transaction_type" class="form-input">
+                    {% for value, label in additional_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-input" placeholder="e.g. Extra night, airport transfer..." required></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Quantity</label><input type="number" name="quantity" min="1" value="1" class="form-input"></div>
+                <div class="form-group"><label>Rate</label><input type="number" name="rate" step="0.01" class="form-input" required></div>
+            </div>
+            <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-plus"></i> Add to this booking</button>
+        </form>
+        {% else %}
+        <p class="meta">This bill is not linked to a booking.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if additional_transactions %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-list"></i> Additional Transactions on this booking</h3>
+    <div class="table-wrap"><table class="table">
+        <thead><tr><th>Ref</th><th>Type</th><th>Description</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+            {% for at in additional_transactions %}
+            <tr>
+                <td class="mono">{{ at.transaction_reference }}</td>
+                <td>{{ at.get_transaction_type_display }}</td>
+                <td>{{ at.description }}</td>
+                <td>{{ at.quantity }}</td>
+                <td>₱ {{ at.rate }}</td>
+                <td><b>₱ {{ at.total_amount }}</b></td>
+                <td><span class="badge {% if at.status == 'PAID' %}badge-green{% elif at.status == 'CANCELLED' or at.status == 'REFUNDED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ at.get_status_display }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7">None yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table></div>
+</div>
+{% endif %}
+
+<div style="margin-top:18px">
+    <a href="{% url 'transactions:list' %}" class="btn btn-outline">Back to transactions</a>
+    <a href="{% url 'transactions:additional_add' %}" class="btn btn-outline">All additional transactions</a>
+</div>
+{% endblock %}

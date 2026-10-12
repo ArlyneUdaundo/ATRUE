@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Log In – ATRUE{% endblock %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-orb orb-1"></div>
+    <div class="auth-orb orb-2"></div>
+    <div class="auth-orb orb-3"></div>
+    <div class="auth-form">
+        <div class="auth-card">
+            <div class="cardbox-brand">
+                <span class="cb-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+                <h2>Log In</h2>
+                <div class="sub">Sign in to your ATRUE account</div>
+            </div>
+            {% include "accounts/_login_form.html" with next_url=request.GET.next %}
+            <div class="auth-links" style="text-align:center;margin-top:8px"><a href="{% url 'home' %}">&larr; Back to Home</a></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

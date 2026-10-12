@@ -1,0 +1,73 @@
+﻿{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if unit %}Update Unit{% else %}Add Unit{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head unit-form-page-head"><div><h1>{% if unit %}Update Unit{% else %}Add Unit{% endif %} — {{ resort.name }}</h1><p>Room, villa, suite or cabana registration.</p></div></div>
+
+{% if error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if unit %}
+    <div class="form-group">
+        <label>Unit ID</label>
+        <input type="text" class="form-input" value="{{ unit.unit_id }}" readonly>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Unit Number</label>
+            <input type="text" name="unit_number" class="form-input" value="{{ unit.unit_number|default:'' }}" placeholder="e.g. Villa 1, Cabana B" maxlength="100" required>
+        </div>
+        <div class="form-group">
+            <label>Unit Type</label>
+            <select name="unit_type" class="form-input">
+                {% for choice, label in unit_type_choices %}
+                <option value="{{ choice }}" {% if unit and unit.unit_type == choice %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Capacity — Adults</label><input type="number" name="capacity_adults" class="form-input" value="{{ unit.capacity_adults|default:2 }}" min="1"></div>
+        <div class="form-group"><label>Capacity — Children</label><input type="number" name="capacity_children" class="form-input" value="{{ unit.capacity_children|default:0 }}" min="0"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Rate per Night (₱)</label><input type="number" name="rate" step="0.01" class="form-input" value="{{ unit.rate|default:'' }}" required></div>
+        <div class="form-group"><label>Additional Guest Charge (₱)</label><input type="number" name="additional_guest_charge" step="0.01" class="form-input" value="{{ unit.additional_guest_charge|default:0 }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2" placeholder="Short overview of this unit">{{ unit.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Features</label>
+        <textarea name="features" class="form-input" rows="2" placeholder="Private pool, ocean view, aircon">{{ unit.features|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Photos</label>
+        <input type="file" name="photos" class="form-input" accept="image/*" {% if not unit %}multiple{% else %}multiple{% endif %}>
+        {% if unit %}
+            {% for photo in unit.photos.all %}
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="width:64px;height:48px;object-fit:cover;border-radius:8px">
+                <label class="checkbox" style="margin:0"><input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Remove this photo</label>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            {% for choice, label in status_choices %}
+            <option value="{{ choice }}" {% if unit and unit.status == choice %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Unit</button>
+    <a href="{% url 'resorts:update_resort' resort.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

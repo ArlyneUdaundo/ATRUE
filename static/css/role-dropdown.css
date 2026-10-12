@@ -1,0 +1,35 @@
+.role-picker { position: relative; width: 100%; }
+.role-picker-native { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+.role-picker-trigger { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 10px 13px; border: 1px solid var(--border, #dbe4f0); border-radius: 12px; background: #fff; color: var(--text-1, #172033); font: inherit; text-align: left; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.role-picker-trigger:hover { border-color: #8eb5ff; background: #fbfdff; }
+.role-picker-trigger:focus-visible { outline: 0; border-color: var(--brand, #2563eb); box-shadow: 0 0 0 4px rgba(37, 99, 235, .14); }
+.role-picker-trigger.is-invalid { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .1); }
+.role-picker-trigger-icon, .role-picker-option-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px; background: #edf4ff; color: #2563eb; }
+.role-picker-trigger-label { flex: 1; min-width: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.role-picker-trigger:not(.has-value) .role-picker-trigger-label { color: #718096; font-weight: 500; }
+.role-picker-chevron { color: #64748b; font-size: 12px; }
+.role-picker-panel { position: fixed; z-index: 12000; display: flex; flex-direction: column; max-height: min(390px, calc(100vh - 24px)); overflow: hidden; border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .2); }
+.role-picker-panel[hidden] { display: none; }
+.role-picker-search-wrap { display: flex; align-items: center; gap: 10px; margin: 12px; padding: 0 12px; min-height: 42px; border: 1px solid #dbe4f0; border-radius: 10px; color: #64748b; }
+.role-picker-search-wrap:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(37, 99, 235, .1); }
+.role-picker-search { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #172033; font: inherit; font-size: 14px; }
+.role-picker-list { overflow: auto; padding: 0 8px 10px; }
+.role-picker-group + .role-picker-group { margin-top: 8px; }
+.role-picker-group-title { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 9px 6px; color: #64748b; font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.role-picker-group-title > i { color: #2563eb; font-size: 12px; }
+.role-picker-group-count { margin-left: auto; color: #94a3b8; font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.role-picker-option { display: flex; align-items: center; width: 100%; gap: 10px; padding: 8px 9px; border: 0; border-radius: 10px; background: transparent; color: #172033; font: inherit; text-align: left; cursor: pointer; }
+.role-picker-option:hover, .role-picker-option:focus-visible { outline: 0; background: #f1f6ff; }
+.role-picker-option[aria-selected="true"] { background: #eef5ff; color: #1746bd; }
+.role-picker-option-icon { flex-basis: 30px; width: 30px; height: 30px; border-radius: 9px; font-size: 12px; }
+.role-picker-option-copy { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.role-picker-option-copy strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 650; line-height: 1.35; }
+.role-picker-option-copy small { color: #74839a; font-size: 11px; }
+.role-picker-check { color: #2563eb; opacity: 0; }
+.role-picker-option[aria-selected="true"] .role-picker-check { opacity: 1; }
+.role-picker-empty { padding: 16px 12px 20px; color: #64748b; font-size: 13px; text-align: center; }
+.role-picker-empty[hidden] { display: none; }
+@media (max-width: 520px) {
+  .role-picker-panel { width: calc(100vw - 24px) !important; left: 12px !important; }
+  .role-picker-trigger { min-height: 46px; }
+}

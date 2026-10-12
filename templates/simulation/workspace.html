@@ -1,0 +1,738 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Simulation Workspace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261010-7">
+<link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
+{% endblock %}
+
+{% block content %}
+{% regroup legacy_roles|dictsort:"activity_name" by activity_name as legacy_role_groups %}
+<div class="page-head">
+    <div>
+        {% if is_instructor %}<h1>Simulation Sessions</h1><p>Open a session to review its activities and role assignments.</p>
+        {% else %}<h1>My Roles</h1><p>Roles currently assigned to you for training sessions.</p>{% endif %}
+    </div>
+    {% if is_instructor %}
+    <div class="simulation-workspace-actions">
+        <a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a>
+        <a href="{% url 'simulation:role_list' %}" class="btn btn-outline"><i class="fas fa-list"></i> Manage Roles</a>
+        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-clipboard-list"></i> Activity Logs</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if sessions or legacy_role_groups %}
+<section class="simulation-session-list" aria-label="Simulation sessions">
+    {% for session in sessions %}
+    <details class="simulation-session{% if is_instructor %} simulation-session--modal{% endif %}">
+        <summary class="simulation-session-summary"
+            {% if is_instructor %}
+            data-session-open
+            aria-expanded="false"
+            data-session-name="{{ session.name }}"
+            data-session-start="{{ session.start_date|date:'M d, Y' }}"
+            data-session-end="{{ session.end_date|date:'M d, Y' }}"
+            data-session-status="{{ session.get_status_display }}"
+            aria-haspopup="dialog"
+            {% endif %}>
+            <span class="simulation-session-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="simulation-session-copy">
+                <strong>{{ session.name }}</strong>
+                <small>{{ session.session_id }} · {{ session.get_status_display }}</small>
+            </span>
+            {% if is_instructor %}
+            <span class="simulation-session-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span>
+            {% else %}
+            <span class="simulation-session-count">{{ session.assignments.all|length }} activit{{ session.assignments.all|length|pluralize:"y,ies" }}</span>
+            {% endif %}
+            <i class="fas fa-chevron-down simulation-session-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="simulation-session-activities">
+            {% if is_instructor %}
+            <div class="simulation-session-activities-head">
+                <h3>Students <span class="simulation-session-student-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span></h3>
+            </div>
+            {% if session.student_rows %}
+            <div class="simulation-student-list" role="list">
+                {% for row in session.student_rows %}
+                <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}">
+                    {% if row.student.profile_picture %}<img class="simulation-student-avatar simulation-student-avatar-photo" src="{{ row.student.profile_picture.url }}" alt="{{ row.display_name }} profile photo">{% else %}<span class="simulation-student-avatar" aria-hidden="true">{{ row.initials }}</span>{% endif %}
+                    <div class="simulation-student-who">
+                        <strong>{{ row.display_name }}</strong>
+                        <small>@{{ row.username }}</small>
+                    </div>
+                    <div class="simulation-student-role">
+                        {% if row.assignment %}
+                        <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
+                        {% if row.count > 1 %}<span class="simulation-student-extra" title="This student has {{ row.count }} assignments in this session">+{{ row.count|add:"-1" }} more</span>{% endif %}
+                        {% else %}
+                        <span class="badge badge-gray">No role assigned</span>
+                        {% endif %}
+                    </div>
+                    <div class="simulation-student-meta simulation-student-establishment">
+                        {% if row.assignment.establishment %}<strong>{{ row.assignment.establishment.name }}</strong>{% else %}<span class="muted">Not assigned</span>{% endif %}
+                    </div>
+                    <div class="simulation-student-meta simulation-student-schedule">
+                        {% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% if row.assignment.start_time and row.assignment.end_time %}<span>{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}</span>{% endif %}{% else %}<span class="muted">Not scheduled</span>{% endif %}
+                    </div>
+                    <div class="simulation-student-actions">
+                        {% if row.assignment %}
+                        {% if row.assignment.status != 'DONE' %}<button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
+                            data-endpoint="{% url 'simulation:session_assignment' session.id %}"
+                            data-assignment-id="{{ row.assignment.id }}"
+                            data-session-id="{{ session.id }}"
+                            data-student-id="{{ row.student.id }}"
+                            data-student-name="{{ row.display_name }}"
+                            data-student-username="{{ row.student.username }}"
+                            data-role="{{ row.assignment.role }}"
+                            data-establishment-id="{{ row.assignment.establishment_id|default:'' }}"
+                            data-date="{{ row.assignment.simulation_date|date:'Y-m-d' }}"
+                            data-start="{{ row.assignment.start_time|time:'H:i' }}"
+                            data-end="{{ row.assignment.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
+                        <a href="{% url 'simulation:role_detail' row.assignment.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        {% if row.assignment.status == 'ACTIVE' %}
+                        <a href="{% url 'simulation:unassign' row.assignment.id %}" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
+                        {% endif %}
+                        {% else %}
+                        <button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
+                            data-endpoint="{% url 'simulation:session_assignment' session.id %}"
+                            data-assignment-id=""
+                            data-session-id="{{ session.id }}"
+                            data-student-id="{{ row.student.id }}"
+                            data-student-name="{{ row.display_name }}"
+                            data-student-username="{{ row.student.username }}"
+                            data-role=""
+                            data-establishment-id=""
+                            data-date=""
+                            data-start=""
+                            data-end=""><i class="fas fa-plus"></i> Assign Role</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="simulation-session-empty">No students are registered yet.</p>
+            {% endif %}
+            {% else %}
+            <h3>Activities and roles</h3>
+            {% if session.assignments.all %}
+            <div class="cards mb">
+                {% for r in session.assignments.all %}
+                <div class="scard">
+                    <div class="scard-body">
+                        <div class="scard-top">
+                            <span class="scard-ico" style="background:var(--grad);color:#fff"><i class="fas fa-user-tag"></i></span>
+                            <span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span>
+                        </div>
+                        <h3>{{ r.activity_name }}</h3>
+                        {% if r.assigned_by %}<div class="meta"><i class="fas fa-user-cog"></i> Assigned by {{ r.assigned_by.username }}</div>{% endif %}
+                        {% if r.hotel %}<div class="meta"><i class="fas fa-building"></i> {{ r.hotel.name }}</div>{% endif %}
+                        {% if r.simulation_date %}
+                            <div class="meta"><i class="fas fa-calendar-day"></i> {{ r.simulation_date|date:"M d, Y" }}{% if r.start_time and r.end_time %} · {{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
+                        {% endif %}
+                        <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ r.assigned_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                    <div class="scard-foot">
+                        <div class="simulation-role-actions">
+                            <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                            {% if r.status == 'ACTIVE' %}
+                            <a href="{% url 'simulation:do_task' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-play"></i> Do the Task</a>
+                            {% elif r.status == 'DONE' %}
+                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="simulation-session-empty">No activities have been added to this session yet.</p>
+            {% endif %}
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+
+    {% for group in legacy_role_groups %}
+    <details class="simulation-session">
+        <summary class="simulation-session-summary">
+            <span class="simulation-session-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="simulation-session-copy">
+                <strong>{{ group.grouper|default:"Unassigned Session" }}</strong>
+                <small>Legacy role assignments</small>
+            </span>
+            <span class="simulation-session-count">{{ group.list|length }} assignment{{ group.list|length|pluralize }}</span>
+            <i class="fas fa-chevron-down simulation-session-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="simulation-session-activities">
+            <h3>Activities and roles</h3>
+            <div class="cards mb">
+                {% for r in group.list %}
+                <div class="scard">
+                    <div class="scard-body">
+                        <span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% elif r.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span>
+                        {% if is_instructor %}<h3>{{ r.student.get_full_name|default:r.student.username }}</h3>{% endif %}
+                        <h3>{{ r.activity_name }}</h3>
+                        {% if r.hotel %}<div class="meta"><i class="fas fa-building"></i> {{ r.hotel.name }}</div>{% endif %}
+                    </div>
+                    <div class="scard-foot">
+                        <div class="simulation-role-actions">
+                            <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                            {% if is_instructor and r.status == 'ACTIVE' %}
+                            <a href="{% url 'simulation:unassign' r.id %}" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
+                            {% elif not is_instructor and r.status == 'ACTIVE' %}
+                            <a href="{% url 'simulation:do_task' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-play"></i> Do the Task</a>
+                            {% elif r.status == 'DONE' %}
+                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </details>
+    {% endfor %}
+</section>
+
+{% if is_instructor %}
+<div class="sim-session-modal" id="sessionStudentModal" hidden>
+    <div class="sim-session-backdrop" data-session-close></div>
+    <section class="sim-session-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="sessionStudentModalTitle" aria-describedby="sessionStudentModalMeta"
+        tabindex="-1">
+        <header class="sim-session-head">
+            <div>
+                <h2 id="sessionStudentModalTitle"></h2>
+                <p class="sim-session-meta" id="sessionStudentModalMeta"></p>
+            </div>
+            <button type="button" class="sim-assign-close" data-session-close
+                aria-label="Close session students"><i class="fas fa-xmark"></i></button>
+        </header>
+        <div class="sim-session-notice" id="sessionAssignmentNotice" role="status" hidden></div>
+        <div class="sim-session-body" id="sessionStudentModalBody"></div>
+        <footer class="sim-session-foot">
+            <button type="button" class="btn btn-outline" data-session-close>Close</button>
+        </footer>
+    </section>
+</div>
+
+<div class="sim-assign-modal" id="assignmentModal" hidden>
+    <div class="sim-assign-backdrop" data-modal-close></div>
+    <div class="sim-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="assignmentModalTitle">
+        <form id="assignmentForm" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="assignment_id" id="modalAssignmentId">
+            <input type="hidden" name="session" id="modalSessionId">
+            <input type="hidden" name="student" id="modalStudentId">
+            <header class="sim-assign-head">
+                <div>
+                    <h2 id="assignmentModalTitle">Assign Role</h2>
+                    <p class="sim-assign-sub">Place this student in the session and set their schedule.</p>
+                </div>
+                <button type="button" class="sim-assign-close" data-modal-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </header>
+            <div class="sim-assign-body">
+                <div class="sim-assign-student">
+                    <span class="simulation-student-avatar" id="modalStudentAvatar" aria-hidden="true"></span>
+                    <div class="simulation-student-who">
+                        <strong id="modalStudentName"></strong>
+                        <small id="modalStudentUsername"></small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="modalRole">User Role</label>
+                    <select name="role" id="modalRole" class="form-input role-picker-native" data-role-picker required>
+                        <option value="" disabled selected>Select role</option>
+                        {% for value, label, establishment_type in role_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" id="modalEstablishmentGroup" hidden>
+                    <label for="modalEstablishment">Establishment</label>
+                    <select name="establishment" id="modalEstablishment" class="form-input"></select>
+                </div>
+                <div class="form-group">
+                    <label>Assignment Schedule</label>
+                    <div class="sim-assign-grid">
+                        <div>
+                            <label class="sim-assign-sublabel" for="modalDate">Assignment Date</label>
+                            <input type="date" name="simulation_date" id="modalDate" class="form-input">
+                        </div>
+                        <div>
+                            <label class="sim-assign-sublabel" for="modalStart">Start Time</label>
+                            <input type="time" name="start_time" id="modalStart" class="form-input">
+                        </div>
+                        <div>
+                            <label class="sim-assign-sublabel" for="modalEnd">End Time</label>
+                            <input type="time" name="end_time" id="modalEnd" class="form-input">
+                        </div>
+                    </div>
+                </div>
+                <div class="sim-assign-repeat" id="modalRepeatGroup" hidden>
+                    <label>
+                        <input type="checkbox" name="assign_again" value="yes" id="modalAssignAgain">
+                        <span><b>Assign this role again</b><br><span class="sim-assign-hint" id="modalRepeatHint"></span></span>
+                    </label>
+                </div>
+                <div class="sim-assign-errors" id="modalErrors" role="alert" hidden></div>
+            </div>
+            <footer class="sim-assign-foot">
+                <button type="button" class="btn btn-outline" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-brand" id="modalSave"><i class="fas fa-check"></i> Save</button>
+            </footer>
+        </form>
+    </div>
+</div>
+{{ role_establishment_types|json_script:"modalRoleEstablishmentTypes" }}
+{{ guest_destinations|json_script:"modalGuestDestinations" }}
+{{ establishments_by_type|json_script:"modalEstablishmentsByType" }}
+{{ establishment_types|json_script:"modalEstablishmentTypes" }}
+{{ student_roles_map|json_script:"modalStudentRoles" }}
+<script>
+(function () {
+    var modal = document.getElementById('assignmentModal');
+    if (!modal) return;
+
+    var sessionModal = document.getElementById('sessionStudentModal');
+    var sessionBody = document.getElementById('sessionStudentModalBody');
+    var sessionTitle = document.getElementById('sessionStudentModalTitle');
+    var sessionMeta = document.getElementById('sessionStudentModalMeta');
+    var sessionNotice = document.getElementById('sessionAssignmentNotice');
+    var activeSessionDetails = null;
+    var activityPlaceholder = null;
+    var sessionOpener = null;
+    var assignmentOpener = null;
+
+    var form = document.getElementById('assignmentForm');
+    var roleSelect = document.getElementById('modalRole');
+    var estGroup = document.getElementById('modalEstablishmentGroup');
+    var estSelect = document.getElementById('modalEstablishment');
+    var repeatGroup = document.getElementById('modalRepeatGroup');
+    var repeatCheckbox = document.getElementById('modalAssignAgain');
+    var repeatHint = document.getElementById('modalRepeatHint');
+    var errorsBox = document.getElementById('modalErrors');
+    var saveBtn = document.getElementById('modalSave');
+    var modalTitle = document.getElementById('assignmentModalTitle');
+    var csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+
+    var roleEstablishmentTypes = JSON.parse(document.getElementById('modalRoleEstablishmentTypes').textContent);
+    var guestDestinations = JSON.parse(document.getElementById('modalGuestDestinations').textContent);
+    var establishmentData = JSON.parse(document.getElementById('modalEstablishmentsByType').textContent);
+    var establishmentTypeLabels = JSON.parse(document.getElementById('modalEstablishmentTypes').textContent);
+    var studentRoles = JSON.parse(document.getElementById('modalStudentRoles').textContent);
+
+    var currentStudentId = '';
+    var currentAssignmentId = '';
+    var currentSessionId = '';
+    var initialFormState = '';
+
+    function formState() {
+        return Array.prototype.map.call(new FormData(form).entries(), function (entry) {
+            return encodeURIComponent(entry[0]) + '=' + encodeURIComponent(entry[1]);
+        }).join('&');
+    }
+
+    function formIsDirty() {
+        return initialFormState !== '' && formState() !== initialFormState;
+    }
+
+    function setBodyLock() {
+        document.body.classList.toggle(
+            'sim-modal-open',
+            !modal.hidden || (sessionModal && !sessionModal.hidden)
+        );
+    }
+
+    function focusableElements(dialog) {
+        return Array.prototype.slice.call(dialog.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(function (element) {
+            return !element.hidden && element.getAttribute('aria-hidden') !== 'true'
+                && element.getClientRects().length > 0;
+        });
+    }
+
+    function trapFocus(event, dialog) {
+        if (event.key !== 'Tab') return;
+        var focusable = focusableElements(dialog);
+        if (!focusable.length) {
+            event.preventDefault();
+            dialog.focus();
+            return;
+        }
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function openSession(summary) {
+        var details = summary.closest('.simulation-session');
+        var activities = details && details.querySelector('.simulation-session-activities');
+        if (!activities || !sessionModal) return;
+
+        sessionOpener = summary;
+        summary.setAttribute('aria-expanded', 'true');
+        activeSessionDetails = details;
+        activityPlaceholder = document.createComment('session roster');
+        activities.parentNode.insertBefore(activityPlaceholder, activities);
+        sessionBody.appendChild(activities);
+
+        sessionTitle.textContent = summary.dataset.sessionName || 'Session';
+        var dateText = summary.dataset.sessionStart || summary.dataset.sessionEnd
+            ? (summary.dataset.sessionStart || 'Date not set')
+                + (summary.dataset.sessionEnd
+                    && summary.dataset.sessionEnd !== summary.dataset.sessionStart
+                    ? ' – ' + summary.dataset.sessionEnd : '')
+            : 'Dates not set';
+        sessionMeta.textContent = dateText + ' · ' + (summary.dataset.sessionStatus || '');
+        sessionNotice.hidden = true;
+        sessionNotice.textContent = '';
+        sessionModal.hidden = false;
+        setBodyLock();
+        var closeButton = sessionModal.querySelector('[data-session-close]');
+        if (closeButton) closeButton.focus();
+    }
+
+    function closeSession() {
+        if (!sessionModal || sessionModal.hidden) return;
+        if (!modal.hidden) return;
+        if (activityPlaceholder && activeSessionDetails) {
+            activityPlaceholder.parentNode.insertBefore(
+                sessionBody.querySelector('.simulation-session-activities'),
+                activityPlaceholder
+            );
+            activityPlaceholder.remove();
+        }
+        sessionModal.hidden = true;
+        if (sessionOpener) sessionOpener.setAttribute('aria-expanded', 'false');
+        activeSessionDetails = null;
+        activityPlaceholder = null;
+        setBodyLock();
+        if (sessionOpener) sessionOpener.focus();
+        sessionOpener = null;
+    }
+
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function typeLabel(type) {
+        var match = establishmentTypeLabels.filter(function (t) { return t.value === type; })[0];
+        return match ? match.label : type;
+    }
+
+    function initials(name) {
+        var parts = (name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '?';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+
+    // The establishment picker is driven by the role: an operational role offers
+    // only establishments of its own type and demands one, while a guest role
+    // offers its module's places but allows "no specific place".
+    function fillEstablishments(selected) {
+        var role = roleSelect.value;
+        var operational = role ? roleEstablishmentTypes[role] || null : null;
+        var guest = role ? guestDestinations[role] || null : null;
+        var type = guest || operational;
+        if (!type) {
+            estGroup.hidden = true;
+            estSelect.disabled = true;
+            estSelect.innerHTML = '<option value="">Select establishment</option>';
+            return;
+        }
+        var options = establishmentData[type] || [];
+        var optional = Boolean(guest);
+        var html = '<option value="">' + (optional ? 'No specific place'
+            : 'Select ' + typeLabel(type).toLowerCase()) + '</option>';
+        options.forEach(function (establishment) {
+            html += '<option value="' + establishment.id + '">' + escapeHtml(establishment.name) + '</option>';
+        });
+        estSelect.innerHTML = html;
+        estSelect.disabled = !options.length;
+        estGroup.hidden = false;
+        if (selected) { estSelect.value = String(selected); }
+    }
+
+    function heldRole() {
+        var roles = studentRoles[currentStudentId] || [];
+        for (var i = 0; i < roles.length; i++) {
+            if (roles[i].active && roles[i].value === roleSelect.value
+                    && String(roles[i].id) !== String(currentAssignmentId)) {
+                return roles[i];
+            }
+        }
+        return null;
+    }
+
+    function updateRepeat() {
+        var held = heldRole();
+        if (!held) {
+            repeatGroup.hidden = true;
+            repeatCheckbox.checked = false;
+            return;
+        }
+        repeatGroup.hidden = false;
+        repeatHint.textContent = held.role + ' is already active in “' + held.activity
+            + '” (' + held.date + '). Tick to place this student here as well.';
+    }
+
+    function clearErrors() {
+        errorsBox.hidden = true;
+        errorsBox.innerHTML = '';
+    }
+
+    function showErrors(list) {
+        errorsBox.hidden = false;
+        errorsBox.innerHTML = list.map(function (message) {
+            return '<div>' + escapeHtml(message) + '</div>';
+        }).join('');
+    }
+
+    function open(button) {
+        assignmentOpener = button;
+        currentStudentId = button.dataset.studentId || '';
+        currentAssignmentId = button.dataset.assignmentId || '';
+        currentSessionId = button.dataset.sessionId || '';
+
+        form.setAttribute('action', button.dataset.endpoint);
+        document.getElementById('modalAssignmentId').value = currentAssignmentId;
+        document.getElementById('modalSessionId').value = currentSessionId;
+        document.getElementById('modalStudentId').value = currentStudentId;
+        document.getElementById('modalStudentName').textContent = button.dataset.studentName || '';
+        document.getElementById('modalStudentUsername').textContent = '@' + (button.dataset.studentUsername || '');
+        document.getElementById('modalStudentAvatar').textContent = initials(button.dataset.studentName || '');
+        modalTitle.textContent = currentAssignmentId ? 'Edit Assignment' : 'Assign Role';
+
+        roleSelect.value = button.dataset.role || '';
+        window.syncRolePicker(roleSelect);
+        fillEstablishments(button.dataset.establishmentId || '');
+        document.getElementById('modalDate').value = button.dataset.date || '';
+        document.getElementById('modalStart').value = button.dataset.start || '';
+        document.getElementById('modalEnd').value = button.dataset.end || '';
+        updateRepeat();
+        clearErrors();
+
+        modal.hidden = false;
+        initialFormState = formState();
+        setBodyLock();
+        window.focusRolePicker(roleSelect);
+    }
+
+    function close(force) {
+        if (!force && formIsDirty()
+                && !window.confirm('Discard your unsaved assignment changes?')) {
+            return false;
+        }
+        modal.hidden = true;
+        initialFormState = '';
+        setBodyLock();
+        if (sessionModal && !sessionModal.hidden) {
+            var returnTarget = assignmentOpener;
+            if (!returnTarget || !returnTarget.isConnected) {
+                var row = document.getElementById(
+                    'sim-row-' + currentSessionId + '-' + currentStudentId
+                );
+                returnTarget = row && row.querySelector('.js-assignment-open');
+            }
+            if (returnTarget) returnTarget.focus();
+        }
+        assignmentOpener = null;
+        return true;
+    }
+
+    function statusClass(status) {
+        if (status === 'ACTIVE') return 'badge-blue';
+        if (status === 'DONE') return 'badge-green';
+        return 'badge-gray';
+    }
+
+    // Refresh just the row the modal edited, then rebuild its assignment button
+    // with the saved values so a second Edit opens on the new state.
+    function renderRow(assignment) {
+        var row = document.getElementById('sim-row-' + currentSessionId + '-' + currentStudentId);
+        if (!row) return;
+
+        var roleCell = row.querySelector('.simulation-student-role');
+        var roleBadge = roleCell.querySelector('.badge');
+        if (roleBadge) {
+            // Keep any "+N more" note that sits beside the badge.
+            roleBadge.className = 'badge ' + statusClass(assignment.status);
+            roleBadge.textContent = assignment.role_display;
+        } else {
+            roleCell.innerHTML = '<span class="badge ' + statusClass(assignment.status)
+                + '">' + escapeHtml(assignment.role_display) + '</span>';
+        }
+
+        row.querySelector('.simulation-student-establishment').innerHTML = assignment.establishment
+            ? '<strong>' + escapeHtml(assignment.establishment) + '</strong>'
+            : '<span class="muted">Not assigned</span>';
+
+        row.querySelector('.simulation-student-schedule').innerHTML = assignment.simulation_date
+            ? escapeHtml(assignment.date_display)
+                + (assignment.time_display ? '<span>' + escapeHtml(assignment.time_display) + '</span>' : '')
+            : '<span class="muted">Not scheduled</span>';
+
+        var endpoint = form.getAttribute('action');
+        var html = '';
+        if (assignment.status !== 'DONE') {
+            html += '<button type="button" class="btn btn-brand btn-sm js-assignment-open"'
+                + ' aria-haspopup="dialog"'
+                + ' data-endpoint="' + escapeHtml(endpoint) + '"'
+                + ' data-assignment-id="' + assignment.id + '"'
+                + ' data-session-id="' + escapeHtml(currentSessionId) + '"'
+                + ' data-student-id="' + escapeHtml(currentStudentId) + '"'
+                + ' data-student-name="' + escapeHtml(assignment.student_name) + '"'
+                + ' data-student-username="' + escapeHtml(row.dataset.studentUsername || '') + '"'
+                + ' data-role="' + escapeHtml(assignment.role) + '"'
+                + ' data-establishment-id="' + escapeHtml(assignment.establishment_id) + '"'
+                + ' data-date="' + escapeHtml(assignment.simulation_date) + '"'
+                + ' data-start="' + escapeHtml(assignment.start_time) + '"'
+                + ' data-end="' + escapeHtml(assignment.end_time) + '"><i class="fas fa-pen"></i> Edit Assignment</button>';
+        }
+        html += ' <a href="' + escapeHtml(assignment.view_url) + '" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>';
+        if (assignment.status === 'ACTIVE') {
+            html += ' <a href="' + escapeHtml(assignment.unassign_url) + '" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>';
+        }
+        row.querySelector('.simulation-student-actions').innerHTML = html;
+    }
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        clearErrors();
+        if (heldRole() && !repeatCheckbox.checked) {
+            updateRepeat();
+            showErrors(['This role is already active for this student. Tick “Assign this role again” to continue.']);
+            return;
+        }
+        saveBtn.disabled = true;
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfInput ? csrfInput.value : '',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new FormData(form),
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            });
+        }).then(function (result) {
+            saveBtn.disabled = false;
+            if (result.data && result.data.ok) {
+                renderRow(result.data.assignment);
+                sessionNotice.textContent = result.data.action === 'edit'
+                    ? 'Assignment updated successfully.'
+                    : 'Role assigned successfully.';
+                sessionNotice.hidden = false;
+                close(true);
+                return;
+            }
+            var errors = (result.data && result.data.errors) || ['Could not save the assignment.'];
+            showErrors(errors);
+            if (result.data && result.data.clash) {
+                repeatGroup.hidden = false;
+            }
+        }).catch(function () {
+            saveBtn.disabled = false;
+            showErrors(['Could not save the assignment. Please try again.']);
+        });
+    });
+
+    roleSelect.addEventListener('change', function () {
+        fillEstablishments('');
+        updateRepeat();
+    });
+
+    document.addEventListener('click', function (event) {
+        var sessionTrigger = event.target.closest('[data-session-open]');
+        if (sessionTrigger && sessionModal) {
+            event.preventDefault();
+            openSession(sessionTrigger);
+            return;
+        }
+        var trigger = event.target.closest('.js-assignment-open');
+        if (trigger) {
+            event.preventDefault();
+            open(trigger);
+            return;
+        }
+        if (!modal.hidden && event.target.closest('[data-modal-close]')) {
+            close();
+            return;
+        }
+        if (!sessionModal.hidden && event.target.closest('[data-session-close]')) {
+            closeSession();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (!modal.hidden) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+            } else {
+                trapFocus(event, modal.querySelector('[role="dialog"]'));
+            }
+        } else if (sessionModal && !sessionModal.hidden) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeSession();
+            } else {
+                trapFocus(event, sessionModal.querySelector('[role="dialog"]'));
+            }
+        }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!modal.hidden && event.target.matches('.sim-assign-backdrop')) close();
+        if (sessionModal && !sessionModal.hidden
+                && event.target.matches('.sim-session-backdrop')) closeSession();
+    });
+
+    window.addEventListener('beforeunload', function (event) {
+        if (!modal.hidden && formIsDirty()) {
+            event.preventDefault();
+            event.returnValue = '';
+        }
+    });
+})();
+</script>
+{% endif %}
+{% elif is_instructor %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-layer-group"></i>
+        <h3>No simulation sessions yet</h3>
+        <p>Create a session first, then add activities and role assignments inside it.</p>
+        <div style="margin-top:20px"><a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a></div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-user-tag"></i>
+        <h3>No role assignments yet</h3>
+        <p>Your instructor will assign a simulation role to get you started.</p>
+    </div>
+</div>
+{% endif %}
+
+{% block extra_js %}<script src="{% static 'js/role-dropdown.js' %}?v=20261011-1"></script>{% endblock %}
+{% endblock %}

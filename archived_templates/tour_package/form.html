@@ -1,0 +1,109 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if package %}Update Package{% else %}Add Package{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if package %}Update{% else %}Add{% endif %} Tour Package</h1><p>Package information, validity and component selection (BR-071 to BR-074).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:800px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-grid">
+        <div class="form-group"><label>Name</label><input type="text" name="name" class="form-input" value="{{ package.name|default:'' }}" required></div>
+        <div class="form-group"><label>Duration (days)</label><input type="number" name="duration_days" class="form-input" value="{{ package.duration_days|default:1 }}"></div>
+    </div>
+    <div class="form-group"><label>Description</label><textarea name="description" class="form-input" rows="2">{{ package.description|default:'' }}</textarea></div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-map-marker-alt"></i> Destination</h4>
+    <div class="form-grid">
+        <div class="form-group"><label>Destination Name</label><input type="text" name="destination_name" class="form-input" value="{{ package.destination_name|default:'' }}"></div>
+        <div class="form-group"><label>Country</label><input type="text" name="destination_country" class="form-input" value="{{ package.destination_country|default:'' }}"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Province/State</label><input type="text" name="destination_province" class="form-input" value="{{ package.destination_province|default:'' }}"></div>
+        <div class="form-group"><label>City/Municipality</label><input type="text" name="destination_city" class="form-input" value="{{ package.destination_city|default:'' }}"></div>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-peso-sign"></i> Pricing</h4>
+    <div class="form-grid">
+        <div class="form-group"><label>Base Price (₱)</label><input type="number" name="base_price" step="0.01" class="form-input" value="{{ package.base_price|default:0 }}"></div>
+        <div class="form-group"><label>Discount (₱)</label><input type="number" name="discount" step="0.01" class="form-input" value="{{ package.discount|default:0 }}"></div>
+        <div class="form-group"><label>Final Package Price (₱)</label><input type="number" name="price" step="0.01" class="form-input" value="{{ package.price|default:0 }}" required></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Included Headcount</label><input type="number" name="included_headcount" class="form-input" value="{{ package.included_headcount|default:1 }}"></div>
+        <div class="form-group"><label>Included Adults</label><input type="number" name="included_adults" class="form-input" value="{{ package.included_adults|default:1 }}"></div>
+        <div class="form-group"><label>Included Children</label><input type="number" name="included_children" class="form-input" value="{{ package.included_children|default:0 }}"></div>
+        <div class="form-group"><label>Extra-Person Rate (₱/head)</label><input type="number" name="extra_person_rate" step="0.01" class="form-input" value="{{ package.extra_person_rate|default:0 }}"></div>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-calendar"></i> Validity</h4>
+    <div class="form-grid">
+        <div class="form-group"><label>Valid From</label><input type="date" name="validity_start_date" class="form-input" value="{{ package.validity_start_date|date:'Y-m-d' }}" required></div>
+        <div class="form-group"><label>Valid Until</label><input type="date" name="validity_end_date" class="form-input" value="{{ package.validity_end_date|date:'Y-m-d' }}" required></div>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-file-alt"></i> Terms</h4>
+    <div class="form-group"><label>Package Inclusions</label><textarea name="inclusions" class="form-input" rows="2">{{ package.inclusions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Package Exclusions</label><textarea name="exclusions" class="form-input" rows="2">{{ package.exclusions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Terms and Conditions</label><textarea name="terms_and_conditions" class="form-input" rows="2">{{ package.terms_and_conditions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Cancellation Policy</label><textarea name="cancellation_policy" class="form-input" rows="2">{{ package.cancellation_policy|default:'' }}</textarea></div>
+    <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="included_tour_guide" {% if package.included_tour_guide %}checked{% endif %}> Includes a tour guide
+        </label>
+    </div>
+    <div class="form-group"><label>Other Included Services</label><textarea name="included_other_services" class="form-input" rows="2" placeholder="e.g. airport transfers, camera coverage, insurance">{{ package.included_other_services|default:'' }}</textarea></div>
+
+    <h4 style="margin:16px 0 10px"><i class="fas fa-layer-group"></i> Package Components (BR-071, BR-073)</h4>
+    <div class="form-group">
+        <label>Included Hotels</label>
+        <select name="hotels" class="form-input" multiple size="4">
+            {% for h in hotels %}<option value="{{ h.id }}" {% if package and h.id in selected_hotels %}selected{% endif %}>{{ h.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Included Resorts</label>
+        <select name="resorts" class="form-input" multiple size="4">
+            {% for r in resorts %}<option value="{{ r.id }}" {% if package and r.id in selected_resorts %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Included Flights</label>
+        <select name="flights" class="form-input" multiple size="4">
+            {% for f in flights %}<option value="{{ f.id }}" {% if package and f.id in selected_flights %}selected{% endif %}>{{ f.flight_number }} — {{ f.origin }} → {{ f.destination }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Included Activities</label>
+        <select name="activities" class="form-input" multiple size="4">
+            {% for a in activities %}<option value="{{ a.id }}" {% if package and a.id in selected_activities %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Included Restaurants</label>
+        <select name="restaurants" class="form-input" multiple size="4">
+            {% for rest in restaurants %}<option value="{{ rest.id }}" {% if package and rest.id in selected_restaurants %}selected{% endif %}>{{ rest.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Included Transportation</label>
+        <select name="transport" class="form-input" multiple size="4">
+            {% for t in transport %}<option value="{{ t.id }}" {% if package and t.id in selected_transport %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+        </select>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-toggle-on"></i> Status</h4>
+    <div class="form-group">
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if package.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if package.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if package.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if package.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            <option value="EXPIRED" {% if package.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Package</button>
+    <a href="{% url 'tour_package:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

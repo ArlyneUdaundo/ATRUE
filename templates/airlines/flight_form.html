@@ -1,0 +1,779 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% if airline %} — {{ airline.name }}{% endif %}</h1><p>Schedule a service. The cabin and seat map are taken from the aircraft you pick.</p></div></div>
+
+<form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:860px" data-submit-loading data-flight-form>
+    {% csrf_token %}
+
+    {% comment %}1. Flight type first — it decides which of the two forms below is shown.{% endcomment %}
+    <fieldset style="border:0;padding:0;margin:0 0 22px">
+        <label style="font-weight:600;display:block;margin-bottom:8px">Flight Type <span style="color:#d64545">*</span></label>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                <input type="radio" name="flight_type" value="DIRECT" data-flight-type
+                       {% if flight_type != 'CONNECTING' and trip_type != 'ROUND_TRIP' %}checked{% endif %}>
+                <span>One Way</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                <input type="radio" name="flight_type" value="ROUND_TRIP" data-flight-type
+                       {% if flight_type != 'CONNECTING' and trip_type == 'ROUND_TRIP' %}checked{% endif %}>
+                <span>Round Trip</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                <input type="radio" name="flight_type" value="CONNECTING" data-flight-type
+                       {% if flight_type == 'CONNECTING' %}checked{% endif %}>
+                <span>Connecting</span>
+            </label>
+        </div>
+        <span class="meta" style="display:block;margin-top:6px">One Way and Round Trip schedule one or two linked flights. Connecting chains several legs into one journey with its own aircraft, cabin and fare per leg.</span>
+    </fieldset>
+
+    {% comment %}2. Airline — predefined, never created here. Shared by both forms:
+         the operator picks the fleet that the legs are scheduled against.{% endcomment %}
+    <div class="form-group">
+        <label>Airline <span style="color:#d64545">*</span></label>
+        {% if airline_fixed %}
+        <div style="display:flex;align-items:center;gap:12px">
+            {% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--sm' %}
+            <input type="text" class="form-input" value="{{ airline.name }}" disabled style="background:#f4f5f7">
+        </div>
+        <input type="hidden" name="airline" value="{{ airline.id }}">
+        {% else %}
+        <div style="display:flex;align-items:center;gap:10px">
+            <select name="airline" id="flightAirline" class="form-input" data-airline required style="flex:1">
+                <option value="" data-logo="">Select an airline</option>
+                {% for a in airlines %}<option value="{{ a.id }}" data-logo="{{ a.logo_url }}" {% if airline and a.id == airline.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+            <img id="flightAirlineLogo" class="airline-logo-preview" alt="Selected airline logo" style="display:none">
+        </div>
+        {% endif %}
+    </div>
+
+    <div data-direct-section {% if flight_type == 'CONNECTING' %}hidden{% endif %}>
+    {% comment %}1b. One Way / Round Trip, derived from the Flight Type chosen above.
+         The direct validator still reads trip_type, so it is carried in a hidden
+         input rather than a second, redundant set of radios.{% endcomment %}
+    <input type="hidden" name="trip_type" data-trip-type-sync
+           value="{% if trip_type == 'ROUND_TRIP' %}ROUND_TRIP{% else %}ONE_WAY{% endif %}">
+
+    {% comment %}3. Departure leg.{% endcomment %}
+    <h3 style="margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-plane-departure"></i> Departure Flight</h3>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Flight Number <span style="color:#d64545">*</span></label>
+            <input type="text" name="flight_number" class="form-input" value="{{ flight.flight_number|default:'' }}" placeholder="e.g. 5J123" required>
+        </div>
+        <div class="form-group">
+            <label>Aircraft Type</label>
+            <select name="aircraft_type" class="form-input" data-type-select data-side="outbound">
+                <option value="">All types in the fleet</option>
+                {% for t in aircraft_types %}<option value="{{ t.id }}" {% if selected_type == t.id %}selected{% endif %}>{{ t.manufacturer.name }} {{ t.model_name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Aircraft</label>
+            <select name="aircraft" class="form-input" data-aircraft-select data-side="outbound">
+                <option value="">Not assigned yet</option>
+                {% for ac in aircrafts %}
+                <option value="{{ ac.id }}" data-type="{{ ac.aircraft_type_id }}"
+                        data-seats="{{ ac.seat_layout.total_capacity|default:'' }}"
+                        data-map="{{ ac.seat_layout.seat_map|default:'' }}"
+                        data-cabins="{% for c in ac.seat_layout.cabins.all %}{{ c.label }} {{ c.seat_count }}{% if not forloop.last %} · {% endif %}{% endfor %}"
+                        {% if flight and flight.aircraft_id == ac.id %}selected{% endif %}>{{ ac.model_name }} ({{ ac.tail_number }}){% if ac.status == 'ASSIGNED' %} · assigned{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Origin <span style="color:#d64545">*</span></label>
+            {% include 'search/_airport_field.html' with field_name='origin_airport' airport=flight.origin_airport placeholder='Search worldwide airports' required=True %}
+        </div>
+        <div class="form-group">
+            <label>Destination <span style="color:#d64545">*</span></label>
+            {% include 'search/_airport_field.html' with field_name='destination_airport' airport=flight.destination_airport placeholder='Search worldwide airports' required=True %}
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Departure <span style="color:#d64545">*</span></label>
+            <div class="flight-datetime" data-flight-datetime>
+                <input type="hidden" name="departure_time" data-outbound="departure" data-flight-datetime-value value="{% if flight %}{{ flight.departure_time|date:'Y-m-d\TH:i' }}{% endif %}">
+                <div class="flight-datetime__parts">
+                    <input type="date" class="form-input" data-flight-date value="{% if flight %}{{ flight.departure_time|date:'Y-m-d' }}{% endif %}" required aria-label="Departure date">
+                    <input type="time" class="form-input" data-flight-time value="{% if flight %}{{ flight.departure_time|date:'H:i' }}{% endif %}" required aria-label="Departure time">
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Arrival <span style="color:#d64545">*</span></label>
+            <div class="flight-datetime" data-flight-datetime>
+                <input type="hidden" name="arrival_time" data-flight-datetime-value value="{% if flight %}{{ flight.arrival_time|date:'Y-m-d\TH:i' }}{% endif %}">
+                <div class="flight-datetime__parts">
+                    <input type="date" class="form-input" data-flight-date value="{% if flight %}{{ flight.arrival_time|date:'Y-m-d' }}{% endif %}" required aria-label="Arrival date">
+                    <input type="time" class="form-input" data-flight-time value="{% if flight %}{{ flight.arrival_time|date:'H:i' }}{% endif %}" required aria-label="Arrival time">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group"><label>Terminal <span class="meta" style="display:block">(optional, if available)</span></label><input type="text" name="terminal" class="form-input" value="{{ flight.terminal|default:'' }}" maxlength="50"></div>
+        <div class="form-group"><label>Gate <span class="meta" style="display:block">(optional, if available)</span></label><input type="text" name="gate" class="form-input" value="{{ flight.gate|default:'' }}" maxlength="50"></div>
+    </div>
+
+    {% comment %}4. Return leg — only rendered for a Round Trip.{% endcomment %}
+    <div data-return-section {% if trip_type != 'ROUND_TRIP' %}hidden{% endif %}>
+        <h3 style="margin:30px 0 6px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-plane-arrival"></i> Return Flight</h3>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Return Flight Number <span style="color:#d64545">*</span></label>
+                <input type="text" name="return_flight_number" class="form-input" value="{{ return_leg.flight_number|default:'' }}" placeholder="e.g. 5J124">
+            </div>
+            <div class="form-group">
+                <label>Return Aircraft Type</label>
+                <select name="return_aircraft_type" class="form-input" data-type-select data-side="return">
+                    <option value="">All types in the fleet</option>
+                    {% for t in aircraft_types %}<option value="{{ t.id }}" {% if return_selected_type == t.id %}selected{% endif %}>{{ t.manufacturer.name }} {{ t.model_name }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Return Aircraft</label>
+                <select name="return_aircraft" class="form-input" data-aircraft-select data-side="return">
+                    <option value="">Same aircraft as departure</option>
+                    <option value="__none__" {% if return_leg and not return_leg.aircraft_id %}selected{% endif %}>Not assigned yet (use airline default layout)</option>
+                    {% for ac in aircrafts %}
+                    <option value="{{ ac.id }}" data-type="{{ ac.aircraft_type_id }}"
+                            data-seats="{{ ac.seat_layout.total_capacity|default:'' }}"
+                            data-map="{{ ac.seat_layout.seat_map|default:'' }}"
+                            data-cabins="{% for c in ac.seat_layout.cabins.all %}{{ c.label }} {{ c.seat_count }}{% if not forloop.last %} · {% endif %}{% endfor %}"
+                            {% if return_leg and return_leg.aircraft_id == ac.id %}selected{% endif %}>{{ ac.model_name }} ({{ ac.tail_number }})</option>
+                    {% endfor %}
+                </select>
+</div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Return Origin <span style="color:#d64545">*</span></label>
+                {% include 'search/_airport_field.html' with field_name='return_origin_airport' airport=return_leg.origin_airport placeholder='Mirrors the departure destination' %}
+            </div>
+            <div class="form-group">
+                <label>Return Destination <span style="color:#d64545">*</span></label>
+                {% include 'search/_airport_field.html' with field_name='return_destination_airport' airport=return_leg.destination_airport placeholder='Mirrors the departure origin' %}
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Return Departure <span style="color:#d64545">*</span></label>
+                <div class="flight-datetime" data-flight-datetime>
+                    <input type="hidden" name="return_departure_time" data-flight-datetime-value value="{% if return_leg %}{{ return_leg.departure_time|date:'Y-m-d\TH:i' }}{% endif %}">
+                    <div class="flight-datetime__parts">
+                        <input type="date" class="form-input" data-flight-date value="{% if return_leg %}{{ return_leg.departure_time|date:'Y-m-d' }}{% endif %}" aria-label="Return departure date">
+                        <input type="time" class="form-input" data-flight-time value="{% if return_leg %}{{ return_leg.departure_time|date:'H:i' }}{% endif %}" aria-label="Return departure time">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Return Arrival <span style="color:#d64545">*</span></label>
+                <div class="flight-datetime" data-flight-datetime>
+                    <input type="hidden" name="return_arrival_time" data-flight-datetime-value value="{% if return_leg %}{{ return_leg.arrival_time|date:'Y-m-d\TH:i' }}{% endif %}">
+                    <div class="flight-datetime__parts">
+                        <input type="date" class="form-input" data-flight-date value="{% if return_leg %}{{ return_leg.arrival_time|date:'Y-m-d' }}{% endif %}" aria-label="Return arrival date">
+                        <input type="time" class="form-input" data-flight-time value="{% if return_leg %}{{ return_leg.arrival_time|date:'H:i' }}{% endif %}" aria-label="Return arrival time">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="meta" data-return-warning style="display:none;color:#b42318"></p>
+    </div>
+
+    {% comment %}5. Fares and status — shared by both legs of a trip.{% endcomment %}
+    <h3 style="margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-tags"></i> Fares &amp; Status</h3>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Economy Fare (₱) <span style="color:#d64545">*</span> <span class="meta" style="display:block">leave 0 if the aircraft has no economy cabin</span></label>
+            <input type="number" name="economy_fare" step="0.01" min="0" class="form-input" value="{{ flight.economy_fare|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Premium Economy Fare (₱) <span class="meta" style="display:block">leave 0 if the aircraft has no premium economy cabin</span></label>
+            <input type="number" name="premium_economy_fare" step="0.01" min="0" class="form-input" value="{{ flight.premium_economy_fare|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Business Class Fare (₱) <span class="meta" style="display:block">leave 0 if the aircraft has no business cabin</span></label>
+            <input type="number" name="business_fare" step="0.01" min="0" class="form-input" value="{{ flight.business_fare|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>First Class Fare (₱) <span class="meta" style="display:block">leave 0 if the aircraft has no first class cabin</span></label>
+            <input type="number" name="first_class_fare" step="0.01" min="0" class="form-input" value="{{ flight.first_class_fare|default:'' }}" required>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Baggage Rate (₱ / kg)</label>
+            <input type="number" name="baggage_rate" step="0.01" min="0" class="form-input" value="{{ flight.baggage_rate|default:'' }}" placeholder="e.g. 150">
+        </div>
+        <div class="form-group">
+            <label>Flight Status</label>
+            <select name="status" class="form-input">
+                <option value="SCHEDULED" {% if flight.status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                <option value="DELAYED" {% if flight.status == 'DELAYED' %}selected{% endif %}>Delayed</option>
+                <option value="CANCELLED" {% if flight.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                <option value="COMPLETED" {% if flight.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+    </div>
+    </div><!-- /data-direct-section -->
+
+    {% comment %}6. Connecting itinerary — a chain of legs sold as one journey.{% endcomment %}
+    <div data-connecting-section {% if flight_type != 'CONNECTING' %}hidden{% endif %}>
+        <h3 style="margin:26px 0 6px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-route"></i> Journey Segments</h3>
+        <p class="meta" style="margin:0 0 14px">
+            Add the legs in the order the passenger flies them. Each connection must
+            continue from the airport the previous leg arrived at, and leave enough
+            time to make the connection.
+        </p>
+
+        <input type="hidden" name="segment_count" value="{{ itinerary_legs|length|default:'2' }}" data-segment-count>
+        {% if itinerary_legs_data %}{{ itinerary_legs_data|json_script:"itinerary-legs-data" }}{% else %}<script id="itinerary-legs-data" type="application/json">[]</script>{% endif %}
+        <div data-segment-list style="display:flex;flex-direction:column;gap:18px"></div>
+
+        <template data-segment-template>
+            <div class="card" data-segment style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;position:relative">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <h4 style="margin:0;font-size:15px" data-segment-title>Segment 1</h4>
+                    <button type="button" class="btn btn-outline" data-remove-segment
+                            style="padding:5px 12px;font-size:12px">Remove</button>
+                </div>
+
+                <input type="hidden" data-seg-id>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Flight Number <span style="color:#d64545">*</span></label>
+                        <input type="text" data-seg="flight_number" class="form-input" placeholder="e.g. 5J711" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Aircraft</label>
+                        <select data-seg="aircraft" class="form-input">
+                            <option value="">Not assigned yet</option>
+                            {% for ac in aircrafts %}
+                            <option value="{{ ac.id }}" data-type="{{ ac.aircraft_type_id }}">{{ ac.model_name }} ({{ ac.tail_number }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>From <span style="color:#d64545">*</span></label>
+                        {% include 'search/_airport_field.html' with field_name='__seg_origin__' airport=None placeholder='Search worldwide airports' %}
+                    </div>
+                    <div class="form-group">
+                        <label>To <span style="color:#d64545">*</span></label>
+                        {% include 'search/_airport_field.html' with field_name='__seg_destination__' airport=None placeholder='Search worldwide airports' %}
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Departure <span style="color:#d64545">*</span></label>
+                        <div style="display:flex;gap:6px">
+                            <input type="date" data-seg="departure_date" class="form-input" required>
+                            <input type="time" data-seg="departure_time" class="form-input" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Arrival <span style="color:#d64545">*</span></label>
+                        <div style="display:flex;gap:6px">
+                            <input type="date" data-seg="arrival_date" class="form-input" required>
+                            <input type="time" data-seg="arrival_time" class="form-input" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Economy Fare (₱) <span style="color:#d64545">*</span> <span class="meta" style="display:block">leave 0 if the aircraft has no economy cabin</span></label>
+                        <input type="number" data-seg="economy_fare" step="0.01" min="0" class="form-input" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Premium Economy (₱)</label>
+                        <input type="number" data-seg="premium_economy_fare" step="0.01" min="0" class="form-input" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Business (₱)</label>
+                        <input type="number" data-seg="business_fare" step="0.01" min="0" class="form-input" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>First Class (₱)</label>
+                        <input type="number" data-seg="first_class_fare" step="0.01" min="0" class="form-input" value="0">
+                    </div>
+                </div>
+
+                <details style="margin-top:6px">
+                    <summary style="cursor:pointer;font-size:13px;color:#5b6472">Optional segment detail</summary>
+                    <div class="form-grid" style="margin-top:10px">
+                        <div class="form-group"><label>Departure Terminal</label><input type="text" data-seg="departure_terminal" class="form-input" maxlength="50"></div>
+                        <div class="form-group"><label>Departure Gate</label><input type="text" data-seg="departure_gate" class="form-input" maxlength="50"></div>
+                        <div class="form-group"><label>Arrival Terminal</label><input type="text" data-seg="arrival_terminal" class="form-input" maxlength="50"></div>
+                        <div class="form-group"><label>Arrival Gate</label><input type="text" data-seg="arrival_gate" class="form-input" maxlength="50"></div>
+                        <div class="form-group"><label>Baggage Claim</label><input type="text" data-seg="baggage_claim" class="form-input" maxlength="50"></div>
+                        <div class="form-group"><label>Check-in</label><input type="time" data-seg="check_in_time" class="form-input"></div>
+                        <div class="form-group"><label>Boarding</label><input type="time" data-seg="boarding_time" class="form-input"></div>
+                        <div class="form-group"><label>Checked Baggage (kg)</label><input type="number" data-seg="checked_baggage_kg" step="1" min="0" class="form-input" value="0"></div>
+                        <div class="form-group"><label>Cabin Baggage (kg)</label><input type="number" data-seg="cabin_baggage_kg" step="1" min="0" class="form-input" value="0"></div>
+                    </div>
+                </details>
+            </div>
+        </template>
+
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+            <button type="button" class="btn btn-outline" data-add-segment>+ Add segment</button>
+            <span class="meta" data-segment-limit style="display:none;color:#b42318"></span>
+        </div>
+
+        <h3 style="margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-tags"></i> Journey Fare &amp; Status</h3>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Base Fare (₱) <span class="meta" style="display:block">blank means the sum of the legs' economy fares</span></label>
+                <input type="number" name="base_fare" step="0.01" min="0" class="form-input" value="{{ itinerary.base_fare|default:'' }}">
+            </div>
+            <div class="form-group"><label>Taxes (₱)</label><input type="number" name="taxes" step="0.01" min="0" class="form-input" value="{{ itinerary.taxes|default:'' }}"></div>
+            <div class="form-group"><label>Airport Fees (₱)</label><input type="number" name="airport_fees" step="0.01" min="0" class="form-input" value="{{ itinerary.airport_fees|default:'' }}"></div>
+            <div class="form-group"><label>Fuel Surcharge (₱)</label><input type="number" name="fuel_surcharge" step="0.01" min="0" class="form-input" value="{{ itinerary.fuel_surcharge|default:'' }}"></div>
+            <div class="form-group"><label>Service Fee (₱)</label><input type="number" name="service_fee" step="0.01" min="0" class="form-input" value="{{ itinerary.service_fee|default:'' }}"></div>
+            <div class="form-group"><label>Discount (₱)</label><input type="number" name="discount" step="0.01" min="0" class="form-input" value="{{ itinerary.discount|default:'' }}"></div>
+            <div class="form-group"><label>Baggage Rate (₱ / kg)</label><input type="number" name="itinerary_baggage_rate" step="0.01" min="0" class="form-input" value="{{ itinerary.baggage_rate|default:'' }}"></div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Min. Connection (minutes)</label>
+                <input type="number" name="min_connection_minutes" step="1" min="0" class="form-input" value="{{ itinerary.min_connection_minutes|default:45 }}">
+                <span class="meta" style="display:block">A connection shorter than this is rejected.</span>
+            </div>
+            <div class="form-group">
+                <label>Max. Connection (minutes)</label>
+                <input type="number" name="max_connection_minutes" step="1" min="0" class="form-input" value="{{ itinerary.max_connection_minutes|default:'' }}">
+                <span class="meta" style="display:block">0 means no upper limit.</span>
+            </div>
+            <div class="form-group">
+                <label>Min. Advance Booking (hours)</label>
+                <input type="number" name="min_advance_booking_hours" step="1" min="0" class="form-input" value="{{ itinerary.min_advance_booking_hours|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label>Operating Days</label>
+                <input type="text" name="operating_days" class="form-input" value="{{ itinerary.operating_days|default:'' }}" maxlength="40" placeholder="e.g. MON,TUE,WED">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Journey Status</label>
+                <select name="itinerary_status" class="form-input">
+                    <option value="SCHEDULED" {% if itinerary.status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                    <option value="DELAYED" {% if itinerary.status == 'DELAYED' %}selected{% endif %}>Delayed</option>
+                    <option value="CANCELLED" {% if itinerary.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                    <option value="COMPLETED" {% if itinerary.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            <div class="form-group" style="align-self:end">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                    <input type="checkbox" name="booking_available" {% if itinerary.booking_available %}checked{% endif %}>
+                    <span>Open for booking</span>
+                </label>
+            </div>
+            <div class="form-group" style="align-self:end">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                    <input type="checkbox" name="is_refundable" {% if itinerary.is_refundable %}checked{% endif %}>
+                    <span>Refundable</span>
+                </label>
+            </div>
+            <div class="form-group" style="align-self:end">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                    <input type="checkbox" name="is_changeable" {% if itinerary.is_changeable %}checked{% endif %}>
+                    <span>Changeable</span>
+                </label>
+            </div>
+            <div class="form-group"><label>Change Fee (₱)</label><input type="number" name="change_fee" step="0.01" min="0" class="form-input" value="{{ itinerary.change_fee|default:'' }}"></div>
+            <div class="form-group"><label>Cancellation Fee (₱)</label><input type="number" name="cancellation_fee" step="0.01" min="0" class="form-input" value="{{ itinerary.cancellation_fee|default:'' }}"></div>
+        </div>
+    </div><!-- /data-connecting-section -->
+
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px;margin-top:10px">Save Flight</button>
+    {% if airline %}
+    <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+    {% else %}
+    <a href="{% url 'airlines:flights' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+    {% endif %}
+</form>
+<script data-establishment-modal-init>
+(function () {
+    'use strict';
+    var form = document.querySelector('[data-flight-form]');
+    if (!form) return;
+
+    var returnSection = form.querySelector('[data-return-section]');
+    var warning = form.querySelector('[data-return-warning]');
+    var typeRadios = form.querySelectorAll('[data-flight-type]');
+    var tripSync = form.querySelector('[data-trip-type-sync]');
+    var directSection = form.querySelector('[data-direct-section]');
+    var connectingSection = form.querySelector('[data-connecting-section]');
+    var airlineSelect = form.querySelector('[data-airline]');
+
+    /* The airline <select> cannot render logos, so the chosen carrier's mark
+       sits beside it and follows the selection. */
+    var airlineLogo = document.getElementById('flightAirlineLogo');
+    function syncAirlineLogo() {
+        if (!airlineSelect || !airlineLogo) return;
+        var opt = airlineSelect.options[airlineSelect.selectedIndex];
+        var url = opt ? opt.getAttribute('data-logo') : '';
+        if (url) { airlineLogo.src = url; airlineLogo.style.display = ''; }
+        else { airlineLogo.removeAttribute('src'); airlineLogo.style.display = 'none'; }
+    }
+    if (airlineSelect) {
+        airlineSelect.addEventListener('change', syncAirlineLogo);
+        syncAirlineLogo();
+    }
+
+    function flightType() {
+        var checked = form.querySelector('[data-flight-type]:checked');
+        return checked ? checked.value : 'DIRECT';
+    }
+
+    function isConnecting() {
+        return flightType() === 'CONNECTING';
+    }
+
+    /* A connecting journey is one continuous chain, so it is always a one-way
+       chain of legs; the round-trip return leg belongs to the direct form only. */
+    function isRoundTrip() {
+        return flightType() === 'ROUND_TRIP';
+    }
+
+    /* ---- Return leg visibility -------------------------------------- */
+    function syncReturnVisibility() {
+        returnSection.hidden = !isRoundTrip();
+        if (isRoundTrip()) mirrorRoute();
+    }
+
+    /* ---- Direct vs Connecting ---------------------------------------- */
+    function syncFlightType() {
+        var connecting = isConnecting();
+        if (directSection) directSection.hidden = connecting;
+        if (connectingSection) connectingSection.hidden = !connecting;
+        if (tripSync) tripSync.value = isRoundTrip() ? 'ROUND_TRIP' : 'ONE_WAY';
+        syncReturnVisibility();
+        // The section that is not in play is fully disabled, not just hidden. A
+        // hidden `required` input still blocks submit and still posts, so the
+        // connecting form's empty segment dates would refuse to save a plain
+        // direct flight, and the direct form's origin would be posted to the
+        // connecting validator.
+        [].forEach.call(form.querySelectorAll('[data-direct-section], [data-connecting-section]'),
+            function (section) {
+                var inactive = (section.hasAttribute('data-direct-section') && connecting)
+                    || (section.hasAttribute('data-connecting-section') && !connecting);
+                section.querySelectorAll('input, select, textarea').forEach(function (input) {
+                    input.disabled = inactive;
+                });
+            });
+    }
+
+    /* ---- Route mirroring -------------------------------------------- */
+    // The return leg flies the same route backwards. The airport picker writes
+    // its choice into a hidden input, so the two ends are swapped by copying the
+    // value plus the data the picker needs to render the label.
+    function airportField(name) {
+        return form.querySelector('[name="' + name + '"]');
+    }
+
+    function copyAirport(fromName, toName) {
+        var to = airportField(toName);
+        if (!to) return null;
+        var from = airportField(fromName);
+        if (!from || !from.value) return null;
+        to.value = from.value;
+        ['data-airport-code', 'data-airport-city', 'data-airport-country'].forEach(function (attr) {
+            to.setAttribute(attr, from.getAttribute(attr) || '');
+        });
+        var wrap = to.closest('[data-airport-picker]');
+        if (wrap) {
+            var text = wrap.querySelector('.atrue-airport-text');
+            if (text) {
+                var code = from.getAttribute('data-airport-code');
+                var city = from.getAttribute('data-airport-city');
+                text.textContent = [code, city].filter(Boolean).join(' — ');
+            }
+            var placeholder = wrap.querySelector('.atrue-airport-placeholder');
+            if (placeholder) placeholder.style.display = 'none';
+        }
+        return to.value;
+    }
+
+    function mirrorRoute() {
+        if (!isRoundTrip()) return;
+        var retOrigin = airportField('return_origin_airport');
+        var retDest = airportField('return_destination_airport');
+        // Never overwrite something the manager typed themselves.
+        if (retOrigin && !retOrigin.dataset.edited) copyAirport('destination_airport', 'return_origin_airport');
+        if (retDest && !retDest.dataset.edited) copyAirport('origin_airport', 'return_destination_airport');
+    }
+
+    form.querySelectorAll('[name$="_airport"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (input.name.indexOf('return_') === 0) input.dataset.edited = '1';
+            if (input.name === 'destination_airport' || input.name === 'origin_airport') {
+                // Re-pick from a cleared field must not strand the mirrored value.
+                if (input.value) delete input.dataset.edited;
+                mirrorRoute();
+            }
+        });
+    });
+
+    /* ---- Aircraft type -> aircraft cascade -------------------------- */
+    function syncAircraft(side) {
+        var typeSelect = form.querySelector('[data-type-select][data-side="' + side + '"]');
+        var aircraftSelect = form.querySelector('[data-aircraft-select][data-side="' + side + '"]');
+        if (!typeSelect || !aircraftSelect) return;
+        var typeId = typeSelect.value;
+        var chosen = aircraftSelect.value;
+        Array.prototype.forEach.call(aircraftSelect.options, function (option) {
+            if (!option.value) return;
+            var matches = !typeId || option.dataset.type === typeId;
+            option.hidden = !matches;
+            option.disabled = !matches;
+        });
+        if (chosen && aircraftSelect.selectedOptions[0]
+                && aircraftSelect.selectedOptions[0].hidden) {
+            aircraftSelect.value = '';
+        }
+        syncSeatPreview(side);
+    }
+
+    /* ---- Derived seat map preview ------------------------------------ */
+    // The map is never chosen by hand: it is whatever the selected aircraft is
+    // fitted out with in the database.
+    function syncSeatPreview(side) {
+        var aircraftSelect = form.querySelector('[data-aircraft-select][data-side="' + side + '"]');
+        var preview = form.querySelector('[data-seat-preview="' + side + '"]');
+        if (!aircraftSelect || !preview) return;
+        var option = aircraftSelect.selectedOptions[0];
+        if (!option || !option.value) {
+            var sameText = side === 'return'
+                ? 'Same seat map as the departure leg unless a different aircraft is chosen.'
+                : 'Set from the aircraft assigned above, or from the airline’s default fleet type.';
+            preview.innerHTML = '<span>' + sameText + '</span>';
+            return;
+        }
+        var seats = option.dataset.seats;
+        var map = option.dataset.map;
+        var cabins = option.dataset.cabins;
+        var html = '';
+        if (map) html += '<b>' + map + '</b> · ' + seats + ' seats';
+        if (cabins) html += ' · ' + cabins;
+        preview.innerHTML = html || '<span>No seat layout configured for this aircraft.</span>';
+    }
+
+    form.querySelectorAll('[data-type-select]').forEach(function (select) {
+        select.addEventListener('change', function () { syncAircraft(select.dataset.side); });
+    });
+    form.querySelectorAll('[data-aircraft-select]').forEach(function (select) {
+        select.addEventListener('change', function () { syncSeatPreview(select.dataset.side); });
+    });
+
+    function syncFlightDateTime(wrapper) {
+        if (!wrapper) return;
+        var hidden = wrapper.querySelector('[data-flight-datetime-value]');
+        var date = wrapper.querySelector('[data-flight-date]');
+        var time = wrapper.querySelector('[data-flight-time]');
+        if (!hidden || !date || !time) return;
+        hidden.value = date.value && time.value ? date.value + 'T' + time.value : '';
+    }
+
+    function syncFlightDateTimes() {
+        form.querySelectorAll('[data-flight-datetime]').forEach(syncFlightDateTime);
+    }
+
+    form.querySelectorAll('[data-flight-date], [data-flight-time]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            syncFlightDateTime(input.closest('[data-flight-datetime]'));
+            validateReturnDates();
+        });
+    });
+    form.addEventListener('submit', syncFlightDateTimes, true);
+    syncFlightDateTimes();
+    /* ---- Return date sanity check ------------------------------------ */
+    function validateReturnDates() {
+        if (!warning) return;
+        var outbound = form.querySelector('[name="departure_time"]');
+        var back = form.querySelector('[name="return_departure_time"]');
+        if (!isRoundTrip() || !outbound || !back || !outbound.value || !back.value) {
+            warning.style.display = 'none';
+            return;
+        }
+        var outDay = outbound.value.slice(0, 10);
+        var backDay = back.value.slice(0, 10);
+        if (backDay < outDay) {
+            warning.textContent = 'Return date must not be earlier than the departure date.';
+            warning.style.display = 'block';
+        } else {
+            warning.style.display = 'none';
+        }
+    }
+
+
+
+    /* ---- Airline change reloads the fleet ---------------------------- */
+    // The aircraft list is airline-scoped, so switching operator re-reads the
+    // page with the new airline and its own fleet types.
+    if (airlineSelect) {
+        airlineSelect.addEventListener('change', function () {
+            if (form.closest('.establishment-modal__body')) return;
+            // Read the value inside the handler: caching it at load time would
+            // re-request the airline that was already selected, so switching
+            // operators would silently keep the old fleet.
+            var url = new URL(window.location.href);
+            url.searchParams.set('airline', airlineSelect.value);
+            url.searchParams.set('trip_type', isRoundTrip() ? 'ROUND_TRIP' : 'ONE_WAY');
+            url.searchParams.set('flight_type', isConnecting() ? 'CONNECTING' : 'DIRECT');
+            window.location.href = url.toString();
+        });
+    }
+
+    /* ---- Connecting segments ----------------------------------------- */
+    var segmentList = form.querySelector('[data-segment-list]');
+    var segmentTemplate = form.querySelector('[data-segment-template]');
+    var segmentCount = form.querySelector('[data-segment-count]');
+    var addSegment = form.querySelector('[data-add-segment]');
+    var segmentLimit = form.querySelector('[data-segment-limit]');
+    var maxSegments = {{ max_segments|default:6 }};
+
+    // Renumber the inputs to match their position in the list. The server reads
+    // `seg_<index>_<field>`, so the index has to be the travel order and cannot
+    // be left over from whatever position a segment used to sit in.
+    function renumberSegments() {
+        var rows = segmentList ? segmentList.querySelectorAll('[data-segment]') : [];
+        Array.prototype.forEach.call(rows, function (row, index) {
+            var idInput = row.querySelector('[data-seg-id]');
+            if (idInput) idInput.name = 'seg_' + index + '_id';
+            row.querySelectorAll('[data-seg]').forEach(function (input) {
+                input.name = 'seg_' + index + '_' + input.dataset.seg;
+            });
+            // The two airport pickers are rendered by a shared partial, so their
+            // real field names are stamped on here rather than in the template.
+            var origin = row.querySelector('[data-airport-value][name="__seg_origin__"]');
+            var destination = row.querySelector('[data-airport-value][name="__seg_destination__"]');
+            if (origin) origin.name = 'seg_' + index + '_origin_airport';
+            if (destination) destination.name = 'seg_' + index + '_destination_airport';
+            var title = row.querySelector('[data-segment-title]');
+            if (title) title.textContent = 'Segment ' + (index + 1);
+        });
+        if (segmentCount) segmentCount.value = rows.length;
+        if (segmentLimit) {
+            segmentLimit.style.display = rows.length >= maxSegments ? 'block' : 'none';
+            segmentLimit.textContent = 'A journey can have at most ' + maxSegments + ' segments.';
+        }
+        if (addSegment) addSegment.disabled = rows.length >= maxSegments;
+        return rows.length;
+    }
+
+    function applySegmentData(row, data) {
+        if (!data) return;
+        var idInput = row.querySelector('[data-seg-id]');
+        if (idInput) idInput.value = data.id || '';
+        row.querySelectorAll('[data-seg]').forEach(function (input) {
+            var value = data[input.dataset.seg];
+            if (value !== undefined && value !== null) input.value = value;
+        });
+        var aircraft = row.querySelector('[data-seg="aircraft"]');
+        if (aircraft) aircraft.value = data.aircraft || '';
+        [['__seg_origin__', data.origin, data.origin_code, data.origin_city],
+         ['__seg_destination__', data.destination, data.destination_code, data.destination_city]
+        ].forEach(function (pair) {
+            var hidden = row.querySelector('[data-airport-value][name="' + pair[0] + '"]');
+            if (!hidden) return;
+            hidden.value = pair[1] || '';
+            hidden.dataset.airportCode = pair[2] || '';
+            hidden.dataset.airportCity = pair[3] || '';
+            hidden.dataset.airportCountry = '';
+            var wrap = hidden.closest('[data-airport-picker]');
+            if (!wrap) return;
+            var text = wrap.querySelector('.atrue-airport-text');
+            if (text && pair[1]) {
+                text.textContent = [pair[2], pair[3]].filter(Boolean).join(' — ');
+            }
+        });
+    }
+
+    function addSegmentRow(data) {
+        if (!segmentList || !segmentTemplate) return null;
+        var row = segmentTemplate.content.firstElementChild.cloneNode(true);
+        segmentList.appendChild(row);
+        applySegmentData(row, data);
+        // The shared airport picker only initialises the pickers present at load,
+        // so a freshly inserted row has to be handed back to it.
+        if (window.AirportPicker) window.AirportPicker.init();
+        renumberSegments();
+        return row;
+    }
+
+    if (segmentList && segmentTemplate) {
+        var existingLegs = [];
+        try { existingLegs = JSON.parse(document.getElementById('itinerary-legs-data').textContent); }
+        catch (e) { existingLegs = []; }
+        if (existingLegs.length >= 2) {
+            existingLegs.forEach(addSegmentRow);
+        } else {
+            // A brand new journey starts with the two legs that make it a
+            // connection in the first place; the minimum is enforced server-side
+            // as well, so an empty form still cannot save a one-leg "connecting"
+            // itinerary.
+            addSegmentRow();
+            addSegmentRow();
+        }
+        renumberSegments();
+
+        if (addSegment) {
+            addSegment.addEventListener('click', function () {
+                if (renumberSegments() >= maxSegments) return;
+                addSegmentRow();
+            });
+        }
+        segmentList.addEventListener('click', function (event) {
+            var button = event.target.closest('[data-remove-segment]');
+            if (!button) return;
+            var row = button.closest('[data-segment]');
+            // Two legs is the floor: removing the last one would leave a form
+            // that cannot describe a connection.
+            if (segmentList.querySelectorAll('[data-segment]').length <= 2) return;
+            row.remove();
+            renumberSegments();
+        });
+    }
+
+    typeRadios.forEach(function (radio) { radio.addEventListener('change', syncFlightType); });
+    syncFlightType();
+    syncAircraft('outbound');
+    syncAircraft('return');
+    validateReturnDates();
+})();
+</script>
+{% endblock %}

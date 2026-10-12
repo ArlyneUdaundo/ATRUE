@@ -1,0 +1,118 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+{% load hotel_photos %}
+
+{% block title %}{{ resort.name }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ resort.name }}</h1>
+        <p>{{ resort.resort_id }} · {{ resort.location }} · <span class="badge {% if resort.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ resort.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'resorts:update_resort' resort.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'resorts:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Resorts</a>
+        {% else %}
+        <a href="{% url 'resorts:flow_select' resort.id %}" class="btn btn-brand"><i class="fas fa-layer-group"></i> Book Villas</a>
+        <a href="{% url 'resorts:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resorts</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if resort.photos.all %}
+<div class="hotel-gallery" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px">
+    {% for photo in resort.photos.all|usable_urls %}
+    <img src="{{ photo }}" alt="{{ resort.name }} photo {{ forloop.counter }}" loading="lazy" decoding="async" style="width:100%;height:230px;object-fit:cover;border-radius:14px">
+    {% endfor %}
+</div>
+{% else %}
+<div id="resort-gallery-fallback" class="hotel-gallery-fallback" style="margin-bottom:18px">
+    <img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ resort.name }}" style="width:100%;height:300px;object-fit:cover;border-radius:14px">
+</div>
+{% endif %}
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-umbrella-beach"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Resort ID: <b>{{ resort.resort_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ resort.barangay|default:"—" }}, {{ resort.municipality|default:"—" }}, {{ resort.province|default:"—" }}</div>
+            <div class="meta"><i class="fas fa-clock"></i> {{ resort.operating_schedule|default:"Anytime" }}</div>
+        </div>
+        <div style="text-align:right">
+            <div class="meta"><i class="fas fa-phone"></i> {{ resort.contact_number|default:"—" }}</div>
+            <div class="meta"><i class="fas fa-envelope"></i> {{ resort.email|default:"—" }}</div>
+        </div>
+    </div>
+</div>
+
+{% if is_manager or resort.services.all %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-concierge-bell"></i> Services</h3>
+    {% if is_manager %}
+    <a href="{% url 'resorts:add_service' resort.id %}" class="btn btn-brand btn-sm" data-establishment-create style="margin-bottom:12px"><i class="fas fa-plus"></i> Add Service</a>
+    {% endif %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service ID</th><th>Service</th><th>Schedule</th><th>Capacity</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for s in resort.services.all %}
+                <tr>
+                    <td class="mono">{{ s.service_id }}</td>
+                    <td><b>{{ s.name }}</b></td>
+                    <td>{{ s.operating_hours|default:"Anytime" }}</td>
+                    <td>{{ s.capacity }}</td>
+                    <td>₱ {{ s.rate }}</td>
+                    <td>{{ s.get_status_display }}</td>
+                    <td><a href="{% url 'resorts:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="7">No services added.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-pad">
+    <h3 style="margin:0 0 12px"><i class="fas fa-bed"></i> Rooms &amp; Villas</h3>
+    {% if is_manager %}
+    <a href="{% url 'resorts:add_unit' resort.id %}" class="btn btn-brand btn-sm" style="margin-bottom:12px"><i class="fas fa-plus"></i> Add Unit</a>
+    {% endif %}
+    <div class="resort-unit-list">
+        {% for unit in resort.units.all %}
+        {% if is_manager or unit.status == 'AVAILABLE' and resort.status == 'ACTIVE' %}
+        <article class="resort-unit-row">
+            {% if unit.photos.first %}
+            <img src="{{ unit.photos.first.image.url }}" alt="{{ unit.unit_number }}" class="resort-unit-photo">
+            {% else %}
+            <div class="resort-unit-placeholder"><i class="fas fa-holly-berry"></i></div>
+            {% endif %}
+            <div class="resort-unit-content">
+                <div class="resort-unit-main">
+                    <div>
+                        <b>{{ unit.unit_number }}</b> <a href="{% url 'resorts:unit_detail' unit.id %}" class="resort-unit-open" aria-label="View {{ unit.unit_number }}"><i class="fas fa-external-link-alt"></i></a>
+                        <div class="meta">{{ unit.get_unit_type_display }} &middot; {{ unit.capacity_adults }}A / {{ unit.capacity_children }}C</div>
+                        {% if unit.features %}<div class="meta"><i class="fas fa-bed"></i> {{ unit.features }}</div>{% endif %}
+                    </div>
+                    <span class="badge {% if unit.status == 'AVAILABLE' %}badge-green{% else %}badge-amber{% endif %}">{{ unit.get_status_display }}</span>
+                </div>
+                <div class="resort-unit-foot">
+                    <div class="resort-unit-rate"><strong>&#8369; {{ unit.rate }}</strong><small>/night</small></div>
+                    <div class="resort-unit-actions">
+                        {% if is_manager %}
+                        <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Manage</a>
+                        {% elif unit.status == 'AVAILABLE' %}
+                        <a href="{% url 'resorts:unit_detail' unit.id %}" class="btn btn-brand btn-sm"><i class="fas fa-umbrella-beach"></i> View &amp; Book</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endif %}
+        {% empty %}
+        <div class="empty"><i class="fas fa-bed"></i><h3>No units yet</h3></div>
+        {% endfor %}
+    </div></div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book Flight{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your flight</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-plane"></i></span>
+                <div>
+                    <h3>{{ flight.flight_number }} · {{ flight.airline.name }}</h3>
+                    <p>{{ flight.origin }} → {{ flight.destination }}</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-clock"></i> Departs {{ flight.departure_time|date:"M d, Y H:i" }}</div>
+            <div class="ag-detail-row"><i class="fas fa-plane-arrival"></i> Arrives {{ flight.arrival_time|date:"M d, Y H:i" }}</div>
+            <div class="ag-detail-row"><i class="fas fa-chair"></i> {{ flight.aircraft.model_name }} · {{ remaining }} seats remaining</div>
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Passengers &amp; add-ons</h3><p>Complete the details below (BR-045, BR-046)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Number of Passengers</label>
+                    <input type="number" name="passengers" id="passengers" class="form-input" value="1" min="1" max="{{ remaining }}" oninput="renderPassengers();updateFare()">
+                </div>
+<div class="form-group">
+                <label>Fare Class</label>
+                <select name="fare_class" id="fare-class" class="form-input" onchange="updateFare()">
+                    <option value="ECONOMY">Economy — ₱ {{ flight.economy_fare }}</option>
+                    <option value="FIRST_CLASS">First Class — ₱ {{ flight.first_class_fare }}</option>
+                </select>
+            </div>
+        </div>
+        <div class="ag-customer-box" style="margin-top:18px">
+            <div class="ag-detail-row"><i class="fas fa-user"></i> Lead passenger: {{ request.user.get_full_name|default:request.user.username }}</div>
+            <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+            <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+            <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+            <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+        </div>
+        <div class="ag-panel-head" style="margin-top:18px">
+            <span class="ag-ph-ico"><i class="fas fa-passport"></i></span>
+            <div><h3>Travel document &amp; payer</h3><p>Required travel information for the booking (FR-018).</p></div>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Travel Document Type</label>
+                <select name="travel_document_type" class="form-input">
+                    <option value="PASSPORT" selected>Passport</option>
+                    <option value="NATIONAL_ID">National ID</option>
+                    <option value="DRIVERS_LICENSE">Driver's License</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Travel Document Number</label>
+                <input type="text" name="travel_document_number" class="form-input" placeholder="e.g. P1234567" required>
+            </div>
+            <div class="form-group">
+                <label>Payer Name</label>
+                <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:request.user.username }}">
+            </div>
+            <div class="form-group">
+                <label>Payer Contact</label>
+                <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}">
+            </div>
+        </div>
+        <div id="passenger-rows"></div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Extra Baggage Charge (₱, total)</label>
+                    <input type="number" name="baggage" id="baggage" step="0.01" class="form-input" value="0" min="0" oninput="updateFare()">
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select name="payment_method" class="form-input">
+                        <option value="GCASH">GCash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CREDIT_CARD">Credit Card</option>
+                        <option value="DEBIT_CARD">Debit Card</option>
+                    </select>
+                </div>
+            </div>
+            {% if services %}
+            <div class="form-group">
+                <label>Add-On Services</label>
+                {% for s in services %}
+                <label class="checkbox"><input type="checkbox" name="services" value="{{ s.id }}" data-rate="{{ s.rate }}" onchange="updateFare()"> {{ s.name }} {% if s.rate %}— ₱ {{ s.rate }}{% endif %}</label>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+            </label>
+            <a href="{% url 'airlines:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-plane"></i></span>
+                <div><b>{{ flight.flight_number }}</b><small>{{ flight.origin }} → {{ flight.destination }} · {{ flight.departure_time|date:"M d, H:i" }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Economy fare</span><b>₱ {{ flight.economy_fare }} /pax</b></div>
+                <div class="ag-pb-row"><span>First Class fare</span><b>₱ {{ flight.first_class_fare }} /pax</b></div>
+                <div class="ag-pb-row"><span>Passengers</span><b><span id="pb-guests">1</span> pax</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ {{ flight.economy_fare }}</span></b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying passengers, fare class, baggage and add-ons.</div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function renderPassengers(){
+    var max = {{ remaining }};
+    var n = Math.min(parseInt(document.getElementById('passengers').value) || 1, max);
+    var wrap = document.getElementById('passenger-rows');
+    var names = Array.prototype.map.call(wrap.querySelectorAll('input[name="passenger_names"]'), function(i){return i.value;});
+    var seats = Array.prototype.map.call(wrap.querySelectorAll('input[name="seat_numbers"]'), function(i){return i.value;});
+    wrap.innerHTML = '';
+    document.getElementById('pb-guests').textContent = n;
+    for (var i = 0; i < n; i++){
+        var row = document.createElement('div');
+        row.className = 'passenger-row';
+        row.style.cssText = 'display:grid;grid-template-columns:1fr 90px;gap:10px;margin-bottom:10px';
+        var name = document.createElement('input');
+        name.type = 'text'; name.name = 'passenger_names'; name.className = 'form-input';
+        name.placeholder = 'Passenger ' + (i + 1); name.value = names[i] || '';
+        var seat = document.createElement('input');
+        seat.type = 'text'; seat.name = 'seat_numbers'; seat.className = 'form-input';
+        seat.placeholder = 'Seat'; seat.value = seats[i] || '';
+        row.appendChild(name); row.appendChild(seat);
+        wrap.appendChild(row);
+    }
+}
+document.getElementById('passengers').addEventListener('input', renderPassengers);
+renderPassengers();
+var ECON_FARE = {{ flight.economy_fare }};
+var FIRST_FARE = {{ flight.first_class_fare }};
+function updateFare() {
+    var n = Math.min(parseInt(document.getElementById('passengers').value) || 1, {{ remaining }});
+    var cls = document.getElementById('fare-class').value;
+    var perPax = cls === 'FIRST_CLASS' ? FIRST_FARE : ECON_FARE;
+    var total = perPax * n;
+    total += parseFloat(document.getElementById('baggage').value) || 0;
+    document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
+        total += parseFloat(cb.dataset.rate) || 0;
+    });
+    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+}
+updateFare();
+</script>
+{% endblock %}

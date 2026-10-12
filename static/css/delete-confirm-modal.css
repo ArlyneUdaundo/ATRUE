@@ -1,0 +1,65 @@
+.delete-confirm-modal[hidden] { display: none; }
+.delete-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50000;
+    display: grid;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    padding: 18px;
+    overflow: visible;
+    border: 0;
+    color: inherit;
+    place-items: center;
+    background: rgba(15, 23, 42, .62);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+}
+.delete-confirm-modal::backdrop { background: transparent; }
+.delete-confirm-modal__panel {
+    width: min(420px, 100%);
+    padding: 28px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .3);
+    text-align: center;
+}
+.delete-confirm-modal__icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    place-items: center;
+    border-radius: 16px;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 21px;
+}
+.delete-confirm-modal__panel h2 { margin: 0 0 8px; color: #172033; font-size: 20px; font-weight: 800; }
+.delete-confirm-modal__panel p { margin: 0; color: #64748b; font-size: 15px; line-height: 1.5; }
+.delete-confirm-modal__actions { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
+.delete-confirm-modal__actions button {
+    min-width: 112px;
+    min-height: 42px;
+    padding: 9px 16px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.delete-confirm-modal__actions button:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 2px; }
+.delete-confirm-modal__actions .delete-confirm-modal__confirm { border-color: #dc2626; background: #dc2626; color: #fff; }
+.delete-confirm-modal__actions .delete-confirm-modal__confirm:hover { border-color: #b91c1c; background: #b91c1c; }
+.delete-confirm-modal__actions .delete-confirm-modal__cancel:hover { background: #f8fafc; }
+body.delete-confirm-open { overflow: hidden; }
+@media (max-width: 480px) {
+    .delete-confirm-modal { padding: 12px; }
+    .delete-confirm-modal__panel { padding: 24px 18px; border-radius: 16px; }
+}

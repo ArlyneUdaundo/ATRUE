@@ -1,0 +1,46 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if service %}Update Service{% else %}Add Service{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if service %}Update Service{% else %}Add Service{% endif %} — {{ hotel.name }}</h1><p>Hotel services management (BR-011, BR-024).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if service %}
+    <div class="form-group">
+        <label>Service ID</label>
+        <input type="text" class="form-input" value="{{ service.service_id }}" readonly disabled>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Service Name</label>
+        <input type="text" name="name" class="form-input" value="{{ service.name|default:'' }}" placeholder="e.g. Laundry Service" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ service.description|default:'' }}</textarea>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Rate (₱)</label>
+            <input type="number" name="rate" step="0.01" class="form-input" value="{{ service.rate|default:0 }}">
+        </div>
+        <div class="form-group">
+            <label>Operating Hours</label>
+            <input type="text" name="operating_hours" class="form-input" value="{{ service.operating_hours|default:'' }}" placeholder="8:00 AM - 8:00 PM">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if service.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if service.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if service.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNAVAILABLE" {% if service.status == 'UNAVAILABLE' %}selected{% endif %}>Unavailable</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Service</button>
+    <a href="{% url 'hotels:update_hotel' hotel.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

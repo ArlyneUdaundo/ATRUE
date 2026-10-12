@@ -1,0 +1,80 @@
+    <div class="form-grid">
+        <div class="form-group"><label>Name</label><input type="text" name="name" class="form-input" value="{{ package.name|default:'' }}" required></div>
+        <div class="form-group"><label>Duration (days)</label><input type="number" name="duration_days" class="form-input" value="{{ package.duration_days|default:1 }}"></div>
+    </div>
+    <div class="form-group"><label>Description</label><textarea name="description" class="form-input" rows="2">{{ package.description|default:'' }}</textarea></div>
+    <div class="form-group">
+        <label>Tour Package Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+    </div>
+    {% if package and package.photos.all %}
+    <div class="form-group">
+        <label>Existing Photos</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in package.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="{{ package.name }}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">
+                <span class="meta">{% if photo.is_primary %}Primary · {% endif %}<input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-map-marker-alt"></i> Destination</h4>
+    <div class="form-grid">
+        <div class="form-group"><label>Destination Name</label><input type="text" name="destination_name" class="form-input" value="{{ package.destination_name|default:'' }}"></div>
+    </div>
+    <div style="margin-top:12px">
+        {% include 'search/_loc_cascade_field.html' with country_name='destination_country' country_value=package.destination_country province_name='destination_province' province_value=package.destination_province municipality_name='destination_city' municipality_value=package.destination_city barangay_name='destination_barangay' barangay_value='' %}
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-peso-sign"></i> Pricing</h4>
+    <div class="form-grid">
+        <div class="form-group"><label>Base Price (â‚±)</label><input type="number" name="base_price" step="0.01" class="form-input" value="{{ package.base_price|default:0 }}"></div>
+        <div class="form-group"><label>Discount (â‚±)</label><input type="number" name="discount" step="0.01" class="form-input" value="{{ package.discount|default:0 }}"></div>
+        <div class="form-group"><label>Final Package Price (â‚±)</label><input type="number" name="price" step="0.01" class="form-input" value="{{ package.price|default:0 }}" required></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Included Headcount</label><input type="number" name="included_headcount" class="form-input" value="{{ package.included_headcount|default:1 }}"></div>
+        <div class="form-group"><label>Included Adults</label><input type="number" name="included_adults" class="form-input" value="{{ package.included_adults|default:1 }}"></div>
+        <div class="form-group"><label>Included Children</label><input type="number" name="included_children" class="form-input" value="{{ package.included_children|default:0 }}"></div>
+        <div class="form-group"><label>Extra-Person Rate (â‚±/head)</label><input type="number" name="extra_person_rate" step="0.01" class="form-input" value="{{ package.extra_person_rate|default:0 }}"></div>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-calendar"></i> Validity</h4>
+    <div class="form-grid" id="tour-package-validity" style="gap:12px;align-items:end">
+        <div class="form-group" style="margin:0;min-width:0">
+            <label for="validity-start-date">Valid From</label>
+            <input type="date" id="validity-start-date" name="validity_start_date" class="form-input" value="{% if package %}{{ package.validity_start_date|date:'Y-m-d' }}{% endif %}" required style="display:block;width:100%;min-width:0;min-height:42px;padding:8px 10px">
+        </div>
+        <div class="form-group" style="margin:0;min-width:0">
+            <label for="validity-end-date">Valid Until</label>
+            <input type="date" id="validity-end-date" name="validity_end_date" class="form-input" value="{% if package %}{{ package.validity_end_date|date:'Y-m-d' }}{% endif %}" required style="display:block;width:100%;min-width:0;min-height:42px;padding:8px 10px">
+        </div>
+    </div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-file-alt"></i> Terms</h4>
+    <div class="form-group"><label>Package Inclusions</label><textarea name="inclusions" class="form-input" rows="2">{{ package.inclusions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Package Exclusions</label><textarea name="exclusions" class="form-input" rows="2">{{ package.exclusions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Terms and Conditions</label><textarea name="terms_and_conditions" class="form-input" rows="2">{{ package.terms_and_conditions|default:'' }}</textarea></div>
+    <div class="form-group"><label>Cancellation Policy</label><textarea name="cancellation_policy" class="form-input" rows="2">{{ package.cancellation_policy|default:'' }}</textarea></div>
+    <div class="form-group">
+        <label class="tour-guide-option">
+            <input type="checkbox" name="included_tour_guide" {% if package.included_tour_guide %}checked{% endif %}> Includes a tour guide
+        </label>
+    </div>
+    <div class="form-group"><label>Other Included Services</label><textarea name="included_other_services" class="form-input" rows="2" placeholder="e.g. airport transfers, camera coverage, insurance">{{ package.included_other_services|default:'' }}</textarea></div>
+
+    <h4 style="margin:14px 0 8px"><i class="fas fa-toggle-on"></i> Status</h4>
+    <div class="form-group">
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if package.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if package.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if package.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if package.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            <option value="EXPIRED" {% if package.status == 'EXPIRED' %}selected{% endif %}>Expired</option>
+        </select>
+    </div>
+
+    

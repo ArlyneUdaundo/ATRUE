@@ -1,0 +1,58 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Staycations{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Available Staycations</h2>
+        <p>{{ staycations|length }} staycation{% if staycations|length != 1 %}s{% endif %} found · Homes, add-ons and schedules</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'staycations:add' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Staycation</a>
+    {% endif %}
+</div>
+
+<div class="ag-list">
+    {% for s in staycations %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-home"></i></span>
+            <span class="ag-media-badges"><span class="badge badge-green">{{ s.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3><a href="{% url 'staycations:detail' s.id %}" style="color:inherit;text-decoration:none">{{ s.name }} <i class="fas fa-external-link-alt" style="font-size:11px;color:var(--slate-400)"></i></a></h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ s.location }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-users"></i> {{ s.capacity }}</span>
+            </div>
+
+            {% if s.services.all %}
+            <div class="ag-chips">
+                {% for svc in s.services.all %}<span class="ag-chip"><i class="fas fa-concierge-bell"></i> {{ svc.name }}{% if svc.rate %} · ₱ {{ svc.rate }}{% endif %}</span>{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if s.blocked_dates.all %}
+            <div class="ag-chips">
+                {% for b in s.blocked_dates.all %}<span class="ag-chip" style="background:#fffbeb;color:#92400e"><i class="fas fa-calendar-times"></i> Blockout: {{ b.start_date|date:"M d, Y" }} – {{ b.end_date|date:"M d, Y" }}</span>{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="ag-card-foot">
+                <div class="ag-price"><small>starting from</small><b>₱ {{ s.rate }}</b><span class="ag-per">/night</span></div>
+                {% if request.user.is_platform_manager %}
+                <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
+                {% else %}
+                <a href="{% url 'staycations:book' s.id %}" class="ag-btn"><i class="fas fa-calendar-check"></i> Reserve</a>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-home"></i><h3>No staycations yet</h3><p>Staycations will be listed here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

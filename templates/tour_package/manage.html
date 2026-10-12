@@ -1,0 +1,71 @@
+{% extends 'dashboard_base.html' %}
+{% load static tour_package_tags %}
+
+{% block title %}Tour Package Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Tour Package Management</h1><p>Manage assigned package details, pricing, inclusions, and availability.</p></div>
+    <div style="display:flex;gap:10px">
+        {% if can_create_package %}
+        <a href="{% url 'tour_package:add_package' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>
+        {% endif %}
+    </div>
+</div>
+
+<dialog id="tourPackageEditDialog" class="tour-package-edit-dialog" aria-labelledby="tourPackageEditTitle">
+    <div id="tourPackageEditContent"><div class="card card-pad">Loading package editor…</div></div>
+</dialog>
+<h3 style="margin-bottom:14px"><i class="fas fa-luggage-cart"></i> Packages</h3>
+{% for p in packages %}
+<div class="card card-pad" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        {% with package_image=p.photos.all|photo_cover:'' %}{% if package_image %}<img src="{{ package_image }}" alt="{{ p.name }}" loading="lazy" style="width:96px;height:72px;object-fit:cover;border-radius:12px;flex:none">{% endif %}{% endwith %}
+        <div style="flex:1">
+
+            <h4 style="margin:0">{{ p.name }}
+                <span class="badge {% if p.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span>
+            </h4>
+            <div class="meta">â‚± {{ p.price }} Â· {{ p.included_headcount }} heads Â· extra â‚± {{ p.extra_person_rate }}/head Â·
+                Valid {{ p.validity_start_date|date:"M d, Y" }} â€“ {{ p.validity_end_date|date:"M d, Y" }}</div>
+            <div class="meta" style="margin-top:4px">
+                {% for h in p.included_hotels.all %}<span class="service-chip">Hotel: {{ h.name }}</span>{% endfor %}
+                {% for r in p.included_resorts.all %}<span class="service-chip">Resort: {{ r.name }}</span>{% endfor %}
+                {% for f in p.included_flights.all %}<span class="service-chip">Flight: {{ f.flight_number }}</span>{% endfor %}
+                {% for a in p.included_activities.all %}<span class="service-chip">Activity: {{ a.name }}</span>{% endfor %}
+                {% for rest in p.included_restaurants.all %}<span class="service-chip">Restaurant: {{ rest.name }}</span>{% endfor %}
+                {% for t in p.included_transport.all %}<span class="service-chip">Transport: {{ t.name }}</span>{% endfor %}
+            </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" data-tour-package-edit="{% url 'tour_package:update_package' p.id %}"><i class="fas fa-edit"></i> Edit</button>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-luggage-cart"></i><h3>No tour packages assigned</h3><p>Please contact your administrator or instructor.</p></div></div>
+{% endfor %}
+<script>
+(function () {
+    var dialog = document.getElementById('tourPackageEditDialog');
+    var content = document.getElementById('tourPackageEditContent');
+    if (!dialog || !content) return;
+    document.querySelectorAll('[data-tour-package-edit]').forEach(function (button) {
+        button.addEventListener('click', async function () {
+            var url = new URL(button.getAttribute('data-tour-package-edit'), window.location.href);
+            url.searchParams.set('modal', '1');
+            content.innerHTML = '<div class="card card-pad">Loading package editor…</div>';
+            dialog.showModal();
+            try {
+                var response = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) throw new Error('Unable to load this package editor.');
+                content.innerHTML = await response.text();
+            } catch (error) {
+                content.innerHTML = '<div class="card card-pad">Unable to load the package editor. Please close this window and try again.</div>';
+            }
+        });
+    });
+    dialog.addEventListener('click', function (event) {
+        if (event.target === dialog || event.target.closest('[data-tour-package-close]')) dialog.close();
+    });
+})();
+</script>
+{% endblock %}

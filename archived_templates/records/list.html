@@ -1,0 +1,48 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transaction Records{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Transaction Records</h1><p>Immutable audit trail of every booking, payment, refund and change.</p></div>
+</div>
+
+<div class="grid-2" style="margin-bottom:22px">
+    <div class="stat-card"><div class="stat-val">{{ records.count }}</div><div class="stat-label">Total Records{{ records.count|pluralize }}</div></div>
+    {% for value, label, count in summary %}
+    <div class="stat-card"><div class="stat-val">{{ count }}</div><div class="stat-label">{{ label }}</div></div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-pad" style="padding-bottom:8px">
+        <form method="get" class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <select name="type" class="form-input" style="max-width:260px">
+                <option value="">All record types</option>
+                {% for value, label in types %}
+                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-brand btn-sm"><i class="fas fa-filter"></i> Filter</button>
+        </form>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Type</th><th>Reference</th><th>User</th><th>Remarks</th><th>Recorded</th></tr></thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td><span class="badge {% if r.record_type == 'BOOKING' %}badge-blue{% elif r.record_type == 'PAYMENT' or r.record_type == 'REFUND' %}badge-green{% elif r.record_type == 'CANCELLATION' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.get_record_type_display }}</span></td>
+                    <td class="mono">{{ r.reference_number }}</td>
+                    <td>{{ r.user.get_full_name|default:r.user.username|default:"System" }}</td>
+                    <td><span class="text-truncate" title="{{ r.remarks }}">{{ r.remarks }}</span></td>
+                    <td>{{ r.recorded_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5"><div class="empty"><i class="fas fa-history"></i><h3>No records</h3><p>Activity records appear here once the platform is used.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

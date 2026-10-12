@@ -1,0 +1,164 @@
+/* ============================================================
+   ATRUE worldwide airport picker (searchable, DB-backed)
+   ============================================================ */
+
+.atrue-airport-wrap { position: relative; }
+
+.atrue-airport-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  min-height: 46px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.atrue-airport-trigger:hover { border-color: #93b4ed; background: #fbfdff; }
+.atrue-airport-trigger:focus-visible, .atrue-airport-wrap.is-open .atrue-airport-trigger { outline: 0; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); }
+
+.atrue-airport-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--bk-ink, #1a2b3c);
+}
+.atrue-airport-value i { color: #0a58ca; }
+
+.atrue-airport-placeholder { font-size: 14px; color: #8a94a6; }
+.atrue-airport-wrap.has-apt .atrue-airport-placeholder { display: none; }
+.atrue-airport-wrap:not(.has-apt) .atrue-airport-value { display: none; }
+
+.atrue-airport-caret {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.atrue-airport-clear {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #f43f5e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+}
+.atrue-airport-wrap:not(.has-apt) .atrue-airport-clear { display: none; }
+
+/* ---- search panel ------------------------------------------ */
+.atrue-airport-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9000;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(15, 35, 65, .2);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 320px;
+}
+.atrue-airport-panel[hidden] { display: none; }
+
+.atrue-airport-input {
+  width: 100%;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fbfcfe;
+}
+.atrue-airport-input:focus { border-color: #0a58ca; background: #fff; }
+
+.atrue-airport-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: min(46vh, 320px);
+}
+
+.atrue-airport-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  border: 0;
+  background: #fff;
+  text-align: left;
+  padding: 9px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  color: #1a2b3c;
+}
+.atrue-airport-item:hover, .atrue-airport-item:focus-visible { outline: 0; background: #eff6ff; color: #1d4ed8; }
+.atrue-airport-item.is-selected { background: #eaf2ff; color: #1d4ed8; }
+
+.atrue-airport-item-ico {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #eaf2ff;
+  color: #0a58ca;
+  font-size: 13px;
+}
+.atrue-airport-item-txt { line-height: 1.25; min-width: 0; flex: 1; }
+.atrue-airport-item-name { font-weight: 700; font-size: 14px; display: block; }
+.atrue-airport-item-sub { font-size: 12px; color: #7b8698; display: block; }
+.atrue-airport-item-check { flex: none; color: #2563eb; opacity: 0; }
+.atrue-airport-item.is-selected .atrue-airport-item-check { opacity: 1; }
+
+.atrue-airport-item-code {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0a58ca;
+  background: #eef4ff;
+  border-radius: 7px;
+  padding: 3px 8px;
+}
+
+.atrue-airport-empty {
+  padding: 24px 10px;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 13.5px;
+}
+
+.atrue-airport-loading {
+  padding: 20px 10px;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 13px;
+}
+
+/* compact variant (search filters) */
+.atrue-airport-field-sm .atrue-airport-trigger { min-height: 38px; padding: 7px 10px; }
+.atrue-airport-field-sm .atrue-airport-placeholder,
+.atrue-airport-field-sm .atrue-airport-value { font-size: 13.5px; }
+.atrue-airport-field-sm .atrue-airport-panel { min-width: 280px; }
+@media (max-width: 560px) {
+  .atrue-airport-panel, .atrue-airport-field-sm .atrue-airport-panel { min-width: 0; max-width: calc(100vw - 24px); }
+}

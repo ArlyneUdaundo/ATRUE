@@ -1,0 +1,82 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+{% load hotel_photos %}
+
+{% block title %}Hotels{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Available Hotels</h1>
+        <p>Browse partnered hotels, rooms, services and amenities.</p>
+    </div>
+    {% if request.user.is_authenticated and request.user.can_manage_hotels %}
+    <a href="{% url 'hotels:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Hotel</a>
+    {% endif %}
+</div>
+
+{% for h in hotels %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        {% with hotel_image=h.photos.all|usable_urls|first %}
+        {% if hotel_image %}<img src="{{ hotel_image }}" alt="{{ h.name }}" loading="lazy" style="width:120px;height:88px;object-fit:cover;border-radius:12px;flex:none">
+        {% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ h.name }}" loading="lazy" style="width:120px;height:88px;object-fit:cover;border-radius:12px;flex:none">{% endif %}
+        {% endwith %}
+        <div style="flex:1">
+            <h3 style="margin:0">{{ h.name }}</h3>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-map-marker-alt"></i> {{ h.location }}</div>
+            <div class="meta"><i class="fas fa-clock"></i> {{ h.operating_schedule|default:"Open daily" }}</div>
+        </div>
+        <span class="badge badge-green">{{ h.status|title }}</span>
+    </div>
+
+    {% if h.services.all %}
+    <div class="meta" style="margin-top:12px"><b>Services:</b>
+        {% for s in h.services.all %}<span class="badge badge-blue">{{ s.name }}</span> {% endfor %}
+    </div>
+    {% endif %}
+    {% if h.amenities.all %}
+    <div class="meta" style="margin-top:6px"><b>Amenities:</b>
+        {% for a in h.amenities.all %}<span class="badge badge-gray">{{ a.name }}</span> {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        {% if request.user.is_authenticated and request.user.can_manage_hotels %}
+        <a href="{% url 'hotels:manage' %}" class="btn btn-ghost"><i class="fas fa-gear"></i> Manage Hotels</a>
+        {% else %}
+        <a href="{% url 'hotels:group_start' h.id %}?check_in={{ request.GET.check_in|urlencode }}&check_out={{ request.GET.check_out|urlencode }}&rooms={{ request.GET.rooms|default:'1' }}&adults={{ request.GET.adults|default:'1' }}&children={{ request.GET.children|default:'0' }}" class="btn btn-brand"><i class="fas fa-hotel"></i> Select Hotel &amp; Book {{ request.GET.rooms|default:'1' }} Room{{ request.GET.rooms|default:'1'|pluralize }}</a>
+        {% endif %}
+    </div>
+
+    {% if h.rooms.all %}
+    <div class="agoda-room-list" style="margin-top:16px">
+        {% for room in h.rooms.all %}
+        <article class="agoda-room-card">
+            <div class="agoda-gallery" data-gallery>
+                <div class="agoda-gallery-track">
+                    {% for photo in room.photos.all|slice:':4' %}
+                    <img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ room.get_room_type_display }} room {{ room.room_number }}">
+                    {% empty %}
+                    <div class="agoda-gallery-placeholder"><i class="fas fa-bed"></i><span>Add 3–4 room photos</span></div>
+                    {% endfor %}
+                </div>
+                {% if room.photos.all %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}
+            </div>
+            <div class="agoda-room-info">
+                <div class="agoda-room-title-row"><div><div class="agoda-room-kicker">{{ room.get_room_type_display }} · Room {{ room.room_number }}</div><h3>{{ room.get_room_type_display }} Room</h3></div><span class="badge {% if room.status == 'AVAILABLE' %}badge-green{% elif room.status == 'MAINTENANCE' %}badge-red{% else %}badge-blue{% endif %}">{{ room.get_status_display }}</span></div>
+                <p class="agoda-room-description">{{ room.description|default:room.features|default:'Comfortable room with hotel-standard amenities and services.' }}</p>
+                <div class="agoda-room-features"><span><i class="fas fa-user-group"></i> {{ room.capacity_adults }} adults{% if room.capacity_children %}, {{ room.capacity_children }} children{% endif %}</span>{% if room.features %}<span><i class="fas fa-check-circle"></i> {{ room.features|truncatewords:12 }}</span>{% endif %}</div>
+                <div class="agoda-room-bottom"><div><strong>₱ {{ room.rate }}</strong><small>/ night</small></div>{% if request.user.is_authenticated and request.user.can_manage_hotels %}<a href="{% url 'hotels:update_room' room.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Manage Room</a>{% elif room.status == 'AVAILABLE' %}<a href="{% url 'hotels:group_start' h.id %}?check_in={{ request.GET.check_in|urlencode }}&check_out={{ request.GET.check_out|urlencode }}&rooms={{ request.GET.rooms|default:'1' }}&adults={{ request.GET.adults|default:'1' }}&children={{ request.GET.children|default:'0' }}" class="btn btn-brand btn-sm"><i class="fas fa-bed"></i> Select Rooms</a>{% else %}<span class="badge badge-gray">Not bookable</span>{% endif %}</div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty" style="margin-top:16px"><i class="fas fa-bed"></i><h3>No rooms yet</h3><p style="font-size:13px">Rooms will appear here once added by the administrator.</p></div>
+    {% endif %}
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-hotel"></i><h3>No hotels yet</h3><p>Hotels will be listed here once added by the administrator.</p></div></div>
+{% endfor %}
+{% endblock %}

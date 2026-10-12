@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if page == 'privacy' %}Privacy Policy{% else %}Terms of Service{% endif %}{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:150px">
+    <div class="container" style="max-width:820px">
+        <span class="eyebrow">Legal</span>
+        <h1 class="section-title" style="font-size:34px">
+            {% if page == 'privacy' %}Privacy Policy{% else %}Terms of Service{% endif %}
+        </h1>
+        <p class="section-sub">Last updated: September 2026</p>
+
+        <div style="margin-top:34px;display:flex;flex-direction:column;gap:22px;color:var(--text-2);font-size:15px;line-height:1.8">
+            <div>
+                <h3 style="color:var(--text-1);margin-bottom:8px">1. Overview</h3>
+                <p>ATRUE (Automated Travel, Reservation &amp; Unified Ecosystem) is a simulation training platform built for
+                Saint Joseph College of Baggao. {% if page == 'privacy' %}This policy explains what information we collect and how we use it.{% else %}These terms govern your use of the platform and participation in simulation activities.{% endif %}</p>
+            </div>
+            <div>
+                <h3 style="color:var(--text-1);margin-bottom:8px">2. {% if page == 'privacy' %}Information We Collect{% else %}Acceptable Use{% endif %}</h3>
+                <p>{% if page == 'privacy' %}Account details you provide during registration — such as your name, email, contact number and
+                residential address — are used solely to manage your simulation training.{% else %}Accounts are provided for educational purposes only. You agree not to tamper with records,
+                misuse another student's account, or use the platform for any activity outside its training scope.{% endif %}</p>
+            </div>
+            <div>
+                <h3 style="color:var(--text-1);margin-bottom:8px">3. {% if page == 'privacy' %}Data Storage &amp; Security{% else %}Simulation Records{% endif %}</h3>
+                <p>{% if page == 'privacy' %}All data is stored securely and is only accessible to authorized instructors and administrators.
+                We do not sell or share personal information with third parties.{% else %}Booking, payment and activity logs are retained for assessment purposes. Instructors may
+                review these records as part of student performance evaluation.{% endif %}</p>
+            </div>
+            <div>
+                <h3 style="color:var(--text-1);margin-bottom:8px">{% if page == 'privacy' %}4. Contact{% else %}4. Contact{% endif %}</h3>
+                <p>Questions about this {% if page == 'privacy' %}policy{% else %}agreement{% endif %}? Reach us at info@atrue.sjcb.edu.ph or via the
+                <a href="{% url 'home' %}#contact" style="color:var(--indigo);font-weight:600">contact section</a>.</p>
+            </div>
+        </div>
+
+        <div style="margin-top:38px">
+            <a href="{% url 'home' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Home</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if room %}Update Room{% else %}Add Room{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if room %}Update Room{% else %}Add Room{% endif %} — {{ hotel.name }}</h1><p>Room registration and status (BR-023, BR-025, BR-026).</p></div></div>
+
+{% if error %}
+<div class="alert" style="display:flex;gap:10px;align-items:center;background:var(--red-50);border:1px solid var(--red-200);color:var(--red-700);padding:10px 14px;border-radius:10px;margin-bottom:14px;max-width:720px">
+    <i class="fas fa-circle-exclamation"></i> {{ error }}
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    {% if room %}
+    <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+            <label>Room ID</label>
+            <input type="text" class="form-input" value="{{ room.room_id }}" readonly disabled>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Hotel</label>
+            <input type="text" class="form-input" value="{{ hotel.name }}" readonly disabled>
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Room Number</label>
+            <input type="text" name="room_number" class="form-input" value="{{ room.room_number|default:'' }}" placeholder="e.g. 205, A201" required>
+        </div>
+        <div class="form-group">
+            <label>Room Type</label>
+            <select name="room_type" class="form-input">
+                {% for value, label in room_type_choices %}
+                <option value="{{ value }}" {% if room and room.room_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Capacity — Adults</label>
+            <input type="number" name="capacity_adults" class="form-input" value="{{ room.capacity_adults|default:2 }}" min="1">
+        </div>
+        <div class="form-group">
+            <label>Capacity — Children</label>
+            <input type="number" name="capacity_children" class="form-input" value="{{ room.capacity_children|default:0 }}" min="0">
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Rate per Night (₱)</label>
+            <input type="number" name="rate" step="0.01" class="form-input" value="{{ room.rate|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Additional Guest Charge (₱)</label>
+            <input type="number" name="additional_guest_charge" step="0.01" class="form-input" value="{{ room.additional_guest_charge|default:0 }}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="3" placeholder="Describe the room...">{{ room.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Features</label>
+        <textarea name="features" class="form-input" rows="2" placeholder="Wi-Fi, Air Conditioning, TV, Private Bathroom">{{ room.features|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if room and room.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+        <div class="meta" style="margin-top:6px">You can select several images at once.</div>
+    </div>
+    {% if room and room.photos.all %}
+    <div class="form-group">
+        <label>Existing Photos — uncheck to keep, tick to delete</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in room.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="" style="width:90px;height:70px;object-fit:cover;border-radius:8px">
+                <input type="checkbox" name="delete_photos" value="{{ photo.id }}"> <span class="meta">Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Room</button>
+    <a href="{% url 'hotels:update_hotel' hotel.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

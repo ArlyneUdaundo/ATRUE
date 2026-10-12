@@ -1,0 +1,110 @@
+<article class="bk-card{% if t.card_class %} {{ t.card_class }}{% endif %}">
+    <!-- Gallery -->
+    <div class="bk-gallery">
+        <div class="bk-gallery-main">
+            {% if t.imgs and "bk-card--package" in t.card_class %}
+                <img class="bk-package-backdrop" src="{{ t.imgs.0 }}" alt="" aria-hidden="true" loading="lazy">
+            {% endif %}
+            {% if t.imgs %}
+                <img class="bk-gmain" src="{{ t.imgs.0 }}" alt="{{ t.title }}" loading="lazy"
+                     data-gallery="{{ t.imgs_json }}" data-index="0">
+                {% if t.imgs|length > 1 %}
+                    <span class="bk-photo-count"><i class="fas fa-images"></i> {{ t.imgs|length }} photos</span>
+                {% endif %}
+                {# Hotel badge removed as requested #}
+            {% else %}
+                <div class="bk-cover" style="background: linear-gradient(150deg,#1d4ed8,#3b82f6,#60a5fa);">
+                    <i class="fas {{ t.icon }}"></i>
+                </div>
+                {# Hotel badge removed as requested #}
+            {% endif %}
+        </div>
+        {% if t.imgs|length > 1 %}
+            <div class="bk-thumbs">
+                {% for img in t.imgs|slice:"0:4" %}
+                    <img class="bk-thumb" src="{{ img }}" alt="{{ t.title }} photo {{ forloop.counter }}" loading="lazy" data-index="{{ forloop.counter0 }}">
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Info -->
+    <div class="bk-card-info{% if "bk-card--package" in t.card_class %} bk-card-info--package{% endif %}">
+        {% if "bk-card--package" in t.card_class %}
+            <h3 class="bk-package-title"><a href="{{ t.cta_url }}">{{ t.title }}</a></h3>
+            <details class="bk-package-details">
+                <summary><span class="bk-see-details">See details</span><span class="bk-hide-details">Hide details</span></summary>
+                <div class="bk-card-main">
+                    <div class="bk-stars">{% for i in ""|ljust:t.stars %}&#9733;{% endfor %}</div>
+                    <p class="bk-loc"><i class="fas fa-location-dot"></i>{{ t.location }}</p>
+                    {% if t.plan %}
+                    <div class="bk-plan">
+                        <p class="bk-plan-title"><i class="fas fa-route"></i> Tour Plan &amp; What's Included</p>
+                        <ul class="bk-plan-list">
+                            {% for line in t.plan %}<li><i class="fas fa-check"></i>{{ line }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if t.meta %}
+                    <div class="bk-meta">
+                        {% for m in t.meta %}<span><i class="fas {{ m.0 }}"></i>{{ m.1 }}</span>{% endfor %}
+                    </div>
+                    {% endif %}
+                    <p class="bk-desc">{{ t.desc }}</p>
+                </div>
+            </details>
+        {% else %}
+            <div class="bk-card-main">
+                <h3><a href="{{ t.cta_url }}">{{ t.title }}</a></h3>
+                <div class="bk-stars">{% for i in ""|ljust:t.stars %}&#9733;{% endfor %}</div>
+                <p class="bk-loc"><i class="fas fa-location-dot"></i>{{ t.location }}</p>
+                {% if t.plan %}
+                <div class="bk-plan">
+                    <p class="bk-plan-title"><i class="fas fa-route"></i> Tour Plan &amp; What's Included</p>
+                    <ul class="bk-plan-list">
+                        {% for line in t.plan %}<li><i class="fas fa-check"></i>{{ line }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if t.tags and "bk-card--package" not in t.card_class %}
+                <div class="bk-chips">{% for tag in t.tags %}<span class="bk-chip">{{ tag }}</span>{% endfor %}</div>
+                {% endif %}
+                {% if t.meta %}
+                <div class="bk-meta">
+                    {% for m in t.meta %}<span><i class="fas {{ m.0 }}"></i>{{ m.1 }}</span>{% endfor %}
+                </div>
+                {% endif %}
+                <p class="bk-desc">{{ t.desc }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Rating + price + CTA -->
+    <div class="bk-pricebox">
+        {# rating order flipped #}
+        <div class="bk-scorebox">
+            <span class="bk-score-num">{{ t.score|floatformat:1 }}</span>
+            <div class="bk-score-meta">
+                <div class="bk-score-label">{{ t.score_label }}</div>
+                <div class="bk-score-rev">{{ t.reviews }} reviews</div>
+            </div>
+        </div>
+        <div class="bk-priceblock">
+        {% if t.price_is_class %}
+            <span class="bk-from">avg.</span>
+            <span class="bk-price">{{ t.price }}</span>
+            <span class="bk-punit">{{ t.price_label }}</span>
+        {% elif t.price_kind == "free" %}
+            <span class="bk-from">entry</span>
+            <span class="bk-price">Free</span>
+        {% elif t.price_kind == "amount" %}
+            <span class="bk-from">from</span>
+            <span class="bk-price">&#8369;{{ t.price }}</span>
+            <span class="bk-punit">{{ t.price_label }}</span>
+        {% else %}
+            <span class="bk-price bk-price-na">Price unavailable</span>
+        {% endif %}
+        </div>
+        <a href="{{ t.cta_url }}" class="bk-btn bk-btn-primary bk-btn-sm">{{ t.cta_label }}</a>
+    </div>
+</article>

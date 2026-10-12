@@ -1,0 +1,261 @@
+﻿{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Book Resort{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261010-guest-info-unified">
+<style>
+.resort-guest-info-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.resort-guest-info-grid .span-2 { grid-column:span 1; }
+.resort-guest-info-grid .span-4 { grid-column:1 / -1; }
+.resort-additional-guest-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; align-items:end; margin:8px 0; }
+.resort-additional-guest-row .guest-country { grid-column:span 2; }
+.resort-additional-guest-row .guest-remove { height:40px; }
+@media(max-width:720px) { .resort-guest-info-grid { grid-template-columns:minmax(0,1fr); gap:8px; } .resort-additional-guest-row { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .resort-guest-info-grid .span-2,.resort-guest-info-grid .span-4,.resort-additional-guest-row .guest-country { grid-column:1 / -1; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your trip</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+{% if booking_error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
+{% endif %}
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-umbrella-beach"></i></span>
+                <div>
+                    <h3>{{ unit.resort.name }}</h3>
+                    <p>{{ unit.resort.location }}</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-holly-berry"></i> {{ unit.get_unit_type_display }} · Unit {{ unit.unit_number }}</div>
+            <div class="ag-detail-row"><i class="fas fa-users"></i> Capacity: {{ unit.capacity_adults }} adult(s) / {{ unit.capacity_children }} child(ren)</div>
+            {% if unit.features %}<div class="ag-detail-row"><i class="fas fa-star"></i> {{ unit.features }}</div>{% endif %}
+            <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ unit.resort.contact_number }}</div>
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Your stay details</h3><p>Dates, guests and requests (BR-016 to BR-019)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Check-in</label>
+                    <input type="date" name="check_in" id="ci" class="form-input" value="{{ check_in|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                </div>
+                <div class="form-group">
+                    <label>Check-out</label>
+                    <input type="date" name="check_out" id="co" class="form-input" value="{{ check_out|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label>Number of Units</label><input type="number" name="number_of_units" id="units" class="form-input" value="1" min="1" oninput="updateEstimate()"></div>
+            </div>
+            <div class="form-group"><button type="button" class="ag-btn ag-btn-muted" id="resortGuestInfoOpen"><i class="fas fa-user-check"></i> Edit Guest Information</button></div>
+            <div class="rm-modal open" id="guestModal" role="dialog" aria-modal="true" aria-labelledby="resortGuestModalTitle">
+                <div class="rm-modal-card">
+                    <div class="rm-modal-head">
+                        <div><h3 id="resortGuestModalTitle"><i class="fas fa-user-check"></i> Guest Information</h3><p>{{ unit.resort.name }} · Unit {{ unit.unit_number }}. Please provide the guest details below.</p></div>
+                        <button type="button" class="rm-modal-x" data-resort-guest-close aria-label="Close guest information"><i class="fas fa-xmark"></i></button>
+                    </div>
+                    <div class="rm-modal-body">
+            <section class="bk-guest-card resort-guest-info-card">
+                <div class="bk-guest-head"><div><span class="badge badge-blue">UNIT {{ unit.unit_number }}</span><h3 style="margin:8px 0 2px">{{ unit.get_unit_type_display }} — Unit {{ unit.unit_number }}</h3><small>Unit {{ unit.unit_number }} · ₱ {{ unit.rate }}/night · Included guests: {{ unit.capacity }} · Max: {{ unit.capacity }} · Additional guest: ₱ {{ unit.additional_guest_charge }}/night</small></div></div>
+                <div class="bk-guest-grid resort-profile-grid">
+                    <div class="form-group"><label>First Name</label><input class="form-input" value="{{ request.user.first_name }}" readonly></div>
+                    <div class="form-group"><label>Middle Name</label><input class="form-input" value="{{ request.user.middle_name|default:'' }}" readonly></div>
+                    <div class="form-group"><label>Last Name</label><input class="form-input" value="{{ request.user.last_name }}" readonly></div>
+                    <div class="form-group"><label>Email</label><input class="form-input" value="{{ request.user.email }}" readonly></div>
+                    <div class="form-group bk-col-2"><label>Contact Number</label><input class="form-input" value="{{ request.user.contact_number|default:'' }}" readonly></div>
+                </div>
+                <div class="resort-guest-info-grid">
+                    <div class="form-group"><label>Adults</label><input type="number" name="adults" id="adults" class="form-input" value="1" min="1" max="{{ unit.capacity_adults }}" oninput="updateEstimate()"></div>
+                    <div class="form-group"><label>Children</label><input type="number" name="children" id="children" class="form-input" value="0" min="0" max="{{ unit.capacity_children }}" oninput="updateEstimate()"></div>
+                    <div class="form-group span-2"><label>Total guests</label><div class="form-input" style="background:#f8fafc"><span id="resort-guest-total">1</span> <small class="meta">of {{ unit.capacity }} max</small></div></div>
+                    <div class="form-group span-4"><label>Special Requests</label><textarea name="special_requests" class="form-input" rows="2"></textarea></div>
+                </div>
+                <div class="bk-guest-extras resort-additional-guests"><div><b>Additional guests</b></div>
+                    <div id="guest-rows"><div class="guest-row resort-additional-guest-row">
+                        <div class="form-group"><label>Last Name</label><input type="text" name="additional_last_name" class="form-input" placeholder="Last name"></div>
+                        <div class="form-group"><label>First Name</label><input type="text" name="additional_first_name" class="form-input" placeholder="First name"></div>
+                        <div class="form-group guest-country"><label>Country / Region</label><input type="text" name="additional_country" class="form-input" placeholder="Select country / region" data-loc-select data-loc-source="countries"></div>
+                        <button type="button" class="btn btn-danger btn-sm guest-remove" onclick="this.closest('.guest-row').remove()" aria-label="Remove guest"><i class="fas fa-times"></i></button>
+                    </div></div>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addGuestRow()"><i class="fas fa-plus"></i> Add another guest</button>
+                </div>
+            <script>
+                function addGuestRow() {
+                    const row = document.createElement('div');
+                    row.className = 'guest-row resort-additional-guest-row';
+                    row.innerHTML = '<div class="form-group"><label>Last Name</label><input type="text" name="additional_last_name" class="form-input" placeholder="Last name"></div>'
+                        + '<div class="form-group"><label>First Name</label><input type="text" name="additional_first_name" class="form-input" placeholder="First name"></div>'
+                        + '<div class="form-group guest-country"><label>Country / Region</label><input type="text" name="additional_country" class="form-input" placeholder="Select country / region" data-loc-select data-loc-source="countries"></div>'
+                        + '<button type="button" class="btn btn-danger btn-sm guest-remove" onclick="this.closest(\'.guest-row\').remove()" aria-label="Remove guest"><i class="fas fa-times"></i></button>';
+                    document.getElementById('guest-rows').appendChild(row);
+                }
+            </script>
+            {% if services %}
+            <div class="form-group">
+                <label>Services</label>
+                {% for s in services %}
+                <label class="checkbox"><input type="checkbox" name="services" value="{{ s.id }}" data-rate="{{ s.rate }}" onchange="updateEstimate()"> {{ s.name }} {% if s.rate %}— ₱ {{ s.rate }}{% endif %}</label>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div style="margin-top:18px">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Payer details</h3><p>Change these if someone else is paying.</p></div>
+                </div>
+                <label class="checkbox" style="margin-bottom:10px">
+                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the primary guest
+                </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
+                    </div>
+                </div>
+            </div>
+            </section>
+                    </div>
+                    <div class="rm-modal-foot">
+                        <button type="button" class="ag-btn ag-btn-muted" data-resort-guest-close><i class="fas fa-xmark"></i> Cancel</button>
+                        <button type="button" class="ag-btn" id="guestModalSave"><i class="fas fa-check"></i> Continue</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+            </label>
+            <script>
+                function togglePayer() {
+                    var same = document.getElementById('payer-same');
+                    if (!same) return;
+                    var lock = same.checked;
+                    var name = document.getElementById('payer-name');
+                    var contact = document.getElementById('payer-contact');
+                    if (name) {
+                        name.readOnly = lock;
+                        name.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
+                    }
+                    if (contact) {
+                        contact.readOnly = lock;
+                        contact.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
+                    }
+                }
+                togglePayer();
+            </script>
+            <script>
+                var UNIT_RATE = {{ unit.rate }};
+                var UNIT_EXTRA = {{ unit.additional_guest_charge }};
+                var UNIT_CAPACITY = {{ unit.capacity }};
+                function updateEstimate() {
+                    var ci = new Date(document.getElementById('ci').value + 'T00:00:00');
+                    var co = new Date(document.getElementById('co').value + 'T00:00:00');
+                    var nights = 1;
+                    if (!isNaN(ci) && !isNaN(co) && co > ci) nights = Math.round((co - ci) / 86400000);
+                    var units = parseInt(document.getElementById('units').value) || 1;
+                    var adults = parseInt(document.getElementById('adults').value) || 1;
+                    var children = parseInt(document.getElementById('children').value) || 0;
+                    var rate = UNIT_RATE + (adults + children > UNIT_CAPACITY ? UNIT_EXTRA : 0);
+                    var total = rate * nights * units;
+                    document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
+                        total += (parseFloat(cb.dataset.rate) || 0) * nights;
+                    });
+                    document.getElementById('pb-nights').textContent = nights;
+                    document.getElementById('pb-guests').textContent = adults + children;
+                    var guestTotal = document.getElementById('resort-guest-total');
+                    if (guestTotal) guestTotal.textContent = adults + children;
+                    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+                }
+                updateEstimate();
+            </script>
+            <a href="{% url 'resorts:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <script>
+                (function () {
+                    var modal = document.getElementById('guestModal');
+                    var form = document.getElementById('booking-form');
+                    var openButton = document.getElementById('resortGuestInfoOpen');
+                    var saveButton = document.getElementById('guestModalSave');
+                    function closeModal() { modal.classList.remove('open'); }
+                    function openModal() { modal.classList.add('open'); }
+                    document.querySelectorAll('[data-resort-guest-close]').forEach(function (button) {
+                        button.addEventListener('click', closeModal);
+                    });
+                    if (openButton) openButton.addEventListener('click', openModal);
+                    modal.addEventListener('click', function (event) {
+                        if (event.target === modal) closeModal();
+                    });
+                    document.addEventListener('keydown', function (event) {
+                        if (event.key === 'Escape' && modal.classList.contains('open')) closeModal();
+                    });
+                    saveButton.addEventListener('click', function () {
+                        if (!form.reportValidity()) return;
+                        closeModal();
+                        document.dispatchEvent(new CustomEvent('atrue:establishment-guest-info-complete'));
+                    });
+                })();
+            </script>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-umbrella-beach"></i></span>
+                <div><b>{{ unit.resort.name }}</b><small>Unit {{ unit.unit_number }} · {{ unit.get_unit_type_display }}</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Unit rate</span><b>₱ {{ unit.rate }} /night</b></div>
+                {% if unit.additional_guest_charge %}
+                <div class="ag-pb-row"><span>Extra guest charge</span><b>₱ {{ unit.additional_guest_charge }}/night</b></div>
+                {% endif %}
+                <div class="ag-pb-row"><span>Nights</span><b><span id="pb-nights">1</span> night(s)</b></div>
+                <div class="ag-pb-row"><span>Guests</span><b><span id="pb-guests">1</span> guest(s)</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ {{ unit.rate }}</span></b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm Booking</button>
+        
+        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Unit</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying dates, guests and add-ons.</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+
+

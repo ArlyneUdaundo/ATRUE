@@ -1,0 +1,161 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ agency.name }} - Cars{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i>1</i> Travel agency</div>
+    <div class="ag-step active"><i>2</i> Type of car</div>
+    <div class="ag-step"><i>3</i> Book land transport</div>
+</div>
+
+<div class="page-head">
+    <div>
+        <h2>{{ agency.name }}</h2>
+        <p>Step 2 of 3: choose the type of car, then book your land transport.</p>
+    </div>
+    <a href="{% url 'transportation:list' %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to agencies</a>
+</div>
+
+<section class="card card-pad transport-agency-summary" aria-label="Agency details">
+    <div class="transport-agency-summary__icon" aria-hidden="true"><i class="fas fa-building"></i></div>
+    <div class="transport-agency-summary__body">
+        <div class="transport-agency-summary__heading">
+            <h3>{{ agency.name }}</h3>
+            <span class="badge badge-green">{{ agency.get_status_display }}</span>
+        </div>
+        <div class="transport-agency-summary__facts">
+            <div><i class="fas fa-map-marker-alt"></i><span>{{ agency.location }}</span></div>
+            <div><i class="fas fa-phone"></i><span>{{ agency.contact_number }}{% if agency.email %}<span class="transport-agency-summary__separator">&#183;</span>{{ agency.email }}{% endif %}</span></div>
+            {% if agency.operating_hours %}<div><i class="fas fa-clock"></i><span>{{ agency.operating_hours }}</span></div>{% endif %}
+            {% if agency.areas %}<div class="transport-agency-summary__areas"><i class="fas fa-globe-asia"></i><span><b>Serves</b> {{ agency.areas }}</span></div>{% endif %}
+        </div>
+        {% if agency.description %}<p class="transport-agency-summary__description">{{ agency.description }}</p>{% endif %}
+    </div>
+</section>
+
+{% if not request.user.is_platform_manager %}
+<div class="card card-pad transport-agency-schedule-card" style="margin-bottom:16px">
+    <form method="get" class="ag-search mb" style="max-width:none;margin:0">
+        <div class="ag-search-fields filter-grid" style="grid-template-columns:1fr auto">
+            <div class="ag-field transport-agency-schedule" data-transport-agency-schedule>
+                <label><i class="fas fa-calendar-alt"></i> Travel date &amp; time</label>
+                <div class="transport-schedule-controls transport-agency-schedule__controls">
+                    <div class="ag-field"><label for="agency-travel-date">Date</label><input id="agency-travel-date" type="date" data-transport-agency-date value="{{ schedule|date:'Y-m-d' }}" required></div>
+                    <div class="ag-field"><label for="agency-travel-time">Time</label><input id="agency-travel-time" type="time" data-transport-agency-time value="{{ schedule|date:'H:i' }}" required></div>
+                </div>
+                <input type="hidden" name="schedule" data-transport-agency-schedule-value value="{{ schedule|date:'Y-m-d\TH:i' }}">
+            </div>
+            <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
+        </div>
+    </form>
+    <div class="meta transport-agency-availability"><i class="fas fa-info-circle"></i> Availability for {{ schedule|date:'M d, Y g:i A' }} · {{ vehicles|length }} vehicle(s)</div>
+</div>
+{% endif %}
+
+<div class="cards cards-transport">
+    {% for item in vehicles %}
+    {% with v=item.vehicle %}
+    <div class="scard">
+        <div class="scard-body">
+            <div class="scard-top">
+                <div class="scard-photo transport-vehicle-photo"><img src="{% if item.photo_url %}{{ item.photo_url }}{% else %}https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75{% endif %}" data-fallback="https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75" onerror="this.onerror=null;this.src=this.dataset.fallback" alt="{{ v.label }}"></div>
+            </div>
+            <h3>{{ v.label }}</h3>
+            <div class="meta"><i class="fas fa-car"></i> Type: <b>{{ v.get_vehicle_type_display }}</b></div>
+            <div class="meta"><i class="fas fa-id-card"></i> Plate: <b>{{ v.plate_number }}</b></div>
+            <div class="meta"><i class="fas fa-users"></i> Capacity: {{ v.capacity }} pax</div>
+            <div class="meta"><i class="fas fa-shield-alt"></i> {{ v.get_roadworthiness_display }}</div>
+            <div class="meta"><i class="fas fa-tachometer-alt"></i> Rate: <b>â‚± {{ v.rate_per_km }}</b> /km</div>
+
+            {% if request.user.is_platform_manager %}
+            <a href="{% url 'transportation:update_vehicle' v.id %}" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%"><i class="fas fa-cog"></i> Manage vehicle</a>
+            {% elif item.available %}
+            <a href="{% url 'transportation:book' v.id %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-brand btn-sm" style="margin-top:12px;width:100%" data-landtransport-booking><i class="fas fa-road"></i> Book this car</a>
+            {% else %}
+            <button class="btn btn-muted btn-sm" style="margin-top:12px;width:100%" disabled><i class="fas fa-ban"></i> {{ v.status|title }}</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="card"><div class="empty"><i class="fas fa-car"></i><h3>No vehicles for this agency yet</h3><p>Vehicles will appear here once added by the administrator.</p></div></div>
+    {% endfor %}
+</div>
+<div class="flight-booking-modal transport-booking-modal" data-landtransport-booking-modal hidden>
+    <section class="flight-booking-modal__panel" role="dialog" aria-modal="true" aria-labelledby="landtransportBookingModalTitle">
+        <header class="flight-booking-modal__head">
+            <h2 id="landtransportBookingModalTitle">Book this car</h2>
+            <button type="button" class="flight-booking-modal__close" data-landtransport-booking-close aria-label="Close booking">&times;</button>
+        </header>
+        <iframe class="flight-booking-modal__frame" data-landtransport-booking-frame title="Land transport booking form"></iframe>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+    var agencySchedule = document.querySelector('[data-transport-agency-schedule]');
+    if (agencySchedule) {
+        var scheduleForm = agencySchedule.closest('form');
+        scheduleForm.addEventListener('submit', function () {
+            var date = agencySchedule.querySelector('[data-transport-agency-date]').value;
+            var time = agencySchedule.querySelector('[data-transport-agency-time]').value;
+            agencySchedule.querySelector('[data-transport-agency-schedule-value]').value = date + 'T' + time;
+        });
+    }
+    var modal = document.querySelector('[data-landtransport-booking-modal]');
+    var frame = document.querySelector('[data-landtransport-booking-frame]');
+    var close = document.querySelector('[data-landtransport-booking-close]');
+    var trigger = null;
+    if (!modal || !frame || !close) return;
+    function closeModal() {
+        modal.hidden = true;
+        document.body.classList.remove('flight-booking-modal-open');
+        frame.src = 'about:blank';
+        if (trigger) trigger.focus();
+        trigger = null;
+    }
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest && event.target.closest('[data-landtransport-booking]');
+        if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        trigger = link;
+        var bookingUrl = new URL(link.href, window.location.href);
+        var tabContext = window.ATRUE_CTX || new URL(window.location.href).searchParams.get('ctx');
+        if (tabContext) bookingUrl.searchParams.set('ctx', tabContext);
+        frame.src = bookingUrl.toString();
+        modal.hidden = false;
+        document.body.classList.add('flight-booking-modal-open');
+        close.focus();
+    });
+    frame.addEventListener('load', function () {
+        try {
+            var doc = frame.contentDocument;
+            if (!doc || doc.location.href === 'about:blank' || doc.getElementById('landtransport-booking-embed-style')) return;
+            var style = doc.createElement('style');
+            style.id = 'landtransport-booking-embed-style';
+            style.textContent = '.site-header{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}';
+            doc.head.appendChild(style);
+            doc.addEventListener('click', function (frameEvent) {
+                var cancel = frameEvent.target.closest && frameEvent.target.closest('[data-landtransport-booking-cancel]');
+                if (!cancel) return;
+                frameEvent.preventDefault();
+                closeModal();
+            });
+        } catch (error) { /* Keep the in-modal booking page usable if frame access is restricted. */ }
+    });
+    close.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (event) { if (event.target === modal) closeModal(); });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) closeModal();
+    });
+})();
+</script>
+{% endblock %}
+
+
+
+

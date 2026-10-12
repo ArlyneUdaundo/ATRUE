@@ -1,0 +1,55 @@
+{% extends 'dashboard_base.html' %}
+{% load static tour_package_tags %}
+
+{% block title %}Tour Packages{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h2>Tour Packages</h2>
+        <p>{{ packages|length }} package{% if packages|length != 1 %}s{% endif %} available · All-in bundles with headcount billing</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'tour_package:add_package' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>
+    {% endif %}
+</div>
+
+<div class="cards">
+    {% for p in packages %}
+    <div class="scard">
+        <div class="scard-body">
+            <div class="scard-top">
+                {% with package_image=p.photos.all|photo_cover:'' %}{% if package_image %}<div class="scard-photo"><img src="{{ package_image }}" alt="{{ p.name }} photo"></div>{% endif %}{% endwith %}
+                <span class="badge badge-green">Valid</span>
+            </div>
+            <h3><a href="{% url 'tour_package:detail' p.slug %}" style="color:inherit;text-decoration:none">{{ p.name }}</a></h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ p.destination_name|default:"—" }}</div>
+            <div class="meta"><i class="fas fa-clock"></i> {{ p.duration_days }} day(s) · <i class="fas fa-users"></i> {{ p.included_headcount }} pax</div>
+            <div class="meta"><i class="fas fa-calendar-check"></i> Valid until {{ p.validity_end_date|date:"M d, Y" }}</div>
+            {% if p.extra_person_rate %}<div class="meta"><i class="fas fa-plus-circle"></i> Extra head ₱ {{ p.extra_person_rate }}</div>{% endif %}
+            {% if p.inclusions %}
+            <h4 class="ag-plan-title"><i class="fas fa-route"></i> Tour Plan &amp; Inclusions</h4>
+            <ul class="ag-plan-list" style="margin:8px 0 0;padding-left:0;list-style:none">
+                {% for line in p.inclusions|lines %}
+                <li class="ag-plan-item"><i class="fas fa-check"></i> {{ line }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if p.included_hotels.all or p.included_resorts.all or p.included_flights.all or p.included_activities.all or p.included_restaurants.all or p.included_transport.all %}
+            <div class="meta"><i class="fas fa-box-open"></i> {{ p.included_hotels.count }} hotel{{ p.included_hotels.count|pluralize }} · {{ p.included_resorts.count }} resort{{ p.included_resorts.count|pluralize }} · {{ p.included_flights.count }} flight{{ p.included_flights.count|pluralize }} · {{ p.included_activities.count }} activit{{ p.included_activities.count|pluralize:'y,ies' }} · {{ p.included_restaurants.count }} restaurant{{ p.included_restaurants.count|pluralize }} · {{ p.included_transport.count }} transport</div>
+            {% endif %}
+        </div>
+        <div class="scard-foot">
+            <div class="price">₱ {{ p.price }}<small>/pack</small></div>
+            {% if request.user.is_platform_manager %}
+            <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
+            {% else %}
+            <a href="{% url 'tour_package:book_package' p.id %}" class="btn btn-brand btn-sm"><i class="fas fa-shopping-cart"></i> Book Package</a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="card"><div class="empty"><i class="fas fa-luggage-cart"></i><h3>No valid packages</h3><p>Valid packages within their validity period will appear here.</p></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ airline.name }} Fleet{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div style="display:flex;align-items:center;gap:16px">
+        {% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--md' %}
+        <div>
+            <h1>{{ airline.name }} Fleet</h1>
+            <p>Which aircraft types {{ airline.name }} operates, and the cabin each one is fitted out with.</p>
+        </div>
+    </div>
+    <div>
+        <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back to airline</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Add an aircraft type</label>
+                <select name="aircraft_type" class="form-input" required>
+                    <option value="">Choose a type</option>
+                    {% for t in available_types %}
+                        {% if t.id not in in_fleet_ids %}
+                            <option value="{{ t.id }}">{{ t.label }} &mdash; {{ t.get_body_class_display }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <span class="meta" style="display:block">A new type is given a default cabin from its body class, so it is bookable straight away.</span>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-plus"></i> Add to fleet</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Type</th><th>Body</th><th>Typical</th><th>Seat Map</th><th>Capacity</th><th>Aircraft</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for row in fleet_entries %}
+                <tr {% if not row.entry.is_active %}style="opacity:.55"{% endif %}>
+                    <td>
+                        {{ row.type.label }}
+                        {% if row.entry.is_primary %}<span class="badge badge-blue">Primary</span>{% endif %}
+                    </td>
+                    <td>{{ row.type.get_body_class_display }}</td>
+                    <td>{{ row.type.typical_capacity }}</td>
+                    <td class="mono">{{ row.layout.seat_map|default:"&mdash;" }}</td>
+                    <td>{{ row.layout.total_capacity|default:"&mdash;" }}</td>
+                    <td>{{ row.aircraft_count }}</td>
+                    <td>
+                        {% if row.entry.is_active %}
+                            <span class="badge badge-green">Active</span>
+                        {% else %}
+                            <span class="badge badge-yellow">Retired</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.entry.is_active %}
+                        <form method="post" style="display:inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="remove">
+                            <input type="hidden" name="aircraft_type" value="{{ row.type.id }}">
+                            <button type="submit" class="btn btn-ghost btn-sm">Retire</button>
+                        </form>
+                        {% else %}
+                        <form method="post" style="display:inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="restore">
+                            <input type="hidden" name="aircraft_type" value="{{ row.type.id }}">
+                            <button type="submit" class="btn btn-ghost btn-sm">Restore</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8"><div class="empty"><i class="fas fa-plane"></i><h3>No aircraft types in this fleet</h3><p>Add one above so this airline can be scheduled.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

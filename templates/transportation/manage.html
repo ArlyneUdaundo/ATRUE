@@ -1,0 +1,197 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transportation Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.transport-modal{position:fixed;inset:0;margin:auto;width:min(680px,calc(100vw - 28px));max-width:none;max-height:min(88vh,900px);padding:0;border:0;border-radius:18px;box-shadow:0 24px 80px rgba(13,35,67,.28);overflow:hidden}
+.transport-modal::backdrop{background:rgba(16,31,53,.58);backdrop-filter:blur(4px)}
+.transport-modal__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px;border-bottom:1px solid #e4ebf4;background:#fff}
+.transport-modal__head h2{margin:0;font-size:20px;color:#182b46}
+.transport-modal__head p{margin:3px 0 0;color:#71839a;font-size:13px}
+.transport-modal__body{max-height:calc(88vh - 72px);overflow:auto;padding:20px 22px;background:#f8fbff}
+.transport-modal-form{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important}
+.transport-modal-form>button[type=submit]{width:auto!important;min-width:150px;padding:12px 20px!important}
+.transport-modal-form>a.btn{width:auto!important;margin:0 0 0 8px!important;padding:12px 18px}
+.vehicle-photo-picker{padding:10px;border:1px solid #dce7f3;border-radius:9px;background:#fff}
+.agency-photo-grid,.agency-photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:9px;margin:8px 0 12px}
+.agency-photo-item,.agency-photo-preview__item{display:flex;flex-direction:column;gap:5px;padding:7px;border:1px solid #dce7f3;border-radius:9px;background:#fff;color:#60758c;font-size:11px}
+.agency-photo-item img,.agency-photo-preview__item img{width:100%;height:72px;object-fit:cover;border-radius:6px;background:#edf5ff}
+.agency-photo-item small{display:flex;align-items:center;gap:5px}
+.agency-photo-preview:empty{display:none}
+.transport-vehicle-cell{display:flex;align-items:center;gap:9px;min-width:145px}
+.transport-vehicle-cell img{width:48px;height:36px;flex:none;object-fit:cover;border-radius:6px;background:#edf5ff}
+.transport-modal__loading,.transport-modal__error{padding:24px;text-align:center;color:#647891}
+@media(max-width:560px){.transport-modal__head{padding:15px 16px}.transport-modal__body{padding:16px}.transport-modal-form>button[type=submit]{width:100%!important}.transport-modal-form>a.btn{width:100%!important;margin:8px 0 0!important}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Transportation Management</h1><p>Create, update and manage agencies, vehicles and drivers.</p></div>
+    <button type="button" data-transport-modal="{% url 'transportation:add_agency' %}" data-modal-title="Add Agency" class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</button>
+</div>
+
+{% for a in agencies %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-blue"><i class="fas fa-bus"></i></span>
+        <div style="flex:1">
+            <h3 style="margin:0">{{ a.name }}</h3>
+            <div class="meta"><i class="fas fa-phone"></i> {{ a.contact_number }} · {{ a.vehicles.count }} vehicles · {{ a.drivers.count }} drivers</div>
+        </div>
+        <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
+        <button type="button" data-transport-modal="{% url 'transportation:update_agency' a.id %}" data-modal-title="Edit Agency" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</button>
+        <button type="button" data-transport-modal="{% url 'transportation:add_vehicle' a.id %}" data-modal-title="Add Vehicle" class="btn btn-brand btn-sm"><i class="fas fa-car"></i> Vehicle</button>
+        <button type="button" data-transport-modal="{% url 'transportation:add_driver' a.id %}" data-modal-title="Add Driver" class="btn btn-ghost btn-sm"><i class="fas fa-user-tie"></i> Driver</button>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+        <div>
+            <h4 style="margin-bottom:8px"><i class="fas fa-car"></i> Vehicles</h4>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Vehicle</th><th>Plate</th><th>Cap</th><th>Rate/km</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        {% for v in a.vehicles.all %}
+                        <tr>
+                            <td><div class="transport-vehicle-cell">{% if v.image %}<img src="{{ v.image.url }}" alt="{{ v.label }} photo">{% endif %}<span>{{ v.label }}</span></div></td><td class="mono">{{ v.plate_number }}</td>
+                            <td>{{ v.capacity }}</td><td>₱ {{ v.rate_per_km }}</td><td>{{ v.get_status_display }}</td>
+                            <td><button type="button" data-transport-modal="{% url 'transportation:update_vehicle' v.id %}" data-modal-title="Edit Vehicle" class="btn btn-ghost btn-sm">Edit</button></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="6">No vehicles.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            <h4 style="margin-bottom:8px"><i class="fas fa-user-tie"></i> Drivers</h4>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Driver</th><th>License</th><th>Contact</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        {% for d in a.drivers.all %}
+                        <tr>
+                            <td>{{ d.full_name }}</td><td class="mono">{{ d.license_number }}</td>
+                            <td>{{ d.contact_number }}</td><td>{{ d.get_status_display }}</td>
+                            <td><button type="button" data-transport-modal="{% url 'transportation:update_driver' d.id %}" data-modal-title="Edit Driver" class="btn btn-ghost btn-sm">Edit</button></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5">No drivers.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-bus"></i><h3>No agencies yet</h3><p>Add your first agency to begin.</p></div></div>
+{% endfor %}
+
+<dialog class="transport-modal" id="transportFormModal" aria-labelledby="transportModalTitle">
+    <header class="transport-modal__head">
+        <div><h2 id="transportModalTitle">Edit</h2><p id="transportModalSubtitle"></p></div>
+        <button type="button" class="btn btn-ghost btn-sm" data-transport-modal-close aria-label="Close">&times;</button>
+    </header>
+    <div class="transport-modal__body" id="transportModalBody" aria-live="polite"></div>
+</dialog>
+
+<script>
+(function(){
+    const dialog=document.getElementById('transportFormModal');
+    const body=document.getElementById('transportModalBody');
+    const title=document.getElementById('transportModalTitle');
+    const subtitle=document.getElementById('transportModalSubtitle');
+    if(!dialog||!body)return;
+
+    function installForm(html,url){
+        const parsed=new DOMParser().parseFromString(html,'text/html');
+        const source=parsed.querySelector('form[data-agency-form],form.establishment-form-card');
+        if(!source)return false;
+        const form=source.cloneNode(true);
+        form.removeAttribute('style');
+        form.className='transport-modal-form';
+        form.setAttribute('action',url);
+        if(form.querySelector('input[type="file"]'))form.enctype='multipart/form-data';
+        body.replaceChildren(form);
+        return true;
+    }
+
+    async function openModal(button){
+        const url=button.dataset.transportModal;
+        title.textContent=button.dataset.modalTitle||'Edit';
+        subtitle.textContent='';
+        body.innerHTML='<div class="transport-modal__loading">Loading form…</div>';
+        dialog.showModal();
+        try{
+            const response=await fetch(url,{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
+            const html=await response.text();
+            if(!response.ok||!installForm(html,url))throw new Error('Could not load the form. Please refresh and try again.');
+            const heading=new DOMParser().parseFromString(html,'text/html').querySelector('.page-head h1');
+            if(heading)subtitle.textContent=heading.textContent.trim();
+        }catch(error){body.innerHTML='<div class="transport-modal__error"></div>';body.firstElementChild.textContent=error.message;}
+    }
+
+    document.addEventListener('click',function(event){
+        const trigger=event.target.closest('[data-transport-modal]');
+        if(trigger){event.preventDefault();openModal(trigger);return;}
+        if(event.target.closest('[data-transport-modal-close]'))dialog.close();
+        const cancel=event.target.closest('#transportModalBody a.btn');
+        if(cancel&&cancel.textContent.trim().toLowerCase()==='cancel'){event.preventDefault();dialog.close();}
+    });
+
+    document.addEventListener('change',function(event){
+        const agencyInput=event.target.closest('[data-agency-photo-input]');
+        if(agencyInput){
+            const preview=agencyInput.parentElement.querySelector('[data-agency-photo-preview]');
+            if(preview){
+                preview.replaceChildren();
+                Array.from(agencyInput.files||[]).forEach(function(file,index){
+                    if(!file.type.startsWith('image/'))return;
+                    const tile=document.createElement('div');tile.className='agency-photo-preview__item';
+                    const image=document.createElement('img');image.alt='Selected agency photo preview';image.src=URL.createObjectURL(file);
+                    const caption=document.createElement('span');caption.textContent=index===0?'New cover photo':'Gallery photo';
+                    tile.append(image,caption);preview.appendChild(tile);
+                });
+            }
+            return;
+        }
+        const input=event.target.closest('[data-vehicle-photo-input]');
+        if(!input)return;
+        const file=input.files&&input.files[0];
+        const picker=input.closest('.vehicle-photo-picker');
+        if(!file||!picker)return;
+        if(!file.type.startsWith('image/')){input.value='';return;}
+        const preview=picker.querySelector('[data-vehicle-photo-preview]');
+        if(!preview)return;
+        preview.replaceChildren();
+        const tile=document.createElement('div');tile.className='agency-photo-preview__item';
+        const image=document.createElement('img');image.alt='Selected vehicle photo preview';image.src=URL.createObjectURL(file);
+        const caption=document.createElement('span');caption.textContent='New vehicle photo';
+        tile.append(image,caption);preview.appendChild(tile);
+    });
+
+    dialog.addEventListener('submit',async function(event){
+        const form=event.target.closest('form.transport-modal-form');
+        if(!form)return;
+        event.preventDefault();
+        const submit=form.querySelector('[type="submit"]');
+        if(submit){submit.disabled=true;submit.dataset.originalText=submit.textContent;submit.textContent='Saving…';}
+        try{
+            const payload=new FormData(form);
+            const photoInput=form.querySelector('input[type="file"][name="image"]');
+            if(photoInput&&photoInput.files&&photoInput.files[0])payload.set('image',photoInput.files[0],photoInput.files[0].name);
+            const response=await fetch(form.action,{method:'POST',body:payload,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
+            const html=await response.text();
+            if(response.redirected){window.location.reload();return;}
+            if(!response.ok||!installForm(html,form.action))throw new Error('Could not save the changes. Please try again.');
+        }catch(error){
+            const message=document.createElement('div');message.className='transport-modal__error';message.textContent=error.message;
+            body.prepend(message);
+        }finally{
+            const current=body.querySelector('[type="submit"]');
+            if(current){current.disabled=false;current.textContent=current.dataset.originalText||current.textContent;}
+        }
+    });
+})();
+</script>
+{% endblock %}

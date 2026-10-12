@@ -1,0 +1,102 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}List of Transactions{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>List of Transactions</h1><p>Search, filter and sort payments, refunds and adjustments across the establishment (BR-032, BR-033, BR-089 to BR-092).</p></div>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group" style="grid-column:span 2">
+            <label>Search Keyword</label>
+            <input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Transaction reference, booking reference, or customer / guest name">
+        </div>
+        <div class="form-group">
+            <label>Transaction Type</label>
+            <select name="type" class="form-input">
+                <option value="">All types</option>
+                {% for value, label in transaction_types %}
+                <option value="{{ value }}" {% if ttype == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Transaction Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Transaction Date From</label>
+            <input type="date" name="date_from" class="form-input" value="{{ date_from }}">
+        </div>
+        <div class="form-group">
+            <label>Transaction Date To</label>
+            <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
+        </div>
+        <div class="form-group">
+            <label>Payment Method</label>
+            <select name="method" class="form-input">
+                <option value="">All methods</option>
+                {% for m in method_choices %}
+                <option value="{{ m }}" {% if method == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Min Amount</label>
+            <input type="number" name="amount_min" step="0.01" class="form-input" value="{{ amount_min|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label>Max Amount</label>
+            <input type="number" name="amount_max" step="0.01" class="form-input" value="{{ amount_max|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label>Sort By</label>
+            <select name="sort" class="form-input">
+                <option value="date" {% if sort == 'date' or not sort %}selected{% endif %}>Transaction Date</option>
+                <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Amount</option>
+                <option value="type" {% if sort == 'type' %}selected{% endif %}>Transaction Type</option>
+                <option value="status" {% if sort == 'status' %}selected{% endif %}>Status</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+    <a href="{% url 'transactions:admin_list' %}" class="btn btn-outline btn-sm">Reset</a>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr><th>Transaction Reference</th><th>Booking Reference</th><th>Customer / Guest</th><th>Date</th><th>Type</th><th>Method</th><th>Amount</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="mono">{{ r.reference }}</td>
+                    <td class="mono">{{ r.booking_ref|default:"—" }}</td>
+                    <td>{{ r.customer }}</td>
+                    <td>{{ r.date|date:"M d, Y H:i" }}</td>
+                    <td>{{ r.type }}</td>
+                    <td>{{ r.method }}</td>
+                    <td>₱ {{ r.amount }}</td>
+                    <td><span class="badge {% if r.status == 'Completed' %}badge-green{% elif r.status == 'Pending' %}badge-yellow{% elif r.status == 'Refunded' %}badge-gray{% else %}badge-red{% endif %}">{{ r.status }}</span></td>
+                    <td>
+                        {% if r.bill_id %}<a href="{% url 'transactions:bill_detail' r.bill_id %}" class="btn btn-ghost btn-sm">View</a>
+                        {% else %}<a href="{% url 'transactions:admin_list' %}?q={{ r.reference }}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i></a>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9"><div class="empty"><i class="fas fa-file-invoice-dollar"></i><h3>No transactions found</h3><p>Try adjusting your search or filters.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

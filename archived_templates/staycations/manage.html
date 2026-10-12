@@ -1,0 +1,103 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Staycation Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Staycation Management</h1><p>Create, update and manage staycations, add-ons and block-out dates.</p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'staycations:services' %}" class="btn btn-ghost"><i class="fas fa-concierge-bell"></i> Services</a>
+        <a href="{% url 'staycations:add' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Staycation</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Search</label>
+                <input type="text" name="q" class="form-input" placeholder="Name, ID, contact or email" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Province</label>
+                <input type="text" name="province" class="form-input" value="{{ province }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Municipality</label>
+                <input type="text" name="municipality" class="form-input" value="{{ municipality }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Barangay</label>
+                <input type="text" name="barangay" class="form-input" value="{{ barangay }}">
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'staycations:manage' %}" class="btn btn-outline">Reset</a>
+        </div>
+    </form>
+</div>
+
+{% for s in staycations %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-teal"><i class="fas fa-home"></i></span>
+        <div style="flex:1">
+            <h3 style="margin:0">{{ s.name }}</h3>
+            <div class="meta"><i class="fas fa-fingerprint"></i> <b>{{ s.establishment_id|default:"STC-" }}</b> · <i class="fas fa-map-marker-alt"></i> {{ s.location }} · {{ s.capacity_adults }}A/{{ s.capacity_children }}C · ₱ {{ s.rate }}/night</div>
+        </div>
+        <span class="badge {% if s.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ s.get_status_display }}</span>
+        <a href="{% url 'staycations:detail' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+        <a href="{% url 'staycations:update_staycation' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'staycations:add_service' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Add-on</a>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-concierge-bell"></i> Add-ons / Services</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for svc in s.services.all %}
+                <tr>
+                    <td>{{ svc.name }}</td><td>₱ {{ svc.rate }}</td><td>{{ svc.get_status_display }}</td>
+                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'staycations:update_service' svc.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="4">No add-ons.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-calendar-times"></i> Block-Out Dates</h4>
+    <form method="post" action="{% url 'staycations:add_block' s.id %}" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        {% csrf_token %}
+        <input type="date" name="start_date" class="form-input" style="max-width:160px" required>
+        <input type="date" name="end_date" class="form-input" style="max-width:160px" required>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-plus"></i> Add Block-Out</button>
+    </form>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Start</th><th>End</th><th></th></tr></thead>
+            <tbody>
+                {% for b in s.blocked_dates.all %}
+                <tr>
+                    <td>{{ b.start_date|date:"M d, Y" }}</td><td>{{ b.end_date|date:"M d, Y" }}</td>
+                    <td><form method="post" action="{% url 'staycations:remove_block' b.id %}">{% csrf_token %}<button class="btn btn-ghost btn-sm text-danger"><i class="fas fa-trash"></i></button></form></td>
+                </tr>
+                {% empty %}<tr><td colspan="3">No block-out dates.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-home"></i><h3>No staycations yet</h3><p>Add your first staycation to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

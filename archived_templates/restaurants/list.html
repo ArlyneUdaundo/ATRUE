@@ -1,0 +1,66 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurants{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Available Restaurants</h2>
+        <p>{{ restaurants|length }} restaurant{% if restaurants|length != 1 %}s{% endif %} found · Find a restaurant, inspect its tables and reserve ahead</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'restaurants:add' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Restaurant</a>
+    {% endif %}
+</div>
+
+<div class="ag-list">
+    {% for r in restaurants %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-utensils"></i></span>
+            <span class="ag-media-badges"><span class="badge badge-green">{{ r.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <div class="mono" style="font-size:12px;color:var(--slate-500)">{{ r.restaurant_id }}</div>
+                    <h3><a href="{% url 'restaurants:detail' r.id %}" style="color:inherit">{{ r.name }}</a></h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ r.location }}</div>
+                </div>
+                {% if r.get_status_display %}<span class="ag-rate"><i class="fas fa-star"></i> {{ r.tables.count }}</span>{% endif %}
+            </div>
+
+            <div class="ag-card-meta">
+                {% if r.cuisine_type %}<span><i class="fas fa-tag"></i> {{ r.cuisine_type }}</span>{% endif %}
+                {% if r.contact_number %}<span><i class="fas fa-phone-alt"></i> {{ r.contact_number }}</span>{% endif %}
+                {% if r.operating_hours %}<span><i class="fas fa-clock"></i> {{ r.operating_hours }}</span>{% endif %}
+            </div>
+
+            {% if r.tables.all %}
+            <div style="margin-top:4px">
+                {% for t in r.tables.all %}
+                <div class="ag-option">
+                    <span class="ag-opt-info" style="flex:1;min-width:0">
+                        <b><a href="{% url 'restaurants:table_detail' t.id %}" style="color:inherit">Table {{ t.table_number }}</a> <small style="color:var(--slate-500)">· {{ t.get_seating_area_display }}</small></b>
+                        <small>Seats up to {{ t.capacity }} guest(s)</small>
+                    </span>
+                    {% if request.user.is_platform_manager %}
+                    <span class="ag-manage-note" style="border:none;padding:0"><i class="fas fa-user-shield"></i> Manage only</span>
+                    {% elif t.status == 'AVAILABLE' %}
+                    <a href="{% url 'restaurants:book' t.id %}" class="ag-btn btn-sm"><i class="fas fa-chair"></i> Reserve</a>
+                    {% else %}
+                    <span class="badge badge-gray">{{ t.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% empty %}<div class="ag-manage-note"><i class="fas fa-chair"></i> No tables yet.</div>{% endfor %}
+            </div>
+            {% else %}
+            <div class="ag-manage-note"><i class="fas fa-chair"></i> Tables will appear here once added by the administrator.</div>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-utensils"></i><h3>No restaurants yet</h3><p>Restaurants will be listed here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

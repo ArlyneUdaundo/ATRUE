@@ -1,0 +1,28 @@
+{% comment %}
+Results region of the listing page.
+
+Kept in its own partial so the full page render and the live-filter response
+render exactly the same markup. Nothing is designed here that was not already
+in search_page.html.
+{% endcomment %}
+<div class="bk-result-h">
+    <p class="bk-kicker"><b>{{ total }}</b> {{ cfg.result_kicker }}{% if search_q %} for &ldquo;{{ search_q }}&rdquo;{% endif %}</p>
+    <div class="bk-sorts">
+        {% for s in sort_options %}
+            <a class="bk-sort{% if s.active %} active{% endif %}" href="{{ s.url }}">{{ s.label }}</a>
+        {% endfor %}
+    </div>
+    <select class="bk-sort-select" name="sort" aria-label="Sort results">
+        {% for s in sort_options %}
+            <option value="{{ s.value }}"{% if s.active %} selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+{% if things %}
+    {% for thing in things %}
+        {% include 'search/_listing_card.html' with t=thing %}
+    {% endfor %}
+{% else %}
+    {% include 'search/_empty_state.html' %}
+{% endif %}

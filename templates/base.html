@@ -1,0 +1,222 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ATRUE{% endblock %} | Tour, Travel & Hospitality Platform</title>
+    <meta name="description" content="ATRUE — A Tour, Travel, and Hospitality Platform for simulation training at Saint Joseph College of Baggao.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=20261012-logo-only-animated-2">
+    <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
+    <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
+<link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261012">
+<link rel="stylesheet" href="{% static 'css/atrue-datepicker.css' %}?v=20261011-modal-popup-layer">
+<link rel="stylesheet" href="{% static 'css/atrue-timepicker.css' %}?v=20261011-modal-popup-layer">
+{% block extra_css %}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/guests-tables.css' %}?v=20261012e">
+        {% include "partials/tab_context.html" %}
+
+<link rel="stylesheet" href="{% static 'css/establishment-modal.css' %}?v=20261010-5">
+<link rel="stylesheet" href="{% static 'css/location-cascade.css' %}?v=20261012-location-popup-layer">
+    <link rel="stylesheet" href="{% static 'css/delete-confirm-modal.css' %}?v=20261013-confirm-modal-top-layer">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+    <!-- Loading state -->
+    <div id="preloader" role="status" aria-label="Loading ATRUE. Preparing your next adventure.">
+        <div class="loader">
+            <div class="loader-mark"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <header class="navbar" id="navbar">
+        <div class="container nav-inner">
+            <a href="{% url 'home' %}" class="brand">
+                    <span class="brand-mark"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+                <span class="brand-text">
+                    <b>ATRUE</b>
+                    <small>Travel &amp; Tours</small>
+                </span>
+            </a>
+
+            <nav class="nav-links">
+                <a href="{% url 'home' %}" class="nav-link active">Home<span class="dot"></span></a>
+                <div class="has-dropdown">
+                    <span class="nav-link" role="button" tabindex="0">Establishments <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
+                    <div class="dropdown">
+                        <a href="{% url 'hotels:list' %}" class="dropdown-item di-hotels">
+                            <span class="di-ico"><i class="fas fa-hotel"></i></span>
+                            <span class="di-txt"><b>Hotels</b><small>Rooms &amp; suites</small></span>
+                        </a>
+                        <a href="{% url 'resorts:list' %}" class="dropdown-item di-resorts">
+                            <span class="di-ico"><i class="fas fa-umbrella-beach"></i></span>
+                            <span class="di-txt"><b>Resorts</b><small>Villas &amp; cabanas</small></span>
+                        </a>
+                        <a href="{% url 'staycations:list' %}" class="dropdown-item di-staycation">
+                            <span class="di-ico"><i class="fas fa-couch"></i></span>
+                            <span class="di-txt"><b>Staycations</b><small>Cozy getaways</small></span>
+                        </a>
+                        <a href="{% url 'restaurants:list' %}" class="dropdown-item di-restaurants">
+                            <span class="di-ico"><i class="fas fa-utensils"></i></span>
+                            <span class="di-txt"><b>Restaurants</b><small>Table reservations</small></span>
+                        </a>
+                        <a href="{% url 'landmarks:list' %}" class="dropdown-item di-landmarks">
+                            <span class="di-ico"><i class="fas fa-landmark"></i></span>
+                            <span class="di-txt"><b>Landmarks</b><small>Tourist spots &amp; tickets</small></span>
+                        </a>
+                        <a href="{% url 'activities:list' %}" class="dropdown-item di-activities">
+                            <span class="di-ico"><i class="fas fa-hiking"></i></span>
+                            <span class="di-txt"><b>Activities</b><small>Adventure &amp; tours</small></span>
+                        </a>
+                        <a href="{% url 'tour_package:list' %}" class="dropdown-item di-tour">
+                            <span class="di-ico"><i class="fas fa-suitcase-rolling"></i></span>
+                            <span class="di-txt"><b>Tour Packages</b><small>Curated travel bundles</small></span>
+                        </a>
+                    </div>
+                </div>
+                <div class="has-dropdown">
+                    <span class="nav-link" role="button" tabindex="0">Travel Transport <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
+                    <div class="dropdown">
+                        <a href="{% url 'airlines:list' %}" class="dropdown-item di-airlines"><span class="di-ico"><i class="fas fa-plane"></i></span><span class="di-txt"><b>Flights</b><small>Domestic &amp; international bookings</small></span></a>
+                        <a href="{% url 'transportation:list' %}" class="dropdown-item di-transport"><span class="di-ico"><i class="fas fa-bus"></i></span><span class="di-txt"><b>Land Transportation</b><small>Vans, buses &amp; cars</small></span></a>
+                    </div>
+                </div>
+                <a href="{% url 'home' %}#about" class="nav-link">About<span class="dot"></span></a>
+                <a href="{% url 'home' %}#simulation" class="nav-link">Roles<span class="dot"></span></a>
+                <a href="{% url 'home' %}#contact" class="nav-link">Contact<span class="dot"></span></a>
+            </nav>
+
+            <div class="nav-actions">
+                <div class="auth-group">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard' %}" class="btn btn-ghost"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                        <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Sign Out</a>
+                    {% else %}
+                        {% if request.resolver_match.url_name == 'home' %}
+                        <button type="button" class="btn btn-ghost" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
+                        {% else %}
+                        <a href="{% url 'accounts:login' %}" class="btn btn-ghost">Sign In</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile drawer -->
+    <div class="backdrop" id="backdrop"></div>
+    <aside class="mobile-drawer" id="mobileDrawer">
+        <div class="md-title">Menu</div>
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'home' %}#services">Services</a>
+        <a href="{% url 'home' %}#about">About</a>
+        <a href="{% url 'home' %}#simulation">Roles</a>
+        <a href="{% url 'home' %}#contact">Contact</a>
+        <div class="md-title">Account</div>
+        {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <a href="{% url 'accounts:logout' %}">Sign Out</a>
+        {% else %}
+        {% if request.resolver_match.url_name == 'home' %}
+        <button type="button" class="mobile-signin-trigger" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
+        {% else %}
+        <a href="{% url 'accounts:login' %}">Sign In</a>
+        {% endif %}
+        {% endif %}
+    </aside>
+
+    <main>
+        {% if messages %}
+        <div class="container" style="margin-top:24px">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" style="padding:14px 18px;border-radius:12px;margin-bottom:10px;
+                {% if message.tags == 'success' %}background:#eff6ff;color:#1e40af;{% elif message.tags == 'error' or message.tags == 'danger' %}background:#fef2f2;color:#991b1b;{% else %}background:#eff6ff;color:#1e40af;{% endif %}">
+                <i class="fas fa-check-circle"></i> {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-orb"></div>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <span class="brand-mark"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+                    <h3>ATRUE</h3>
+                    <p>A comprehensive Tour, Travel, and Hospitality Platform built for simulation training of Saint Joseph College of Baggao students.</p>
+                    <div class="socials">
+                        <a href="https://www.facebook.com" aria-label="Facebook" target="_blank" rel="noopener"><i class="fab fa-facebook-f"></i></a>
+                        <a href="https://www.x.com" aria-label="Twitter" target="_blank" rel="noopener"><i class="fab fa-twitter"></i></a>
+                        <a href="https://www.instagram.com" aria-label="Instagram" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
+                        <a href="https://www.linkedin.com" aria-label="LinkedIn" target="_blank" rel="noopener"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Services</h4>
+                    <ul>
+                        <li><a href="{% url 'hotels:list' %}">Hotel Bookings</a></li>
+                        <li><a href="{% url 'airlines:list' %}">Flight Reservations</a></li>
+                        <li><a href="{% url 'resorts:list' %}">Resort Bookings</a></li>
+                        <li><a href="{% url 'tour_package:list' %}">Tour Packages</a></li>
+                        <li><a href="{% url 'transportation:list' %}">Transportation</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Simulation</h4>
+                    <ul>
+                        <li><a href="{% url 'home' %}#simulation">Role Assignments</a></li>
+                        <li><a href="{% url 'home' %}#simulation">Practice Sessions</a></li>
+                        <li><a href="{% url 'home' %}#simulation">Activity Logs</a></li>
+                        <li><a href="{% url 'home' %}#simulation">Student Portal</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Contact</h4>
+                    <ul class="footer-contact">
+                        <li><i class="fas fa-map-marker-alt"></i> Saint Joseph College of Baggao, Cagayan, Philippines</li>
+                        <li><i class="fas fa-phone"></i> +63 (000) 000-0000</li>
+                        <li><i class="fas fa-envelope"></i> info@atrue.sjcb.edu.ph</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2026 ATRUE. Saint Joseph College of Baggao. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <button class="back-top" id="backTop" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
+
+    <script>window.ATRUE_LOC_DATA = {{ atrue_loc_tree_json|safe }};</script>
+<script src="{% static 'js/main.js' %}?v=20261012-preloader-3s"></script>
+    <script src="{% static 'js/location-data.js' %}?v=20260922"></script>
+    <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
+    <script src="{% static 'js/location-picker.js' %}?v=20261005"></script>
+    <script src="{% static 'js/airport-picker.js' %}?v=20261012"></script>
+<script src="{% static 'js/flight-search.js' %}?v=20261012"></script>
+<script src="{% static 'js/atrue-datepicker.js' %}?v=20261011-viewport-popup"></script>
+<script src="{% static 'js/atrue-timepicker.js' %}?v=20261011-viewport-popup"></script>
+{% block extra_js %}{% endblock %}
+<script src="{% static 'js/guests-tables.js' %}?v=20261012e"></script>
+<script src="{% static 'js/location-cascade.js' %}?v=20261012"></script>
+<script src="{% static 'js/establishment-modal.js' %}?v=20261010-flight-modal-airline-logo-2"></script>
+    <script src="{% static 'js/delete-confirm-modal.js' %}?v=20261013-confirm-modal-top-layer"></script>
+</body>
+</html>

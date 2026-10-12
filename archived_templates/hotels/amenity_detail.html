@@ -1,0 +1,40 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ amenity.name }} | Amenity{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ amenity.name }}</h1>
+        <p><a href="{% url 'hotels:detail' amenity.hotel.id %}" style="color:var(--indigo)">{{ amenity.hotel.name }}</a> · <span class="badge {% if amenity.status == 'ACTIVE' %}badge-green{% elif amenity.status == 'UNAVAILABLE' or amenity.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ amenity.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'hotels:update_amenity' amenity.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'hotels:amenities' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Amenities</a>
+        {% else %}
+        <a href="{% url 'hotels:detail' amenity.hotel.id %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-swimming-pool"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Amenity ID: <b>{{ amenity.amenity_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-hotel"></i> {{ amenity.hotel.name }} — {{ amenity.hotel.location }}</div>
+            <div class="meta"><i class="fas fa-clock"></i> {{ amenity.operating_hours|default:"Anytime" }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0 0 10px"><i class="fas fa-align-left"></i> Description</h3>
+    {% if amenity.description %}
+    <div style="white-space:pre-line">{{ amenity.description }}</div>
+    {% else %}
+    <div class="meta">No description provided.</div>
+    {% endif %}
+</div>
+{% endblock %}

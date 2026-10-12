@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Log In – ATRUE{% endblock %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-orb orb-1"></div>
+    <div class="auth-orb orb-2"></div>
+    <div class="auth-orb orb-3"></div>
+    <div class="auth-form">
+        <div class="auth-card">
+            <div class="cardbox-brand">
+                <span class="cb-logo"><img src="{% static 'img/atrue-logo.jpeg' %}" alt="ATRUE logo"></span>
+                <h2>Log In</h2>
+                <div class="sub">Sign in to your ATRUE account</div>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ form.non_field_errors.0 }}</div>
+                {% endif %}
+                <div class="form-group">
+                    <label>Email or Username</label>
+                    <div class="input-wrap">
+                        <input type="text" name="username" class="form-input" placeholder="you@example.com" value="{{ form.username.value|default:'' }}" required autofocus>
+                        {% for e in form.username.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrap">
+                        <input type="password" name="password" class="form-input pw-input" placeholder="Enter your password" required>
+                        <button type="button" class="pw-toggle" aria-label="Show password"><i class="fas fa-eye"></i></button>
+                        {% for e in form.password.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-brand btn-full">Log In &rarr;</button>
+            </form>
+            <div class="auth-links" style="margin-top:18px;text-align:center;font-size:14px">
+                Don't have an account? <a href="{% url 'accounts:register' %}">Sign up</a>
+            </div>
+            <div class="auth-links" style="text-align:center;margin-top:8px"><a href="{% url 'home' %}">&larr; Back to Home</a></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

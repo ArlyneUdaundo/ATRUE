@@ -1,0 +1,57 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1><i class="fas fa-user-plus"></i> {{ page_title }}</h1>
+        <p>{{ page_subtitle }}</p>
+    </div>
+    {% if not is_create %}
+    <a href="{% url 'accounts:account_detail' account.id %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Account</a>
+    {% endif %}
+</div>
+
+<div class="card" style="max-width:1000px;margin:0 auto;border-radius:18px;overflow:hidden">
+    <div style="padding:18px 26px;border-bottom:1px solid var(--slate-200);background:linear-gradient(135deg,var(--slate-50),var(--white))">
+        <h3 style="margin:0;font-size:16.5px"><i class="fas fa-clipboard-list" style="color:var(--indigo)"></i> Account Details</h3>
+        <p style="margin:4px 0 0;color:var(--slate-500);font-size:13px">Fields are grouped so the form stays compact and easy to read.</p>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div style="padding:14px 26px 0"><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ form.non_field_errors.0 }}</div></div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="establishment-form-card" style="padding:22px 26px 26px" {% if is_create %}data-account-create-form{% endif %}>
+        {% csrf_token %}
+        {% for heading, icon, names in form_sections %}
+        <div style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+                <span class="stat-ico" style="width:34px;height:34px;border-radius:10px;background:var(--slate-100);color:var(--indigo);display:grid;place-items:center;font-size:13px"><i class="fas {{ icon }}"></i></span>
+                <div>
+                    <b style="font-size:14.5px">{{ heading }}</b>
+                    {% if heading == 'Account & Security' %}<span class="badge badge-amber" style="margin-left:8px;vertical-align:1px">Login</span>{% endif %}
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px">
+                {% for field in form %}
+                {% if field.name in names %}
+                <div class="form-group {% if field.name in span_fields %}span-2{% endif %}" style="margin:0{% if field.name in span_fields %};grid-column:1/-1{% endif %}">
+                    <label>{{ field.label }}{% if field.field.required %} <em class="muted-hint">Required</em>{% elif field.name == 'middle_initial' or field.name == 'middle_name' %} <em class="muted-hint">Optional</em>{% endif %}</label>
+                    {{ field }}
+                    {% for e in field.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
+                    {% if field.help_text %}<small style="color:var(--slate-500);font-size:12px;display:block;margin-top:4px">{{ field.help_text }}</small>{% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        <div style="display:flex;gap:10px;align-items:center;border-top:1px solid var(--slate-200);padding-top:18px;margin-top:2px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> {% if is_create %}Create Account{% else %}Save Changes{% endif %}</button>
+            <a href="{% if is_create %}{% url 'accounts:account_list' %}{% else %}{% url 'accounts:account_detail' account.id %}{% endif %}" class="btn btn-outline"><i class="fas fa-times"></i> Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

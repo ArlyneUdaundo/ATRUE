@@ -1,0 +1,54 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ restaurant.name }}{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>{{ restaurant.name }}</h2>
+        <p class="mono" style="font-size:12px;color:var(--slate-500)">{{ restaurant.restaurant_id }}</p>
+    </div>
+    {% if is_manager %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="{% url 'restaurants:update_restaurant' restaurant.id %}" class="ag-btn"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'restaurants:add_table' restaurant.id %}" class="ag-btn"><i class="fas fa-chair"></i> Add Table</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2" style="gap:28px">
+        <div>
+            <h3 style="margin-top:0"><i class="fas fa-utensils"></i> Restaurant Profile</h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ restaurant.location }}</div>
+            {% if restaurant.cuisine_type %}<div class="meta"><i class="fas fa-tag"></i> {{ restaurant.cuisine_type }}</div>{% endif %}
+            {% if restaurant.contact_number %}<div class="meta"><i class="fas fa-phone-alt"></i> {{ restaurant.contact_number }}</div>{% endif %}
+            {% if restaurant.email %}<div class="meta"><i class="fas fa-envelope"></i> {{ restaurant.email }}</div>{% endif %}
+            {% if restaurant.operating_hours %}<div class="meta"><i class="fas fa-clock"></i> {{ restaurant.operating_hours }}</div>{% endif %}
+            <div class="meta"><i class="fas fa-info-circle"></i> Status: <span class="badge {% if restaurant.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ restaurant.get_status_display }}</span></div>
+        </div>
+        <div>
+            <h3 style="margin-top:0"><i class="fas fa-chair"></i> Tables ({{ restaurant.tables.count }})</h3>
+            {% for t in restaurant.tables.all %}
+            <div class="ag-option">
+                <span class="ag-opt-info" style="flex:1;min-width:0">
+                    <b><a href="{% url 'restaurants:table_detail' t.id %}" style="color:inherit">Table {{ t.table_number }}</a></b>
+                    <small>{{ t.get_seating_area_display }} · Seats {{ t.capacity }}</small>
+                </span>
+                {% if is_manager %}
+                <a href="{% url 'restaurants:update_table' t.id %}" class="btn btn-ghost btn-sm">Edit</a>
+                {% elif t.status == 'AVAILABLE' %}
+                <a href="{% url 'restaurants:book' t.id %}" class="ag-btn btn-sm"><i class="fas fa-chair"></i> Reserve</a>
+                {% else %}
+                <span class="badge {% if t.status == 'AVAILABLE' %}badge-green{% elif t.status == 'OCCUPIED' %}badge-blue{% else %}badge-yellow{% endif %}">{{ t.get_status_display }}</span>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="empty"><h3>No tables yet</h3><p>{% if is_manager %}Use "Add Table" to create the first one.{% else %}Tables will appear soon.{% endif %}</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<a href="{% url 'restaurants:list' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Restaurants</a>
+{% endblock %}

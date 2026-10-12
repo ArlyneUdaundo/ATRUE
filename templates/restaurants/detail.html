@@ -1,0 +1,164 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+{% load hotel_photos %}
+
+{% block title %}{{ restaurant.name }}{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>{{ restaurant.name }}</h2>
+        <p class="mono" style="font-size:12px;color:var(--slate-500)">{{ restaurant.restaurant_id }}</p>
+    </div>
+    {% if is_manager %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="ag-btn" data-modal-open="restaurantEditModal"><i class="fas fa-edit"></i> Edit</button>
+    </div>
+    {% else %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="{% url 'restaurants:flow_select' restaurant.id %}" class="ag-btn"><i class="fas fa-chair"></i> Reserve a Table</a>
+        <a href="{% url 'restaurants:list' %}" class="ag-btn"><i class="fas fa-arrow-left"></i> All Restaurants</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if is_manager %}
+<dialog id="restaurantEditModal" class="restaurant-admin-modal">
+    <form method="post" enctype="multipart/form-data" action="{% url 'restaurants:update_restaurant' restaurant.id %}">
+        {% csrf_token %}<input type="hidden" name="return_to_detail" value="1">
+        <div class="restaurant-admin-modal__head"><h2>Edit Restaurant</h2><button type="button" class="btn btn-ghost btn-sm" data-modal-close aria-label="Close">×</button></div>
+        <div class="form-group"><label>Restaurant Name</label><input type="text" name="name" class="form-input" value="{{ restaurant.name }}" required></div>
+        <div class="form-group"><label>Location / Address</label><input type="text" name="location" class="form-input" value="{{ restaurant.location }}" required></div>
+        <div class="form-group"><label>Cuisine Type</label><input type="text" name="cuisine_type" class="form-input" value="{{ restaurant.cuisine_type }}"></div>
+        <div class="form-grid"><div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" value="{{ restaurant.contact_number }}"></div><div class="form-group"><label>Email</label><input type="email" name="email" class="form-input" value="{{ restaurant.email }}"></div></div>
+        <div class="form-group"><label>Operating Hours</label><input type="text" name="operating_hours" class="form-input" value="{{ restaurant.operating_hours }}"></div>
+        <div class="form-group"><label>Add Photos</label><input type="file" name="photos" class="form-input" accept="image/*" multiple></div>
+        <div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value, label in status_choices %}<option value="{{ value }}" {% if restaurant.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="restaurant-admin-modal__actions"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-brand">Save Restaurant</button></div>
+    </form>
+</dialog>
+
+<dialog id="restaurantAddTableModal" class="restaurant-admin-modal">
+    <form method="post" action="{% url 'restaurants:add_table' restaurant.id %}">
+        {% csrf_token %}<input type="hidden" name="return_to_detail" value="1">
+        <div class="restaurant-admin-modal__head"><h2>Add Table</h2><button type="button" class="btn btn-ghost btn-sm" data-modal-close aria-label="Close">×</button></div>
+        <div class="form-grid"><div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" placeholder="e.g. T5" required></div><div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value, label in seating_area_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="form-grid"><div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="2" min="1" required></div><div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value, label in table_status_choices %}<option value="{{ value }}" {% if value == 'AVAILABLE' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="restaurant-admin-modal__actions"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-brand">Save Table</button></div>
+    </form>
+</dialog>
+{% endif %}
+{% if restaurant.photos.all %}
+<div class="hotel-gallery" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px">
+    {% for photo in restaurant.photos.all|usable_urls %}
+    <img src="{{ photo }}" alt="{{ restaurant.name }} photo {{ forloop.counter }}" loading="lazy" decoding="async" style="width:100%;height:230px;object-fit:cover;border-radius:14px">
+    {% endfor %}
+</div>
+{% else %}
+<div id="restaurant-gallery-fallback" class="hotel-gallery-fallback" style="margin-bottom:18px">
+    <img src="{% static 'img/restaurant-placeholder.svg' %}" alt="{{ restaurant.name }}" style="width:100%;height:300px;object-fit:cover;border-radius:14px">
+</div>
+{% endif %}
+
+<style>
+    .restaurant-details-layout { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+    .restaurant-tables-section { min-width: 0; }
+    .restaurant-tables-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+    .restaurant-tables-heading h3 { margin:0 0 4px; }
+    .restaurant-tables-subtitle { margin:0; color:var(--slate-500); font-size:13px; }
+    .restaurant-tables-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .restaurant-table-card { display:flex; align-items:flex-start; gap:13px; min-width:0; min-height:116px; padding:16px; border:1px solid #dbe7f5; border-radius:15px; background:#fff; box-shadow:0 4px 14px rgba(25,61,112,.055); }
+    .restaurant-table-icon { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:50%; color:#2563eb; background:#eaf2ff; font-size:16px; }
+    .restaurant-table-content { flex:1; min-width:0; }
+    .restaurant-table-name { display:block; overflow-wrap:anywhere; color:#17233d; font-size:15px; font-weight:700; line-height:1.35; text-decoration:none; }
+    .restaurant-table-name:hover { color:#2563eb; }
+    .restaurant-table-meta { display:flex; flex-wrap:wrap; gap:5px 12px; margin-top:5px; color:var(--slate-500); font-size:12px; }
+    .restaurant-table-status { display:inline-flex; margin-top:10px; }
+    .restaurant-table-actions { flex:0 0 auto; }
+    .restaurant-tables-empty { grid-column:1/-1; margin:0; }
+    @media (max-width: 900px) { .restaurant-details-layout { grid-template-columns:minmax(0,1fr); } }
+    @media (max-width: 620px) {
+        .restaurant-tables-grid { grid-template-columns:minmax(0,1fr); }
+        .restaurant-tables-heading { align-items:center; }
+        .restaurant-table-card { min-height:0; }
+    }
+</style>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2 restaurant-details-layout" style="gap:28px">
+        <div>
+            <h3 style="margin-top:0"><i class="fas fa-utensils"></i> Restaurant Profile</h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ restaurant.location }}</div>
+            {% if restaurant.cuisine_type %}<div class="meta"><i class="fas fa-tag"></i> {{ restaurant.cuisine_type }}</div>{% endif %}
+            {% if restaurant.contact_number %}<div class="meta"><i class="fas fa-phone-alt"></i> {{ restaurant.contact_number }}</div>{% endif %}
+            {% if restaurant.email %}<div class="meta"><i class="fas fa-envelope"></i> {{ restaurant.email }}</div>{% endif %}
+            {% if restaurant.operating_hours %}<div class="meta"><i class="fas fa-clock"></i> {{ restaurant.operating_hours }}</div>{% endif %}
+            <div class="meta"><i class="fas fa-info-circle"></i> Status: <span class="badge {% if restaurant.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ restaurant.get_status_display }}</span></div>
+        </div>
+        <section class="restaurant-tables-section" aria-labelledby="restaurant-tables-title">
+            <div class="restaurant-tables-heading">
+                <div>
+                    <h3 id="restaurant-tables-title"><i class="fas fa-chair" style="color:#2563eb"></i> Tables ({{ restaurant.tables.count }})</h3>
+                    <p class="restaurant-tables-subtitle">Manage your restaurant tables.</p>
+                </div>
+                {% if is_manager %}<button type="button" class="ag-btn" data-modal-open="restaurantAddTableModal"><i class="fas fa-plus"></i> Add Table</button>{% endif %}
+            </div>
+            <div class="restaurant-tables-grid">
+            {% for t in restaurant.tables.all %}
+            <article class="restaurant-table-card">
+                <span class="restaurant-table-icon" aria-hidden="true"><i class="fas fa-chair"></i></span>
+                <div class="restaurant-table-content">
+                    <a class="restaurant-table-name" href="{% url 'restaurants:table_detail' t.id %}">Table {{ t.table_number }}</a>
+                    <div class="restaurant-table-meta">
+                        <span><i class="fas fa-users"></i> {{ t.capacity }} seats</span>
+                        <span><i class="fas fa-map-marker-alt"></i> {{ t.get_seating_area_display }}</span>
+                    </div>
+                    <span class="badge restaurant-table-status {% if t.status == 'AVAILABLE' %}badge-green{% elif t.status == 'OCCUPIED' %}badge-blue{% elif t.status == 'RESERVED' %}badge-yellow{% else %}badge-gray{% endif %}">{{ t.get_status_display }}</span>
+                </div>
+                <div class="restaurant-table-actions">
+                    {% if is_manager %}
+                    <button type="button" class="btn btn-ghost btn-sm" data-modal-open="restaurantEditTable{{ t.id }}" aria-label="Edit Table {{ t.table_number }}"><i class="fas fa-pencil-alt"></i> Edit</button>
+                    {% elif t.status != 'MAINTENANCE' %}
+                    <a href="{% url 'restaurants:flow_select' restaurant.id %}" class="ag-btn btn-sm"><i class="fas fa-chair"></i> Reserve</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty restaurant-tables-empty"><h3>No tables yet</h3><p>{% if is_manager %}Use &quot;Add Table&quot; to create the first one.{% else %}Tables will appear soon.{% endif %}</p></div>
+            {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+
+{% if is_manager %}
+{% for t in restaurant.tables.all %}
+<dialog id="restaurantEditTable{{ t.id }}" class="restaurant-admin-modal">
+    <form method="post" action="{% url 'restaurants:update_table' t.id %}">
+        {% csrf_token %}<input type="hidden" name="return_to_detail" value="1">
+        <div class="restaurant-admin-modal__head"><h2>Edit Table {{ t.table_number }}</h2><button type="button" class="btn btn-ghost btn-sm" data-modal-close aria-label="Close">×</button></div>
+        <div class="form-grid"><div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" value="{{ t.table_number }}" required></div><div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value, label in seating_area_choices %}<option value="{{ value }}" {% if t.seating_area == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="form-grid"><div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="{{ t.capacity }}" min="1" required></div><div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value, label in table_status_choices %}<option value="{{ value }}" {% if t.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="restaurant-admin-modal__actions"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-brand">Save Table</button></div>
+    </form>
+</dialog>
+{% endfor %}
+{% endif %}
+<script>
+(function () {
+    document.querySelectorAll('[data-modal-open]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var dialog = document.getElementById(button.getAttribute('data-modal-open'));
+            if (dialog) dialog.showModal();
+        });
+    });
+    document.querySelectorAll('[data-modal-close]').forEach(function (button) {
+        button.addEventListener('click', function () { button.closest('dialog').close(); });
+    });
+    document.querySelectorAll('.restaurant-admin-modal').forEach(function (dialog) {
+        dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
+    });
+})();
+</script>
+<a href="{% url 'restaurants:list' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Restaurants</a>
+{% endblock %}

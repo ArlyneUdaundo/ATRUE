@@ -1,0 +1,44 @@
+{% comment %}
+Reusable hierarchical location picker field for forms (admin / CRUD / filters).
+
+Usage:
+  {% include 'search/_loc_picker_field.html' with
+       province_name='province' province_value=hotel.province
+       municipality_name='municipality' municipality_value=hotel.municipality
+       barangay_name='barangay' barangay_value=hotel.barangay
+       placeholder='Select province / city'
+       compact=True %}
+
+ - province_name / municipality_name / barangay_name: name of the hidden inputs the
+   picker writes into. When barangay_name is omitted, the picker covers only
+   province + municipality and no barangay input is rendered (e.g. admin forms
+   keep a separate free-text Barangay field).
+ - country_name: name of the hidden input the country step writes into. Defaults
+   to loc_country; the country is the picker's first step.
+- combine_name: for single-field models (e.g. restaurant `location`), pass
+  combine_name='location' and the picker writes the formatted "Baggao, Cagayan"
+  string into that one input instead of separate fields.
+- The wrap reads existing values so the picker reflects saved data on edit.
+{% endcomment %}
+<div class="atrue-loc-wrap atrue-loc-field{% if compact %} atrue-loc-field-sm{% endif %}"
+     data-loc-picker
+     data-loc-country="{{ country_name|default:'loc_country' }}"
+     data-loc-province="{{ province_name|default:'loc_province' }}"
+     data-loc-municipality="{{ municipality_name|default:'loc_municipality' }}"{% if barangay_name %}
+     data-loc-barangay="{{ barangay_name }}"{% endif %}{% if combine_name %}
+     data-loc-combine="{{ combine_name }}"{% endif %}>
+    <button type="button" class="atrue-loc-trigger" data-loc-toggle aria-label="Choose location">
+        <span class="atrue-loc-value">
+            <i class="fas fa-location-dot"></i>
+            <span class="atrue-loc-text"></span>
+        </span>
+        <span class="atrue-loc-placeholder">{{ placeholder|default:'Select country / province / city' }}</span>
+        <span class="atrue-loc-clear" data-loc-clear title="Clear location"><i class="fas fa-times-circle"></i></span>
+        <span class="atrue-loc-caret"><i class="fas fa-chevron-down"></i></span>
+    </button>{% if combine_name %}
+    <input type="hidden" name="{{ combine_name }}" value="{{ combine_value|default:'' }}"{% if required %} required{% endif %}>{% else %}
+    <input type="hidden" name="{{ country_name|default:'loc_country' }}" value="{{ country_value|default:'' }}">
+    <input type="hidden" name="{{ province_name|default:'loc_province' }}" value="{{ province_value|default:'' }}">
+    <input type="hidden" name="{{ municipality_name|default:'loc_municipality' }}" value="{{ municipality_value|default:'' }}">{% if barangay_name %}
+    <input type="hidden" name="{{ barangay_name }}" value="{{ barangay_value|default:'' }}">{% endif %}{% endif %}
+</div>

@@ -1,0 +1,61 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transportation{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Transportation</h2>
+        <p>{{ agencies|length }} agenc{% if agencies|length == 1 %}y{% else %}ies{% endif %} found · Book vehicles by distance and schedule</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'transportation:add_agency' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Agency</a>
+    {% endif %}
+</div>
+
+<div class="ag-list">
+    {% for a in agencies %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-bus"></i></span>
+            <span class="ag-media-badges"><span class="badge badge-green">{{ a.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3>{{ a.name }}</h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ a.location }}</div>
+                    <div class="ag-loc"><i class="fas fa-phone"></i> {{ a.contact_number }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-car"></i> {{ a.vehicles.count }}</span>
+            </div>
+
+            {% if a.vehicles.all %}
+            <div style="margin-top:4px">
+                {% for v in a.vehicles.all %}
+                <div class="ag-option">
+                    <span class="ag-opt-info" style="flex:1;min-width:0">
+                        <b>{{ v.label }} <small style="color:var(--slate-500)">· {{ v.plate_number }}</small></b>
+                        <small>{{ v.capacity }} pax</small>
+                    </span>
+                    <span class="ag-opt-price">₱ {{ v.rate_per_km }}<small style="font-weight:600;color:var(--slate-500);font-size:11px">/km</small></span>
+                    {% if request.user.is_platform_manager %}
+                    <span class="ag-manage-note" style="border:none;padding:0"><i class="fas fa-user-shield"></i> Manage only</span>
+                    {% elif v.status == 'AVAILABLE' %}
+                    <a href="{% url 'transportation:book' v.id %}" class="ag-btn btn-sm"><i class="fas fa-road"></i> Book</a>
+                    {% else %}
+                    <span class="badge badge-gray">{{ v.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="ag-manage-note"><i class="fas fa-car"></i> Vehicles will appear here once added by the administrator.</div>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-bus"></i><h3>No transport agencies yet</h3><p>Agencies will be listed here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

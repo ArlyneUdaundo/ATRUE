@@ -1,0 +1,676 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book Flight{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your flight</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-plane"></i></span>
+                <div>
+                    <h3>{{ flight.flight_number }} · {{ flight.airline.name }}</h3>
+                    <p>{{ flight.origin }} → {{ flight.destination }}</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-clock"></i> Departs {{ flight.departure_time|date:"M d, Y H:i" }}</div>
+            <div class="ag-detail-row"><i class="fas fa-plane-arrival"></i> Arrives {{ flight.arrival_time|date:"M d, Y H:i" }}</div>
+            <div class="ag-detail-row"><i class="fas fa-chair"></i> {% if flight.aircraft %}{{ flight.aircraft.model_name }} · {% endif %}{{ remaining }} seats remaining</div>
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <input type="hidden" name="departure_date" value="{{ departure_date }}">
+            {% if return_flight %}
+            {% comment %}
+            The operator scheduled both legs, so there is no trip type to pick
+            and no return date to type — the return leg is a real flight with its
+            own number, time and seat map.
+            {% endcomment %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-arrows-rotate"></i></span>
+                <div><h3>Round trip</h3><p>This flight is scheduled as a round trip. You are booking both legs below — {{ return_flight.flight_number }} departs {{ return_flight.departure_time|date:"M d, Y H:i" }} — and you will pick a seat on each.</p></div>
+            </div>
+            <input type="hidden" name="trip_type" value="ROUND_TRIP">
+            <input type="hidden" name="return_date" value="{{ return_date }}">
+            {% else %}
+            <input type="hidden" name="trip_type" value="{{ trip_type }}">
+            <input type="hidden" name="return_date" value="{{ return_date }}">
+            {% endif %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Passengers &amp; add-ons</h3><p>Add every traveler to this booking. Passenger 1 is the primary guest (account owner). Passenger forms appear dynamically only when you select 2 or more seats. All passengers share ONE booking reference and ONE payment transaction.</p></div>
+            </div>
+            <div class="form-grid booking-passenger-fare-grid">
+                <div class="form-group">
+                    <label>Number of Passengers</label>
+                    <input type="number" name="passengers" id="passengers" class="form-input" value="{{ passengers }}" min="1" max="{% if return_remaining %}{{ return_remaining }}{% else %}{{ remaining }}{% endif %}" oninput="renderPassengers()">
+                </div>
+<div class="form-group">
+                 <label>Fare Class</label>
+                 <select name="fare_class" id="fare-class" class="form-input" onchange="updateFare()">
+                     {% for cabin in seat_map.cabins %}
+                     <option value="{{ cabin.key }}" {% if fare_class == cabin.key %}selected{% endif %}>{{ cabin.label }} — ₱ {{ cabin.fare }}</option>
+                     {% endfor %}
+                 </select>
+             </div>
+        </div>
+
+        {% comment %}
+        The cabin is not drawn on this page.  Seats are chosen in a popup, the
+        way an airline asks for them, and this bar just opens it and reports
+        what was picked.
+        {% endcomment %}
+        <div class="ag-panel-head" style="margin-top:18px">
+            <span class="ag-ph-ico"><i class="fas fa-chair"></i></span>
+            <div><h3>Seats</h3><p>Choose a seat for every passenger. The popup shows this flight{% if return_flight %} and its return{% endif %}, with each passenger holding one seat per flight.</p></div>
+        </div>
+        <div class="seat-pick-bar">
+            <button type="button" class="ag-btn seat-open-btn" id="seat-open" data-seat-open>
+                <i class="fas fa-chair"></i> <span id="seat-open-label">Select Seat</span>
+            </button>
+            <ul class="seat-summary" id="seat-summary" hidden></ul>
+        </div>
+        <div class="ag-customer-box" style="margin-top:18px">
+            <div class="ag-detail-row"><i class="fas fa-user"></i> Lead passenger: {{ request.user.get_full_name|default:request.user.username }}</div>
+            <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+            <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+            <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+            <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+        </div>
+        <div class="ag-panel-head" style="margin-top:18px">
+            <span class="ag-ph-ico"><i class="fas fa-passport"></i></span>
+            <div><h3>Travel document &amp; payer</h3><p>Required travel information for the booking (FR-018).</p></div>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Travel Document Type</label>
+                <select name="travel_document_type" class="form-input">
+                    <option value="PASSPORT" selected>Passport</option>
+                    <option value="NATIONAL_ID">National ID</option>
+                    <option value="DRIVERS_LICENSE">Driver's License</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Travel Document Number</label>
+                <input type="text" name="travel_document_number" class="form-input" placeholder="e.g. P1234567" required>
+            </div>
+            <div class="form-group">
+                <label>Payer Name</label>
+                <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:request.user.username }}">
+            </div>
+            <div class="form-group">
+                <label>Payer Contact</label>
+                <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}">
+            </div>
+        </div>
+        <input type="hidden" name="primary_seat" id="primary-seat" value="">
+        {% if return_flight %}<input type="hidden" name="primary_return_seat" id="primary-return-seat" value="">{% endif %}
+        <div id="passenger-rows"></div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Extra Baggage (kg){% if flight.baggage_rate %} <span class="meta">· ₱ {{ flight.baggage_rate }}/kg</span>{% endif %}</label>
+                    <input type="number" name="baggage" id="baggage" step="1" class="form-input" value="0" min="0" oninput="updateFare()">
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select name="payment_method" class="form-input">
+                        <option value="GCASH">GCash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CREDIT_CARD">Credit Card</option>
+                        <option value="DEBIT_CARD">Debit Card</option>
+                    </select>
+                </div>
+            </div>
+            {% if services %}
+            <div class="form-group">
+                <label>Add-On Services</label>
+                {% for s in services %}
+                <label class="checkbox"><input type="checkbox" name="services" value="{{ s.id }}" data-rate="{{ s.rate }}" onchange="updateFare()"> {{ s.name }} {% if s.rate %}— ₱ {{ s.rate }}{% endif %}</label>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+            </label>
+            <a href="{% url 'airlines:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Your booking</b></div>
+<div class="ag-pb-body">
+                <div class="ag-pb-prop">
+                    <span class="ag-pb-ico"><i class="fas fa-plane"></i></span>
+                    <div><b>{{ flight.flight_number }}</b><small>{{ flight.origin }} → {{ flight.destination }} · {{ flight.departure_time|date:"M d, H:i" }}</small></div>
+                </div>
+                <div class="ag-pb-rows">
+                    <div class="ag-pb-row" id="pb-return-row" {% if trip_type != 'ROUND_TRIP' %}style="display:none"{% endif %}><span>Return date</span><b id="pb-return-date">{{ return_date|default:'—' }}</b></div>
+                    <div class="ag-pb-row"><span>Economy fare</span><b>₱ {{ flight.economy_fare }} /pax</b></div>
+                <div class="ag-pb-row"><span>First Class fare</span><b>₱ {{ flight.first_class_fare }} /pax</b></div>
+                <div class="ag-pb-row"><span>Passengers</span><b><span id="pb-guests">1</span> pax</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-row"><span>Transaction</span><b>1 order / 1 payment</b></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ {{ flight.economy_fare }}</span></b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay — 1 Transaction</button>
+        
+        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Flight</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying passengers, fare class, baggage and add-ons.</div>
+        </div>
+    </aside>
+</div>
+
+{% comment %}
+Seat selection popup.
+
+Nothing in here is drawn by hand: each tab is one flown segment and each map is
+that leg's own aircraft, so a return flown on a different airframe shows its own
+cabins and its own seat letters.  The maps are already in the DOM (hidden) so
+tabs are instant and a pick survives switching between them.
+{% endcomment %}
+<div class="seat-modal" id="seat-modal" hidden>
+    <div class="seat-modal-card" role="dialog" aria-modal="true" aria-labelledby="seat-modal-title">
+        <div class="seat-modal-head">
+            <h2 id="seat-modal-title">Seat selection</h2>
+            <button type="button" class="seat-modal-close" data-seat-close aria-label="Close seat selection">&times;</button>
+        </div>
+
+        {% comment %}
+        One route line, built once from the airport reference so the IATA code is
+        never doubled.  ``flight.origin`` is free text that may or may not already
+        carry its code ("Manila (MNL)" and "Manila" both occur), so it is only ever
+        used as-is when there is no airport to read a code from.
+        {% endcomment %}
+        <div class="seat-route" role="heading" aria-level="3" id="seat-route">
+            <span class="seat-route-end">{% if flight.origin_airport %}{{ flight.origin_airport.city|default:flight.origin_airport.airport_name }} ({{ flight.origin_airport.code }}){% else %}{{ flight.origin }}{% endif %}</span>
+            <span class="seat-route-arrow" aria-hidden="true">&rarr;</span>
+            <span class="seat-route-end">{% if flight.destination_airport %}{{ flight.destination_airport.city|default:flight.destination_airport.airport_name }} ({{ flight.destination_airport.code }}){% else %}{{ flight.destination }}{% endif %}</span>
+        </div>
+
+        {% comment %}
+        The tab strip is a segment switcher, so it only earns its place when there
+        is more than one segment.  On a one-way flight it would just repeat the
+        route line above it.
+        {% endcomment %}
+        {% if return_flight %}
+        <div class="seat-tabs" role="tablist" aria-label="Flight segments">
+            <button type="button" class="seat-tab" role="tab" data-seat-segment="departure" aria-selected="true">{{ flight.origin }} &ndash; {{ flight.destination }}</button>
+            <button type="button" class="seat-tab" role="tab" data-seat-segment="return" aria-selected="false">{{ return_flight.origin }} &ndash; {{ return_flight.destination }}</button>
+        </div>
+        {% endif %}
+
+        {% comment %}Three statuses and nothing else — position is not a status.{% endcomment %}
+        <div class="seat-modal-legend">
+            <span><span class="seat-swatch free"></span> Free</span>
+            <span><span class="seat-swatch picked"><i class="fas fa-user"></i></span> Selected</span>
+            <span><span class="seat-swatch used"><i class="fas fa-times"></i></span> Unavailable</span>
+        </div>
+
+        <div class="seat-modal-body">
+            <aside class="seat-pax">
+                <div class="seat-pax-head">Passengers</div>
+                <div class="seat-pax-list" id="seat-pax-list"></div>
+                <div class="seat-pax-hint" id="seat-pax-hint">Tap a free seat to give it to the highlighted passenger.</div>
+            </aside>
+            <div class="seat-map-area">
+                <div class="seat-map-panel" data-seat-panel="departure">
+                    {% include 'airlines/_seat_map.html' with seat_map=seat_map side='departure' %}
+                </div>
+                {% if return_flight %}
+                <div class="seat-map-panel" data-seat-panel="return" data-return-panel hidden>
+                    {% include 'airlines/_seat_map.html' with seat_map=return_seat_map side='return' %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="seat-modal-foot">
+            <div class="seat-subtotal">Subtotal <b id="seat-subtotal">FREE</b></div>
+            <button type="button" class="seat-modal-next" id="seat-next">Next flight</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* Seat selection.
+ *
+ * Seats are picked in a popup, one map per flown segment.  The passenger is
+ * chosen first and the seat second, which is how an airline actually sells a
+ * seat: pick the traveler, tap a seat, and the next traveler without one is
+ * highlighted automatically.
+ *
+ * A seat belongs to exactly one passenger per segment, so tapping a green seat
+ * that currently belongs to somebody else moves it across rather than
+ * duplicating it.  Nothing is written to the form until a segment is confirmed,
+ * and the server re-checks every seat against the layout and against other
+ * bookings before anything is created.
+ */
+var HAS_RETURN = {{ return_flight|yesno:"true,false" }};
+var MAX_SEATS = {{ remaining }};
+var RETURN_SEATS = {{ return_remaining|default:0 }};
+/* This airline charges no per-seat surcharge, so the seat subtotal is free; the
+   figure is still computed from the count, so a surcharge only needs this one
+   number changed. */
+var SEAT_FEE = 0;
+var FARES = {
+    FIRST_CLASS: {{ flight.first_class_fare|default:0 }},
+    BUSINESS: {{ flight.business_fare|default:0 }},
+    PREMIUM_ECONOMY: {{ flight.premium_economy_fare|default:0 }},
+    ECONOMY: {{ flight.economy_fare|default:0 }}
+};
+var BAG_RATE = {{ flight.baggage_rate }};
+
+var SEGMENTS = ['departure'];
+if (HAS_RETURN) SEGMENTS.push('return');
+/* seats[segment][passengerIndex] -> seat number, or '' when not yet chosen. */
+var seats = { departure: [], return: [] };
+var activeSegment = 'departure';
+var activePax = 0;
+var rowCount = -1;
+
+var paxInput = document.getElementById('passengers');
+var fareInput = document.getElementById('fare-class');
+var modal = document.getElementById('seat-modal');
+
+function paxCount() {
+    var v = parseInt(paxInput.value) || 1;
+    // A round trip is capped by whichever leg has fewer seats left, so a
+    // passenger is never offered more travelers than the return can carry.
+    var cap = HAS_RETURN ? Math.min(MAX_SEATS, RETURN_SEATS) : MAX_SEATS;
+    return Math.min(Math.max(v, 1), cap);
+}
+/* Keep the seat arrays exactly as long as the passenger list. */
+function resizeSeats() {
+    var n = paxCount();
+    SEGMENTS.forEach(function (s) {
+        while (seats[s].length < n) seats[s].push('');
+        seats[s].length = n;
+    });
+    if (activePax >= n) activePax = n - 1;
+}
+function seatOf(segment, i) { return seats[segment][i] || ''; }
+function paxName(i) {
+    var row = document.querySelectorAll('#passenger-rows .passenger-row')[i - 1];
+    if (row) {
+        var v = row.querySelector('input[name="passenger_names"]').value.trim();
+        if (v) return v;
+    }
+    return 'Passenger ' + (i + 1);
+}
+function panel(segment) { return document.querySelector('[data-seat-panel="' + segment + '"]'); }
+function tiles(segment) {
+    var p = panel(segment);
+    return p ? Array.prototype.slice.call(p.querySelectorAll('.seat-tile')) : [];
+}
+function tile(segment, seat) {
+    var p = panel(segment);
+    return p ? p.querySelector('.seat-tile[data-seat="' + seat + '"]') : null;
+}
+/* The first passenger on this segment who still needs a seat. */
+function firstUnseated(segment) {
+    for (var i = 0; i < paxCount(); i++) {
+        if (!seatOf(segment, i)) return i;
+    }
+    return -1;
+}
+
+/* ---- passenger panel ---------------------------------------------------- */
+function renderPaxCards() {
+    var list = document.getElementById('seat-pax-list');
+    var n = paxCount();
+    list.innerHTML = '';
+    for (var i = 0; i < n; i++) {
+        (function (i) {
+            var seat = seatOf(activeSegment, i);
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'seat-pax-card'
+                + (i === activePax ? ' active' : '')
+                + (seat ? ' done' : '');
+            card.setAttribute('data-pax', i);
+            card.innerHTML =
+                '<span class="seat-pax-idx">' + (i + 1) + '</span>'
+                + '<span class="seat-pax-body">'
+                + '<span class="seat-pax-name">' + paxName(i) + '</span>'
+                + '<span class="' + (seat ? 'seat-pax-seat' : 'seat-pax-state') + '">'
+                + (seat || 'No seat yet') + '</span>'
+                + '</span>'
+                + '<span class="seat-pax-state">'
+                + (seat ? 'Selected' : 'Free') + '</span>';
+            card.addEventListener('click', function () { setActivePax(i); });
+            list.appendChild(card);
+        })(i);
+    }
+}
+function setActivePax(i) {
+    activePax = Math.min(Math.max(i, 0), paxCount() - 1);
+    renderPaxCards();
+    syncTiles();
+}
+
+/* ---- seat map ----------------------------------------------------------- */
+function syncTiles() {
+    SEGMENTS.forEach(function (segment) {
+        tiles(segment).forEach(function (t) {
+            var seat = t.dataset.seat;
+            var on = seats[segment].indexOf(seat) !== -1;
+            t.classList.toggle('picked', on);
+            if (t.classList.contains('taken')) {
+                t.title = 'Seat ' + seat + ' - unavailable';
+            } else if (on) {
+                t.title = 'Seat ' + seat + ' - selected for ' + paxName(seats[segment].indexOf(seat));
+            } else {
+                t.title = 'Seat ' + seat + ' - free';
+            }
+        });
+    });
+}
+function pickSeat(segment, seat) {
+    var t = tile(segment, seat);
+    if (!t || t.classList.contains('taken')) return;
+    var holder = seats[segment].indexOf(seat);
+    if (holder === activePax) {
+        // Tapping the active passenger's own seat gives it back.
+        seats[segment][activePax] = '';
+    } else {
+        // Taking a seat another passenger held moves it: one seat, one traveler.
+        if (holder !== -1) seats[segment][holder] = '';
+        seats[segment][activePax] = seat;
+        // The booking is sold in one cabin, so the fare follows the seat.
+        if (fareInput.value !== t.dataset.cabin) {
+            var opt = fareInput.querySelector('option[value="' + t.dataset.cabin + '"]');
+            if (opt) {
+                fareInput.value = t.dataset.cabin;
+                updateFare();
+            }
+        }
+    }
+    // Move on to whoever still needs a seat, so a family can be seated in one run.
+    var next = firstUnseated(segment);
+    if (next !== -1 && next !== activePax) activePax = next;
+    refresh();
+}
+function bindTiles(segment) {
+    tiles(segment).forEach(function (t) {
+        t.addEventListener('click', function () { pickSeat(segment, t.dataset.seat); });
+    });
+}
+
+/* ---- footer ------------------------------------------------------------- */
+function updateFooter() {
+    var n = 0;
+    for (var i = 0; i < paxCount(); i++) {
+        if (seatOf(activeSegment, i)) n++;
+    }
+    var total = n * SEAT_FEE;
+    document.getElementById('seat-subtotal').textContent =
+        total > 0 ? '₱ ' + total.toFixed(2) : 'FREE';
+
+    var next = document.getElementById('seat-next');
+    var at = SEGMENTS.indexOf(activeSegment);
+    var isLast = at === SEGMENTS.length - 1;
+    var missing = firstUnseated(activeSegment);
+    next.textContent = isLast ? 'Confirm Seats' : 'Next flight';
+    // Seats are only confirmed once everyone on this segment has one, and the
+    // button says so rather than failing after the fact.
+    next.disabled = missing !== -1;
+    document.getElementById('seat-pax-hint').textContent = missing === -1
+        ? 'Everyone on this flight has a seat. '
+            + (isLast ? 'Confirm to apply them.' : 'Go to the next flight.')
+        : 'Select a seat for ' + paxName(missing) + '.';
+}
+function setSegment(segment) {
+    activeSegment = segment;
+    var missing = firstUnseated(segment);
+    if (missing !== -1) activePax = missing;
+    SEGMENTS.forEach(function (s) {
+        panel(s).hidden = s !== segment;
+    });
+    document.querySelectorAll('.seat-tab').forEach(function (tab) {
+        tab.setAttribute('aria-selected', tab.dataset.seatSegment === segment ? 'true' : 'false');
+    });
+    renderPaxCards();
+    syncTiles();
+    updateFooter();
+}
+function confirmSeats() {
+    // Refuse to leave a passenger without a seat, and jump to the gap.
+    for (var s = 0; s < SEGMENTS.length; s++) {
+        var missing = firstUnseated(SEGMENTS[s]);
+        if (missing !== -1) {
+            setSegment(SEGMENTS[s]);
+            setActivePax(missing);
+            return false;
+        }
+    }
+    syncForm();
+    closeModal();
+    return true;
+}
+
+/* ---- popup -------------------------------------------------------------- */
+
+/* The dashboard's page entrance animation ends on `transform: translateY(0)`
+   and keeps that value forever (`animation-fill-mode: both`).  Any transform
+   makes an element the containing block for its `position: fixed` descendants,
+   so while the popup sits inside `.content` its `inset: 0` is measured against
+   the whole page instead of the viewport: the card drifts down past the booking
+   form and its bottom lands well below the fold, leaving the seat map cut off.
+   Parking the popup directly under <body> puts it back in the viewport's
+   containing block, which is what `inset: 0` means.  Done once, and the node
+   stays there for the life of the page. */
+function pinModalToViewport() {
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+}
+
+function openModal() {
+    pinModalToViewport();
+    resizeSeats();
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    var missing = firstUnseated(activeSegment);
+    if (missing !== -1) activePax = missing;
+    renderPaxCards();
+    syncTiles();
+    updateFooter();
+    document.querySelector('.seat-modal-close').focus();
+}
+function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    document.getElementById('seat-open').focus();
+}
+
+/* ---- the booking form behind the popup ---------------------------------- */
+function syncForm() {
+    resizeSeats();
+    var n = paxCount();
+    document.getElementById('primary-seat').value = seatOf('departure', 0);
+    if (HAS_RETURN) {
+        document.getElementById('primary-return-seat').value = seatOf('return', 0);
+    }
+    // Seats and passenger names are submitted in the same order, one per
+    // passenger, so the server pairs them back up correctly.  The names are
+    // rendered on this page, so the seats are emitted into their hidden inputs
+    // and the name inputs left alone.
+    var out = [];
+    var back = [];
+    for (var i = 1; i < n; i++) {
+        out.push(seatOf('departure', i));
+        if (HAS_RETURN) back.push(seatOf('return', i));
+    }
+    out = out.filter(function (v) { return v; });
+    back = back.filter(function (v) { return v; });
+    var limit = document.querySelectorAll('#passenger-rows .passenger-row').length;
+    out = out.slice(0, limit);
+    back = back.slice(0, limit);
+    var form = document.getElementById('booking-form');
+    form.querySelectorAll('input[name="seat_numbers"]').forEach(function (el) { el.remove(); });
+    form.querySelectorAll('input[name="return_seat_numbers"]').forEach(function (el) { el.remove(); });
+    out.forEach(function (s) {
+        var el = document.createElement('input');
+        el.type = 'hidden'; el.name = 'seat_numbers'; el.value = s;
+        form.appendChild(el);
+    });
+    back.forEach(function (s) {
+        var el = document.createElement('input');
+        el.type = 'hidden'; el.name = 'return_seat_numbers'; el.value = s;
+        form.appendChild(el);
+    });
+    renderSeatSummary();
+}
+function renderSeatSummary() {
+    var n = paxCount();
+    var list = document.getElementById('seat-summary');
+    var lines = [];
+    var anySeat = false;
+    for (var i = 0; i < n; i++) {
+        var out = seatOf('departure', i);
+        if (out) anySeat = true;
+        var text = paxName(i) + ' &mdash; ' + (out || 'no seat');
+        if (HAS_RETURN) text += ' &middot; ' + (seatOf('return', i) || 'no return seat');
+        lines.push('<li>' + text + '</li>');
+    }
+    list.innerHTML = lines.join('');
+    list.hidden = !anySeat;
+    // Before a seat is chosen the button invites the passenger in; afterwards it
+    // names the seat and offers to change it.
+    document.getElementById('seat-open-label').textContent =
+        anySeat ? seatOf('departure', 0) + ' – Change Seat' : 'Select Seat';
+}
+function renderPassengerRows() {
+    var n = paxCount();
+    var wrap = document.getElementById('passenger-rows');
+    if (n === rowCount) return;
+    // Passenger details are typed on this page, so they are carried across a
+    // rebuild rather than lost when the count changes.
+    var old = wrap.querySelectorAll('.passenger-row');
+    var keep = [];
+    for (var k = 0; k < old.length; k++) {
+        keep.push({
+            name: old[k].querySelector('input[name="passenger_names"]').value,
+            dt: old[k].querySelector('select[name="travel_document_types"]').value,
+            dn: old[k].querySelector('input[name="travel_document_numbers"]').value
+        });
+    }
+    wrap.innerHTML = '';
+    for (var i = 1; i < n; i++) {
+        var row = document.createElement('div');
+        row.className = 'passenger-row';
+        row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr 90px'
+            + (HAS_RETURN ? ' 110px' : '') + ';gap:10px;margin-bottom:10px;align-items:center';
+        var name = document.createElement('input');
+        name.type = 'text'; name.name = 'passenger_names'; name.className = 'form-input';
+        name.placeholder = 'Passenger ' + (i + 1) + ' name';
+        name.required = true;
+        if (keep[i - 1]) name.value = keep[i - 1].name;
+        var docType = document.createElement('select');
+        docType.name = 'travel_document_types'; docType.className = 'form-input';
+        [['PASSPORT', 'Passport'], ['NATIONAL_ID', 'National ID'], ['DRIVER_LICENSE', "Driver's License"], ['OTHER', 'Other']]
+            .forEach(function (opt) {
+                var o = document.createElement('option');
+                o.value = opt[0]; o.textContent = opt[1];
+                if (keep[i - 1] ? keep[i - 1].dt === opt[0] : opt[0] === 'PASSPORT') o.selected = true;
+                docType.appendChild(o);
+            });
+        var docNum = document.createElement('input');
+        docNum.type = 'text'; docNum.name = 'travel_document_numbers'; docNum.className = 'form-input';
+        docNum.placeholder = 'Travel document #';
+        if (keep[i - 1]) docNum.value = keep[i - 1].dn;
+        row.appendChild(name); row.appendChild(docType); row.appendChild(docNum);
+        wrap.appendChild(row);
+    }
+    rowCount = n;
+    document.getElementById('pb-guests').textContent = n;
+}
+/* Read-only mirrors of the chosen seats sit beside each passenger's details. */
+function syncRowSeats() {
+    var rows = document.querySelectorAll('#passenger-rows .passenger-row');
+    for (var k = 0; k < rows.length; k++) {
+        var i = k + 1;
+        var out = seatOf('departure', i);
+        var cell = rows[k].querySelector('[data-row-seat]');
+        if (!cell) {
+            cell = document.createElement('input');
+            cell.type = 'text'; cell.className = 'form-input';
+            cell.readOnly = true; cell.setAttribute('data-row-seat', '1');
+            rows[k].appendChild(cell);
+        }
+        cell.value = out;
+        cell.title = out ? 'Departure seat for ' + paxName(i) : 'No departure seat yet';
+        if (HAS_RETURN) {
+            var back = rows[k].querySelector('[data-row-back-seat]');
+            if (!back) {
+                back = document.createElement('input');
+                back.type = 'text'; back.className = 'form-input';
+                back.readOnly = true; back.setAttribute('data-row-back-seat', '1');
+                rows[k].appendChild(back);
+            }
+            back.value = seatOf('return', i);
+            back.title = back.value ? 'Return seat for ' + paxName(i) : 'No return seat yet';
+        }
+    }
+}
+function refresh() {
+    renderPassengerRows();
+    syncRowSeats();
+    renderPaxCards();
+    syncTiles();
+    updateFooter();
+    syncForm();
+    updateFare();
+}
+
+/* ---- unchanged booking-page behaviour ----------------------------------- */
+function updateFare() {
+    var n = paxCount();
+    var perPax = parseFloat(FARES[fareInput.value]) || 0;
+    // A round trip is two flown legs at the same cabin fare, so the estimate
+    // counts each passenger twice rather than hiding the return in a total that
+    // is only correct after submission.
+    var total = perPax * n * {{ return_flight|yesno:"2,1" }};
+    total += (parseFloat(document.getElementById('baggage').value) || 0) * BAG_RATE;
+    document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
+        total += parseFloat(cb.dataset.rate) || 0;
+    });
+    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+}
+
+/* ---- wiring ------------------------------------------------------------- */
+SEGMENTS.forEach(bindTiles);
+document.querySelectorAll('.seat-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () { setSegment(tab.dataset.seatSegment); });
+});
+document.getElementById('seat-open').addEventListener('click', openModal);
+document.querySelector('.seat-modal-close').addEventListener('click', closeModal);
+modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.hidden) closeModal();
+});
+document.getElementById('seat-next').addEventListener('click', function () {
+    var at = SEGMENTS.indexOf(activeSegment);
+    if (at < SEGMENTS.length - 1) setSegment(SEGMENTS[at + 1]);
+    else confirmSeats();
+});
+paxInput.addEventListener('input', refresh);
+fareInput.addEventListener('change', function () { updateFare(); });
+
+setSegment('departure');
+refresh();
+
+</script>
+{% endblock %}

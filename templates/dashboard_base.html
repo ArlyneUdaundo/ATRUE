@@ -1,0 +1,484 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} | ATRUE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261012-transparent-brand-logo-3">
+    <link rel="stylesheet" href="{% static 'css/agoda.css' %}?v=20261011-landmark-arrival-picker">
+    <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
+    <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
+    <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261012">
+<link rel="stylesheet" href="{% static 'css/location-cascade.css' %}?v=20261012-location-popup-layer">
+<link rel="stylesheet" href="{% static 'css/atrue-datepicker.css' %}?v=20261011-modal-popup-layer">
+<link rel="stylesheet" href="{% static 'css/atrue-timepicker.css' %}?v=20261011-modal-popup-layer">
+{% block extra_css %}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/guests-tables.css' %}?v=20261012e">
+        {% include "partials/tab_context.html" %}
+
+<link rel="stylesheet" href="{% static 'css/establishment-modal.css' %}?v=20261010-flight-modal-logo-larger-1">
+    <link rel="stylesheet" href="{% static 'css/delete-confirm-modal.css' %}?v=20261013-confirm-modal-top-layer">
+</head>
+<body>
+<div class="dash">
+    <!-- Header -->
+    <header class="site-header">
+        <div class="topbar">
+            <a href="{% url 'home' %}" class="brand" title="Go to homepage">
+                <span class="side-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+                <span class="side-brand">
+                    <b>ATRUE</b>
+                    <small>Simulation Portal</small>
+                </span>
+            </a>
+
+            <div class="topbar-space" aria-hidden="true"></div>
+
+            <div class="topbar-right">
+                <a href="{% url 'simulation:logs' %}" class="icon-btn" title="Notifications" style="position:relative">
+                    <i class="fas fa-bell"></i>
+                    {% if notification_count %}
+                    <span class="badge badge-red" style="position:absolute;top:-4px;right:-4px;border:2px solid #fff;font-size:10px;min-width:16px;height:16px;line-height:12px;text-align:center;border-radius:99px">{{ notification_count }}</span>
+                    {% endif %}
+                </a>
+                <div class="user-dd" id="userDd">
+                    <button type="button" class="user-chip" id="userDdToggle">
+                            <span class="avatar">{% if request.user.profile_picture %}<img src="{{ request.user.profile_picture.url }}" alt="">{% else %}{{ request.user.initials }}{% endif %}</span>
+                            <span class="user-info">
+                                <b>{{ request.user.get_full_name|default:request.user.username }}</b>
+                                <small>{{ request.user.get_account_type_display }}</small>
+                            </span>
+                            <i class="fas fa-chevron-down user-chip-caret" aria-hidden="true"></i>
+                        </button>
+                    <div class="user-dd-menu">
+                        <a href="{% url 'accounts:my_account' %}" class="user-dd-item{% if '/my-account' in request.path %} active{% endif %}"><span class="dd-chip udd-account"><i class="fas fa-user-circle"></i></span><span class="dd-txt"><b>My Account</b><small>Profile &amp; settings</small></span></a>
+                        <a href="{% url 'accounts:change_password' %}" class="user-dd-item{% if '/change-password' in request.path %} active{% endif %}"><span class="dd-chip udd-security"><i class="fas fa-key"></i></span><span class="dd-txt"><b>Change Password</b><small>Update your password</small></span></a>
+                        <a href="{% url 'transactions:booking_list' %}" class="user-dd-item{% if '/transactions/bookings/' in request.path %} active{% endif %}"><span class="dd-chip udd-bookings"><i class="fas fa-bookmark"></i></span><span class="dd-txt"><b>My Bookings</b><small>Manage reservations</small></span></a>
+                        <a href="{% url 'transactions:list' %}" class="user-dd-item{% if '/transactions/' in request.path %} active{% endif %}"><span class="dd-chip udd-transactions"><i class="fas fa-credit-card"></i></span><span class="dd-txt"><b>Transactions</b><small>Payments &amp; receipts</small></span></a>
+                        <a href="{% url 'records:list' %}" class="user-dd-item{% if '/records/' in request.path %} active{% endif %}"><span class="dd-chip udd-records"><i class="fas fa-book"></i></span><span class="dd-txt"><b>Transaction Records</b><small>Official records</small></span></a>
+                        <a href="{% url 'simulation:logs' %}" class="user-dd-item{% if '/logs/' in request.path %} active{% endif %}"><span class="dd-chip udd-logs"><i class="fas fa-history"></i></span><span class="dd-txt"><b>Activity Logs</b><small>Simulation history</small></span></a>
+                        <a href="{% url 'accounts:logout' %}" class="user-dd-item"><span class="dd-chip udd-security"><i class="fas fa-sign-out-alt"></i></span><span class="dd-txt"><b>Log Out</b><small>Sign out of your account</small></span></a>
+                    </div>
+                </div>
+                <button class="icon-btn nav-toggle" id="navToggle" aria-label="Menu"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+
+        <nav class="top-nav" id="topNav">
+            <a href="{% url 'dashboard' %}" class="nav-link{% if request.path == '/' or request.path == '/dashboard/' %} active{% endif %}"><i class="fas fa-th-large"></i> Dashboard</a>
+            {% if request.user.account_type == 'STUDENT' or request.user.account_type == 'INSTRUCTOR' or request.user.account_type == 'ADMIN' or request.user.account_type == 'SYSTEM_ADMIN' %}
+            <a href="{% url 'simulation:workspace' %}" class="nav-link{% if '/simulation/workspace' in request.path %} active{% endif %}"><i class="fas fa-users"></i> {% if request.user.account_type == 'STUDENT' %}My Roles{% else %}Simulation Sessions{% endif %}</a>
+            {% endif %}
+
+            {% if request.user.is_airline_ticketing_only %}
+            <span class="nav-sep"></span>
+            <div class="nav-dd{% if '/flights/' in request.path %} active{% endif %}">
+                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-ticket-alt"></i> Airline Ticketing <i class="fas fa-chevron-down"></i></a>
+                <div class="nav-dd-menu">
+                    <a href="{% url 'airlines:list' %}" class="nav-dd-item nav-dd-item--rich di-airlines{% if request.resolver_match.url_name == 'list' %} active{% endif %}"><span class="di-ico"><i class="fas fa-magnifying-glass"></i></span><span class="di-txt"><b>Flight Search</b><small>Book a flight</small></span></a>
+                    <a href="{% url 'airlines:bookings' %}" class="nav-dd-item nav-dd-item--rich di-bookings{% if request.resolver_match.url_name == 'bookings' or request.resolver_match.url_name == 'booking_detail' or request.resolver_match.url_name == 'ticket' %} active{% endif %}"><span class="di-ico"><i class="fas fa-book-open"></i></span><span class="di-txt"><b>Reservations and Tickets</b><small>Manage bookings</small></span></a>
+                </div>
+            </div>
+            {% else %}
+            <span class="nav-sep"></span>
+            <div class="nav-dd{% if '/hotels/' in request.path or '/resorts/' in request.path or '/staycations/' in request.path or '/restaurants/' in request.path or '/landmarks/' in request.path or '/activities/' in request.path or '/packages/' in request.path %} active{% endif %}">
+                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-building"></i> Establishments <i class="fas fa-chevron-down"></i></a>
+                <div class="nav-dd-menu">
+                    <a href="{% url 'hotels:list' %}" class="nav-dd-item nav-dd-item--rich di-hotels{% if '/hotels/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-hotel"></i></span><span class="di-txt"><b>Hotels</b><small>Rooms &amp; suites</small></span></a>
+                    <a href="{% url 'resorts:list' %}" class="nav-dd-item nav-dd-item--rich di-resorts{% if '/resorts/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-umbrella-beach"></i></span><span class="di-txt"><b>Resorts</b><small>Villas &amp; cabanas</small></span></a>
+                    <a href="{% url 'staycations:list' %}" class="nav-dd-item nav-dd-item--rich di-staycation{% if '/staycations/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-couch"></i></span><span class="di-txt"><b>Staycations</b><small>Cozy getaways</small></span></a>
+                    <a href="{% url 'restaurants:list' %}" class="nav-dd-item nav-dd-item--rich di-restaurants{% if '/restaurants/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-utensils"></i></span><span class="di-txt"><b>Restaurants</b><small>Table reservations</small></span></a>
+                    <a href="{% url 'landmarks:list' %}" class="nav-dd-item nav-dd-item--rich di-landmarks{% if '/landmarks/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-landmark"></i></span><span class="di-txt"><b>Landmarks</b><small>Tourist spots &amp; tickets</small></span></a>
+                    <a href="{% url 'activities:list' %}" class="nav-dd-item nav-dd-item--rich di-activities{% if '/activities/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-hiking"></i></span><span class="di-txt"><b>Activities</b><small>Adventure &amp; tours</small></span></a>
+                    <a href="{% url 'tour_package:list' %}" class="nav-dd-item nav-dd-item--rich di-tour{% if '/packages/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-suitcase-rolling"></i></span><span class="di-txt"><b>Tour Packages</b><small>Curated travel bundles</small></span></a>
+                </div>
+            </div>
+            <div class="nav-dd{% if '/flights/' in request.path or '/transportation/' in request.path %} active{% endif %}">
+                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-plane"></i> Travel Transport <i class="fas fa-chevron-down"></i></a>
+                <div class="nav-dd-menu">
+                    <a href="{% url 'airlines:list' %}" class="nav-dd-item nav-dd-item--rich di-airlines{% if '/flights/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-plane"></i></span><span class="di-txt"><b>Flights</b><small>Domestic &amp; international bookings</small></span></a>
+                    <a href="{% url 'transportation:list' %}" class="nav-dd-item nav-dd-item--rich di-transport{% if '/transportation/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-bus"></i></span><span class="di-txt"><b>Land Transportation</b><small>Vans, buses &amp; cars</small></span></a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if request.user.is_account_manager %}
+            <span class="nav-sep"></span>
+            <a href="{% url 'accounts:account_list' %}" class="nav-link{% if '/accounts/accounts' in request.path or '/accounts/accounts/' in request.path %} active{% endif %}"><i class="fas fa-users"></i> User Accounts</a>
+            {% endif %}
+
+            {% if active_simulation_task_context %}
+            {% if active_simulation_task_operation %}
+            <span class="nav-sep"></span>
+            <div class="nav-dd nav-dd--ops active">
+                <a href="#" class="nav-link nav-dd-toggle"><i class="fas {{ active_simulation_task_operation.icon }}"></i> {{ active_simulation_task_operation.label }} <i class="fas fa-chevron-down"></i></a>
+                <div class="nav-dd-menu">
+                    {% for task in active_simulation_task_operation.tasks %}
+                    <a href="{{ task.url }}" class="nav-dd-item nav-dd-item--rich di-task{% if task.active %} active{% endif %}"><span class="di-ico"><i class="fas {{ task.icon }}"></i></span><span class="di-txt"><b>{{ task.label }}</b><small>Operation task</small></span></a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if request.user.is_authenticated and request.user.can_manage_hotels and not request.user.is_platform_manager and not active_simulation_task_context %}
+            <span class="nav-sep"></span>
+            <div class="nav-dd{% if '/hotels/manage' in request.path or '/hotels/rooms' in request.path or '/hotels/services' in request.path or '/hotels/amenities' in request.path or '/hotels/bookings' in request.path %} active{% endif %}">
+                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-concierge-bell"></i> Hotel Ops <i class="fas fa-chevron-down"></i></a>
+                <div class="nav-dd-menu">
+                    <a href="{% url 'hotels:manage' %}" class="nav-dd-item nav-dd-item--rich di-hotel-admin{% if '/hotels/manage' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-hotel"></i></span><span class="di-txt"><b>Hotel Admin</b><small>Manage properties</small></span></a>
+                    <a href="{% url 'hotels:rooms' %}" class="nav-dd-item nav-dd-item--rich di-rooms{% if '/hotels/rooms' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-bed"></i></span><span class="di-txt"><b>Room Mgmt</b><small>Rooms &amp; inventory</small></span></a>
+                    <a href="{% url 'hotels:services' %}" class="nav-dd-item nav-dd-item--rich di-services{% if '/hotels/services' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-concierge-bell"></i></span><span class="di-txt"><b>Hotel Services</b><small>Concierge services</small></span></a>
+                    <a href="{% url 'hotels:amenities' %}" class="nav-dd-item nav-dd-item--rich di-amenities{% if '/hotels/amenities' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-swimming-pool"></i></span><span class="di-txt"><b>Hotel Amenities</b><small>Facility list</small></span></a>
+                    <a href="{% url 'hotels:bookings' %}" class="nav-dd-item nav-dd-item--rich di-bookings{% if '/hotels/bookings' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-book-open"></i></span><span class="di-txt"><b>Hotel Bookings</b><small>Reservations &amp; check-ins</small></span></a>
+                </div>
+            </div>
+            {% endif %}
+
+        </nav>
+    </header>
+
+    <!-- Main
+         The `content_class` block is attached to the main element rather
+         than to the content section below, so that a page can opt into a
+         narrower shell (for example `rm-wide`, used by the booking and
+         selection flow) and have BOTH the flash-message container and the
+         content section follow it. When the class sat on the section, the
+         messages were left at a different width from the content. -->
+    <main class="main {% block content_class %}{% endblock %}">
+
+        {% if messages %}
+        <div class="container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %}{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <section class="content">
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+</div>
+
+<div class="ag-review-overlay" id="agReviewOverlay" aria-hidden="true">
+    <div class="ag-review-card" role="dialog" aria-modal="true" aria-labelledby="agReviewTitle">
+        <div class="ag-review-head">
+            <span class="ag-ph-ico"><i class="fas fa-file-circle-check"></i></span>
+            <div>
+                <h3 id="agReviewTitle">Review your booking</h3>
+                <p>Paki-check ang details bago i-confirm.</p>
+            </div>
+        </div>
+        <div class="ag-review-body" id="agReviewBody"></div>
+        <div class="ag-review-foot">
+            <button type="button" class="ag-btn ag-btn-muted" id="agReviewEdit"><i class="fas fa-arrow-left"></i> Edit</button>
+            <button type="button" class="ag-btn ag-btn-block" id="agReviewConfirm"><i class="fas fa-check-circle"></i> Confirm Booking</button>
+        </div>
+    </div>
+</div>
+
+{# Viewport overlays stay outside .content: its transform would become a containing block for position:fixed. #}
+{% block overlay %}{% endblock %}
+
+<script>
+function confirmAction(message) {
+    return confirm(message || 'Are you sure you want to continue?');
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const nav = document.getElementById('topNav');
+    const toggle = document.getElementById('navToggle');
+    if (toggle) {
+        toggle.addEventListener('click', () => nav.classList.toggle('open'));
+    }
+    document.querySelectorAll('.nav-dd-toggle').forEach(t => {
+        t.addEventListener('click', (e) => {
+            e.preventDefault();
+            const dd = t.closest('.nav-dd');
+            if (dd) dd.classList.toggle('open');
+        });
+    });
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('.nav-dd.open').forEach(dd => {
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+        document.querySelectorAll('.user-dd.open').forEach(dd => {
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+    });
+    const userDd = document.getElementById('userDd');
+    const userDdToggle = document.getElementById('userDdToggle');
+    if (userDd && userDdToggle) {
+        userDdToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDd.classList.toggle('open');
+        });
+    }
+    nav.querySelectorAll('a').forEach(a => {
+        if (a.classList.contains('nav-dd-toggle')) return;
+        a.addEventListener('click', () => nav.classList.remove('open'));
+    });
+
+    document.querySelectorAll('form[data-submit-loading]').forEach(form => {
+        form.addEventListener('submit', () => {
+            if (form.dataset.submitting) return;
+            form.dataset.submitting = '1';
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            }
+        });
+    });
+
+    // Agoda-style booking review modal: show the booked details before submitting
+    let reviewForm = null;
+    const overlay = document.getElementById('agReviewOverlay');
+    const reviewBody = document.getElementById('agReviewBody');
+    function closeReview() {
+        if (overlay) overlay.classList.remove('open');
+        reviewForm = null;
+    }
+    function fmtDate(v) {
+        if (!v) return 'â€”';
+        const d = new Date(v + 'T00:00:00');
+        if (isNaN(d)) return v;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    function fmtMoney(v) {
+        const n = parseFloat(v);
+        return isNaN(n) ? v : '? ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function reviewRow(label, value) {
+        const row = document.createElement('div');
+        row.className = 'ag-review-row';
+        row.innerHTML = '<span></span><b></b>';
+        row.querySelector('span').textContent = label;
+        row.querySelector('b').textContent = value;
+        return row;
+    }
+    function buildReview(form) {
+        reviewBody.innerHTML = '';
+        const overlayTitle = document.getElementById('agReviewTitle');
+
+        // Property summary (from price box)
+        const priceBox = form.closest('.ag-booking').querySelector('.ag-price-box');
+        if (priceBox) {
+            const prop = priceBox.querySelector('.ag-pb-prop');
+            const totalEl = priceBox.querySelector('.ag-pb-total');
+            const sec = document.createElement('div');
+            sec.className = 'ag-review-section';
+            sec.innerHTML = '<div class="ag-review-section-t"><i class="fas fa-building"></i> Your booking</div>';
+            if (prop) {
+                const clone = prop.cloneNode(true);
+                clone.className = 'ag-review-prop';
+                sec.appendChild(clone);
+            }
+            const grid = document.createElement('div');
+            grid.className = 'ag-review-grid';
+            form.querySelectorAll('.form-group').forEach(g => {
+                const labelEl = g.querySelector('label');
+                if (!labelEl) return;
+                if (labelEl.closest('.checkbox')) return;
+                const input = g.querySelector('input, select, textarea');
+                if (!input) return;
+                if (input.type === 'checkbox' || input.type === 'radio') return;
+                const name = input.getAttribute('name');
+                if (name === 'csrfmiddlewaretoken') return;
+                let value;
+                if (input.tagName === 'SELECT') {
+                    value = input.options[input.selectedIndex] ? input.options[input.selectedIndex].text : '';
+                } else if (input.type === 'date') {
+                    value = fmtDate(input.value);
+                } else if (input.tagName === 'TEXTAREA') {
+                    value = input.value || 'â€”';
+                } else {
+                    value = input.value || 'â€”';
+                }
+                if (value) grid.appendChild(reviewRow(labelEl.textContent.replace(/\s+/g, ' ').trim() || 'Other', value));
+            });
+            // Checked boxed add-ons (services / amenities / extras)
+            form.querySelectorAll('.form-group input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked) return;
+                const lbl = cb.closest('label');
+                const text = lbl ? lbl.textContent.replace(/\s+/g, ' ').trim() : cb.name;
+                grid.appendChild(reviewRow('Add-on', text));
+            });
+            // Dynamic passenger rows (airlines)
+            const paxNames = Array.from(form.querySelectorAll('input[name="passenger_names"]'))
+                .map(i => i.value.trim()).filter(Boolean);
+            if (paxNames.length) {
+                const seatMap = Array.from(form.querySelectorAll('input[name="seat_numbers"]'))
+                    .map(i => i.value.trim());
+                paxNames.forEach((n, idx) => {
+                    grid.appendChild(reviewRow('Passenger ' + (idx + 1), n + (seatMap[idx] ? ' Â· Seat ' + seatMap[idx] : '')));
+                });
+            }
+            // Selected payment method handled above via select; pay later check
+            const payLater = form.querySelector('input[name="pay_later"]');
+            if (payLater && payLater.checked) grid.appendChild(reviewRow('Payment', 'Pay later (pending payment)'));
+            sec.appendChild(grid);
+
+            const costs = document.createElement('div');
+            costs.className = 'ag-review-costs';
+            if (priceBox.querySelector('.ag-pb-rows')) costs.innerHTML = priceBox.querySelector('.ag-pb-rows').innerHTML;
+            const total = document.createElement('div');
+            total.className = 'ag-review-total';
+            total.innerHTML = '<span>Total</span><b>' + (totalEl ? totalEl.querySelector('b').textContent : 'â€¦') + '</b>';
+            costs.appendChild(total);
+            sec.appendChild(costs);
+            reviewBody.appendChild(sec);
+        } else {
+            reviewBody.innerHTML = '<p style="color:var(--slate-500);font-size:14px">No booking summary available.</p>';
+        }
+    }
+    document.querySelectorAll('form[data-submit-loading]').forEach(form => {
+        const btn = form.ownerDocument.querySelector('button[form="' + form.id + '"]');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                if (!form.checkValidity()) return;
+                e.preventDefault();
+                reviewForm = form;
+                buildReview(form);
+                if (overlay) overlay.classList.add('open');
+            });
+        }
+    });
+    const editBtn = document.getElementById('agReviewEdit');
+    if (editBtn) editBtn.addEventListener('click', closeReview);
+    const confirmBtn = document.getElementById('agReviewConfirm');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            const f = reviewForm;
+            closeReview();
+            if (f) {
+                f.dataset.submitting = '1';
+                const aside = f.ownerDocument.querySelector('button[form="' + f.id + '"]');
+                if (aside) {
+                    aside.disabled = true;
+                    aside.dataset.originalHtml = aside.innerHTML;
+                    aside.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                }
+                f.requestSubmit();
+            }
+        });
+    }
+});
+</script>
+<script>
+// Keep establishment booking details and the confirmation summary on separate steps.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.ag-booking').forEach(function (flow) {
+        if (flow.classList.contains('landtransport-booking-flow') || flow.querySelector('[data-booking-summary-step]')) return;
+        var main = flow.querySelector(':scope > .ag-booking-main') || flow.querySelector('.ag-booking-main');
+        var summary = flow.querySelector(':scope > .ag-price-box') || flow.querySelector('.ag-price-box');
+        if (!main || !summary) return;
+
+        var form = main.querySelector('form[data-submit-loading], form#booking-form, form#bookingForm') || flow.closest('form');
+        if (!form) return;
+        var confirmButton = summary.querySelector('button[type="submit"]');
+        if (form.id) {
+            summary.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (field) {
+                if (!field.form) field.setAttribute('form', form.id);
+            });
+        }
+        var isEmbeddedFlightBooking = form.id === 'booking-form' && !!form.querySelector('[data-seat-open]') && window.self !== window.top;
+        if (isEmbeddedFlightBooking) {
+            flow.classList.add('is-embedded-flight-booking');
+            var summaryBody = summary.querySelector('.ag-pb-body');
+            var paymentSelect = form.querySelector('select[name="payment_method"]');
+            var paymentGroup = paymentSelect && paymentSelect.closest('.form-group');
+            var payLater = form.querySelector('input[name="pay_later"]');
+            var payLaterLabel = payLater && payLater.closest('label');
+            if (summaryBody && paymentGroup) {
+                paymentSelect.setAttribute('form', form.id);
+                paymentGroup.style.margin = '14px 0 8px';
+                summaryBody.appendChild(paymentGroup);
+            }
+            if (summaryBody && payLaterLabel) {
+                payLater.setAttribute('form', form.id);
+                summaryBody.appendChild(payLaterLabel);
+            }
+        }
+
+        flow.classList.add('establishment-booking-flow');
+        summary.hidden = true;
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'ag-btn ag-btn-block establishment-booking-next';
+        next.innerHTML = '<i class="fas fa-arrow-right"></i> Continue';
+        var isRoomSelectionPage = !!flow.querySelector('[data-compare-book]');
+        // Some establishment pages render the guest modal beside the booking form,
+        // outside .ag-booking, so also check the page-level modal in that flow.
+        var hasGuestInfoModal = !!(flow.querySelector('#guestModalSave') ||
+            (form.id === 'bookingForm' && document.getElementById('guestModalSave')));
+        var continuesFromGuestModal = isRoomSelectionPage || hasGuestInfoModal;
+        if (!continuesFromGuestModal) main.appendChild(next);
+
+        var actions = summary.querySelector('.ag-pb-actions') || summary;
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'ag-btn ag-btn-muted establishment-booking-back';
+        back.innerHTML = '<i class="fas fa-arrow-left"></i> Back to details';
+        actions.insertBefore(back, actions.firstChild);
+
+        function syncNextState() {
+            next.disabled = !!(confirmButton && confirmButton.disabled);
+        }
+        syncNextState();
+        if (confirmButton && window.MutationObserver) {
+            new MutationObserver(syncNextState).observe(confirmButton, { attributes: true, attributeFilter: ['disabled'] });
+        }
+        var computation = flow.querySelector('#computationSummary');
+        if (computation) computation.classList.add('establishment-computation-inline');
+        function showBookingSummary() {
+            flow.classList.add('is-summary-step');
+            main.hidden = true;
+            summary.hidden = false;
+            var heading = summary.querySelector('.ag-pb-head');
+            if (heading) heading.focus({ preventScroll: true });
+            summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (!continuesFromGuestModal) {
+            next.addEventListener('click', function () {
+                if (confirmButton && confirmButton.disabled) return;
+                if (!form.reportValidity()) return;
+                showBookingSummary();
+            });
+        } else {
+            ['atrue:hotel-guest-info-complete', 'atrue:establishment-guest-info-complete'].forEach(function (eventName) {
+                document.addEventListener(eventName, function () { showBookingSummary(); });
+            });
+        }
+        back.addEventListener('click', function () {
+            flow.classList.remove('is-summary-step');
+            main.hidden = false;
+            summary.hidden = true;
+            if (next && next.isConnected && !next.hidden) next.focus({ preventScroll: true });
+        });
+        // Flight bookings start with passenger and travel details.
+        // The price summary appears only after the guest presses Continue.
+    });
+});
+</script>
+<script src="{% static 'js/location-data.js' %}?v=20260922"></script>
+    <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
+    <script>window.ATRUE_LOC_DATA = {{ atrue_loc_tree_json|safe }};</script>
+    <script src="{% static 'js/location-picker.js' %}?v=20261005"></script>
+    <script src="{% static 'js/location-cascade.js' %}?v=20261012"></script>
+    <script src="{% static 'js/airport-picker.js' %}?v=20261012"></script>
+<script src="{% static 'js/flight-search.js' %}?v=20261012"></script>
+<script src="{% static 'js/atrue-datepicker.js' %}?v=20261011-viewport-popup"></script>
+<script src="{% static 'js/atrue-timepicker.js' %}?v=20261011-viewport-popup"></script>
+{% block extra_js %}{% endblock %}
+<script src="{% static 'js/guests-tables.js' %}?v=20261012e"></script>
+<script src="{% static 'js/establishment-modal.js' %}?v=20261012-delete-confirm-modal"></script>
+    <script src="{% static 'js/delete-confirm-modal.js' %}?v=20261013-confirm-modal-top-layer"></script>
+</body>
+</html>
+
+

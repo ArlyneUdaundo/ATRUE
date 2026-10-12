@@ -1,0 +1,224 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}User Accounts{% endblock %}
+
+{% block content %}
+<style>
+#accountDeactivateModal {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+#accountDeactivateModal::backdrop {
+    background: rgba(15, 23, 42, .28);
+}
+</style>
+<div class="page-head">
+    <div>
+        <h1>User Account Management</h1>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'accounts:account_create' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-user-plus"></i> Create Account</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Search</label>
+                <input type="text" name="q" class="form-input" placeholder="Name, username or email" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Account Type</label>
+                <select name="account_type" class="form-input">
+                    <option value="">All types</option>
+                    {% for value, label in account_type_choices %}
+                    <option value="{{ value }}" {% if account_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Role</label>
+                <select name="role" class="form-input">
+                    <option value="">All roles</option>
+                    {% for value, label in role_choices %}
+                    <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Sort By</label>
+                <select name="sort" class="form-input">
+                    {% for value, label in sort_choices %}
+                    <option value="{{ value }}" {% if sort == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="filter-grid" style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-top:14px">
+            <div class="form-group" style="margin:0">
+                <label>Date Created From</label>
+                <input type="date" name="date_from" class="form-input" value="{{ date_from }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Date Created To</label>
+                <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'accounts:account_list' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if accounts %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Date Created</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in accounts %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span class="avatar" style="width:80px;height:80px;flex:0 0 80px;border-radius:16px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:24px">{% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="{{ u.get_full_name|default:u.username }} profile picture" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit">{% else %}{{ u.username|slice:":1" }}{% endif %}</span>
+                            <div>
+                                <b>{{ u.get_full_name|default:u.username }}</b>
+                                <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ u.username }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ u.email }}</td>
+                    <td><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
+                    <td class="account-status-cell"><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
+                    <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'accounts:account_detail' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        {% if can_update %}
+                        <a href="{% url 'accounts:account_update' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                        {% endif %}
+                        {% if u.status == 'INACTIVE' %}
+                        <form method="post" action="{% url 'accounts:account_deactivate' u.id %}" data-confirm="Reactivate this account?" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-undo"></i> Reactivate</button>
+                        </form>
+                        {% else %}
+                        <button type="button" class="btn btn-outline btn-sm js-account-deactivate" data-deactivate-url="{% url 'accounts:account_deactivate' u.id %}" data-account-name="{{ u.get_full_name|default:u.username }}" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-users"></i><h3>No accounts found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+<dialog id="accountDeactivateModal" style="width:min(520px,calc(100% - 32px));border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
+    <form id="accountDeactivateForm" method="post" style="padding:24px">
+        {% csrf_token %}
+        <h3 style="margin:0 0 8px">Deactivate user account?</h3>
+        <p id="accountDeactivateName" style="margin:0 0 16px;color:var(--slate-600)"></p>
+        <div class="form-group" style="margin:0">
+            <label for="accountDeactivateReason">Reason <span class="meta" style="font-weight:400">(optional)</span></label>
+            <textarea id="accountDeactivateReason" name="reason" class="form-input" rows="3" maxlength="300" placeholder="e.g. Student role completed / repeated violations / requested by head"></textarea>
+        </div>
+        <p id="accountDeactivateError" role="alert" style="margin:10px 0 0;color:#b91c1c;display:none"></p>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button type="button" class="btn btn-outline" id="cancelAccountDeactivate">Cancel</button>
+            <button type="submit" class="btn" style="background:#b91c1c;border-color:#b91c1c;color:#fff"><i class="fas fa-user-slash"></i> Confirm Deactivation</button>
+        </div>
+    </form>
+</dialog>
+<script>
+(function () {
+    const modal = document.getElementById('accountDeactivateModal');
+    const form = document.getElementById('accountDeactivateForm');
+    if (!modal || !form) return;
+    const csrf = form.querySelector('[name="csrfmiddlewaretoken"]');
+    const reason = document.getElementById('accountDeactivateReason');
+    const error = document.getElementById('accountDeactivateError');
+    let trigger = null;
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('.js-account-deactivate');
+        if (!button) return;
+        trigger = button;
+        form.action = button.dataset.deactivateUrl;
+        document.getElementById('accountDeactivateName').textContent = button.dataset.accountName;
+        reason.value = '';
+        error.style.display = 'none';
+        modal.showModal();
+        reason.focus();
+    });
+
+    document.getElementById('cancelAccountDeactivate').addEventListener('click', function () {
+        modal.close();
+        if (trigger) trigger.focus();
+        trigger = null;
+    });
+
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        error.style.display = 'none';
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.message || 'Could not deactivate this account.');
+
+            const row = trigger.closest('tr');
+            const statusBadge = row.querySelector('.account-status-cell .badge');
+            statusBadge.className = 'badge badge-gray';
+            statusBadge.textContent = result.status_display;
+            const deactivateButton = row.querySelector('.js-account-deactivate');
+            const reactivateForm = document.createElement('form');
+            reactivateForm.method = 'post';
+            reactivateForm.action = form.action;
+            reactivateForm.style.display = 'inline';
+            reactivateForm.dataset.confirm = 'Reactivate this account?';
+            reactivateForm.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf.value + '"><button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-undo"></i> Reactivate</button>';
+            deactivateButton.replaceWith(reactivateForm);
+            const statusFilter = new URLSearchParams(window.location.search).get('status');
+            if (statusFilter && statusFilter !== result.status) row.remove();
+            modal.close();
+            trigger = null;
+        } catch (requestError) {
+            error.textContent = requestError.message;
+            error.style.display = '';
+        } finally {
+            submit.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

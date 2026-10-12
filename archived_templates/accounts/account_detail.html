@@ -1,0 +1,103 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ account.get_full_name|default:account.username }} | User Account{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>User Account</h1>
+        <p>Profile details and booking history (FR-003).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'accounts:account_update' account.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        {% if request.user == account %}
+        <a href="{% url 'accounts:change_password' %}" class="btn btn-outline"><i class="fas fa-key"></i> Change Password</a>
+        {% elif is_manager %}
+        <a href="{% url 'accounts:account_change_password' account.id %}" class="btn btn-outline"><i class="fas fa-key"></i> Change Password</a>
+        {% endif %}
+        {% if is_manager %}
+            {% if account.id != request.user.id %}
+                {% if account.status == 'INACTIVE' %}
+                <form method="post" action="{% url 'accounts:account_deactivate' account.id %}" data-confirm="Reactivate this account?" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-ghost"><i class="fas fa-undo"></i> Reactivate</button>
+                </form>
+                {% else %}
+                <a href="{% url 'accounts:account_deactivate_confirm' account.id %}" class="btn btn-outline" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</a>
+                {% endif %}
+            {% endif %}
+            <a href="{% url 'accounts:account_list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to List</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if account.id == request.user.id %}
+<div class="alert alert-info"><i class="fas fa-user-circle"></i> This is your own account profile. Use <a href="{% url 'accounts:account_update' account.id %}">Update</a> to edit your details and <a href="{% url 'accounts:change_password' %}">Change Password</a> to secure your account.</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <div style="display:flex;align-items:center;gap:14px">
+                <span class="avatar" style="width:52px;height:52px;border-radius:14px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:800;font-size:20px">{{ account.username|slice:":1" }}</span>
+                <div style="flex:1">
+                    <h3 style="margin:0">{{ account.get_full_name|default:account.username }}</h3>
+                    <div class="meta" style="margin-top:2px"><i class="fas fa-at"></i> @{{ account.username }} &middot; <i class="fas fa-envelope"></i> {{ account.email|default:'—' }}</div>
+                    <div style="margin-top:6px">
+                        <span class="badge {% if account.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ account.get_account_type_display }}</span>
+                        <span class="badge {% if account.status == 'ACTIVE' %}badge-green{% elif account.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ account.get_status_display }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-pad">
+            <div class="filter-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px 22px">
+                <div><div class="meta" style="margin:0"><i class="fas fa-id-badge"></i> Last Name</div><b style="font-size:14px">{{ account.last_name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-id-badge"></i> First Name</div><b style="font-size:14px">{{ account.first_name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-id-badge"></i> Middle Name</div><b style="font-size:14px">{{ account.middle_name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-id-badge"></i> Middle Initial</div><b style="font-size:14px">{{ account.middle_initial|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-id-badge"></i> Suffix</div><b style="font-size:14px">{{ account.suffix|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-calendar"></i> Date of Birth</div><b style="font-size:14px">{{ account.date_of_birth|date:"M d, Y"|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-venus-mars"></i> Sex</div><b style="font-size:14px">{{ account.get_sex_display|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-flag"></i> Nationality</div><b style="font-size:14px">{{ account.get_nationality_display|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-phone"></i> Contact Number</div><b style="font-size:14px">{{ account.contact_number|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-clock"></i> Date Joined</div><b style="font-size:14px">{{ account.date_joined|date:"M d, Y" }}</b></div>
+                <div style="grid-column:1/-1"><div class="meta" style="margin:0"><i class="fas fa-map-marker-alt"></i> Residential Address</div><b style="font-size:14px">{{ account.residential_address|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-user-shield"></i> Emergency Contact</div><b style="font-size:14px">{{ account.emergency_contact_name|default:'—' }}</b></div>
+                <div>
+                    <div class="meta" style="margin:0"><i class="fas fa-phone"></i> Emergency Number</div>
+                    <b style="font-size:14px">{{ account.emergency_contact_number|default:'—' }}</b>
+                    <div class="meta" style="margin-top:3px">{{ account.emergency_contact_relationship|default:'No relationship specified' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+            <h3 style="margin:0"><i class="fas fa-ticket-alt"></i> Booking History</h3>
+            <p style="color:var(--slate-500);font-size:13px;margin:4px 0 0">{{ bookings|length }} booking(s) on record.</p>
+        </div>
+        {% if bookings %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Service</th><th>Reference</th><th>Details</th><th>Status</th><th>Booked</th></tr></thead>
+                <tbody>
+                    {% for row in bookings %}
+                    <tr>
+                        <td><b>{{ row.service }}</b></td>
+                        <td class="mono">{{ row.reference }}</td>
+                        <td><span class="text-truncate" title="{{ row.details }}">{{ row.details }}</span></td>
+                        <td><span class="badge {% if row.status == 'CONFIRMED' %}badge-green{% elif row.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ row.status|title }}</span></td>
+                        <td>{{ row.created|date:"M d, Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings yet</h3><p>Booking activity will appear here once the account is used.</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

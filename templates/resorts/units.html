@@ -1,0 +1,69 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Resort Unit Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Resort Unit Management</h1>
+        <p>Search, filter and manage resort rooms, villas, suites and cabanas.</p>
+    </div>
+    {% if resort_id %}
+    <a href="{% url 'resorts:add_unit' resort_id %}" class="btn btn-brand"><i class="fas fa-bed"></i> Add Unit</a>
+    {% endif %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr auto;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Search</label>
+                <input type="text" name="q" class="form-input establishment-ops-search" placeholder="Unit ID, number or resort" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Resort</label>
+                <select name="resort" class="form-input">
+                    <option value="">All resorts</option>
+                    {% for r in resorts %}
+                    <option value="{{ r.id }}" {% if resort_id == r.id|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Unit Type</label>
+                <select name="unit_type" class="form-input">
+                    <option value="">All types</option>
+                    {% for value, label in unit_type_choices %}
+                    <option value="{{ value }}" {% if unit_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Min. Adults</label>
+                <input type="number" name="capacity" class="form-input" min="0" value="{{ capacity }}" placeholder="Any">
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'resorts:units' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if units %}
+    {% include 'resorts/_unit_cards.html' with unit_list=units management=True show_resort=True %}
+    {% else %}
+    <div class="empty"><i class="fas fa-bed"></i><h3>No units found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

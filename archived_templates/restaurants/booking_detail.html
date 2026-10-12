@@ -1,0 +1,126 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurant Reservation Detail{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Table reservation details, billing, remarks and status.</p></div>
+    <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' or booking.status == 'DECLINED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+</div>
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-chair"></i> Guest &amp; Table</h3>
+        <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
+        {% if booking.contact_number %}<div class="meta">Contact: {{ booking.contact_number }}</div>{% endif %}
+        <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
+        <div class="meta">Restaurant: <b>{{ booking.table.restaurant.name }}</b> — Table <a href="{% url 'restaurants:table_detail' booking.table.id %}">{{ booking.table.table_number }}</a> ({{ booking.table.get_seating_area_display }})</div>
+        <div class="meta">Date &amp; time: {{ booking.reservation_datetime|date:"M d, Y H:i" }}</div>
+        <div class="meta">Guests: {{ booking.number_of_guests }}</div>
+        {% if booking.seating_preference %}<div class="meta">Seating preference: {{ booking.get_seating_preference_display }}</div>{% endif %}
+        {% if booking.occasion != 'NONE' %}<div class="meta">Occasion: {{ booking.get_occasion_display }}</div>{% endif %}
+        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
+        {% if booking.additional_notes %}<div class="meta">Notes: {{ booking.additional_notes }}</div>{% endif %}
+        {% if booking.checked_in_at %}<div class="meta"><i class="fas fa-sign-in-alt"></i> Seated: {{ booking.checked_in_at|date:"M d, Y H:i" }}</div>{% endif %}
+        {% if booking.checked_out_at %}<div class="meta"><i class="fas fa-sign-out-alt"></i> Completed: {{ booking.checked_out_at|date:"M d, Y H:i" }}</div>{% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
+        {% if bill %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr><td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+        <div class="meta" style="margin-top:12px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+        </div>
+        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
+
+        {% if payments %}
+        <h4 style="margin-top:16px">Payments</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr><td class="mono">{{ p.payment_reference }}</td><td>₱ {{ p.amount }}</td><td>{{ p.get_method_display }}</td><td>{{ p.paid_at|date:"M d, Y H:i" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if booking.manager_remarks %}
+<div class="card card-pad" style="margin-top:18px;border-left:3px solid var(--brand, #f5a623)">
+    <h3><i class="fas fa-comment-dots"></i> Restaurant Remarks</h3>
+    <div class="meta">{{ booking.manager_remarks }}</div>
+</div>
+{% endif %}
+
+{% if can_manage %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-tasks"></i> Reservation Lifecycle</h3>
+    <form method="post" class="card card-pad" style="border:0;padding:0;margin-bottom:14px">
+        {% csrf_token %}
+        <div class="form-group"><label>Restaurant Remark (shown to the guest)</label><input type="text" name="remark" class="form-input" value="{{ booking.manager_remarks }}" placeholder="e.g. We reserved the private area for you"></div>
+        <div class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap">
+            {% if booking.status == 'PENDING' %}
+            <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
+            <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+            {% endif %}
+            {% if booking.status == 'CONFIRMED' %}
+            <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Mark Seated</button>
+            <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this reservation and release the table?"><i class="fas fa-ban"></i> Cancel</button>
+            {% endif %}
+            {% if booking.status == 'CHECKED_IN' %}
+            <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Complete Meal</button>
+            {% endif %}
+        </div>
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-bottom:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="modify">
+        <h4>Modify Reservation</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Date &amp; Time</label><input type="datetime-local" name="reservation_datetime" class="form-input" value="{{ booking.reservation_datetime|date:'Y-m-d\TH:i' }}"></div>
+            <div class="form-group"><label>Guests</label><input type="number" name="guests" class="form-input" value="{{ booking.number_of_guests }}"></div>
+        </div>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
+    </form>
+
+    {% if request.user == booking.customer %}
+    <div style="margin-bottom:16px">
+        <h4>Additional Purchases</h4>
+        <a href="{% url 'transactions:additional_add' %}" class="btn btn-ghost btn-sm" data-aux="{{ booking.booking_reference }}"><i class="fas fa-cart-plus"></i> Record Additional Purchase</a>
+    </div>
+    {% endif %}
+
+    <form method="post" class="card card-pad" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <h4>Record Payment</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
+            <div class="form-group"><label>Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
+    </form>
+</div>
+{% endif %}
+
+<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if provider %}Update Activity Provider{% else %}Add Activity Provider{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if provider %}Update{% else %}Add{% endif %} Activity Provider</h1><p>Provider must be active and verified before activities publish to booking (BR-066).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-group">
+        <label>Provider Name</label>
+        <input type="text" name="name" class="form-input" value="{{ provider.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ provider.description|default:'' }}</textarea>
+    </div>
+    <div class="form-group"><label>Location</label><input type="text" name="location" class="form-input" value="{{ provider.location|default:'' }}"></div>
+    <div class="form-grid">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" value="{{ provider.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Contact Email</label><input type="email" name="contact_email" class="form-input" value="{{ provider.contact_email|default:'' }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if provider.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if provider.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if provider.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+        </select>
+    </div>
+    <label class="checkbox" style="margin-bottom:14px">
+        <input type="checkbox" name="verified" {% if provider.verified %}checked{% endif %}> <b>Verified</b> (eligible to publish activities)
+    </label>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Provider</button>
+    <a href="{% url 'activities:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

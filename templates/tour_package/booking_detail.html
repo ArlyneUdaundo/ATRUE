@@ -1,0 +1,149 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Tour Package Booking Detail{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Booking {{ booking.booking_reference }}</h1><p>Tour package booking details, billing and status.</p></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if booking.status == 'CONFIRMED' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
+        <a href="{% url 'tour_package:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
+        {% else %}
+        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
+        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'COMPLETED' %}badge-blue{% elif booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+    </div>
+</div>
+
+{% if booking.status == 'PENDING' and not can_manage and not can_review and not can_frontdesk %}
+<div class="alert alert-info">
+    <i class="fas fa-clock"></i>
+    <div>Your booking is <b>awaiting front desk confirmation</b>. Once the front desk confirms, you'll get a notification and the <b>Print E-Ticket</b> button will be unlocked.</div>
+</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card card-pad">
+        <h3><i class="fas fa-luggage-cart"></i> Booking</h3>
+        <div class="meta">Package: <b>{{ booking.package.name }}</b></div>
+        <div class="meta">Customer: {{ booking.customer.get_full_name|default:booking.customer.username }}</div>
+        <div class="meta">Primary traveler: {{ booking.primary_traveler_name|default:"Same as customer" }}</div>
+        {% if booking.contact_number %}<div class="meta">Contact: {{ booking.contact_number }}</div>{% endif %}
+        <div class="meta">Travel date: {{ booking.travel_date|date:"M d, Y" }}{% if booking.start_time %} · {{ booking.start_time|date:"H:i" }}{% if booking.end_time %}–{{ booking.end_time|date:"H:i" }}{% endif %}{% endif %}</div>
+        <div class="meta">Travelers: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C ({{ booking.number_of_travelers }} total, {{ booking.extra_heads }} extra head(s))</div>
+        {% if booking.payment_method %}<div class="meta">Mode of payment: {{ booking.get_payment_method_display }}</div>{% endif %}
+        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
+        {% if booking.guests.all %}
+        <h4 style="margin-top:14px">Other Travelers</h4>
+        {% for g in booking.guests.all %}
+        <div style="border:1px solid var(--slate-200);border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--slate-50)">
+            <div class="meta"><i class="fas fa-user"></i> <b>{{ g.full_name }}</b></div>
+            {% if g.emergency_contact_name or g.emergency_contact_number %}<div class="meta" style="margin-top:4px"><i class="fas fa-medkit"></i> Emergency: {{ g.emergency_contact_name|default:'—' }} · {{ g.emergency_contact_number|default:'—' }}{% if g.emergency_contact_relationship %} ({{ g.emergency_contact_relationship }}){% endif %}</div>{% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="card card-pad">
+        <h3><i class="fas fa-file-invoice"></i> Billing (BR-080/BR-081)</h3>
+        {% if bill %}
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr><td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+        <div class="meta" style="margin-top:12px">
+            Total: <b>₱ {{ bill.total_amount }}</b> ·
+            Paid: ₱ {{ bill.amount_paid }} ·
+            Balance: <b>₱ {{ bill.balance_due }}</b>
+            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+        </div>
+        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
+
+        {% if payments %}
+        <h4 style="margin-top:16px">Payments</h4>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
+            <tbody>
+                {% for py in payments %}
+                <tr><td class="mono">{{ py.payment_reference }}</td><td>₱ {{ py.amount }}</td><td>{{ py.get_method_display }}</td><td>{{ py.paid_at|date:"M d, Y H:i" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_manage or can_review or can_frontdesk %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-tasks"></i> Lifecycle</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">
+        {% csrf_token %}
+        {% if can_manage and booking.status == 'PENDING' or can_review and booking.status == 'PENDING' %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
+        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+        {% endif %}
+        {% if can_frontdesk and booking.status == 'PENDING' or can_frontdesk and booking.status == 'CONFIRMED' %}
+        <button name="action" value="attend" class="btn btn-ghost btn-sm"><i class="fas fa-user-check"></i> Attend</button>
+        {% endif %}
+        {% if can_manage and booking.status == 'CONFIRMED' or can_frontdesk and booking.status == 'CHECKED_IN' %}
+        <button name="action" value="complete" class="btn btn-brand btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
+        {% endif %}
+        {% if can_manage and booking.status == 'CONFIRMED' %}
+        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking? Components will be released (BR-077)."><i class="fas fa-ban"></i> Cancel</button>
+        {% endif %}
+    </form>
+
+    {% if can_manage %}
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="modify">
+        <h4>Modify Booking</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Travel Date</label><input type="date" name="travel_date" class="form-input" value="{{ booking.travel_date|date:'Y-m-d' }}"></div>
+            <div class="form-group"><label>Travelers</label><input type="number" name="travelers" class="form-input" value="{{ booking.number_of_travelers }}"></div>
+        </div>
+        {% if booking.guests.all %}
+        <div class="form-group">
+            <label>Other Travelers</label>
+            {% for g in booking.guests.all %}
+            <div class="guest-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px">
+                <input type="text" name="guest_full_name" class="form-input" value="{{ g.full_name }}">
+                <input type="text" name="guest_emergency_contact_name" class="form-input" value="{{ g.emergency_contact_name }}" placeholder="Emergency contact name">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.guest-row').remove()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="guest-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px">
+                <input type="text" name="guest_emergency_contact_number" class="form-input" value="{{ g.emergency_contact_number }}" placeholder="Emergency contact number" inputmode="numeric" maxlength="11">
+                <input type="text" name="guest_emergency_contact_relationship" class="form-input" value="{{ g.emergency_contact_relationship }}" placeholder="Relationship (e.g. Parent, Sibling)">
+                <span></span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
+    </form>
+
+    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <h4>Record Payment</h4>
+        <div class="form-grid">
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
+            <div class="form-group"><label>Method</label>
+                <select name="payment_method" class="form-input">
+                    <option value="GCASH">GCash</option><option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option><option value="DEBIT_CARD">Debit Card</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
+{% endblock %}

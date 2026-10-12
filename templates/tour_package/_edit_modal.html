@@ -1,0 +1,6 @@
+<form method="post" enctype="multipart/form-data" action="{% url 'tour_package:update_package' package.id %}" class="tour-package-modal-form" data-submit-loading data-tour-package-form>
+    {% csrf_token %}
+    <div class="tour-package-modal__head"><h2 id="tourPackageEditTitle">Edit {{ package.name }}</h2><button type="button" class="btn btn-ghost btn-sm" data-tour-package-close aria-label="Close">×</button></div>
+    {% include 'tour_package/_form_fields.html' %}
+    <div class="tour-package-modal__actions"><button type="button" class="btn btn-ghost" data-tour-package-close>Cancel</button><button type="submit" class="btn btn-brand"><i class="fas fa-save"></i> Save Package</button></div>
+</form>

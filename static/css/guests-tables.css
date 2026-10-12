@@ -1,0 +1,148 @@
+/* ============================================================
+   ATRUE Guests & Tables selector (restaurant module)
+   Floating panel that mirrors the ATRUE hotel Guests & Rooms
+   visual style: white card, rounded corners, soft shadow, light
+   border, ATRUE blue accents, blue + / light-gray − steppers and
+   a full-width blue Done button.
+   ============================================================ */
+.gd-field { position: relative; }
+
+.gd-field[hidden] { display: none; }
+
+.gd-toggle {
+  cursor: pointer;
+  background-color: transparent;
+}
+
+/* Floating panel */
+.gd-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  left: auto;
+  z-index: 90;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  background: #fff;
+  border: 1px solid #e4ebf5;
+  border-radius: 16px;
+  box-shadow: 0 18px 44px -12px rgba(15, 42, 78, .22), 0 6px 18px -8px rgba(15, 42, 78, .12);
+  padding: 8px 18px 18px;
+  display: none;
+}
+.gd-panel.open { display: block; }
+
+.gd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 4px;
+}
+.gd-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f2a4e;
+  letter-spacing: -.01em;
+}
+.gd-x {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s ease, color .15s ease;
+}
+.gd-x:hover { background: #f1f5f9; color: #0f172a; }
+
+.gd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.gd-label b {
+  display: block;
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 700;
+}
+.gd-label span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.gd-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.gd-step button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 0;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.gd-step button[data-gd-plus] {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, .28);
+}
+.gd-step button[data-gd-plus]:hover { background: #1e40af; }
+.gd-step button[data-gd-minus] {
+  background: #eef2f7;
+  color: #475569;
+}
+.gd-step button[data-gd-minus]:hover { background: #e2e8f0; color: #0f172a; }
+.gd-step button:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+.gd-num {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.gd-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.gd-done:hover { background: #1e40af; }
+.gd-done i { font-size: 13px; }
+
+@media (max-width: 720px) {
+  .gd-panel {
+    width: min(340px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+  }
+}

@@ -1,0 +1,69 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurant Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Restaurant Management</h1><p>Create, update and manage restaurants and tables (Module 11 – Restaurant Management).</p></div>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input establishment-ops-search" value="{{ q }}" placeholder="ID, name, contact or email"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Location</label>
+            {% include 'search/_loc_picker_field.html' with combine_name='location' combine_value=location placeholder='Any location' compact=True %}
+        </div>
+        <div class="form-group"><label>Cuisine</label><input type="text" name="cuisine" class="form-input" value="{{ cuisine }}" placeholder="e.g. Ilocano"></div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+    <a href="{% url 'restaurants:manage' %}" class="btn btn-outline btn-sm">Reset</a>
+</form>
+
+{% for r in restaurants %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-orange"><i class="fas fa-utensils"></i></span>
+        <div style="flex:1">
+            <div class="mono" style="font-size:12px;color:var(--slate-500)">{{ r.restaurant_id }}</div>
+            <h3 style="margin:0">{{ r.name }}</h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ r.location }} · {{ r.cuisine_type }}</div>
+            {% if r.contact_number or r.email %}<div class="meta"><i class="fas fa-phone-alt"></i> {{ r.contact_number }} {% if r.email %}· {{ r.email }}{% endif %}</div>{% endif %}
+        </div>
+        <span class="badge {% if r.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ r.get_status_display }}</span>
+        <a href="{% url 'restaurants:detail' r.slug %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+        <a href="{% url 'restaurants:update_restaurant' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-chair"></i> Tables</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Table ID</th><th>Table</th><th>Seating</th><th>Capacity</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for t in r.tables.all %}
+                <tr>
+                    <td class="mono">{{ t.table_id }}</td>
+                    <td><b>Table {{ t.table_number }}</b></td>
+                    <td>{{ t.get_seating_area_display }}</td>
+                    <td>{{ t.capacity }}</td>
+                    <td>{{ t.get_status_display }}</td>
+                    <td><a href="{% url 'restaurants:table_detail' t.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'restaurants:update_table' t.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No tables.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="margin-top:12px"><a href="{% url 'restaurants:add_table' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-chair"></i> Add Table</a></div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-utensils"></i><h3>No restaurants found</h3><p>Adjust your filters or add your first restaurant to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

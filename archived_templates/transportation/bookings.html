@@ -1,0 +1,51 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Transport Bookings{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Transport Bookings</h1><p>Search and manage vehicle bookings (BR-054).</p></div></div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ request.GET.q }}" placeholder="Reference or passenger"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option>
+                <option value="CONFIRMED" {% if status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
+                <option value="CHECKED_IN" {% if status == 'CHECKED_IN' %}selected{% endif %}>Picked Up</option>
+                <option value="CHECKED_OUT" {% if status == 'CHECKED_OUT' %}selected{% endif %}>Dropped Off</option>
+                <option value="MODIFIED" {% if status == 'MODIFIED' %}selected{% endif %}>Modified</option>
+                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Passenger</th><th>Vehicle</th><th>Route</th><th>Schedule</th><th>Km</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td class="mono">#{{ b.pk }}</td>
+                    <td>{{ b.primary_guest_name|default:b.customer.get_full_name }}</td>
+                    <td>{{ b.vehicle.agency.name }} — {{ b.vehicle.label }}</td>
+                    <td>{{ b.pickup_location }} → {{ b.drop_off_location }}</td>
+                    <td>{{ b.schedule|date:"M d, H:i" }}</td>
+                    <td>{{ b.distance_km }}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'transportation:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9"><div class="empty"><i class="fas fa-bus"></i><h3>No bookings</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

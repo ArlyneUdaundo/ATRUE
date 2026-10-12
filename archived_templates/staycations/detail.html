@@ -1,0 +1,71 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ staycation.name }} | Staycation{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ staycation.name }}</h1>
+        <p><span class="badge badge-blue">{{ staycation.accommodation_type }}</span> <span class="badge {% if staycation.status == 'ACTIVE' %}badge-green{% elif staycation.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ staycation.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'staycations:update_staycation' staycation.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'staycations:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
+        {% else %}
+        <a href="{% url 'staycations:book' staycation.id %}" class="btn btn-brand"><i class="fas fa-calendar-check"></i> Reserve</a>
+        <a href="{% url 'staycations:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Staycations</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <span class="scard-ico ico-teal" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-home"></i></span>
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Establishment ID: <b>{{ staycation.establishment_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ staycation.location }}</div>
+            <div class="meta"><i class="fas fa-users"></i> {{ staycation.capacity_adults }}A / {{ staycation.capacity_children }}C · up to {{ staycation.capacity }} guests</div>
+        </div>
+        <div>
+            <div class="meta"><i class="fas fa-phone"></i> {{ staycation.contact_number|default:"—" }}</div>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> {{ staycation.email|default:"—" }}</div>
+            <div class="ag-price" style="margin-top:8px"><small>rate</small><b>₱ {{ staycation.rate }}</b><span class="ag-per">/night</span></div>
+        </div>
+    </div>
+</div>
+
+{% if staycation.house_rules %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 10px"><i class="fas fa-ruler-combined"></i> House Rules / Operating Schedule</h3>
+    <div style="white-space:pre-line">{{ staycation.house_rules }}</div>
+</div>
+{% endif %}
+
+<div class="form-grid">
+    <div>
+        <h3 style="margin-bottom:10px"><i class="fas fa-concierge-bell"></i> Add-ons / Services</h3>
+        {% if staycation.services.all %}
+        <div class="ag-chips">
+            {% for svc in staycation.services.all %}
+            <a href="{% url 'staycations:service_detail' svc.id %}" class="ag-chip" style="text-decoration:none"><i class="fas fa-check"></i> {{ svc.name }}{% if svc.rate %} · ₱ {{ svc.rate }}{% endif %}</a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="meta">No add-ons listed.</div>
+        {% endif %}
+    </div>
+    <div>
+        <h3 style="margin-bottom:10px"><i class="fas fa-calendar-times"></i> Block-Out Dates</h3>
+        {% if staycation.blocked_dates.all %}
+        <div class="ag-chips">
+            {% for b in staycation.blocked_dates.all %}
+            <span class="ag-chip" style="background:#fffbeb;color:#92400e"><i class="fas fa-calendar-times"></i> {{ b.start_date|date:"M d, Y" }} – {{ b.end_date|date:"M d, Y" }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="meta">No block-out dates.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

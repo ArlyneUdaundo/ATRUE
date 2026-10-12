@@ -1,0 +1,77 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Landmarks & Tourist Spots{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Landmarks &amp; Tourist Spots</h2>
+        <p>Destinations across the region · Buy entry tickets ahead of time</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'landmarks:add_landmark' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Landmark</a>
+    {% endif %}
+</div>
+
+<h3 style="margin-bottom:14px;font-size:17px;font-weight:800"><i class="fas fa-hiking" style="color:var(--indigo)"></i> Tourist Spots</h3>
+<div class="ag-list" style="margin-bottom:28px">
+    {% for t in tourist_spots %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-mountain"></i></span>
+            <span class="ag-media-badges"><span class="badge {% if t.status == 'ACTIVE' %}badge-green{% else %}badge-gray{% endif %}">{{ t.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3>{{ t.name }}</h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ t.location }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-ticket"></i> One-day</span>
+            </div>
+            <div class="ag-card-foot">
+                <div class="ag-price"><small>entry fee</small><b>₱ {{ t.entry_fee }}</b><span class="ag-per">/visitor</span></div>
+                {% if request.user.is_platform_manager %}
+                <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
+                {% else %}
+                <a href="{% url 'landmarks:book_spot' t.id %}" class="ag-btn"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-mountain"></i><h3>No tourist spots yet</h3><p>Tourist spots will appear here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+
+<h3 style="margin-bottom:14px;font-size:17px;font-weight:800"><i class="fas fa-landmark" style="color:var(--indigo)"></i> Landmarks</h3>
+<div class="ag-list">
+    {% for l in landmarks %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-landmark"></i></span>
+            <span class="ag-media-badges"><span class="badge {% if l.status == 'ACTIVE' %}badge-green{% else %}badge-gray{% endif %}">{{ l.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3>{{ l.name }}</h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ l.location }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-ticket"></i> One-day</span>
+            </div>
+            <div class="ag-card-foot">
+                <div class="ag-price"><small>entry fee</small><b>₱ {{ l.entry_fee }}</b><span class="ag-per">/visitor</span></div>
+                {% if request.user.is_platform_manager %}
+                <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
+                {% else %}
+                <a href="{% url 'landmarks:book_landmark' l.id %}" class="ag-btn"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-landmark"></i><h3>No landmarks yet</h3><p>Landmarks will appear here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

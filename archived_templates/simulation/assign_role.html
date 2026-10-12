@@ -1,0 +1,43 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Assign Role{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Assign Simulation Role</h1><p>Assign an industry role to a student.</p></div>
+</div>
+
+<div class="card card-pad" style="max-width:620px">
+    {% if not students %}
+    <div class="empty"><i class="fas fa-user-graduate"></i><h3>No students yet</h3><p>Create student accounts first before assigning simulation roles.</p></div>
+    {% else %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Student</label>
+            <select name="student" class="form-input" required>
+                <option value="" disabled selected>Select student</option>
+                {% for s in students %}
+                <option value="{{ s.id }}">{{ s.get_full_name|default:s.username }} (@{{ s.username }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Role</label>
+            <select name="role" class="form-input" required>
+                <option value="" disabled selected>Select role</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Simulation Activity</label>
+            <input type="text" name="simulation_activity" class="form-input" value="General Training" required>
+        </div>
+        <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> Assign Role</button>
+        <a href="{% url 'simulation:workspace' %}" class="btn btn-outline">Cancel</a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

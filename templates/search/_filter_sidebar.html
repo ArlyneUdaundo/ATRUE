@@ -1,0 +1,47 @@
+<aside class="bk-sidebar" aria-label="Filters">
+    <div class="bk-sidebar-h">
+        <b><i class="fas fa-sliders"></i> Filters</b>
+        <a href="{{ clear_url }}">Clear{% if active_filters %} ({{ active_filters }}){% endif %}</a>
+        <button type="button" class="bk-btn bk-btn-ghost bk-btn-sm bk-drawer-close" aria-label="Close filters"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    {% for group in filter_groups %}
+        <div class="bk-filter">
+            <div class="bk-filter-h">
+                <b>{{ group.group }}</b>
+                <i class="fas fa-chevron-up"></i>
+            </div>
+            <div class="bk-filter-body">
+                {% if group.type == 'price' %}
+                    <div class="bk-price">
+                        <input type="number" class="bk-auto-submit" name="{{ group.param_min }}"
+                               placeholder="Min ₱" min="0" value="{{ group.value_min }}" aria-label="{{ group.group }} min">
+                        <span class="bk-sep">—</span>
+                        <input type="number" class="bk-auto-submit" name="{{ group.param_max }}"
+                               placeholder="Max ₱" min="0" value="{{ group.value_max }}" aria-label="{{ group.group }} max">
+                    </div>
+                {% else %}
+                    {% for opt in group.options %}
+                        <label class="bk-opt">
+                            <input type="checkbox" class="bk-auto-submit" name="{{ group.param }}"
+                                   value="{{ opt.value }}"{% if opt.checked %} checked{% endif %}>
+                            <span class="bk-oc">
+                                <span{% if group.param == 'stars' %} style="color:#f59e0b;letter-spacing:2px;"{% endif %}>{{ opt.label }}</span>
+                                <span class="bk-on">{{ opt.count }}</span>
+                            </span>
+                        </label>
+                    {% endfor %}
+                    {% if not group.options %}
+                        <p style="font-size:12.5px;color:#9ca3af;margin:4px 0;">No options match your search yet.</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    {% empty %}
+        <p style="font-size:13px;color:#6b7280;padding:8px 0;">No filters available for this category.</p>
+    {% endfor %}
+
+    <button type="button" class="bk-reset" data-clear-url="{{ clear_url }}">
+        <i class="fas fa-rotate-left"></i> Reset filters
+    </button>
+</aside>

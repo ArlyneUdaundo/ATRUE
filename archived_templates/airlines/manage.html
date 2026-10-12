@@ -1,0 +1,105 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Airline Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Airline Management</h1><p>Create, update and manage airlines, aircraft, services and flights (BR-008, BR-040).</p></div>
+    <a href="{% url 'airlines:add' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Airline</a>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Airline ID or name"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="ACTIVE" {% if status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                <option value="INACTIVE" {% if status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+
+{% for a in airlines %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-blue"><i class="fas fa-plane"></i></span>
+        <div style="flex:1">
+            <h3 style="margin:0">{{ a.name }} <span class="badge badge-blue" style="font-size:12px">{{ a.airline_id }}</span></h3>
+            <div class="meta"><i class="fas fa-plane"></i> {{ a.aircrafts.count }} aircraft · {{ a.flights.count }} flights · {{ a.services.count }} services</div>
+        </div>
+        <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
+        <a href="{% url 'airlines:airline_detail' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+        <a href="{% url 'airlines:update_airline' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:add_aircraft' a.id %}" class="btn btn-brand btn-sm"><i class="fas fa-plane-arrival"></i> Aircraft</a>
+        <a href="{% url 'airlines:add_service' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Service</a>
+        <a href="{% url 'airlines:add_flight' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-fighter-jet"></i> Flight</a>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+        <div>
+            <h4 style="margin-bottom:8px"><i class="fas fa-plane-arrival"></i> Aircraft</h4>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Aircraft ID</th><th>Model</th><th>Tail No.</th><th>Seats</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        {% for ac in a.aircrafts.all %}
+                        <tr>
+                            <td class="mono">{{ ac.aircraft_id }}</td>
+                            <td>{{ ac.model_name }}</td><td class="mono">{{ ac.tail_number }}</td><td>{{ ac.seating_capacity }}</td><td>{{ ac.get_status_display }}</td>
+                            <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_aircraft' ac.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="6">No aircraft.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            <h4 style="margin-bottom:8px"><i class="fas fa-concierge-bell"></i> Services</h4>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Service ID</th><th>Service</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        {% for s in a.services.all %}
+                        <tr>
+                            <td class="mono">{{ s.service_id }}</td>
+                            <td>{{ s.name }}</td><td>₱ {{ s.rate }}</td><td>{{ s.get_status_display }}</td>
+                            <td><a href="{% url 'airlines:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_service' s.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5">No services.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if a.flights.all %}
+    <h4 style="margin-top:16px"><i class="fas fa-fighter-jet"></i> Flights</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Flight</th><th>Aircraft</th><th>Route</th><th>Departure</th><th>Economy</th><th>First Class</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for f in a.flights.all %}
+                <tr>
+                    <td><b>{{ f.flight_number }}</b></td>
+                    <td class="mono">{{ f.aircraft.tail_number }}</td>
+                    <td>{{ f.origin }} → {{ f.destination }}</td>
+                    <td>{{ f.departure_time|date:"M d, H:i" }}</td>
+                    <td>₱ {{ f.economy_fare }}</td>
+                    <td>₱ {{ f.first_class_fare }}</td>
+                    <td>{{ f.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:flight_detail' f.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_flight' f.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-plane"></i><h3>No airlines yet</h3><p>Add your first airline to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if aircraft %}Update Aircraft{% else %}Add Aircraft{% endif %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;gap:18px">
+<div class="page-head" style="width:100%;max-width:720px;text-align:center"><div style="display:flex;flex-direction:column;align-items:center;gap:12px">{% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--md' %}<h1>{% if aircraft %}Update Aircraft{% else %}Add Aircraft{% endif %} &mdash; {{ airline.name }}</h1><p>Aircraft/fleet registration.</p></div></div>
+
+<form method="post" class="card card-pad establishment-form-card" style="width:100%;max-width:720px" data-submit-loading data-fleet-types-url="{% url 'airlines:fleet_api' airline.id %}">
+    {% csrf_token %}
+    {% if aircraft.aircraft_id %}
+    <div class="form-group">
+        <label>Aircraft ID</label>
+        <input type="text" class="form-input" value="{{ aircraft.aircraft_id }}" disabled style="background:#f4f5f7">
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Aircraft Type <span class="meta" style="display:block">Only the types {{ airline.name }} operates. The type decides the cabin &mdash; it is not chosen by hand.</span></label>
+        <select name="aircraft_type" class="form-input" required>
+            <option value="">Choose a type</option>
+            {% for t in fleet_types %}
+            <option value="{{ t.id }}" {% if selected_type == t.id|stringformat:'s' %}selected{% endif %}>
+                {{ t.label }} &mdash; {{ t.get_body_class_display }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Tail Number</label>
+        <input type="text" name="tail_number" class="form-input" value="{{ aircraft.tail_number|default:'' }}" placeholder="e.g. RP-C1234" required>
+    </div>
+    {% if aircraft %}
+    <div class="form-group">
+        <label>Seating Capacity <span class="meta" style="display:block">Set by the cabin the aircraft is fitted out with &mdash; {{ aircraft.seat_layout.seat_map }}, {{ aircraft.seating_capacity }} seats</span></label>
+        <input type="number" class="form-input" value="{{ aircraft.seating_capacity }}" disabled style="background:#f4f5f7">
+    </div>
+    {% else %}
+    <div class="form-group">
+        <label>Seating Capacity <span class="meta" style="display:block">Taken from the seat layout the chosen type flies in this airline's fleet</span></label>
+        <input type="number" class="form-input" value="" disabled style="background:#f4f5f7" placeholder="Set automatically">
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="AVAILABLE" {% if aircraft.status == 'AVAILABLE' %}selected{% endif %}>Available</option>
+            <option value="ASSIGNED" {% if aircraft.status == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+            <option value="MAINTENANCE" {% if aircraft.status == 'MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            <option value="INACTIVE" {% if aircraft.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Aircraft</button>
+    <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+
+{% if aircrafts %}
+<div class="card card-pad" style="width:100%;max-width:720px">
+    <div class="form-group" style="margin:0">
+        <label>Already registered on this type</label>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Tail No.</th><th>Capacity</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for a in aircrafts %}
+                <tr><td class="mono">{{ a.tail_number }}</td><td>{{ a.seating_capacity }}</td><td>{{ a.get_status_display }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

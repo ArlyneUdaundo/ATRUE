@@ -1,0 +1,187 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Simulation Roles{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Simulation Role Management</h1>
+        <p>Search and manage simulation role assignments across the platform (FR Retrieve Simulation Roles).</p>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get" class="filter-grid" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr 1.2fr 1.4fr auto;gap:14px;align-items:end">
+        <div class="form-group" style="margin:0">
+            <label>Search Student</label>
+            <input type="text" name="q" class="form-input" placeholder="Name, username, email or hotel" value="{{ q }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Role</label>
+            <select name="role" class="form-input">
+                <option value="">All roles</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Assigned Hotel</label>
+            <select name="hotel" class="form-input">
+                <option value="">All hotels</option>
+                {% for h in hotels %}
+                <option value="{{ h.id }}" {% if hotel == h.id|stringformat:'s' %}selected{% endif %}>{{ h.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Session</label>
+            <input type="text" name="activity" class="form-input" placeholder="e.g. Activity 1" value="{{ activity }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Simulation Date</label>
+            <input type="date" name="simulation_date" class="form-input" value="{{ simulation_date }}">
+        </div>
+        <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'simulation:role_list' %}" class="btn btn-outline">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if roles %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Role</th>
+                    <th>Session</th>
+                    <th>Hotel</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Assigned</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in roles %}
+                <tr>
+                    <td>
+                        <b>{{ r.student.get_full_name|default:r.student.username }}</b>
+                        <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ r.student.username }}</div>
+                    </td>
+                    <td><span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% elif r.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span></td>
+                    <td>{{ r.activity_name }}</td>
+                    <td>{% if r.hotel %}{{ r.hotel.name }}{% else %}<span class="meta" style="margin:0">—</span>{% endif %}</td>
+                    <td>
+                        {% if r.simulation_date %}
+                            {{ r.simulation_date|date:"M d, Y" }}
+                            <div class="meta" style="margin:0">{% if r.start_time and r.end_time %}{{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
+                        {% else %}
+                            <span class="meta" style="margin:0">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="role-assignment-status">{{ r.get_status_display }}</td>
+                    <td>{{ r.assigned_at|date:"M d, Y" }}</td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        {% if r.status != 'DONE' %}<a href="{% url 'simulation:role_detail' r.id %}#update-role" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i> Edit</a>{% endif %}
+                        <form method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done="Mark this role assignment as done?" style="display:inline">
+                            {% csrf_token %}
+                            {% if r.status == 'ACTIVE' %}
+                            <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
+                            {% elif r.status == 'DONE' %}
+                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
+                            {% else %}
+                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed">Inactive</span>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-user-tag"></i><h3>No role assignments found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+<dialog id="markRoleDoneModal" style="width:min(420px,calc(100% - 32px));border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
+    <div style="padding:24px">
+        <h3 style="margin:0 0 8px">Mark role as done?</h3>
+        <p id="markRoleDoneMessage" style="margin:0;color:var(--slate-600)">This will mark the assignment as completed.</p>
+        <p id="markRoleDoneError" role="alert" style="margin:10px 0 0;color:#b91c1c;display:none"></p>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px">
+            <button type="button" class="btn btn-outline" id="cancelMarkRoleDone">Cancel</button>
+            <button type="button" class="btn btn-brand" id="confirmMarkRoleDone">Mark as Done</button>
+        </div>
+    </div>
+</dialog>
+<script>
+(function () {
+    const modal = document.getElementById('markRoleDoneModal');
+    if (!modal) return;
+    const message = document.getElementById('markRoleDoneMessage');
+    const error = document.getElementById('markRoleDoneError');
+    const confirmButton = document.getElementById('confirmMarkRoleDone');
+    let pendingForm = null;
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target.closest('form[data-mark-role-done]');
+        if (!form) return;
+        event.preventDefault();
+        pendingForm = form;
+        message.textContent = form.dataset.markRoleDone;
+        error.style.display = 'none';
+        modal.showModal();
+    });
+
+    document.getElementById('cancelMarkRoleDone').addEventListener('click', function () {
+        modal.close();
+        pendingForm = null;
+    });
+
+    confirmButton.addEventListener('click', async function () {
+        if (!pendingForm) return;
+        confirmButton.disabled = true;
+        try {
+            const response = await fetch(pendingForm.action, {
+                method: 'POST',
+                body: new FormData(pendingForm),
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.message || 'Could not mark this assignment as done.');
+
+            const row = pendingForm.closest('tr');
+            row.querySelector('.role-assignment-status').textContent = 'Done';
+            row.querySelector('a[href*="#update-role"]')?.remove();
+            pendingForm.outerHTML = '<span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>';
+            if (new URLSearchParams(window.location.search).get('status')
+                    && new URLSearchParams(window.location.search).get('status') !== 'DONE') {
+                row.remove();
+            }
+            modal.close();
+            pendingForm = null;
+        } catch (requestError) {
+            error.textContent = requestError.message;
+            error.style.display = '';
+        } finally {
+            confirmButton.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

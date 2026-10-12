@@ -1,0 +1,46 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ service.service_id }} — Service{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ service.name }} <span class="badge badge-blue" style="font-size:13px">{{ service.service_id }}</span></h1>
+        <p>{{ service.airline.name }} · Airline service (FR-015).</p>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'airlines:update_service' service.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:services' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-plane"></i> <b>Airline:</b> <a href="{% url 'airlines:airline_detail' service.airline.id %}">{{ service.airline.name }}</a></div>
+        <div class="meta"><i class="fas fa-tag"></i> <b>Rate:</b> ₱ {{ service.rate }}</div>
+        <div class="meta"><i class="fas fa-clock"></i> <b>Operating Hours:</b> {{ service.operating_hours|default:"—" }}</div>
+        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if service.status == 'ACTIVE' %}badge-green{% else %}badge-yellow{% endif %}">{{ service.get_status_display }}</span></div>
+    </div>
+    {% if service.description %}<div class="meta" style="margin-top:10px">{{ service.description }}</div>{% endif %}
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0"><i class="fas fa-ticket-alt"></i> Used on {{ service.bookings.count }} booking(s)</h3>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Passenger</th><th>Flight</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in service.bookings.all|slice:":50" %}
+                <tr>
+                    <td class="mono">{{ b.booking_reference }}</td>
+                    <td>{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td>
+                    <td>{{ b.flight.flight_number }}</td>
+                    <td>{{ b.get_status_display }}</td>
+                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="5">Not yet used on any booking.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

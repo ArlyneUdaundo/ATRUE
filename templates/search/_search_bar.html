@@ -1,0 +1,294 @@
+{% load static %}
+<div class="bk-hero">
+    <div class="bk-hero-h" style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>{{ cfg.hero_title }}</h1>
+            <p>{{ cfg.hero_sub }}</p>
+        </div>
+        {% if can_manage and management_url %}
+            <a href="{{ management_url }}" class="bk-btn bk-btn-outline bk-btn-sm">
+                <i class="fas fa-sliders"></i> Manage Activities
+            </a>
+        {% endif %}
+        {% if can_manage and manage_url %}
+            <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
+                <i class="fas fa-plus"></i> Add new
+            </a>
+        {% endif %}
+    </div>
+
+    <div class="bk-search">
+        <!-- Destination (hierarchical location picker) -->
+        <div class="bk-field bk-field-big atrue-loc-wrap" data-loc-picker>
+            <i class="fas {{ cfg.search_icon }}"></i>
+            <label>Destination</label>
+            <button type="button" class="atrue-loc-trigger" data-loc-toggle aria-label="Choose destination">
+                <span class="atrue-loc-value">
+                    <i class="fas fa-location-dot"></i>
+                    <span class="atrue-loc-text">{% if loc_display %}{{ loc_display }}{% endif %}</span>
+                </span>
+                <span class="atrue-loc-placeholder">Where are you going?</span>
+            </button>
+            <input type="hidden" name="loc_country" value="{{ loc_country }}">
+            <input type="hidden" name="loc_province" value="{{ loc_province }}">
+            <input type="hidden" name="loc_municipality" value="{{ loc_municipality }}">
+            <input type="hidden" name="loc_barangay" value="{{ loc_barangay }}">
+            <input type="hidden" name="q" value="{{ search_q }}">
+        </div>
+
+        {% if cfg.date_mode == 'range' %}
+            <!-- Check-in -->
+            <div class="bk-field">
+                <i class="fas fa-calendar-days"></i>
+                <label for="bkIn">Check-in</label>
+                <input type="date" id="bkIn" name="check_in" value="{{ check_in }}" min="{% now 'Y-m-d' %}">
+            </div>
+            <!-- Check-out -->
+            <div class="bk-field">
+                <i class="fas fa-calendar-days"></i>
+                <label for="bkOut">Check-out</label>
+                <input type="date" id="bkOut" name="check_out" value="{{ check_out }}" min="{% now 'Y-m-d' %}">
+            </div>
+        {% else %}
+            <!-- Visit date -->
+            <div class="bk-field">
+                <i class="fas fa-calendar-days"></i>
+                <label for="bkDate">Your date</label>
+                <input type="date" id="bkDate" name="date" value="{{ reserve_date }}" min="{% now 'Y-m-d' %}">
+            </div>
+            {% if cfg.show_time %}
+                <div class="bk-field">
+                    <i class="fas fa-clock"></i>
+                    <label for="bkTime">Arrival time</label>
+                    <input type="time" id="bkTime" name="time" value="{{ reserve_time }}" step="60" aria-label="Arrival time">
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- Guests -->
+        {% if category == 'restaurant' %}
+        <!-- Guests & Tables (restaurant module) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Guests &amp; Tables</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests_count }} Guest{{ guests_count|pluralize }} · {{ tables_count }} Table{{ tables_count|pluralize }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and tables">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Guests &amp; Tables</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close guests and tables"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Guests</b><span>Number of guests</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove guest"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests_count }}</span>
+                        <input type="hidden" name="guests" value="{{ guests_count }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add guest"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Tables</b><span>Number of tables</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove table"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ tables_count }}</span>
+                        <input type="hidden" name="tables" value="{{ tables_count }}" data-min="1" data-max="20">
+                        <button type="button" data-gd-plus data-max="20" aria-label="Add table"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% elif category == 'hotel' or category == 'staycation' %}
+        <!-- Guests & Rooms (hotels and staycations) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Guests &amp; Rooms</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests.adults }} Adult{{ guests.adults|pluralize }}{% if guests.children %} · {{ guests.children }} {% if guests.children == 1 %}Child{% else %}Children{% endif %}{% endif %} · {{ guests.rooms }} {{ guests.rooms|pluralize:'Room,Rooms' }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and rooms">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Guests &amp; Rooms</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close guests and rooms"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Adults</b><span>Ages 12+</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove adult"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.adults }}</span>
+                        <input type="hidden" name="adults" value="{{ guests.adults }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add adult"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row data-gd-skipzero>
+                    <span class="gd-label"><b>Children</b><span>Ages 0–11</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="0" aria-label="Remove child"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.children }}</span>
+                        <input type="hidden" name="children" value="{{ guests.children }}" data-min="0" data-max="20">
+                        <button type="button" data-gd-plus data-max="20" aria-label="Add child"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Rooms</b><span>Number of rooms</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove room"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.rooms }}</span>
+                        <input type="hidden" name="rooms" value="{{ guests.rooms }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add room"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% elif category == 'resort' %}
+        <!-- Guests & Units (resort module) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Guests &amp; Units</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests.adults }} Adult{{ guests.adults|pluralize }}{% if guests.children %} · {{ guests.children }} {% if guests.children == 1 %}Child{% else %}Children{% endif %}{% endif %} · {{ guests.rooms }} {{ guests.rooms|pluralize:'Unit,Units' }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and units">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Guests &amp; Units</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close guests and units"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Adults</b><span>Ages 12+</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove adult"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.adults }}</span>
+                        <input type="hidden" name="adults" value="{{ guests.adults }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add adult"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row data-gd-skipzero>
+                    <span class="gd-label"><b>Children</b><span>Ages 0–11</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="0" aria-label="Remove child"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.children }}</span>
+                        <input type="hidden" name="children" value="{{ guests.children }}" data-min="0" data-max="20">
+                        <button type="button" data-gd-plus data-max="20" aria-label="Add child"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Units</b><span>Number of units</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove unit"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.rooms }}</span>
+                        <input type="hidden" name="rooms" value="{{ guests.rooms }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add unit"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% elif category == 'package' %}
+        <!-- Tourists (tour package module) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Tourists</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests.adults }} Tourist{{ guests.adults|pluralize }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Tourists">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Tourists</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close tourists"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Tourists</b><span>Number of tourists</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove tourist"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.adults }}</span>
+                        <input type="hidden" name="adults" value="{{ guests.adults }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add tourist"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% elif category == 'activity' %}
+        <!-- Participants (activities module) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Participants</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests.adults }} Participant{{ guests.adults|pluralize }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Participants">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Participants</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close participants"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Participants</b><span>Number of participants</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove participant"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.adults }}</span>
+                        <input type="hidden" name="adults" value="{{ guests.adults }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add participant"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% else %}
+        <!-- Guests & Rooms (landmarks / tourist spots fallback) -->
+        <div class="bk-field bk-drop gd-field" style="flex:1 1 210px;">
+            <i class="fas fa-user-group"></i>
+            <label for="bkG">Guests &amp; Rooms</label>
+            <input type="text" id="bkG" class="gd-toggle" readonly
+                   value="{{ guests.adults }} Adult{{ guests.adults|pluralize }}{% if guests.children %} · {{ guests.children }} {% if guests.children == 1 %}Child{% else %}Children{% endif %}{% endif %} · {{ guests.rooms }} {{ guests.rooms|pluralize:'Room,Rooms' }}"
+                   aria-haspopup="dialog" aria-expanded="false" aria-label="Guests and rooms">
+            <div class="gd-panel" data-gd-panel>
+                <div class="gd-head">
+                    <span class="gd-title">Guests &amp; Rooms</span>
+                    <button type="button" class="gd-x" data-gd-close aria-label="Close guests and rooms"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Adults</b><span>Ages 12+</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove adult"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.adults }}</span>
+                        <input type="hidden" name="adults" value="{{ guests.adults }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add adult"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row data-gd-skipzero>
+                    <span class="gd-label"><b>Children</b><span>Ages 0–11</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="0" aria-label="Remove child"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.children }}</span>
+                        <input type="hidden" name="children" value="{{ guests.children }}" data-min="0" data-max="20">
+                        <button type="button" data-gd-plus data-max="20" aria-label="Add child"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <div class="gd-row" data-gd-row>
+                    <span class="gd-label"><b>Rooms</b><span>Number of rooms</span></span>
+                    <span class="gd-step">
+                        <button type="button" data-gd-minus data-min="1" aria-label="Remove room"><i class="fas fa-minus"></i></button>
+                        <span class="gd-num">{{ guests.rooms }}</span>
+                        <input type="hidden" name="rooms" value="{{ guests.rooms }}" data-min="1" data-max="30">
+                        <button type="button" data-gd-plus data-max="30" aria-label="Add room"><i class="fas fa-plus"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="gd-done" data-gd-done><i class="fas fa-check"></i> Done</button>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bk-actions">
+            <button type="submit" class="bk-btn bk-btn-primary"><i class="fas fa-magnifying-glass"></i> Search</button>
+        </div>
+    </div>
+
+    <div class="bk-sugs">
+        {% for s in dest_suggestions|slice:":8" %}
+            <a href="#" class="bk-sug" data-tip="{{ s }}">{{ s }}</a>
+        {% endfor %}
+    </div>
+</div>

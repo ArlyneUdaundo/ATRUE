@@ -1,0 +1,76 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if staycation %}Update Staycation{% else %}Add Staycation{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if staycation %}Update Staycation{% else %}Add New Staycation{% endif %}</h1><p>Staycation establishment information.</p></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" data-submit-loading data-staycation-form>
+    {% csrf_token %}
+    {% if staycation %}
+    <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+            <label>Establishment ID</label>
+            <input type="text" class="form-input" value="{{ staycation.establishment_id }}" readonly disabled>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Accommodation Type</label>
+            <input type="text" class="form-input" value="Staycation (whole property)" readonly disabled>
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <input type="text" name="name" class="form-input" value="{{ staycation.name|default:'' }}" placeholder="Enter name" aria-label="Staycation Name" required>
+    </div>
+    <div class="form-group">
+        <label>Location / Address</label>
+        {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=staycation.country province_name='province' province_value=staycation.province municipality_name='municipality' municipality_value=staycation.municipality barangay_name='barangay' barangay_value=staycation.barangay required=True %}
+    </div>
+    <div class="form-group">
+        <label>Contact Number</label>
+        <input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ staycation.contact_number|default:'' }}">
+    </div>
+    <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" name="email" class="form-input" value="{{ staycation.email|default:'' }}">
+    </div>
+    <div class="form-group">
+        <label>Staycation Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+    </div>
+    {% if staycation and staycation.photos.all %}
+    <div class="form-group">
+        <label>Existing Staycation Photos</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in staycation.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:staycation.name }}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">
+                <span class="meta">{% if photo.is_primary %}Primary · {% endif %}<input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group"><label>Capacity (Adults)</label><input type="number" name="capacity_adults" class="form-input" value="{{ staycation.capacity_adults|default:1 }}" min="0"></div>
+        <div class="form-group"><label>Capacity (Children)</label><input type="number" name="capacity_children" class="form-input" value="{{ staycation.capacity_children|default:0 }}" min="0"></div>
+        <div class="form-group"><label>Total Guest Capacity</label><input type="number" name="capacity" class="form-input" value="{{ staycation.capacity|default:1 }}" min="1"></div>
+        <div class="form-group"><label>Rate per Night (₱)</label><input type="number" name="rate" step="0.01" class="form-input" value="{{ staycation.rate|default:'' }}" required></div>
+    </div>
+    <div class="form-group">
+        <label>House Rules / Operating Schedule</label>
+        <textarea name="house_rules" class="form-input" rows="3" placeholder="e.g. Check-in 2PM, quiet hours after 10PM, no pets...">{{ staycation.house_rules|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if staycation.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if staycation.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if staycation.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if staycation.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Staycation</button>
+    <a href="{% url 'staycations:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if landmark %}Update Landmark{% else %}Add Landmark{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if landmark %}Update Landmark{% else %}Add New Landmark{% endif %}</h1><p>Landmark information, fees, tours and capacity (BR-060).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:760px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" class="form-input" value="{{ landmark.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ landmark.description|default:'' }}</textarea>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Country</label><input type="text" name="country" class="form-input" value="{{ landmark.country|default:'' }}" placeholder="Philippines"></div>
+        <div class="form-group"><label>Region</label><input type="text" name="region" class="form-input" value="{{ landmark.region|default:'' }}" placeholder="Region I"></div>
+    </div>
+    <div class="form-grid">
+        <input type="text" name="province" class="form-input" value="{{ landmark.province|default:'' }}" placeholder="Province">
+        <input type="text" name="municipality" class="form-input" value="{{ landmark.municipality|default:'' }}" placeholder="Municipality/City">
+        <input type="text" name="barangay" class="form-input" value="{{ landmark.barangay|default:'' }}" placeholder="Barangay">
+    </div>
+    <div class="form-grid" style="margin-top:10px">
+        <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" value="{{ landmark.contact_number|default:'' }}"></div>
+        <div class="form-group"><label>Open Hours</label><input type="text" name="open_hours" class="form-input" value="{{ landmark.open_hours|default:'' }}" placeholder="8 AM - 6 PM"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Entry Fee (₱ / visitor)</label><input type="number" name="entry_fee" step="0.01" class="form-input" value="{{ landmark.entry_fee|default:0 }}"></div>
+        <div class="form-group"><label>Daily Capacity (0 = unlimited)</label><input type="number" name="capacity" class="form-input" value="{{ landmark.capacity|default:0 }}"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Standard Guided Tour (₱ / visitor)</label><input type="number" name="guided_tour_rate" step="0.01" class="form-input" value="{{ landmark.guided_tour_rate|default:0 }}"></div>
+        <div class="form-group"><label>Private Guided Tour (₱ flat)</label><input type="number" name="private_tour_rate" step="0.01" class="form-input" value="{{ landmark.private_tour_rate|default:0 }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if landmark.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if landmark.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if landmark.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if landmark.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Landmark</button>
+    <a href="{% url 'landmarks:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Book Tour Package{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your package</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>2</i> Your details</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step"><i>3</i> Confirmation</div>
+</div>
+
+{% if booking_error %}
+<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
+{% endif %}
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-luggage-cart"></i></span>
+                <div>
+                    <h3>{{ package.name }}</h3>
+                    <p>{{ package.destination_name|default:"—" }} · {{ package.duration_days }} day(s)</p>
+                </div>
+            </div>
+            <div class="ag-detail-row"><i class="fas fa-calendar-check"></i> Valid {{ package.validity_start_date|date:"M d, Y" }} – {{ package.validity_end_date|date:"M d, Y" }}</div>
+            <div class="ag-detail-row"><i class="fas fa-users"></i> {{ package.included_headcount }} head(s) included · extra ₱ {{ package.extra_person_rate }}/head</div>
+            {% if package.inclusions %}<div class="ag-detail-row"><i class="fas fa-check-double"></i> {{ package.inclusions }}</div>{% endif %}
+            {% if package.included_tour_guide %}<div class="ag-detail-row"><i class="fas fa-user-tie"></i> Tour guide included</div>{% endif %}
+            {% if package.included_other_services %}<div class="ag-detail-row"><i class="fas fa-concierge-bell"></i> {{ package.included_other_services }}</div>{% endif %}
+            {% if package.exclusions %}<div class="ag-detail-row"><i class="fas fa-times-circle"></i> {{ package.exclusions }}</div>{% endif %}
+        </div>
+
+        <div class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-box-open"></i></span>
+                <div><h3>What's included</h3><p>Components bundled in this package</p></div>
+            </div>
+            <div class="ag-chips">
+                {% for h in package.included_hotels.all %}<span class="ag-chip"><i class="fas fa-hotel"></i> Hotel: {{ h.name }}</span>{% endfor %}
+                {% for r in package.included_resorts.all %}<span class="ag-chip"><i class="fas fa-umbrella-beach"></i> Resort: {{ r.name }}</span>{% endfor %}
+                {% for f in package.included_flights.all %}<span class="ag-chip"><i class="fas fa-plane"></i> Flight: {{ f.flight_number }} {{ f.origin }} → {{ f.destination }}</span>{% endfor %}
+                {% for a in package.included_activities.all %}<span class="ag-chip"><i class="fas fa-hiking"></i> Activity: {{ a.name }}</span>{% endfor %}
+                {% for rest in package.included_restaurants.all %}<span class="ag-chip"><i class="fas fa-utensils"></i> Restaurant: {{ rest.name }}</span>{% endfor %}
+                {% for t in package.included_transport.all %}<span class="ag-chip"><i class="fas fa-bus"></i> Transport: {{ t.name }}</span>{% endfor %}
+            </div>
+            {% if package.terms_and_conditions %}<div class="ag-detail-row"><i class="fas fa-file-contract"></i> {{ package.terms_and_conditions|truncatechars:120 }}</div>{% endif %}
+            {% if package.cancellation_policy %}<div class="ag-detail-row"><i class="fas fa-ban"></i> {{ package.cancellation_policy|truncatechars:120 }}</div>{% endif %}
+        </div>
+
+        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
+                <div><h3>Your booking details</h3><p>Travelers and schedule (BR-080, BR-081)</p></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Travel Date</label>
+                    <input type="date" name="travel_date" class="form-input" value="{{ today|date:'Y-m-d' }}" required>
+                </div>
+                <div class="form-group"><label>Start Time</label><input type="time" name="start_time" class="form-input"></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Adults</label>
+                    <input type="number" name="adults" class="form-input" value="{{ package.included_adults }}" min="0" id="id_adults">
+                </div>
+                <div class="form-group">
+                    <label>Children</label>
+                    <input type="number" name="children" class="form-input" value="{{ package.included_children }}" min="0" id="id_children">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Total Travelers</label>
+                <input type="number" name="travelers" class="form-input" value="{{ package.included_headcount }}" min="1" id="id_travelers" oninput="updateTotal()">
+                <div class="meta" style="margin-top:6px">Included headcount: {{ package.included_headcount }} · Extra-person rate: ₱ {{ package.extra_person_rate }}/head</div>
+            </div>
+            <div class="ag-panel" style="background:var(--slate-50);border:1px dashed var(--slate-200)">
+                <div class="ag-pb-total"><span>Estimated total</span><b id="id_total">₱ {{ package.price }}</b></div>
+            </div>
+            <div style="margin-top:18px">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Lead customer &amp; payer</h3><p>Customer info comes from your account (BR-001, BR-003, BR-006)</p></div>
+                </div>
+                <div class="ag-customer-box">
+                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+                </div>
+                <label class="checkbox" style="margin-bottom:10px">
+                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead customer
+                </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payer Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Payer Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
+                    </div>
+                </div>
+            </div>
+            <div class="form-grid" style="margin-top:16px">
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" name="end_time" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select name="payment_method" class="form-input">
+                        <option value="GCASH">GCash</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CREDIT_CARD">Credit Card</option>
+                        <option value="DEBIT_CARD">Debit Card</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Special Requests</label>
+                <textarea name="special_requests" class="form-input" rows="1"></textarea>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+            </label>
+            <script>
+                function togglePayer() {
+                    var same = document.getElementById('payer-same');
+                    if (!same) return;
+                    var lock = same.checked;
+                    var name = document.getElementById('payer-name');
+                    var contact = document.getElementById('payer-contact');
+                    if (name) {
+                        name.readOnly = lock;
+                        name.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
+                    }
+                    if (contact) {
+                        contact.readOnly = lock;
+                        contact.style.background = lock ? 'var(--slate-100)' : '';
+                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
+                    }
+                }
+                togglePayer();
+            </script>
+            <a href="{% url 'tour_package:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-luggage-cart"></i></span>
+                <div><b>{{ package.name }}</b><small>{{ package.destination_name|default:"—" }} · {{ package.duration_days }} day(s)</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Confirmed price</span><b>₱ {{ package.price }}</b></div>
+                <div class="ag-pb-row"><span>Included headcount</span><b>{{ package.included_headcount }} head(s)</b></div>
+                <div class="ag-pb-row"><span>Extra head rate</span><b>₱ {{ package.extra_person_rate }}/head</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Total</span><b>₱ {{ package.price }}*</b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Total = confirmed price + (extra heads × extra-person rate).</div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function updateTotal() {
+    const count = parseInt(document.getElementById('id_travelers').value || 1);
+    const base = {{ package.price }};
+    const headcount = {{ package.included_headcount }};
+    const extra = {{ package.extra_person_rate }};
+    const total = base + Math.max(0, count - headcount) * extra;
+    document.getElementById('id_total').textContent = '₱ ' + total.toFixed(2);
+}
+</script>
+{% endblock %}

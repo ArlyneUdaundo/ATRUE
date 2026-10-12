@@ -1,0 +1,51 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Hotels{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Available Hotels</h2>
+        <p>{{ hotels|length }} hotel{% if hotels|length != 1 %}s{% endif %} found · Browse rooms, services and amenities</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'hotels:add' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Hotel</a>
+    {% endif %}
+</div>
+
+<div class="ag-list">
+    {% for h in hotels %}
+    {% with cheapest=h.rooms.all|dictsort:"rate"|first biggest=h.rooms.all|dictsort:"capacity_adults"|last %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-hotel"></i></span>
+            <span class="ag-media-badges"><span class="badge badge-green">{{ h.get_status_display }}</span></span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3><a href="{% url 'hotels:detail' h.id %}" style="color:inherit;text-decoration:none">{{ h.name }} <i class="fas fa-external-link-alt" style="font-size:11px;color:var(--slate-400)"></i></a></h3>
+                    <div class="ag-loc"><i class="fas fa-map-marker-alt"></i> {{ h.location }}</div>
+                    <div class="ag-loc"><i class="fas fa-clock"></i> {{ h.operating_schedule|default:"Open daily" }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-bed"></i> {{ h.rooms.count }} room{% if h.rooms.count != 1 %}s{% endif %}</span>
+            </div>
+
+            <div class="ag-card-meta">
+                <span><i class="fas fa-users"></i> {{ biggest.capacity_adults }}A max capacity</span>
+                <span><i class="fas fa-concierge-bell"></i> {{ h.services.count }} service{% if h.services.count != 1 %}s{% endif %}</span>
+                <span><i class="fas fa-swimming-pool"></i> {{ h.amenities.count }} amenit{% if h.amenities.count == 1 %}y{% else %}ies{% endif %}</span>
+            </div>
+
+            <div class="ag-card-foot">
+                <div class="ag-price"><small>rooms from</small><b>₱ {{ cheapest.rate }}</b><span class="ag-per">/night</span></div>
+                <a href="{% url 'hotels:detail' h.id %}" class="ag-btn"><i class="fas fa-bed"></i> View Hotel &amp; Book</a>
+            </div>
+        </div>
+    </article>
+    {% endwith %}
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-hotel"></i><h3>No hotels yet</h3><p>Hotels will be listed here once added by the administrator.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

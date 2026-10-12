@@ -1,0 +1,39 @@
+{% comment %}
+Reusable worldwide airport picker field for flight forms and search.
+
+Usage:
+  {% include 'search/_airport_field.html' with
+       field_name='origin_airport'
+       airport=flight.origin_airport  or None
+       placeholder='Search worldwide airports'
+       compact=True
+       required=True %}
+
+ - field_name: name of the hidden input that stores the selected Airport id.
+ - airport: the already-selected Airport object (renders it on edit).
+ - The picker searches the Airport table server-side (name, IATA/ICAO code,
+   city, country) — nothing is hard-coded in HTML or JS.
+{% endcomment %}
+<div class="atrue-airport-wrap atrue-airport-field{% if compact %} atrue-airport-field-sm{% endif %}"
+     data-airport-picker>
+    <button type="button" class="atrue-airport-trigger" data-airport-toggle aria-label="Choose airport">
+        <span class="atrue-airport-value">
+            <i class="fas fa-plane-departure"></i>
+            <span class="atrue-airport-text"></span>
+        </span>
+        <span class="atrue-airport-placeholder">{{ placeholder|default:'Search worldwide airports' }}</span>
+        <span class="atrue-airport-clear" data-airport-clear title="Clear airport"><i class="fas fa-times-circle"></i></span>
+        <span class="atrue-airport-caret"><i class="fas fa-chevron-down"></i></span>
+    </button>
+    <div class="atrue-airport-panel" data-airport-panel hidden>
+        <input type="text" class="atrue-airport-input" data-airport-input
+               placeholder="Search airport name, IATA code, city or country" autocomplete="off">
+        <ul class="atrue-airport-list" data-airport-list></ul>
+        <p class="atrue-airport-empty" data-airport-empty hidden></p>
+    </div>
+    <input type="hidden" name="{{ field_name }}" value="{{ airport.id|default:'' }}"
+           data-airport-value
+           data-airport-code="{{ airport.code|default:'' }}"
+           data-airport-city="{{ airport.city|default:'' }}"
+           data-airport-country="{{ airport.country|default:'' }}"{% if required %} required{% endif %}>
+</div>

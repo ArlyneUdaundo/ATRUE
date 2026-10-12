@@ -1,0 +1,56 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Django
+*.log
+staticfiles/
+media/
+!media/.gitkeep
+
+# Local databases and exports may contain private account or booking data.
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.sql
+*.bak
+*.backup
+database_backups/
+
+# Tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+.opencode/
+.qodo/
+node_modules/
+playwright-report/
+test-results/
+.DS_Store
+Thumbs.db
+
+# Local troubleshooting and one-off smoke scripts (keep app tests).
+/_dbg*.py
+/_tab5_*.py
+/_verify_*.py
+/tmp_*_smoke.py
+/*_check_tmp*.js
+/reset_dev_db.py
+/external/GeonamesRdf-master.zip

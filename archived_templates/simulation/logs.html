@@ -1,0 +1,45 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Activity Logs{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Simulation Activity Logs</h1><p>Traceability of major simulation actions (BR-085).</p></div></div>
+
+{% if users %}
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>User</label>
+            <select name="user" class="form-input">
+                <option value="">All users</option>
+                {% for u in users %}
+                <option value="{{ u.id }}" {% if request.GET.user == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+{% endif %}
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>User</th><th>Action</th><th>Details</th><th>Activity</th><th>On</th></tr></thead>
+            <tbody>
+                {% for l in logs %}
+                <tr>
+                    <td>{{ l.user.get_full_name|default:l.user.username }}</td>
+                    <td>{{ l.action }}</td>
+                    <td>{{ l.details }}</td>
+                    <td>{{ l.simulation_activity }}</td>
+                    <td>{{ l.timestamp|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5"><div class="empty"><i class="fas fa-clipboard-list"></i><h3>No activity logs yet</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

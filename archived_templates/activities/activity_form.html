@@ -1,0 +1,99 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if activity %}Update Activity{% else %}Add Activity{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if activity %}Update{% else %}Add{% endif %} Activity</h1><p>Activity registration details (BR-064, BR-065, BR-067, BR-068).</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:760px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Provider</label>
+            <select name="provider" class="form-input" {% if activity %}disabled{% endif %} required>
+                {% for p in providers %}
+                <option value="{{ p.id }}" {% if activity.provider_id == p.id or selected_provider.id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            {% if activity %}<input type="hidden" name="provider" value="{{ activity.provider_id }}">{% endif %}
+        </div>
+        <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="name" class="form-input" value="{{ activity.name|default:'' }}" required>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" class="form-input" rows="2">{{ activity.description|default:'' }}</textarea>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Category</label>
+            <select name="category" class="form-input">
+                <option value="OUTDOOR" {% if activity.category == 'OUTDOOR' %}selected{% endif %}>Outdoor and Adventure</option>
+                <option value="WATER" {% if activity.category == 'WATER' %}selected{% endif %}>Water Activities</option>
+                <option value="CULTURAL" {% if activity.category == 'CULTURAL' %}selected{% endif %}>Cultural and Sightseeing</option>
+                <option value="THEME" {% if activity.category == 'THEME' %}selected{% endif %}>Theme Parks and Attractions</option>
+                <option value="WELLNESS" {% if activity.category == 'WELLNESS' %}selected{% endif %}>Wellness and Leisure</option>
+                <option value="NIGHTLIFE" {% if activity.category == 'NIGHTLIFE' %}selected{% endif %}>Nightlife and Entertainment</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Duration</label>
+            <div style="display:flex;gap:8px">
+                <input type="number" name="duration_minutes" class="form-input" value="{{ activity.duration_minutes|default:60 }}" style="flex:1">
+                <select name="duration_unit" class="form-input" style="flex:1">
+                    <option value="MINUTES" {% if activity.duration_unit == 'MINUTES' or not activity.duration_unit %}selected{% endif %}>Minutes</option>
+                    <option value="HOURS" {% if activity.duration_unit == 'HOURS' %}selected{% endif %}>Hours</option>
+                    <option value="DAYS" {% if activity.duration_unit == 'DAYS' %}selected{% endif %}>Days</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Address / Location</label><input type="text" name="location" class="form-input" value="{{ activity.location|default:'' }}"></div>
+        <div class="form-group"><label>Meeting Point</label><input type="text" name="meeting_point" class="form-input" value="{{ activity.meeting_point|default:'' }}"></div>
+    </div>
+    <div class="form-grid">
+        <input type="text" name="location_barangay" class="form-input" value="{{ activity.location_barangay|default:'' }}" placeholder="Barangay">
+        <input type="text" name="location_municipality" class="form-input" value="{{ activity.location_municipality|default:'' }}" placeholder="Municipality/City">
+        <input type="text" name="location_province" class="form-input" value="{{ activity.location_province|default:'' }}" placeholder="Province">
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Schedule Date</label><input type="date" name="schedule_date" class="form-input" value="{{ activity.schedule_date|date:'Y-m-d' }}"></div>
+        <div class="form-group"><label>Schedule Time</label><input type="time" name="schedule_time" class="form-input" value="{{ activity.schedule_time|date:'H:i' }}"></div>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><label>Rate (₱ / participant)</label><input type="number" name="fee" step="0.01" class="form-input" value="{{ activity.fee|default:0 }}" required></div>
+        <div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="{{ activity.capacity|default:1 }}"></div>
+    </div>
+    <div class="form-group">
+        <label>Requirements (age restrictions, skill levels, prerequisites)</label>
+        <textarea name="requirements" class="form-input" rows="2">{{ activity.requirements|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Required Equipment / Services</label>
+        <textarea name="required_equipment" class="form-input" rows="2">{{ activity.required_equipment|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Required Documents</label>
+        <textarea name="required_documents" class="form-input" rows="2" placeholder="e.g. government-issued ID, signed waiver">{{ activity.required_documents|default:'' }}</textarea>
+    </div>
+    <div class="form-grid">
+        <label class="checkbox" style="align-self:center">
+            <input type="checkbox" name="guide_required" {% if activity.guide_required %}checked{% endif %}> Guide required
+        </label>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="ACTIVE" {% if activity.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                <option value="INACTIVE" {% if activity.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                <option value="SUSPENDED" {% if activity.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                <option value="UNDER_MAINTENANCE" {% if activity.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Activity</button>
+    <a href="{% url 'activities:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

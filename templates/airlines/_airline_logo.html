@@ -1,0 +1,19 @@
+{% comment %}
+Reusable airline mark, used everywhere airline identity is shown.
+
+Pass:
+  airline     - the Airline (for the alt text / accessible fallback)
+  logo        - optional pre-fetched AirlinePhoto (search results already have one)
+  logo_class  - the wrapper class; callers reusing an existing container pass its
+                class so no markup or CSS changes on their side are needed.
+
+The logo is never cropped (CSS uses object-fit: contain) and a missing image
+degrades to the plane glyph rather than a broken-image box.
+{% endcomment %}
+{% if logo and logo.image %}
+<span class="{{ logo_class|default:'airline-logo' }}"><img src="{{ logo.image.url }}" alt="{{ airline.name|default:'Airline' }} logo" loading="lazy" decoding="async"></span>
+{% elif airline.logo_url %}
+<span class="{{ logo_class|default:'airline-logo' }}"><img src="{{ airline.logo_url }}" alt="{{ airline.name|default:'Airline' }} logo" loading="lazy" decoding="async"></span>
+{% else %}
+<span class="{{ logo_class|default:'airline-logo' }}" role="img" aria-label="{{ airline.name|default:'Airline' }}"><i class="fas fa-plane" aria-hidden="true"></i></span>
+{% endif %}

@@ -1,0 +1,46 @@
+{% extends 'search/search_base.html' %}
+
+{% block search_page %}
+<div class="bk-page">
+
+    <form class="bk-search-form" method="get" action="">
+        <!-- Category tabs -->
+        <div class="bk-tabs" role="tablist">
+            {% for cat in categories %}
+                <a class="bk-tab{% if cat.active %} active{% endif %}" href="{{ cat.url }}" role="tab" aria-selected="{% if cat.active %}true{% else %}false{% endif %}">
+                    <i class="fas {{ cat.icon }}"></i>{{ cat.label }}
+                </a>
+            {% endfor %}
+        </div>
+
+        {% include 'search/_search_bar.html' %}
+
+        <div class="bk-body">
+            {% include 'search/_filter_sidebar.html' %}
+
+            <div class="bk-results" data-results>
+                {% include 'search/_results.html' %}
+            </div>
+        </div>
+    </form>
+
+    <!-- Mobile filter FAB -->
+    <button class="bk-fab" type="button">
+        <i class="fas fa-sliders"></i> Filters
+        {% if active_filters %}<span class="bk-fab-count">{{ active_filters }}</span>{% endif %}
+    </button>
+</div>
+
+<!-- Mobile drawer backdrop -->
+<div class="bk-backdrop"></div>
+
+<!-- Lightbox: the close button only clears the .open class in JS, so the
+     listing keeps its scroll position, filters and selection. -->
+<div class="bk-lightbox" role="dialog" aria-modal="true" aria-label="Photo gallery">
+    <button class="bk-lb-close" type="button" aria-label="Close gallery"><i class="fas fa-times"></i></button>
+    <button class="bk-lb-nav bk-lb-prev" type="button" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+    <img class="bk-lb-img" alt="Photo">
+    <button class="bk-lb-nav bk-lb-next" type="button" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+    <span class="bk-lb-count"></span>
+</div>
+{% endblock %}

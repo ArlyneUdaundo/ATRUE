@@ -1,0 +1,181 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ ticket.doc_type }} {{ ticket.booking_info.pnr }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.etkt-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+.etkt-wrap { display: flex; justify-content: center; }
+.etkt {
+    width: 100%; max-width: 820px; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 16px; box-shadow: 0 18px 50px -18px rgba(15,23,42,.18);
+    overflow: hidden; font-family: 'Inter', system-ui, sans-serif;
+}
+.etkt-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 24px; border-bottom: 2px dashed #cbd5e1; flex-wrap: wrap; }
+.etkt-brand { display: flex; align-items: center; gap: 14px; }
+.etkt-logo { width: 52px; height: 52px; object-fit: contain; border-radius: 10px; border: 1px solid #e2e8f0; padding: 4px; background: #fff; }
+.etkt-brand h3 { font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: #0f172a; }
+.etkt-brand .meta { font-size: 12px; color: #64748b; }
+.etkt-brand .meta i { width: auto; margin-right: 4px; }
+.etkt-doc { text-align: right; }
+.etkt-doc h4 { font-size: 15px; font-weight: 800; color: #1d4ed8; letter-spacing: .06em; }
+.etkt-doc .mono { font-size: 14px; }
+.etkt-band { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 20px 24px; background: linear-gradient(135deg,#1d4ed8,#0ea5e9); color: #fff; page-break-inside: avoid; }
+.etkt-band .fl-no { font-size: 22px; font-weight: 800; line-height: 1.1; }
+.etkt-band .muted { font-size: 11px; opacity: .85; margin-top: 4px; }
+.etkt-band .muted i { margin-right: 4px; }
+.etkt-leg { text-align: center; min-width: 150px; }
+.etkt-leg .code { font-size: 19px; font-weight: 800; line-height: 1.05; }
+.etkt-leg .place { font-size: 12.5px; font-weight: 600; }
+.etkt-leg .dt { font-size: 11px; opacity: .92; margin-top: 3px; }
+.etkt-arrow { text-align: center; }
+.etkt-arrow .arr { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.etkt-arrow .dur { font-size: 11px; opacity: .92; margin-top: 2px; }
+.etkt-section { padding: 18px 24px; border-bottom: 1px solid #eef2f7; }
+.etkt-section h5 { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.etkt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.etkt-table th { text-align: left; padding: 7px 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; background: #f8fafc; border: 1px solid #eef2f7; }
+.etkt-table td { padding: 9px 10px; border: 1px solid #eef2f7; vertical-align: middle; }
+.etkt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+.etkt-field { padding: 7px 0; border-bottom: 1px dotted #e2e8f0; }
+.etkt-field span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+.etkt-field b { font-size: 13px; color: #0f172a; font-weight: 600; }
+.etkt-body { display: grid; grid-template-columns: minmax(0,1fr) 200px; gap: 22px; padding: 18px 24px; }
+.etkt-fare-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.etkt-fare-table td { padding: 7px 0; border-bottom: 1px dotted #e2e8f0; }
+.etkt-fare-table td:last-child { text-align: right; font-weight: 600; color: #0f172a; }
+.etkt-fare-table .total td { border-bottom: none; border-top: 2px solid #0d9488; font-size: 14px; font-weight: 800; color: #0d9488; padding-top: 9px; }
+.etkt-fare-table .no-rows td { border-bottom: none; }
+.etkt-note { font-size: 11px; color: #64748b; margin-top: 10px; }
+.etkt-stub { border: 1.6px dashed #0d9488; border-radius: 12px; padding: 14px; text-align: center; position: relative; page-break-inside: avoid; align-self: start; }
+.etkt-stub .cut { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: #0d9488; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 100px; letter-spacing: .04em; }
+.etkt-stub img { width: 110px; height: 110px; margin: 10px auto; }
+.etkt-stub .mono { font-size: 13px; font-weight: 700; color: #0f172a; }
+.etkt-foot { padding: 12px 24px 18px; text-align: center; font-size: 12px; color: #0f172a; }
+.etkt-foot .sim { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; border-radius: 10px; padding: 8px 14px; font-weight: 600; display: inline-block; margin-bottom: 10px; font-size: 12.5px; }
+.etkt-foot .credit { color: #64748b; font-size: 11px; }
+
+@media print {
+    @page { size: A4 portrait; margin: 9mm; }
+    html, body { background: #fff !important; }
+    .site-header, .topbar, .top-nav, .etkt-toolbar .btn, .breadcrumbs { display: none !important; }
+    .main, .content { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+    .etkt-wrap { display: block; }
+    .etkt { border: none; box-shadow: none; border-radius: 0; max-width: 100%; }
+    .etkt-band, .etkt-stub, .etkt-table tr { page-break-inside: avoid; }
+    .etkt-section, .etkt-field { page-break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="etkt-toolbar">
+    <a href="{{ back_url }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Booking</a>
+    <button class="btn btn-brand" onclick="window.print()"><i class="fas fa-print"></i> Print {{ ticket.doc_type|truncatechars:16 }}</button>
+    <a class="btn btn-outline" href="{{ pdf_url }}"><i class="fas fa-file-pdf"></i> Download PDF</a>
+</div>
+
+<div class="etkt-wrap">
+    <div class="etkt">
+        <div class="etkt-head">
+            <div class="etkt-brand">
+                <img src="{{ ticket.establishment.logo_url }}" class="etkt-logo" alt="{{ ticket.establishment.name }} logo" onerror="this.style.visibility='hidden'">
+                <div>
+                    <h3>{{ ticket.establishment.name }}</h3>
+                    <div class="meta">Establishment ID: <b>{{ ticket.establishment.code }}</b></div>
+                    <div class="meta"><i class="fas fa-map-pin"></i> {{ ticket.establishment.location|default:'—' }} · <i class="fas fa-phone"></i> {{ ticket.establishment.contact|default:'—' }} · <i class="fas fa-envelope"></i> {{ ticket.establishment.email|default:'—' }}</div>
+                </div>
+            </div>
+            <div class="etkt-doc">
+                <h4>{{ ticket.doc_type }}</h4>
+                <div class="meta">Booking Ref: <span class="mono">{{ ticket.booking_info.pnr }}</span></div>
+                <div class="meta">Issued: {{ ticket.issued_on }}</div>
+                <div style="margin-top:6px">
+                    <span class="badge {% if ticket.booking_info.status_key == 'CONFIRMED' or ticket.booking_info.status_key == 'COMPLETED' %}badge-green{% elif ticket.booking_info.status_key == 'CANCELLED' or ticket.booking_info.status_key == 'DECLINED' %}badge-gray{% elif ticket.booking_info.status_key == 'CHECKED_IN' or ticket.booking_info.status_key == 'CHECKED_OUT' or ticket.booking_info.status_key == 'USED' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:13px">STATUS: {{ ticket.booking_info.status|upper }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="etkt-band">
+            <div class="fl-no">
+                {{ ticket.band.title }}
+                {% if ticket.band.subtitle %}<div class="muted"><i class="fas fa-user-group"></i> {{ ticket.band.subtitle }}</div>{% endif %}
+                {% if ticket.band.note %}<div class="muted"><i class="fas fa-clock"></i> {{ ticket.band.note }}</div>{% endif %}
+            </div>
+            {% for leg in ticket.band.legs %}
+                {% if not forloop.first %}
+                <div class="etkt-arrow">
+                    <div class="arr">→</div>
+                    <div class="dur">{{ ticket.booking_info.pnr }}</div>
+                </div>
+                {% endif %}
+                <div class="etkt-leg">
+                    <div class="code">{{ leg.code }}</div>
+                    <div class="place">{{ leg.label }}</div>
+                    {% if leg.sub %}<div class="dt">{{ leg.sub }}</div>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="etkt-section">
+            <h5><i class="fas fa-user-check"></i> Lead Guest / Contact</h5>
+            <table class="etkt-table">
+                <thead><tr><th>Name</th><th>Contact</th><th>Email</th><th>Voucher No.</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><b>{{ ticket.lead.name }}</b></td>
+                        <td>{{ ticket.lead.contact }}</td>
+                        <td>{{ ticket.lead.email }}</td>
+                        <td><span class="mono">{{ ticket.voucher_number }}</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            {% if ticket.lead.note %}<div class="etkt-note">{{ ticket.lead.note }}</div>{% endif %}
+        </div>
+
+        <div class="etkt-section">
+            <h5><i class="fas fa-circle-info"></i> Details</h5>
+            <div class="etkt-grid">
+                {% for f in ticket.info_grid %}
+                <div class="etkt-field"><span>{{ f.0 }}</span><b>{{ f.1 }}</b></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="etkt-body">
+            <div>
+                <div class="etkt-section" style="padding:0 0 6px">
+                    <h5><i class="fas fa-receipt"></i> Fare Summary</h5>
+                    <table class="etkt-fare-table">
+                        {% if ticket.fare.has_breakdown %}
+                            {% for r in ticket.fare.rows %}
+                            <tr><td>{{ r.label }}</td><td>₱ {{ r.amount }}</td></tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="no-rows"><td colspan="2" style="color:#64748b">Billed directly by the establishment.</td></tr>
+                        {% endif %}
+                        <tr class="total"><td>TOTAL</td><td>₱ {{ ticket.fare.total }}</td></tr>
+                        <tr><td>Amount paid</td><td>₱ {{ ticket.fare.paid }}</td></tr>
+                        <tr><td>Balance due</td><td>₱ {{ ticket.fare.balance }}</td></tr>
+                    </table>
+                    <p class="etkt-note"><i class="fas fa-flask"></i> Simulated pricing — no real taxes or fees are charged.</p>
+                </div>
+            </div>
+            <div class="etkt-stub">
+                <span class="cut">STUB</span>
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-top:4px">{{ ticket.band.title|truncatechars:22 }}</div>
+                <img src="{{ ticket.qr.data_uri }}" alt="QR code with booking reference">
+                <div class="mono">{{ ticket.booking_info.pnr }}</div>
+                <div class="meta" style="font-size:10.5px;margin-top:4px">{{ ticket.establishment.name }} · {{ ticket.booking_info.status }}</div>
+                <div class="meta" style="font-size:10px;color:#94a3b8;margin-top:4px">Scan to verify this booking (simulation)</div>
+            </div>
+        </div>
+
+        <div class="etkt-foot">
+            <div class="sim"><i class="fas fa-exclamation-triangle"></i> SIMULATION / ACADEMIC USE ONLY — This is not a valid confirmation.</div>
+            <div class="credit">Generated by {{ ticket.establishment.name }} · ATRUE Travel &amp; Tours Booking System · {{ ticket.issued_on }} · Ref {{ ticket.booking_info.pnr }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

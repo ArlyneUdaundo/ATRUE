@@ -1,0 +1,70 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurant Reservations{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Restaurant Reservations</h1><p>Retrieve and respond to table reservations (Module 11 – Restaurant Reservation Management).</p></div></div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input establishment-ops-search" value="{{ q }}" placeholder="Reference, guest, restaurant or table"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Seating Area</label>
+            <select name="seating_area" class="form-input">
+                <option value="">All areas</option>
+                {% for value, label in seating_area_choices %}
+                <option value="{{ value }}" {% if seating_area == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Date From</label><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
+        <div class="form-group"><label>Date To</label><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
+        <div class="form-group"><label>Min. Guests</label><input type="number" name="guests" class="form-input" value="{{ guests }}" min="1"></div>
+        <div class="form-group">
+            <label>Sort</label>
+            <select name="sort" class="form-input">
+                <option value="reservation_datetime" {% if sort == 'reservation_datetime' %}selected{% endif %}>Reservation date</option>
+                <option value="status" {% if sort == 'status' %}selected{% endif %}>Status</option>
+                <option value="guests" {% if sort == 'guests' %}selected{% endif %}>Guests (largest)</option>
+                <option value="created_at" {% if sort == 'created_at' %}selected{% endif %}>Newest</option>
+            </select>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+    <a href="{% url 'restaurants:bookings' %}" class="btn btn-outline btn-sm">Reset</a>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reservation ID</th><th>Guest</th><th>Restaurant &amp; Table</th><th>Date &amp; Time</th><th>Guests</th><th>Special Requests</th><th>Submitted</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td class="mono">{{ b.booking_reference }}</td>
+                    <td>{{ b.primary_guest_name|default:b.customer.get_full_name }}</td>
+                    <td>{{ b.table.restaurant.name }} — Table {{ b.table.table_number }}</td>
+                    <td>{{ b.reservation_datetime|date:"M d, Y H:i" }}</td>
+                    <td>{{ b.number_of_guests }}</td>
+                    <td>{{ b.special_requests|default:"—" }}</td>
+                    <td>{{ b.created_at|date:"M d, Y H:i" }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' or b.status == 'DECLINED' or b.status == 'REJECTED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'restaurants:booking_detail' b.id %}" class="btn btn-ghost btn-sm">Review Reservation</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9"><div class="empty"><i class="fas fa-chair"></i><h3>No reservations</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Resort Service Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Resort Service Management</h1>
+        <p>Search, filter and manage resort services and activities.</p>
+    </div>
+    {% if resort_id %}
+    <a href="{% url 'resorts:add_service' resort_id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-concierge-bell"></i> Add Service</a>
+    {% endif %}
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Search</label>
+                <input type="text" name="q" class="form-input establishment-ops-search" placeholder="Service ID, name, schedule or resort" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Resort</label>
+                <select name="resort" class="form-input">
+                    <option value="">All resorts</option>
+                    {% for r in resorts %}
+                    <option value="{{ r.id }}" {% if resort_id == r.id|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'resorts:services' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if services %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Resort</th>
+                    <th>Schedule</th>
+                    <th>Capacity</th>
+                    <th>Rate</th>
+                    <th>Status</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr>
+                    <td>
+                        <b>{{ s.name }}</b>
+                        <div class="meta" style="margin:0"><i class="fas fa-fingerprint"></i> {{ s.service_id }}</div>
+                    </td>
+                    <td>{{ s.resort.name }}</td>
+                    <td>{{ s.operating_hours|default:"Anytime" }}</td>
+                    <td>{{ s.capacity }}</td>
+                    <td>₱ {{ s.rate }}</td>
+                    <td><span class="badge {% if s.status == 'ACTIVE' %}badge-green{% elif s.status == 'UNAVAILABLE' or s.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ s.get_status_display }}</span></td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'resorts:service_detail' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        <a href="{% url 'resorts:update_service' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-concierge-bell"></i><h3>No services found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

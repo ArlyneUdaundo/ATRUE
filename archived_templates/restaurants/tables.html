@@ -1,0 +1,73 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Restaurant Tables{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Restaurant Tables</h1><p>Search restaurant tables by restaurant, capacity, seating area and status (Module 11 – Restaurant Table Management).</p></div>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Table ID, table number or restaurant"></div>
+        <div class="form-group">
+            <label>Restaurant</label>
+            <select name="restaurant" class="form-input">
+                <option value="">All restaurants</option>
+                {% for r in restaurants %}
+                <option value="{{ r.id }}" {% if restaurant_id == r.id|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Seating Area</label>
+            <select name="seating_area" class="form-input">
+                <option value="">All areas</option>
+                {% for value, label in seating_area_choices %}
+                <option value="{{ value }}" {% if seating_area == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Min. Capacity</label><input type="number" name="capacity" class="form-input" value="{{ capacity }}" min="1"></div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+    <a href="{% url 'restaurants:tables' %}" class="btn btn-outline btn-sm">Reset</a>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Table ID</th><th>Restaurant</th><th>Table</th><th>Seating</th><th>Capacity</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for t in tables %}
+                <tr>
+                    <td class="mono">{{ t.table_id }}</td>
+                    <td><a href="{% url 'restaurants:detail' t.restaurant.id %}">{{ t.restaurant.name }}</a></td>
+                    <td><b>Table {{ t.table_number }}</b></td>
+                    <td>{{ t.get_seating_area_display }}</td>
+                    <td>{{ t.capacity }}</td>
+                    <td><span class="badge {% if t.status == 'AVAILABLE' %}badge-green{% elif t.status == 'OCCUPIED' %}badge-blue{% elif t.status == 'MAINTENANCE' %}badge-gray{% else %}badge-yellow{% endif %}">{{ t.get_status_display }}</span></td>
+                    <td>
+                        <a href="{% url 'restaurants:table_detail' t.id %}" class="btn btn-ghost btn-sm">View</a>
+                        {% if request.user.is_platform_manager %}
+                        <a href="{% url 'restaurants:update_table' t.id %}" class="btn btn-ghost btn-sm">Edit</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7"><div class="empty"><i class="fas fa-chair"></i><h3>No tables found</h3><p>Adjust your filters to find tables.</p></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

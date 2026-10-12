@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ cfg.hero_title }} — ATRUE{% endblock %}
+
+{% block body_class %}subpage{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/booking.css' %}?v=20261010-package-compact-cta-1">
+{% endblock %}
+
+{% block content %}
+    {% block search_page %}{% endblock %}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/booking.js' %}?v=20261005tabhistory"></script>
+{% endblock %}

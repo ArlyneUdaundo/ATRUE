@@ -1,0 +1,34 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if driver %}Update Driver{% else %}Add Driver{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if driver %}Update Driver{% else %}Add Driver{% endif %} — {{ agency.name }}</h1><p>Driver registration.</p></div></div>
+
+<form method="post" class="card card-pad" style="max-width:720px" data-submit-loading>
+    {% csrf_token %}
+    <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="full_name" class="form-input" value="{{ driver.full_name|default:'' }}" required>
+    </div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>License Number</label>
+            <input type="text" name="license_number" class="form-input" value="{{ driver.license_number|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Contact Number</label>
+            <input type="text" name="contact_number" class="form-input" value="{{ driver.contact_number|default:'' }}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if driver.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if driver.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Driver</button>
+    <a href="{% url 'transportation:update_agency' agency.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Hotel Services{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Hotel Service Management</h1>
+        <p>Search, filter, view and update services across all hotels (BR-011, BR-024).</p>
+    </div>
+    <a href="{% url 'hotels:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Hotel Admin</a>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get">
+        <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1.3fr auto;gap:14px;align-items:end">
+            <div class="form-group" style="margin:0">
+                <label>Service Name / ID</label>
+                <input type="text" name="q" class="form-input" placeholder="Service name or SVC- ID" value="{{ q }}">
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Status</label>
+                <select name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Establishment Name</label>
+                <input type="text" name="establishment" class="form-input" placeholder="Hotel name" value="{{ establishment }}">
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'hotels:services' %}" class="btn btn-outline">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if services %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Establishment</th>
+                    <th>Rate</th>
+                    <th>Hours</th>
+                    <th>Status</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr>
+                    <td>
+                        <b><a href="{% url 'hotels:service_detail' s.id %}" style="color:inherit">{{ s.name }}</a></b>
+                        <div class="meta" style="margin:0"><i class="fas fa-fingerprint"></i> {{ s.service_id }}</div>
+                    </td>
+                    <td>{{ s.hotel.name }}</td>
+                    <td>₱ {{ s.rate }}</td>
+                    <td>{{ s.operating_hours|default:"—" }}</td>
+                    <td><span class="badge {% if s.status == 'ACTIVE' %}badge-green{% elif s.status == 'UNAVAILABLE' or s.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ s.get_status_display }}</span></td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'hotels:service_detail' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        <a href="{% url 'hotels:update_service' s.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">No services match your filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-concierge-bell"></i><h3>No services found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

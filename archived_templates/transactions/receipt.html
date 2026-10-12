@@ -1,0 +1,40 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Receipt {{ receipt.receipt_reference }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Official Receipt</h1><p>Issued after every completed payment (BR-092).</p></div>
+    <button class="btn btn-brand btn-sm" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+</div>
+
+<div class="receipt-wrap">
+    <div class="receipt-card">
+        <div class="receipt-head">
+            <div>
+                <h2>ATRUE Travel &amp; Tours</h2>
+                <div class="meta">Integrated Travel and Tours Booking System</div>
+            </div>
+            <div class="receipt-mark"><i class="fas fa-receipt"></i></div>
+        </div>
+        <div class="receipt-meta">
+            <div><span>Receipt No.</span><b class="mono">{{ receipt.receipt_reference }}</b></div>
+            <div><span>Issued</span><b>{{ receipt.issued_at|date:"F d, Y H:i" }}</b></div>
+            <div><span>Payment Ref</span><b class="mono">{{ receipt.payment.payment_reference|default:"—" }}</b></div>
+            <div><span>Bill Ref</span><b class="mono">{{ receipt.bill.bill_reference|default:"—" }}</b></div>
+            <div><span>Customer</span><b>{{ receipt.customer.get_full_name|default:receipt.customer.username }}</b></div>
+            <div><span>Method</span><b>{{ receipt.payment.get_method_display|default:"—" }}</b></div>
+        </div>
+        <div class="receipt-amount">
+            <span>Amount Paid</span>
+            <b>₱ {{ receipt.amount }}</b>
+        </div>
+        {% if receipt.remark %}
+        <div class="meta">Remark: {{ receipt.remark }}</div>
+        {% endif %}
+        <div class="receipt-foot">Thank you for transacting with ATRUE!</div>
+    </div>
+</div>
+
+<a href="{% url 'transactions:list' %}" class="btn btn-outline">Back to transactions</a>
+{% endblock %}

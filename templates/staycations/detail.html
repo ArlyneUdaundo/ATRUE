@@ -1,0 +1,120 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+{% load hotel_photos %}
+
+{% block title %}{{ staycation.name }} | Staycation{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ staycation.name }}</h1>
+        <p><span class="badge badge-blue">{{ staycation.accommodation_type }}</span> <span class="badge {% if staycation.status == 'ACTIVE' %}badge-green{% elif staycation.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ staycation.get_status_display }}</span></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if is_manager %}
+        <a href="{% url 'staycations:update_staycation' staycation.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'staycations:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
+        {% else %}
+        <a href="{% url 'staycations:flow_select' staycation.id %}" class="btn btn-brand"><i class="fas fa-calendar-check"></i> Reserve</a>
+        <a href="{% url 'staycations:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Staycations</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if staycation.photos.all %}
+<div class="hotel-gallery" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px">
+    {% for photo in staycation.photos.all|usable_urls %}
+    <img src="{{ photo }}" alt="{{ staycation.name }} photo {{ forloop.counter }}" loading="lazy" decoding="async" style="width:100%;height:230px;object-fit:cover;border-radius:14px">
+    {% endfor %}
+</div>
+{% else %}
+<div id="staycation-gallery-fallback" class="hotel-gallery-fallback" style="margin-bottom:18px">
+    <img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ staycation.name }}" style="width:100%;height:300px;object-fit:cover;border-radius:14px">
+</div>
+{% endif %}
+
+<div class="card card-pad" style="margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+            <div class="meta"><i class="fas fa-fingerprint"></i> Establishment ID: <b>{{ staycation.establishment_id }}</b></div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ staycation.location }}</div>
+            <div class="meta"><i class="fas fa-users"></i> {{ staycation.capacity_adults }}A / {{ staycation.capacity_children }}C · up to {{ staycation.capacity }} guests</div>
+        </div>
+        <div style="min-width:220px;text-align:right">
+            <div class="meta"><i class="fas fa-phone"></i> {{ staycation.contact_number|default:"—" }}</div>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> {{ staycation.email|default:"—" }}</div>
+            <div class="ag-price" style="margin-top:8px"><small>rate</small><b>₱ {{ staycation.rate }}</b><span class="ag-per">/night</span></div>
+        </div>
+    </div>
+</div>
+
+{% if staycation.house_rules %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 10px"><i class="fas fa-ruler-combined"></i> House Rules / Operating Schedule</h3>
+    <div style="white-space:pre-line">{{ staycation.house_rules }}</div>
+</div>
+{% endif %}
+
+{% if is_manager or staycation.services.all %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-concierge-bell"></i> Services</h3>
+    {% if is_manager %}
+    <button type="button" class="btn btn-brand btn-sm" data-open-staycation-service style="margin-bottom:12px"><i class="fas fa-plus"></i> Add Service</button>
+    {% endif %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service ID</th><th>Service</th><th>Schedule</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for svc in staycation.services.all %}
+                <tr>
+                    <td class="mono">{{ svc.service_id }}</td>
+                    <td><b>{{ svc.name }}</b></td>
+                    <td>{{ svc.operating_hours|default:"Anytime" }}</td>
+                    <td>&#8369; {{ svc.rate }}</td>
+                    <td>{{ svc.get_status_display }}</td>
+                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No services added.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if is_manager %}
+<dialog id="staycationServiceDialog" style="width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
+<form method="post" action="{% url 'staycations:add_service' staycation.id %}" style="padding:24px">
+{% csrf_token %}
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px"><h2 style="margin:0;font-size:20px">Add Service</h2><button type="button" class="btn btn-ghost btn-sm" data-close-staycation-service aria-label="Close dialog"><i class="fas fa-times"></i></button></div>
+<div class="form-group"><label for="staycationServiceName">Service Name</label><input id="staycationServiceName" type="text" name="name" class="form-input" placeholder="e.g. Housekeeping" required></div>
+<div class="form-group"><label for="staycationServiceDescription">Description</label><textarea id="staycationServiceDescription" name="description" class="form-input" rows="2"></textarea></div>
+<div class="form-grid"><div class="form-group"><label for="staycationServiceRate">Rate (&#8369;)</label><input id="staycationServiceRate" type="number" name="rate" step="0.01" min="0" class="form-input" value="0"></div><div class="form-group"><label for="staycationServiceHours">Operating Hours</label><input id="staycationServiceHours" type="text" name="operating_hours" class="form-input" placeholder="8:00 AM - 8:00 PM"></div></div>
+<div class="form-group"><label for="staycationServiceStatus">Status</label><select id="staycationServiceStatus" name="status" class="form-input"><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="SUSPENDED">Suspended</option><option value="UNAVAILABLE">Unavailable</option></select></div>
+<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px"><button type="button" class="btn btn-ghost" data-close-staycation-service>Cancel</button><button type="submit" name="return_to_detail" value="1" class="btn btn-brand"><i class="fas fa-save"></i> Save Service</button></div>
+</form>
+</dialog>
+<script>
+(function () {
+    var dialog = document.getElementById('staycationServiceDialog');
+    if (!dialog) return;
+    var opener = document.querySelector('[data-open-staycation-service]');
+    if (opener) opener.addEventListener('click', function () { dialog.showModal(); });
+    dialog.querySelectorAll('[data-close-staycation-service]').forEach(function (button) { button.addEventListener('click', function () { dialog.close(); }); });
+    dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
+})();
+</script>
+{% endif %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 12px"><i class="fas fa-calendar-times"></i> Block-Out Dates</h3>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Start Date</th><th>End Date</th></tr></thead>
+            <tbody>
+                {% for b in staycation.blocked_dates.all %}
+                <tr><td>{{ b.start_date|date:"M d, Y" }}</td><td>{{ b.end_date|date:"M d, Y" }}</td></tr>
+                {% empty %}<tr><td colspan="2">No block-out dates.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

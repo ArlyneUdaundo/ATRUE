@@ -1,0 +1,80 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if hotel %}Update Hotel{% else %}Add Hotel{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head hotel-form-page-head"><div><h1>{% if hotel %}Update Hotel{% else %}Add New Hotel{% endif %}</h1><p>Hotel establishment information.</p></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:760px" data-submit-loading>
+    {% csrf_token %}
+    {% if error %}
+    <div class="alert" style="display:flex;gap:10px;align-items:flex-start;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:14px">
+        <i class="fas fa-exclamation-triangle" style="margin-top:2px"></i> <span>{{ error }}</span>
+    </div>
+    {% endif %}
+    {% if hotel %}
+    <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+            <label>Establishment ID</label>
+            <input type="text" class="form-input" value="{{ hotel.establishment_id }}" readonly disabled>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Accommodation Type</label>
+            <input type="text" class="form-input" value="Hotel (per-room bookings)" readonly disabled>
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label>Hotel Name</label>
+        <input type="text" name="name" class="form-input" value="{{ fd.name|default:'' }}" required>
+    </div>
+    <div class="form-group">
+        <label>Location / Address <span class="meta">(worldwide)</span></label>
+        {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=fd.country province_name='province' province_value=fd.province municipality_name='municipality' municipality_value=fd.municipality barangay_name='barangay' barangay_value=fd.barangay required=True %}
+    </div>
+    <div class="form-group">
+        <label>Hotel Photos <span class="meta" style="font-weight:400">(multiple)</span></label>
+        <input type="file" name="photos" class="form-input" accept="image/*" multiple>
+    </div>
+    {% if hotel and hotel.photos.all %}
+    <div class="form-group">
+        <label>Existing Hotel Photos</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for photo in hotel.photos.all %}
+            <label style="display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid var(--slate-200);border-radius:10px;padding:8px">
+                <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:hotel.name }}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">
+                <span class="meta">{% if photo.is_primary %}Primary · {% endif %}<input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Contact Number</label>
+            <input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ fd.contact_number|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" name="email" class="form-input" value="{{ fd.email|default:'' }}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Operating Schedule</label>
+        <input type="text" name="operating_schedule" class="form-input" value="{{ fd.operating_schedule|default:'' }}" placeholder="e.g. 24 hours">
+    </div>
+    {% if hotel %}
+    <div class="form-group">
+        <label>Status</label>
+        <select name="status" class="form-input">
+            <option value="ACTIVE" {% if fd.status|default:hotel.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if fd.status|default:hotel.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+            <option value="SUSPENDED" {% if fd.status|default:hotel.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+            <option value="UNDER_MAINTENANCE" {% if fd.status|default:hotel.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+        </select>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Hotel</button>
+    <a href="{% url 'hotels:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}

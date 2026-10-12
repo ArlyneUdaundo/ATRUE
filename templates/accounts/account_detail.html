@@ -1,0 +1,587 @@
+{% extends 'dashboard_base.html' %}
+
+{% comment %}
+FR-003 VIEW User Account.
+
+The header is the profile itself: one large photo, the name, the handle, and the
+actions. Everything factual about the account then sits below it in its own
+sections, so the page reads as "who this is" and then "what this account is"
+rather than one undifferentiated grid of fields.
+{% endcomment %}
+
+{% block title %}{{ account.get_full_name|default:account.username }} | User Account{% endblock %}
+
+{% block content %}
+{% if account.id == request.user.id %}
+<div class="profile-page">
+
+    {# ------------------------------------------------------------------ #}
+    {# Profile header: photo, name, handle, actions                        #}
+    {# ------------------------------------------------------------------ #}
+    <section class="profile-hero" aria-labelledby="profileHeroName">
+        <div class="profile-hero-media">
+            <div class="profile-photo{% if not account.profile_picture %} profile-photo-empty{% endif %}">
+                {% if account.profile_picture %}
+                <img src="{{ account.profile_picture.url }}" alt="Profile photo of {{ account.get_full_name|default:account.username }}">
+                {% else %}
+                <span class="profile-photo-initials" aria-hidden="true">{{ account.initials }}</span>
+                <span class="sr-only">No profile photo. Showing the initials {{ account.initials }}.</span>
+                {% endif %}
+            </div>
+
+            <h1 class="profile-hero-name" id="profileHeroName">{{ account.get_full_name|default:account.username }}</h1>
+            <p class="profile-hero-handle">@{{ account.username }}</p>
+
+            <div class="profile-hero-actions">
+                {% if account.id == request.user.id %}
+                <button type="button" class="btn btn-brand" id="profilePhotoToggle"
+                        aria-expanded="{% if show_photo_editor %}true{% else %}false{% endif %}"
+                        aria-controls="profilePhotoPanel"
+                        onclick="window.atrueProfilePhoto.toggle()">
+                    <i class="fas fa-image"></i> Change Photo
+                </button>
+                {% endif %}
+                {% if account.id == request.user.id %}
+                <button type="button" class="btn btn-brand profile-edit-open" onclick="window.atrueProfileEdit.open()">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </button>
+                <button type="button" class="btn btn-outline" onclick="window.atruePasswordModal.open()">
+                    <i class="fas fa-key"></i> Change Password
+                </button>
+                {% elif is_update_manager %}
+                <button type="button" class="btn btn-brand profile-edit-open" onclick="window.atrueProfileEdit.open()">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </button>
+                <button type="button" class="btn btn-outline" onclick="window.atruePasswordModal.open()">
+                    <i class="fas fa-key"></i> Change Password
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {# ------------------------------------------------------------------ #}
+    {# Profile photo: upload, preview, change, remove, save                #}
+    {# ------------------------------------------------------------------ #}
+    {% if account.id == request.user.id %}
+    <div class="profile-photo-modal" id="profilePhotoPanel"
+         {% if not show_photo_editor %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}>
+    <section class="profile-panel" aria-label="Profile photo">
+        <form method="post" enctype="multipart/form-data" class="profile-photo-form">
+            {% csrf_token %}
+            <div class="profile-panel-head">
+                <h2 class="profile-section-title"><i class="fas fa-image"></i> Profile Photo</h2>
+                <button type="button" class="profile-panel-close"
+                        onclick="window.atrueProfilePhoto.toggle(false)"
+                        title="Close" aria-label="Close the profile photo panel">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            {% if photo_form.errors %}
+            <div class="alert alert-error" role="alert">
+                <i class="fas fa-circle-exclamation"></i>
+                {{ photo_form.errors.profile_picture|join:" " }}
+            </div>
+            {% endif %}
+
+            <div class="profile-photo-row">
+                <div class="profile-photo profile-photo-sm{% if not account.profile_picture %} profile-photo-empty{% endif %}">
+                    {% if account.profile_picture %}
+                    <img src="{{ account.profile_picture.url }}" alt="">
+                    {% else %}
+                    <span class="profile-photo-initials" aria-hidden="true">{{ account.initials }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="profile-photo-fields">
+                    {{ photo_form.profile_picture }}
+                    <p class="profile-photo-hint">
+                        {% if not account.profile_picture %}
+                            No photo yet. Choose an image to use as your profile picture.
+                        {% endif %}
+                    </p>
+                    <div class="profile-photo-buttons">
+                        <button type="submit" class="btn btn-brand">
+                            <i class="fas fa-check"></i> Save Photo
+                        </button>
+                        {% if account.profile_picture %}
+                        <button type="submit" class="btn btn-outline" name="profile_picture-clear" value="1"
+                                formnovalidate>
+                            <i class="fas fa-trash"></i> Remove Photo
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+    </div>
+    {% endif %}
+
+    {# ------------------------------------------------------------------ #}
+    {# Account information                                                 #}
+    {# ------------------------------------------------------------------ #}
+    <section class="profile-block" aria-labelledby="profileInfoTitle">
+        <div class="profile-block-head">
+            <h2 class="profile-section-title" id="profileInfoTitle">
+                <i class="fas fa-id-card"></i> Profile
+            </h2>
+        </div>
+
+        <div class="profile-info-grid">
+            <div class="card profile-info-card">
+                <div class="card-pad profile-info-card-head">
+                    <h3 class="profile-card-title"><i class="fas fa-user"></i> Personal Information</h3>
+                </div>
+                <div class="card-pad profile-facts">
+                    <div class="profile-fact">
+                        <span class="meta">Full Name</span>
+                        <b>{{ account.get_full_name|default:'—' }}</b>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="meta">Username</span>
+                        <b>@{{ account.username }}</b>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="meta">Email</span>
+                        <b>{{ account.email|default:'—' }}</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card profile-info-card">
+                <div class="card-pad profile-info-card-head">
+                    <h3 class="profile-card-title"><i class="fas fa-user-shield"></i> Account Information</h3>
+                </div>
+                <div class="card-pad profile-facts">
+                    <div class="profile-fact">
+                        <span class="meta">Account Role</span>
+                        <b>{{ account.get_account_type_display }}</b>
+                    </div>
+                    <div class="profile-fact">
+                        <span class="meta">Account Status</span>
+                        <b>
+                            <span class="badge {% if account.status == 'ACTIVE' %}badge-green{% elif account.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">
+                                {{ account.get_status_display }}
+                            </span>
+                        </b>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="profile-block" aria-labelledby="profileRecordTitle">
+        <div class="profile-block-head">
+            <h2 class="profile-section-title" id="profileRecordTitle">
+                <i class="fas fa-address-card"></i> Account Record
+            </h2>
+        </div>
+
+        <div class="card">
+            <div class="card-pad profile-facts profile-facts-wide">
+                <div class="profile-fact">
+                    <span class="meta">Last Name</span>
+                    <b>{{ account.last_name|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">First Name</span>
+                    <b>{{ account.first_name|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Middle Name</span>
+                    <b>{{ account.middle_name|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Middle Initial</span>
+                    <b>{{ account.middle_initial|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Suffix</span>
+                    <b>{{ account.suffix|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Date of Birth</span>
+                    <b>{{ account.date_of_birth|date:"M d, Y"|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Sex</span>
+                    <b>{{ account.get_sex_display|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Nationality</span>
+                    <b>{{ account.get_nationality_display|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Contact Number</span>
+                    <b>{{ account.contact_number|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Date Joined</span>
+                    <b>{{ account.date_joined|date:"M d, Y" }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Emergency Contact</span>
+                    <b>{{ account.emergency_contact_name|default:'—' }}</b>
+                </div>
+                <div class="profile-fact">
+                    <span class="meta">Emergency Number</span>
+                    <b>{{ account.emergency_contact_number|default:'—' }}</b>
+                    <span class="meta">{{ account.emergency_contact_relationship|default:'No relationship specified' }}</span>
+                </div>
+                <div class="profile-fact profile-fact-span">
+                    <span class="meta">Residential Address</span>
+                    <b>{{ account.residential_address|default:'—' }}</b>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if is_manager and account.id != request.user.id %}
+    <section class="profile-block">
+        <div class="card">
+            <div class="card-pad" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                {% if account.status == 'INACTIVE' %}
+                <form method="post" action="{% url 'accounts:account_deactivate' account.id %}" data-confirm="Reactivate this account?" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-brand"><i class="fas fa-undo"></i> Reactivate</button>
+                </form>
+                {% else %}
+                <a href="{% url 'accounts:account_deactivate_confirm' account.id %}" class="btn btn-outline" style="border-color:#fecaca;color:#b91c1c">
+                    <i class="fas fa-user-slash"></i> Deactivate
+                </a>
+                {% endif %}
+                <a href="{% url 'accounts:account_list' %}" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ------------------------------------------------------------------ #}
+    {# Booking history                                                     #}
+    {# ------------------------------------------------------------------ #}
+    <section class="profile-block">
+        <div class="card">
+            <div class="card-pad profile-info-card-head">
+                <h3 class="profile-card-title"><i class="fas fa-ticket-alt"></i> Booking History</h3>
+                <p class="profile-card-sub">{{ bookings|length }} booking(s) on record.</p>
+            </div>
+            {% if bookings %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Service</th><th>Reference</th><th>Details</th><th>Status</th><th>Booked</th></tr></thead>
+                    <tbody>
+                    {% for row in bookings %}
+                        <tr>
+                            <td><b>{{ row.service }}</b></td>
+                            <td class="mono">{{ row.reference }}</td>
+                            <td><span class="text-truncate" title="{{ row.details }}">{{ row.details }}</span></td>
+                            <td><span class="badge {% if row.status == 'CONFIRMED' %}badge-green{% elif row.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ row.status|title }}</span></td>
+                            <td>{{ row.created|date:"M d, Y" }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings yet</h3><p>Booking activity will appear here once the account is used.</p></div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% else %}
+{# Someone else's account: read-only, and without the owner-only photo controls. #}
+<div class="profile-page">
+    <section class="profile-hero" aria-labelledby="profileHeroName">
+        <div class="profile-hero-media">
+            <div class="profile-photo{% if not account.profile_picture %} profile-photo-empty{% endif %}">
+                {% if account.profile_picture %}
+                <img src="{{ account.profile_picture.url }}" alt="Profile photo of {{ account.get_full_name|default:account.username }}">
+                {% else %}
+                <span class="profile-photo-initials" aria-hidden="true">{{ account.initials }}</span>
+                {% endif %}
+            </div>
+            <h1 class="profile-hero-name" id="profileHeroName">{{ account.get_full_name|default:account.username }}</h1>
+            <p class="profile-hero-handle">@{{ account.username }}</p>
+            <div class="profile-hero-actions">
+                <span class="badge {% if account.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ account.get_account_type_display }}</span>
+                <span class="badge {% if account.status == 'ACTIVE' %}badge-green{% elif account.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ account.get_status_display }}</span>
+                {% if is_update_manager %}
+                <button type="button" class="btn btn-brand profile-edit-open" onclick="window.atrueProfileEdit.open()"><i class="fas fa-edit"></i> Edit Profile</button>
+                <button type="button" class="btn btn-outline" onclick="window.atruePasswordModal.open()"><i class="fas fa-key"></i> Change Password</button>
+                {% endif %}
+                {% if is_manager %}
+                <a href="{% url 'accounts:account_list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to List</a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="profile-block">
+        <div class="card">
+            <div class="card-pad profile-facts profile-facts-wide">
+                <div class="profile-fact"><span class="meta">Full Name</span><b>{{ account.get_full_name|default:'—' }}</b></div>
+                <div class="profile-fact"><span class="meta">Username</span><b>@{{ account.username }}</b></div>
+                <div class="profile-fact"><span class="meta">Email</span><b>{{ account.email|default:'—' }}</b></div>
+                <div class="profile-fact"><span class="meta">Account Role</span><b>{{ account.get_account_type_display }}</b></div>
+                <div class="profile-fact"><span class="meta">Account Status</span><b>{{ account.get_status_display }}</b></div>
+                <div class="profile-fact"><span class="meta">Date Joined</span><b>{{ account.date_joined|date:"M d, Y" }}</b></div>
+            </div>
+        </div>
+    </section>
+
+    {% if bookings %}
+    <section class="profile-block">
+        <div class="card">
+            <div class="card-pad profile-info-card-head">
+                <h3 class="profile-card-title"><i class="fas fa-ticket-alt"></i> Booking History</h3>
+                <p class="profile-card-sub">{{ bookings|length }} booking(s) on record.</p>
+            </div>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th>Service</th><th>Reference</th><th>Details</th><th>Status</th><th>Booked</th></tr></thead>
+                    <tbody>
+                    {% for row in bookings %}
+                        <tr>
+                            <td><b>{{ row.service }}</b></td>
+                            <td class="mono">{{ row.reference }}</td>
+                            <td><span class="text-truncate" title="{{ row.details }}">{{ row.details }}</span></td>
+                            <td><span class="badge {% if row.status == 'CONFIRMED' %}badge-green{% elif row.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ row.status|title }}</span></td>
+                            <td>{{ row.created|date:"M d, Y" }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endif %}
+{% if account.id == request.user.id or is_update_manager %}
+<div class="profile-edit-modal" id="profileEditModal" {% if not edit_form.errors %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}>
+    <div class="profile-edit-modal__panel" role="dialog" aria-modal="true" aria-labelledby="profileEditTitle">
+        <div class="profile-edit-modal__head">
+            <h2 id="profileEditTitle">Edit Profile</h2>
+            <button type="button" class="profile-edit-modal__close" aria-label="Close">&times;</button>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="profile-edit-modal__form">
+            {% csrf_token %}
+            <input type="hidden" name="profile_update" value="1">
+            {% if edit_form.non_field_errors %}<div class="alert alert-error">{{ edit_form.non_field_errors.0 }}</div>{% endif %}
+            {% for heading, icon, names in form_sections %}
+            <section class="profile-edit-section">
+                <h3><i class="fas {{ icon }}"></i> {{ heading }}</h3>
+                <div class="profile-edit-fields">
+                    {% for field in edit_form %}{% if field.name in names %}
+                    <div class="form-group{% if field.name in span_fields %} profile-edit-span{% endif %}">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <em class="muted-hint">Required</em>{% endif %}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<div class="form-err">{{ error }}</div>{% endfor %}
+                        {% if field.help_text %}<small class="muted-hint">{{ field.help_text }}</small>{% endif %}
+                    </div>
+                    {% endif %}{% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+            <div class="profile-edit-modal__actions">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> Save Changes</button>
+                <button type="button" class="btn btn-outline profile-edit-cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% if password_form %}
+<div class="profile-password-modal" id="profilePasswordModal" {% if not password_form.errors %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}>
+    <div class="profile-password-modal__panel" role="dialog" aria-modal="true" aria-labelledby="profilePasswordTitle">
+        <div class="profile-edit-modal__head">
+            <h2 id="profilePasswordTitle">Change Password{% if account.id != request.user.id %} for {{ account.get_full_name|default:account.username }}{% endif %}</h2>
+            <button type="button" class="profile-password-modal__close profile-edit-modal__close" aria-label="Close">&times;</button>
+        </div>
+        <form method="post" class="profile-password-modal__form">
+            {% csrf_token %}
+            <input type="hidden" name="password_update" value="1">
+            {% if password_form.non_field_errors %}<div class="alert alert-error">{% for error in password_form.non_field_errors %}{{ error }}{% endfor %}</div>{% endif %}
+            {% if account.id == request.user.id %}
+            <div class="form-group">
+                <label for="{{ password_form.old_password.id_for_label }}">Current Password</label>
+                {{ password_form.old_password }}
+                {% for error in password_form.old_password.errors %}<div class="form-err">{{ error }}</div>{% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="{{ password_form.new_password1.id_for_label }}">New Password</label>
+                {{ password_form.new_password1 }}
+                {% for error in password_form.new_password1.errors %}<div class="form-err">{{ error }}</div>{% endfor %}
+                {% if password_form.new_password1.help_text %}<small style="color:var(--slate-500);font-size:12px;display:block;margin-top:4px">{{ password_form.new_password1.help_text }}</small>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="{{ password_form.new_password2.id_for_label }}">Confirm New Password</label>
+                {{ password_form.new_password2 }}
+                {% for error in password_form.new_password2.errors %}<div class="form-err">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="profile-edit-modal__actions">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-key"></i> Change Password</button>
+                <button type="button" class="btn btn-outline profile-password-modal__cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.profile-edit-modal[hidden] { display:none; }
+.profile-edit-modal { position:fixed; inset:0; z-index:35000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.58); }
+.profile-edit-modal__panel { display:flex; flex-direction:column; width:min(900px,100%); max-height:92vh; overflow:hidden; border:1px solid var(--slate-200); border-radius:18px; background:#fff; box-shadow:0 28px 80px rgba(15,23,42,.3); }
+.profile-edit-modal__head { display:flex; flex:none; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--slate-200); }
+.profile-edit-modal__head h2 { margin:0; font-size:18px; }
+.profile-edit-modal__close { width:36px; height:36px; border:0; border-radius:10px; background:var(--slate-100); color:var(--slate-700); font-size:25px; cursor:pointer; }
+.profile-edit-modal__form { overflow:auto; padding:20px 24px 24px; }
+.profile-edit-section { margin:0 0 22px; }
+.profile-edit-section h3 { margin:0 0 14px; font-size:15px; }
+.profile-edit-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 20px; }
+.profile-edit-fields .form-group { margin:0; }
+.profile-edit-fields .profile-edit-span { grid-column:1/-1; }
+.profile-edit-modal__actions { display:flex; gap:10px; padding-top:16px; border-top:1px solid var(--slate-200); }
+.profile-password-modal[hidden] { display:none; }
+.profile-password-modal { position:fixed; inset:0; z-index:35000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.58); }
+.profile-password-modal__panel { width:min(560px,100%); max-height:92vh; overflow:auto; border:1px solid var(--slate-200); border-radius:18px; background:#fff; box-shadow:0 28px 80px rgba(15,23,42,.3); }
+.profile-password-modal__form { padding:20px 24px 24px; }
+.profile-password-modal input[type="password"] { width:100%; padding:12px 14px; border:1.5px solid var(--slate-200); border-radius:11px; background:var(--white); font:inherit; }
+.profile-password-modal input[type="password"]:focus { border-color:var(--blue); outline:0; box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+.profile-photo-modal[hidden] { display:none; }
+.profile-photo-modal { position:fixed; inset:0; z-index:35000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.58); }
+.profile-photo-modal .profile-panel { width:min(680px,100%); max-height:90vh; overflow:auto; }
+body.profile-modal-open { overflow:hidden; }
+@media(max-width:640px) { .profile-edit-modal { padding:0; } .profile-edit-modal__panel { width:100%; max-height:100dvh; height:100dvh; border-radius:0; } .profile-edit-fields { grid-template-columns:1fr; } .profile-edit-fields .profile-edit-span { grid-column:auto; } }
+@media(max-width:640px) { .profile-photo-modal { padding:12px; } .profile-photo-modal .profile-panel { max-height:calc(100dvh - 24px); padding:16px; } }
+@media(max-width:640px) { .profile-password-modal { padding:12px; } .profile-password-modal__panel { max-height:calc(100dvh - 24px); } .profile-password-modal__form { padding:16px; } }
+</style>
+<script>
+/* Profile photo panel: open/close, live preview, and a guard before removing.
+   Kept as one object rather than scattered inline handlers so the header's
+   camera button, the "Change Photo" button and the panel agree on one state. */
+(function () {
+    'use strict';
+
+    const panel = document.getElementById('profilePhotoPanel');
+    const toggle = document.getElementById('profilePhotoToggle');
+    const input = document.getElementById('profilePhotoInput');
+    if (!panel || !toggle) return;
+
+    // The rendered avatar inside the panel shows what is saved; the file input
+    // shows what is chosen. This is the element that previews the choice.
+    const preview = panel.querySelector('.profile-photo');
+
+    function isOpen() {
+        return !panel.hidden;
+    }
+
+    function open() {
+        panel.hidden = false;
+        panel.setAttribute('aria-hidden', 'false');
+        toggle.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('profile-modal-open');
+    }
+
+    function close() {
+        panel.hidden = true;
+        panel.setAttribute('aria-hidden', 'true');
+        toggle.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('profile-modal-open');
+    }
+
+    function setPreview(url, isImage) {
+        if (!preview) return;
+        if (isImage) {
+            let img = preview.querySelector('img');
+            if (!img) {
+                img = document.createElement('img');
+                img.alt = 'Photo preview';
+                preview.innerHTML = '';
+                preview.classList.remove('profile-photo-empty');
+                preview.appendChild(img);
+            }
+            img.src = url;
+        } else {
+            preview.classList.add('profile-photo-empty');
+        }
+    }
+
+    if (input) {
+        input.addEventListener('change', function () {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) { setPreview(e.target.result, true); };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    window.atrueProfilePhoto = {
+        toggle: function (force) {
+            const next = typeof force === 'boolean' ? force : !isOpen();
+            if (next) open(); else close();
+        },
+    };
+    panel.querySelector('.profile-panel-close').addEventListener('click', close);
+    panel.addEventListener('click', function (event) { if (event.target === panel) close(); });
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !panel.hidden) close(); });
+    if (!panel.hidden) document.body.classList.add('profile-modal-open');
+})();
+
+(function () {
+    'use strict';
+    const modal = document.getElementById('profilePasswordModal');
+    if (!modal) return;
+    function close() {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('profile-modal-open');
+    }
+    window.atruePasswordModal = {
+        open: function () {
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('profile-modal-open');
+            modal.querySelector('input[type="password"]')?.focus();
+        }
+    };
+    modal.querySelector('.profile-password-modal__close').addEventListener('click', close);
+    modal.querySelector('.profile-password-modal__cancel').addEventListener('click', close);
+    modal.addEventListener('click', function (event) { if (event.target === modal) close(); });
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !modal.hidden) close(); });
+    if (!modal.hidden) document.body.classList.add('profile-modal-open');
+})();
+
+(function () {
+    'use strict';
+    const modal = document.getElementById('profileEditModal');
+    if (!modal) return;
+    function close() {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('profile-modal-open');
+    }
+    window.atrueProfileEdit = {
+        open: function () {
+            modal.hidden = false;
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('profile-modal-open');
+            modal.querySelector('.profile-edit-fields input, .profile-edit-fields select, .profile-edit-fields textarea')?.focus();
+        }
+    };
+    modal.querySelector('.profile-edit-modal__close').addEventListener('click', close);
+    modal.querySelector('.profile-edit-cancel').addEventListener('click', close);
+    modal.addEventListener('click', function (event) { if (event.target === modal) close(); });
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !modal.hidden) close(); });
+    if (!modal.hidden) document.body.classList.add('profile-modal-open');
+})();
+</script>
+{% endblock %}

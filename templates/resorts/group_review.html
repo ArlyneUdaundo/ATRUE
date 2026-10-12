@@ -1,0 +1,106 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Review — {{ resort.name }}{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your dates</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step done"><i class="fas fa-check"></i> Your villas</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>3</i> Review &amp; pay</div>
+</div>
+
+<div class="ag-booking">
+    <div class="ag-booking-main">
+        <form method="post" id="review-form" data-submit-loading>
+            {% csrf_token %}
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-umbrella-beach"></i></span>
+                    <div>
+                        <h3>{{ resort.name }}</h3>
+                        <p>{{ nights }} night(s) · {{ check_in|date:"M d, Y" }} → {{ check_out|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+                <div class="ag-customer-box">
+                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+                </div>
+            </div>
+
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-file-invoice-dollar"></i></span>
+                    <div><h3>Your villas</h3><p>All items below are charged together as ONE transaction.</p></div>
+                </div>
+                {% for line in lines %}
+                <div class="group-line">
+                    <div>
+                        <b>{{ line.unit.get_unit_type_display }} {{ line.unit.unit_number }}</b>
+                        <div class="meta">{{ line.nights }} night(s) at ₱ {{ line.unit.rate }}/night{% if line.unit.additional_guest_charge %} · +₱ {{ line.unit.additional_guest_charge }} extra guest{% endif %}</div>
+                        {% if line.services %}
+                        <div class="meta">Add-ons: {% for s in line.services %}{{ s.name }} (₱ {{ s.rate }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                    <b>₱ {{ line.amount }}</b>
+                </div>
+                {% endfor %}
+                <div class="group-line group-line-total">
+                    <div><b>Total</b><div class="meta">Villas ₱ {{ unit_subtotal }} · add-ons ₱ {{ services_subtotal }}</div></div>
+                    <b>₱ {{ grand_total }}</b>
+                </div>
+            </div>
+
+            <div class="ag-panel">
+                <div class="ag-panel-head">
+                    <span class="ag-ph-ico"><i class="fas fa-shield-alt"></i></span>
+                    <div><h3>Payment</h3><p>One payment covers every villa in this order.</p></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Payment Method</label>
+                        <select name="payment_method" class="form-input">
+                            <option value="GCASH">GCash</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                            <option value="CREDIT_CARD">Credit Card</option>
+                            <option value="DEBIT_CARD">Debit Card</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="checkbox" style="margin-bottom:6px">
+                    <input type="checkbox" name="pay_later"> Pay later (order stays pending)
+                </label>
+            </div>
+        </form>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Order summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-umbrella-beach"></i></span>
+                <div><b>{{ resort.name }}</b><small>{{ nights }} night(s)</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Villas</span><b>{{ lines|length }}</b></div>
+                <div class="ag-pb-row"><span>Villa charges</span><b>₱ {{ unit_subtotal }}</b></div>
+                <div class="ag-pb-row"><span>Add-on services</span><b>₱ {{ services_subtotal }}</b></div>
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-row"><span>Transaction</span><b>1 order / 1 payment</b></div>
+            <div class="ag-pb-total"><span>Total</span><b>₱ {{ grand_total }}</b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" name="action" value="confirm" form="review-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay — 1 Transaction</button>
+            <button type="submit" name="action" value="edit" form="review-form" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Change Villas</button>
+            <a href="{% url 'resorts:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-times"></i> Cancel</a>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <div class="ag-pb-note">*Final availability is re-checked before this order is created.</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

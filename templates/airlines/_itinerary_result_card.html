@@ -1,0 +1,33 @@
+{% load flight_cards %}
+<article class="fcard fcard-connect" data-flight-id="itinerary-{{ itin.id }}">
+    <div class="fcard-head-row">
+        <button type="button" class="fcard-summary-toggle" aria-expanded="false" aria-label="Show details for {{ itin.airline.name }} itinerary {{ itin.route_label }}">
+            <span class="fcard-logo">{% with logo=airline_logos|get_item:itin.airline_id %}{% if logo and logo.image %}<img src="{{ logo.image.url }}" alt="{{ itin.airline.name }}">{% else %}<i class="fas fa-plane" aria-hidden="true"></i>{% endif %}{% endwith %}</span>
+            <span class="fcard-main"><span class="fcard-title">{{ itin.airline.name }}<span class="fcard-badge badge-blue">{{ itin.stops_label }}</span>{% if 'cheapest' in badges|get_item:itin.id %}<span class="fcard-tag">Cheapest</span>{% endif %}{% if 'best' in badges|get_item:itin.id %}<span class="fcard-tag fcard-tag-best">Best</span>{% endif %}</span><span class="fcard-flight-no">{{ itin.route_label }} · {{ itin.segment_count }} segments{% if itin.checked_baggage_kg %} · {{ itin.checked_baggage_kg }} kg checked{% endif %}</span></span>
+            <span class="fcard-stop"><b>{{ itin.origin_airport.code|default:itin.origin_code }}</b><span class="fcard-stop-sub">{{ itin.origin_airport.city|default:itin.origin }}</span></span>
+            <span class="fcard-mid"><b>{{ itin.departure_time|date:"H:i" }}</b><span class="fcard-mid-sub">{{ itin.departure_time|date:"D, M d" }}</span></span>
+            <span class="fcard-duration-summary">{{ itin.total_duration_label }} · {{ itin.stops_label }}</span>
+            <span class="fcard-stop fcard-stop-end"><b>{{ itin.destination_airport.code|default:itin.destination_code }}</b><span class="fcard-stop-sub">{{ itin.destination_airport.city|default:itin.destination }}</span></span>
+            <span class="fcard-mid fcard-mid-end"><b>{{ itin.arrival_time|date:"H:i" }}{% if itin.arrival_time|date:"Y-m-d" != itin.departure_time|date:"Y-m-d" %}<sup>+1</sup>{% endif %}</b><span class="fcard-mid-sub">{{ itin.arrival_time|date:"D, M d" }}</span></span>
+            <span class="fcard-price"><span class="fcard-amount">₱{{ row.search_fare|floatformat:0 }}</span><span class="fcard-per">/passenger</span></span><span class="fcard-chev" aria-hidden="true"></span>
+        </button>
+        {% if request.user.is_platform_manager %}<a href="{% url 'airlines:itinerary_detail' itin.id %}" class="btn btn-outline fcard-select">Details</a>{% elif request.user.is_airline_booking_restricted %}<span class="badge badge-blue fcard-select">Ticketing access</span>{% elif row.remaining > 0 %}<a href="{% url 'airlines:book_itinerary' itin.id %}?trip_type={{ trip_type }}&amp;departure_date={{ departure_date }}&amp;return_date={{ return_date }}&amp;fare_class={{ fare_class }}&amp;passengers={{ passengers }}" class="btn btn-brand fcard-select">Select</a>{% else %}<span class="badge badge-red fcard-sold-out">Sold out</span>{% endif %}
+    </div>
+    <div class="fcard-body" hidden>
+        <div class="fcard-detail-grid">
+            <div class="fcard-timeline fcard-itinerary-timeline">
+                {% for leg in itin.ordered_legs %}
+                <div class="fcard-timeline-leg-label">Flight {{ leg.segment_order }} · {{ leg.flight_number }}</div>
+                <div class="fcard-timeline-stop"><time><b>{{ leg.departure_time|date:"H:i" }}</b><span>{{ leg.departure_time|date:"D, M d, Y" }}</span></time><span class="fcard-timeline-marker" aria-hidden="true"></span><div><strong>{{ leg.origin_airport.code|default:leg.origin_code }} · {{ leg.origin_airport.airport_name|default:leg.origin }}</strong><span>{% if leg.origin_airport.city %}{{ leg.origin_airport.city }}{% endif %}{% if leg.terminal %}{% if leg.origin_airport.city %} · {% endif %}Terminal {{ leg.terminal }}{% endif %}</span></div></div>
+                <div class="fcard-timeline-duration">{% if leg.duration_label %}{{ leg.duration_label }}{% endif %}</div>
+                <div class="fcard-timeline-stop"><time><b>{{ leg.arrival_time|date:"H:i" }}</b><span>{{ leg.arrival_time|date:"D, M d, Y" }}</span></time><span class="fcard-timeline-marker" aria-hidden="true"></span><div><strong>{{ leg.destination_airport.code|default:leg.destination_code }} · {{ leg.destination_airport.airport_name|default:leg.destination }}</strong><span>{% if leg.destination_airport.city %}{{ leg.destination_airport.city }}{% endif %}{% if leg.arrival_terminal %}{% if leg.destination_airport.city %} · {% endif %}Terminal {{ leg.arrival_terminal }}{% endif %}</span></div></div>
+                {% if not forloop.last %}<div class="fcard-layover">Layover{% if leg.destination_airport.city %} in {{ leg.destination_airport.city }}{% endif %}{% if leg.layover_after_label %} · {{ leg.layover_after_label }}{% endif %}</div>{% endif %}
+                {% endfor %}
+            </div>
+            <aside class="fcard-detail-side"><div class="fcard-detail-airline"><span class="airline-logo airline-logo--sm">{% with logo=airline_logos|get_item:itin.airline_id %}{% if logo and logo.image %}<img src="{{ logo.image.url }}" alt="{{ itin.airline.name }}">{% else %}<i class="fas fa-plane" aria-hidden="true"></i>{% endif %}{% endwith %}</span><div><strong>{{ itin.airline.name }}</strong><span>{{ itin.route_label }} · {{ itin.segment_count }} flights</span></div></div>
+                <div class="fcard-detail-facts"><span><small>Total flight time</small><b>{{ itin.total_duration_label }}</b></span><span><small>Stops</small><b>{{ itin.stops_label }}</b></span><span><small>Seats available</small><b>{{ row.remaining }}</b></span>{% if fare_class %}<span><small>Cabin class</small><b>{{ fare_class|cut:"_"|title }}</b></span>{% endif %}</div>
+                {% for leg in itin.ordered_legs %}<div class="fcard-detail-facts fcard-leg-facts">{% if leg.aircraft %}<span><small>Flight {{ leg.segment_order }} aircraft</small><b>{{ leg.aircraft.model_name }}</b></span>{% endif %}{% if leg.cabin_baggage_kg %}<span><small>Cabin baggage</small><b>{{ leg.cabin_baggage_kg }} kg</b></span>{% endif %}{% if leg.checked_baggage_kg %}<span><small>Checked baggage</small><b>{{ leg.checked_baggage_kg }} kg</b></span>{% endif %}{% with layout=leg.seat_layout_record %}{% if layout and layout.seat_map %}<span><small>Seat configuration</small><b>{{ layout.seat_map }}</b></span>{% endif %}{% endwith %}</div>{% endfor %}
+            </aside>
+        </div>
+    </div>
+</article>

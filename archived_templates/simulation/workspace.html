@@ -1,0 +1,64 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Simulation Workspace{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        {% if is_instructor %}<h1>Role Assignments</h1><p>All simulation role assignments for students (BR-082, BR-083).</p>
+        {% else %}<h1>My Simulation Roles</h1><p>Roles currently assigned to you for training sessions.</p>{% endif %}
+    </div>
+    {% if is_instructor %}
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'simulation:assign' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Assign Role</a>
+        <a href="{% url 'simulation:role_list' %}" class="btn btn-outline"><i class="fas fa-list"></i> Manage Roles</a>
+        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-clipboard-list"></i> Activity Logs</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if roles %}
+<div class="cards mb">
+    {% for r in roles %}
+    <div class="scard">
+        <div class="scard-body">
+            <div class="scard-top">
+                <span class="scard-ico" style="background:var(--grad);color:#fff"><i class="fas fa-user-tag"></i></span>
+                <span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span>
+            </div>
+            {% if is_instructor %}<h3>{{ r.student.get_full_name|default:r.student.username }}</h3>{% endif %}
+            <h3>{{ r.simulation_activity }}</h3>
+            <div class="meta"><i class="fas fa-user-cog"></i> Assigned by {{ r.assigned_by.username|default:"Admin" }}</div>
+            <div class="meta"><i class="fas fa-calendar"></i> {{ r.assigned_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="scard-foot">
+            {% if is_instructor %}
+            <div style="display:flex;gap:8px">
+                <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                {% if r.status == 'ACTIVE' %}
+                <a href="{% url 'simulation:unassign' r.id %}" class="btn btn-ghost btn-sm" data-confirm="Deactivate this role assignment?"><i class="fas fa-user-minus"></i> Deactivate</a>
+                {% else %}
+                <span class="btn btn-ghost btn-sm" style="cursor:not-allowed">Inactive</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-brand btn-sm" style="width:100%"><i class="fas fa-eye"></i> View My Role</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty">
+        <i class="fas fa-user-tag"></i>
+        <h3>No role assignments yet</h3>
+        {% if is_instructor %}<p>Assign simulation roles to let students practice the required scenarios.</p>
+        {% else %}<p>Your instructor will assign a simulation role to get you started.</p>{% endif %}
+        {% if is_instructor %}
+        <div style="margin-top:20px"><a href="{% url 'simulation:assign' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Assign a Role</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Aircraft Fleet{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>Aircraft Fleet</h1><p>All registered aircraft across airlines (FR-016).</p></div></div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Aircraft ID, tail number or model"></div>
+        <div class="form-group">
+            <label>Airline</label>
+            <select name="airline" class="form-input">
+                <option value="">All airlines</option>
+                {% for a in airlines %}<option value="{{ a.id }}" {% if airline == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Type</label>
+            <select name="type" class="form-input">
+                <option value="">All types</option>
+                {% for value, label in aircraft_types %}<option value="{{ value }}" {% if type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                <option value="AVAILABLE" {% if status == 'AVAILABLE' %}selected{% endif %}>Available</option>
+                <option value="ASSIGNED" {% if status == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+                <option value="MAINTENANCE" {% if status == 'MAINTENANCE' %}selected{% endif %}>Maintenance</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Min Capacity</label><input type="number" name="min_capacity" class="form-input" value="{{ min_capacity }}" placeholder="e.g. 100"></div>
+    </div>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+</form>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Aircraft ID</th><th>Airline</th><th>Model</th><th>Type</th><th>Tail No.</th><th>Seats</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for ac in aircrafts %}
+                <tr>
+                    <td class="mono">{{ ac.aircraft_id }}</td>
+                    <td>{{ ac.airline.name }}</td>
+                    <td>{{ ac.model_name }}</td>
+                    <td>{{ ac.get_aircraft_type_display }}</td>
+                    <td class="mono">{{ ac.tail_number }}</td>
+                    <td>{{ ac.seating_capacity }}</td>
+                    <td><span class="badge {% if ac.status == 'AVAILABLE' %}badge-green{% elif ac.status == 'ASSIGNED' %}badge-blue{% else %}badge-yellow{% endif %}">{{ ac.get_status_display }}</span></td>
+                    <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8"><div class="empty"><i class="fas fa-plane-arrival"></i><h3>No aircraft found</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

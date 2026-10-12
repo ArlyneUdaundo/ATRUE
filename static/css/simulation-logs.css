@@ -1,0 +1,323 @@
+/* Instructor Activity Log — session cards + session log table */
+
+.logs-session-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.logs-session-card {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--white);
+    box-shadow: var(--sh-sm);
+    text-decoration: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logs-session-card:hover {
+    border-color: var(--brand, #2563eb);
+    box-shadow: var(--sh-md, var(--sh-sm));
+}
+
+.logs-session-card-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+}
+
+.logs-session-icon {
+    display: grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--grad-brand-soft, rgba(37, 99, 235, 0.12));
+    color: var(--brand, #2563eb);
+}
+
+.logs-session-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.logs-session-copy strong {
+    color: var(--text-1);
+    font-size: 16px;
+}
+
+.logs-session-copy small {
+    color: var(--text-2);
+    font-size: 12.5px;
+}
+
+.logs-session-arrow {
+    margin-left: auto;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.logs-session-card:hover .logs-session-arrow {
+    color: var(--brand, #2563eb);
+}
+
+.logs-session-stats {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.08));
+}
+
+.logs-session-stat {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    padding: 12px 18px;
+    border-right: 1px solid var(--border-soft, rgba(15, 23, 42, 0.08));
+}
+
+.logs-session-stat:last-child {
+    border-right: none;
+}
+
+.logs-session-stat b {
+    color: var(--text-1);
+    font-size: 16px;
+}
+
+.logs-session-stat span {
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.logs-session-stat-last b {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.logs-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -8px 0 18px;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.logs-breadcrumb a {
+    color: var(--brand, #2563eb);
+    text-decoration: none;
+}
+
+.logs-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.logs-filter-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1.2fr 1.2fr 1fr 1fr auto;
+    gap: 14px;
+    align-items: end;
+}
+
+@media (max-width: 900px) {
+    .logs-filter-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ---- clickable log rows ---- */
+
+.log-row.is-clickable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.log-row.is-clickable:hover,
+.log-row.is-clickable:focus {
+    background: var(--slate-50, rgba(241, 245, 249, 0.6));
+    outline: none;
+}
+
+.log-row.is-clickable:focus-visible {
+    outline: 3px solid var(--brand, #2563eb);
+    outline-offset: -3px;
+}
+
+.logs-table th,
+.logs-table td {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.logs-tap-hint {
+    margin: 12px 2px 0;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---- activity details popup ---- */
+
+body.log-modal-open {
+    overflow: hidden;
+}
+
+.log-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.log-modal[hidden] {
+    display: none;
+}
+
+.log-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.log-modal-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    background: var(--white, #fff);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+}
+
+.log-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex: 0 0 auto;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft, rgba(15, 23, 42, 0.08));
+}
+
+.log-modal-head h2 {
+    margin: 0;
+    font-size: 17px;
+    color: var(--text-1);
+}
+
+.log-modal-close {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: var(--r-sm, 8px);
+    background: var(--slate-100, #f1f5f9);
+    color: var(--text-1);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.log-modal-close:hover {
+    background: var(--slate-200, #e2e8f0);
+}
+
+.log-modal-close:focus-visible {
+    outline: 3px solid var(--brand, #2563eb);
+    outline-offset: 2px;
+}
+
+.log-modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 0 18px;
+}
+
+.log-detail {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px dashed var(--border-soft, rgba(15, 23, 42, 0.08));
+    font-size: 14.5px;
+    line-height: 1.5;
+}
+
+.log-detail:last-child {
+    border-bottom: none;
+}
+
+.log-detail-key {
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.log-detail-value {
+    color: var(--text-1);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ---- responsive behavior ---- */
+
+@media (min-width: 768px) {
+    .log-modal {
+        padding: 24px;
+    }
+
+    .log-modal-panel {
+        width: 560px;
+        max-width: 560px;
+        height: auto;
+        max-height: 85vh;
+        border-radius: var(--r-md, 14px);
+    }
+}
+
+@media (max-width: 767px) {
+    /* Condensed list: nondetail columns only; full details live in the popup. */
+    .logs-table .col-session,
+    .logs-table .col-establishment,
+    .logs-table .col-details,
+    .logs-table .col-status {
+        display: none;
+    }
+
+    .logs-table th,
+    .logs-table td {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .log-modal-panel {
+        transition: none;
+    }
+}

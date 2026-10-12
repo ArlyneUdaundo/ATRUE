@@ -1,0 +1,49 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ flight.flight_number }} — Flight{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ flight.flight_number }} <span class="badge badge-blue" style="font-size:13px">{{ flight.airline.airline_id }}</span></h1>
+        <p>{{ flight.airline.name }} · {{ flight.origin }} → {{ flight.destination }} (FR-017).</p>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{% url 'airlines:update_flight' flight.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <div class="grid-2">
+        <div class="meta"><i class="fas fa-plane-departure"></i> <b>Departure:</b> {{ flight.departure_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-plane-arrival"></i> <b>Arrival:</b> {{ flight.arrival_time|date:"M d, Y H:i" }}</div>
+        <div class="meta"><i class="fas fa-plane"></i> <b>Aircraft:</b> <a href="{% url 'airlines:aircraft_detail' flight.aircraft.id %}">{{ flight.aircraft.model_name }} ({{ flight.aircraft.tail_number }})</a></div>
+        <div class="meta"><i class="fas fa-chair"></i> <b>Capacity:</b> {{ flight.capacity }} seats · <b>Remaining:</b> {{ remaining }}</div>
+        <div class="meta"><i class="fas fa-money-bill"></i> <b>Economy:</b> ₱ {{ flight.economy_fare }} · <b>First Class:</b> ₱ {{ flight.first_class_fare }}</div>
+        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if flight.status == 'SCHEDULED' %}badge-green{% elif flight.status == 'DELAYED' %}badge-amber{% elif flight.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ flight.get_status_display }}</span></div>
+    </div>
+</div>
+
+<div class="card card-pad">
+    <h3 style="margin:0"><i class="fas fa-ticket-alt"></i> Bookings ({{ flight.bookings.count }})</h3>
+    <div class="table-wrap" style="margin-top:12px">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Passenger</th><th>Pax</th><th>Seats</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for b in flight.bookings.all %}
+                <tr>
+                    <td class="mono">{{ b.booking_reference }}</td>
+                    <td>{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td>
+                    <td>{{ b.passengers_count }}</td>
+                    <td>{% for s in b.seat_entries.all %}{% if s.seat_number %}{{ s.seat_number }}{% else %}No seat{% endif %}{% if s.fare_class == 'FIRST_CLASS' %} FC{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                    <td>₱ {{ b.total_bill }}</td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% elif b.status == 'CHECKED_OUT' %}badge-green{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="7">No bookings on this flight yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Flights{% endblock %}
+
+{% block content %}
+<div class="ag-results-head">
+    <div>
+        <h2>Available Flights</h2>
+        <p>{{ flights|length }} flight{% if flights|length != 1 %}s{% endif %} found · See remaining seats and book your trip</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'airlines:add' %}" class="ag-btn"><i class="fas fa-plus"></i> Add Airline</a>
+    {% endif %}
+</div>
+
+<form method="get" class="ag-search">
+    <div class="ag-search-fields filter-grid" style="grid-template-columns:1fr 1fr auto">
+        <div class="ag-field">
+            <label><i class="fas fa-plane-departure"></i> Origin</label>
+            <select name="origin">
+                <option value="">All origins</option>
+                {% for o in origins %}<option value="{{ o }}" {% if origin == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="ag-field">
+            <label><i class="fas fa-plane-arrival"></i> Destination</label>
+            <select name="destination">
+                <option value="">All destinations</option>
+                {% for d in destinations %}<option value="{{ d }}" {% if destination == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Search</button>
+    </div>
+</form>
+
+<div class="ag-list">
+    {% for f in flights %}
+    <article class="ag-card">
+        <div class="ag-card-media">
+            <span class="ag-media-ico"><i class="fas fa-plane-departure"></i></span>
+            <span class="ag-media-badges">
+                <span class="badge {% if f.status == 'SCHEDULED' %}badge-green{% elif f.status == 'DELAYED' %}badge-amber{% elif f.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ f.get_status_display }}</span>
+            </span>
+        </div>
+        <div class="ag-card-body">
+            <div class="ag-card-top">
+                <div>
+                    <h3>{{ f.flight_number }} · {{ f.airline.name }}</h3>
+                    <div class="ag-loc"><i class="fas fa-circle"></i> {{ f.origin }} → <i class="fas fa-location-dot"></i> {{ f.destination }}</div>
+                </div>
+                <span class="ag-rate"><i class="fas fa-user-check"></i> {{ f.remaining_seats }}</span>
+            </div>
+            <div class="ag-card-meta">
+                <span><i class="fas fa-plane"></i> {{ f.aircraft.model_name }} ({{ f.capacity }} seats)</span>
+                <span><i class="fas fa-clock"></i> {{ f.departure_time|date:"M d, H:i" }} – {{ f.arrival_time|date:"M d, H:i" }}</span>
+            </div>
+            <div class="ag-card-meta">
+                <span><i class="fas fa-chair"></i> {{ f.remaining_seats }} seats remaining</span>
+            </div>
+            <div class="ag-card-foot">
+                <div class="ag-price">
+                    <small>Economy</small><b>₱ {{ f.economy_fare }}</b><span class="ag-per">/passenger</span>
+                    <div style="font-size:12px;color:var(--slate-500);font-weight:600;margin-top:2px">First Class ₱ {{ f.first_class_fare }}</div>
+                </div>
+                {% if request.user.is_platform_manager %}
+                <a href="{% url 'airlines:flight_detail' f.id %}" class="ag-btn ag-btn-muted"><i class="fas fa-eye"></i> View Flight</a>
+                {% else %}
+                <a href="{% url 'airlines:book' f.id %}" class="ag-btn"><i class="fas fa-ticket-alt"></i> Book Flight</a>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-plane"></i><h3>No flights found</h3><p>Try adjusting your filters.</p></div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

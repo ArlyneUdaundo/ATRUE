@@ -1,0 +1,96 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Simulation Roles{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Simulation Role Management</h1>
+        <p>Search and manage simulation role assignments across the platform (FR Retrieve Simulation Roles).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'simulation:assign' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Assign Role</a>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px">
+    <form method="get" class="filter-grid" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr auto;gap:14px;align-items:end">
+        <div class="form-group" style="margin:0">
+            <label>Search Student</label>
+            <input type="text" name="q" class="form-input" placeholder="Name, username or email" value="{{ q }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Role</label>
+            <select name="role" class="form-input">
+                <option value="">All roles</option>
+                {% for value, label in role_choices %}
+                <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0">
+            <label>Activity</label>
+            <input type="text" name="activity" class="form-input" placeholder="e.g. General Training" value="{{ activity }}">
+        </div>
+        <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+            <a href="{% url 'simulation:role_list' %}" class="btn btn-outline">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if roles %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Role</th>
+                    <th>Activity</th>
+                    <th>Status</th>
+                    <th>Assigned</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in roles %}
+                <tr>
+                    <td>
+                        <b>{{ r.student.get_full_name|default:r.student.username }}</b>
+                        <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ r.student.username }}</div>
+                    </td>
+                    <td><span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span></td>
+                    <td>{{ r.simulation_activity }}</td>
+                    <td>{{ r.get_status_display }}</td>
+                    <td>{{ r.assigned_at|date:"M d, Y" }}</td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                        <form method="post" action="{% url 'simulation:unassign' r.id %}" data-confirm="Deactivate this role assignment?" style="display:inline" data-submit-loading>
+                            {% csrf_token %}
+                            {% if r.status == 'ACTIVE' %}
+                            <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-user-minus"></i> Deactivate</button>
+                            {% else %}
+                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed">Inactive</span>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-user-tag"></i><h3>No role assignments found</h3><p>Try adjusting your search or filters.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

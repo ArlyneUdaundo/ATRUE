@@ -1,0 +1,88 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Resort Management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div><h1>Resort Management</h1><p>Create, update and manage resorts, units and services.</p></div>
+    <a href="{% url 'resorts:add' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Resort</a>
+</div>
+
+<form method="get" class="card card-pad" style="margin-bottom:18px">
+    <div class="form-grid">
+        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Resort ID, name, contact, email"></div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-input">
+                <option value="">All statuses</option>
+                {% for choice, label in status_choices %}
+                <option value="{{ choice }}" {% if status == choice %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Province</label><input type="text" name="province" class="form-input" value="{{ province }}"></div>
+        <div class="form-group"><label>Municipality</label><input type="text" name="municipality" class="form-input" value="{{ municipality }}"></div>
+        <div class="form-group"><label>Barangay</label><input type="text" name="barangay" class="form-input" value="{{ barangay }}"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+        <a href="{% url 'resorts:manage' %}" class="btn btn-ghost btn-sm">Clear</a>
+    </div>
+</form>
+
+{% for r in resorts %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="scard-ico ico-blue"><i class="fas fa-umbrella-beach"></i></span>
+        <div style="flex:1">
+            <h3 style="margin:0">{{ r.name }}</h3>
+            <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ r.location }} · <b>{{ r.resort_id }}</b></div>
+        </div>
+        <span class="badge {% if r.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ r.get_status_display }}</span>
+        <a href="{% url 'resorts:detail' r.id %}" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i> View</a>
+        <a href="{% url 'resorts:update_resort' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'resorts:add_unit' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-bed"></i> Add Unit</a>
+        <a href="{% url 'resorts:add_service' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Service</a>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-bed"></i> Rooms &amp; Villas</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Unit ID</th><th>Unit</th><th>Type</th><th>Capacity</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for unit in r.units.all %}
+                <tr>
+                    <td class="mono">{{ unit.unit_id }}</td>
+                    <td><b>{{ unit.unit_number }}</b></td>
+                    <td>{{ unit.get_unit_type_display }}</td>
+                    <td>{{ unit.capacity_adults }}A / {{ unit.capacity_children }}C</td>
+                    <td>₱ {{ unit.rate }}</td>
+                    <td>{{ unit.get_status_display }}</td>
+                    <td><a href="{% url 'resorts:unit_detail' unit.id %}" class="btn btn-outline btn-sm">View</a> <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="7">No units.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4 style="margin-top:18px"><i class="fas fa-concierge-bell"></i> Services</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Service ID</th><th>Service</th><th>Capacity</th><th>Rate</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for s in r.services.all %}
+                <tr>
+                    <td class="mono">{{ s.service_id }}</td>
+                    <td>{{ s.name }}</td><td>{{ s.capacity }}</td><td>₱ {{ s.rate }}</td>
+                    <td>{{ s.get_status_display }}</td>
+                    <td><a href="{% url 'resorts:service_detail' s.id %}" class="btn btn-outline btn-sm">View</a> <a href="{% url 'resorts:update_service' s.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                </tr>
+                {% empty %}<tr><td colspan="6">No services.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="card"><div class="empty"><i class="fas fa-umbrella-beach"></i><h3>No resorts yet</h3><p>Add your first resort to begin.</p></div></div>
+{% endfor %}
+{% endblock %}

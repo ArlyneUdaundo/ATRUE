@@ -1,0 +1,216 @@
+{% extends 'dashboard_base.html' %}
+{% load flight_cards %}
+
+{% block title %}Flights{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h2>Available Flights</h2>
+        <p>{{ flights|length }} flight{% if flights|length != 1 %}s{% endif %} found · {% if request.user.is_airline_booking_restricted %}Review flight information and remaining seats{% else %}See remaining seats and book your trip{% endif %}</p>
+    </div>
+    {% if request.user.is_platform_manager %}
+    <a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>
+    {% endif %}
+</div>
+
+{% if search_errors %}
+<div class="alert alert-error" role="alert">
+    <ul style="margin:0;padding-left:20px">{% for error in search_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<div class="alert alert-error" data-flight-validation-message role="alert" hidden></div>
+
+<form method="get" class="ag-search mb" style="width:100%;margin-left:0" data-flight-search>
+    <input type="hidden" name="search_submit" value="1">
+    {% if origin and not origin_airport %}<input type="hidden" name="origin" value="{{ origin }}">{% endif %}
+    {% if destination and not destination_airport %}<input type="hidden" name="destination" value="{{ destination }}">{% endif %}
+    <div class="ag-search-fields filter-grid" style="grid-template-columns:minmax(180px,1.2fr) auto minmax(180px,1.2fr) auto auto">
+        <div class="ag-field" data-flight-origin>
+            <label><i class="fas fa-plane-departure"></i> From <span style="font-weight:400">(worldwide)</span></label>
+            {% include 'search/_airport_field.html' with field_name='origin_airport' airport=origin_airport_object placeholder='Search origin airports' compact=True %}
+        </div>
+        <button type="button" class="btn btn-outline" data-flight-swap aria-label="Swap flying from and flying to" title="Swap airports"><i class="fas fa-right-left"></i></button>
+        <div class="ag-field" data-flight-destination>
+            <label><i class="fas fa-plane-arrival"></i> To <span style="font-weight:400">(worldwide)</span></label>
+            {% include 'search/_airport_field.html' with field_name='destination_airport' airport=destination_airport_object placeholder='Search destination airports' compact=True %}
+        </div>
+        <div class="ag-field" style="min-width:150px">
+            <label><i class="fas fa-route"></i> Trip Type</label>
+            <select name="trip_type" id="trip-type">
+                <option value="ONE_WAY" {% if trip_type != 'ROUND_TRIP' %}selected{% endif %}>One-Way</option>
+                <option value="ROUND_TRIP" {% if trip_type == 'ROUND_TRIP' %}selected{% endif %}>Round-Trip</option>
+            </select>
+        </div>
+        <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Search</button>
+    </div>
+    <div class="ag-search-fields filter-grid" style="grid-template-columns:repeat(3,minmax(130px,1fr));margin-top:12px">
+        <div class="ag-field">
+            <label><i class="fas fa-calendar-day"></i> Departure Date</label>
+            <input type="date" name="departure_date" value="{{ departure_date }}" min="{{ search_today }}" required data-flight-departure>
+        </div>
+        <div class="ag-field" id="return-date-field" data-flight-return-field style="{% if trip_type != 'ROUND_TRIP' %}display:none{% endif %}">
+            <label><i class="fas fa-calendar-check"></i> Return Date</label>
+            <input type="date" name="return_date" id="return-date" value="{{ return_date }}" min="{{ departure_date|default:search_today }}" data-flight-return {% if trip_type != 'ROUND_TRIP' %}disabled{% else %}required{% endif %}>
+        </div>
+        <div class="ag-field">
+            <label><i class="fas fa-user-group"></i> Passengers</label>
+            <input type="number" name="passengers" min="1" max="9" value="{{ passengers }}">
+        </div>
+        <div class="ag-field">
+            <label><i class="fas fa-chair"></i> Fare Class</label>
+            <select name="fare_class">
+                <option value="" {% if not fare_class %}selected{% endif %}>Any cabin</option>
+                {% for value, label in fare_class_choices %}
+                <option value="{{ value }}" {% if fare_class == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</form>
+
+{% if is_round_trip_search %}
+<section class="flight-journey-section" aria-labelledby="outbound-results-title">
+    <h3 id="outbound-results-title">Outbound flights <span>{{ flights|length }} option{% if flights|length != 1 %}s{% endif %}</span></h3>
+    <div class="flight-results">
+        {% for f in flights %}{% include 'airlines/_flight_result_card.html' with flight=f display_fare=f.outbound_search_fare is_round_trip_search=True is_return_card=False %}{% endfor %}
+    </div>
+</section>
+<section class="flight-journey-section flight-return-section" data-return-section hidden aria-labelledby="return-results-title">
+    <h3 id="return-results-title">Return flights <span>Select the return for your chosen outbound</span></h3>
+    <div class="flight-results">
+        {% for rf in return_rows %}{% include 'airlines/_flight_result_card.html' with flight=rf display_fare=rf.search_fare is_round_trip_search=True is_return_card=True %}{% endfor %}
+    </div>
+</section>
+<div class="flight-trip-selection" data-trip-selection hidden>
+    <span>Combined round-trip price <strong data-combined-price></strong><small>/ passenger</small></span>
+    <a class="btn btn-brand fcard-select" data-book-selected-flight href="#">Continue to booking</a>
+</div>
+{% else %}
+<section class="flight-journey-section" aria-label="Available flights">
+    <div class="flight-results">
+        {% for f in flights %}{% include 'airlines/_flight_result_card.html' with flight=f display_fare=f.search_fare is_round_trip_search=False is_return_card=False %}{% endfor %}
+    </div>
+</section>
+{% endif %}
+    {% for row in itinerary_rows %}{% include 'airlines/_itinerary_result_card.html' with itin=row.itinerary row=row %}{% endfor %}
+
+    {% if not flights and not itinerary_rows %}
+    <div class="card"><div class="empty"><i class="fas fa-plane"></i><h3>No flights found</h3><p>Try adjusting your filters.</p></div></div>
+    {% endif %}
+</div>
+
+<div class="flight-booking-modal" data-flight-booking-modal hidden>
+    <section class="flight-booking-modal__panel" role="dialog" aria-modal="true" aria-labelledby="flightBookingModalTitle">
+        <header class="flight-booking-modal__head">
+            <h2 id="flightBookingModalTitle">Complete your flight booking</h2>
+            <button type="button" class="flight-booking-modal__close" data-flight-booking-close aria-label="Close booking">&times;</button>
+        </header>
+        <iframe class="flight-booking-modal__frame" data-flight-booking-frame title="Flight booking form"></iframe>
+    </section>
+</div>
+
+<script>
+(function () {
+    var cards = document.querySelectorAll('.fcard');
+    cards.forEach(function (card) {
+        var toggle = card.querySelector('.fcard-summary-toggle, .fcard-head');
+        var body = card.querySelector('.fcard-body');
+        if (!toggle || !body) return;
+        toggle.addEventListener('click', function () {
+            var open = card.classList.toggle('is-open');
+            body.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    });
+
+    var returnSection = document.querySelector('[data-return-section]');
+    var selection = document.querySelector('[data-trip-selection]');
+    var combinedPrice = document.querySelector('[data-combined-price]');
+    var bookingLink = document.querySelector('[data-book-selected-flight]');
+    var selectedOutbound = null;
+    var bookingModal = document.querySelector('[data-flight-booking-modal]');
+    var bookingFrame = document.querySelector('[data-flight-booking-frame]');
+    var bookingClose = document.querySelector('[data-flight-booking-close]');
+    var bookingTrigger = null;
+
+    function closeBookingModal() {
+        if (!bookingModal) return;
+        bookingModal.hidden = true;
+        document.body.classList.remove('flight-booking-modal-open');
+        if (bookingFrame) bookingFrame.src = 'about:blank';
+        if (bookingTrigger) bookingTrigger.focus();
+        bookingTrigger = null;
+    }
+
+    function openBookingModal(url, trigger) {
+        if (!bookingModal || !bookingFrame || !url) return;
+        bookingTrigger = trigger;
+        bookingFrame.src = url;
+        bookingModal.hidden = false;
+        document.body.classList.add('flight-booking-modal-open');
+        bookingClose?.focus();
+    }
+
+    bookingFrame?.addEventListener('load', function () {
+        try {
+            var doc = bookingFrame.contentDocument;
+            if (!doc || doc.location.href === 'about:blank' || doc.getElementById('flight-booking-embed-style')) return;
+            var style = doc.createElement('style');
+            style.id = 'flight-booking-embed-style';
+            style.textContent = '.site-header{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}';
+            doc.head.appendChild(style);
+        } catch (error) {
+            // Keep the booking link usable if the browser disallows frame access.
+        }
+    });
+
+    bookingClose?.addEventListener('click', closeBookingModal);
+    bookingModal?.addEventListener('click', function (event) {
+        if (event.target === bookingModal) closeBookingModal();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && bookingModal && !bookingModal.hidden) closeBookingModal();
+    });
+    document.addEventListener('click', function (event) {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        var link = event.target.closest && event.target.closest('.fcard-select[href*="/book/"], [data-book-selected-flight]');
+        if (!link || !link.href || link.getAttribute('href') === '#') return;
+        event.preventDefault();
+        openBookingModal(link.href, link);
+    });
+
+    var outboundButtons = document.querySelectorAll('.js-select-outbound');
+    outboundButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            selectedOutbound = button.dataset.flightId;
+            document.querySelectorAll('.js-select-outbound').forEach(function (other) {
+                other.closest('.fcard').classList.toggle('is-selected', other === button);
+            });
+            document.querySelectorAll('[data-return-card]').forEach(function (card) {
+                var match = card.dataset.outboundId === selectedOutbound;
+                card.hidden = !match;
+                card.classList.remove('is-selected');
+                var select = card.querySelector('.js-select-return');
+                if (select) select.textContent = 'Select return';
+            });
+            if (returnSection) returnSection.hidden = false;
+            if (selection) selection.hidden = true;
+        });
+    });
+    document.querySelectorAll('.js-select-return').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!selectedOutbound || button.dataset.outboundId !== selectedOutbound) return;
+            var card = button.closest('.fcard');
+            card.classList.add('is-selected');
+            button.textContent = 'Return selected';
+            var outbound = document.querySelector('.js-select-outbound[data-flight-id="' + selectedOutbound + '"]');
+            if (!outbound) return;
+            if (combinedPrice) combinedPrice.textContent = '₱' + Number(outbound.dataset.total).toLocaleString('en-PH', {maximumFractionDigits: 0});
+            if (bookingLink) bookingLink.href = outbound.dataset.bookUrl;
+            if (selection) selection.hidden = false;
+        });
+    });
+})();
+</script>
+{% endblock %}

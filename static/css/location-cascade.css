@@ -1,0 +1,132 @@
+/* Shared cascading location fields used across establishment forms. */
+.loc-cascade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.loc-cascade .form-group { margin: 0; min-width: 0; }
+.loc-cascade .loc-dropdown { position: relative; width: 100%; min-width: 0; }
+.loc-dropdown__native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.loc-dropdown__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #d8e2f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.loc-dropdown__trigger:hover { border-color: #93b4ed; background: #fbfdff; }
+.loc-dropdown__trigger:focus-visible,
+.loc-dropdown.is-open .loc-dropdown__trigger {
+  outline: 0;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.14);
+}
+.loc-dropdown__trigger:disabled {
+  border-color: #e2e8f0;
+  background: #f4f7fb;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.loc-dropdown__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex: 0 0 22px;
+  color: #2563eb;
+  font-size: 14px;
+}
+.loc-dropdown__value { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc-dropdown__value.is-placeholder { color: #8190a7; }
+.loc-dropdown__caret { flex: 0 0 auto; color: #71819a; font-size: 11px; transition: transform .16s ease; }
+.loc-dropdown.is-open .loc-dropdown__caret { transform: rotate(180deg); }
+.loc-dropdown__panel {
+  position: fixed;
+  z-index: 40000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(340px, calc(100dvh - 24px));
+  padding: 10px;
+  border: 1px solid #dbe5f2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(15, 35, 65, .2);
+}
+.loc-dropdown__panel[hidden] { display: none !important; }
+.loc-dropdown__search-wrap { position: relative; flex: 0 0 auto; }
+.loc-dropdown__search-icon { position: absolute; top: 50%; left: 12px; color: #8a9ab1; font-size: 13px; transform: translateY(-50%); pointer-events: none; }
+.loc-dropdown__search {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px 9px 36px;
+  border: 1px solid #d8e2f0;
+  border-radius: 10px;
+  outline: 0;
+  background: #f8fbff;
+  color: #1e293b;
+  font: inherit;
+  font-size: 14px;
+}
+.loc-dropdown__search:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.loc-dropdown__options { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.loc-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.loc-dropdown__option:hover,
+.loc-dropdown__option:focus-visible { outline: 0; background: #eff6ff; color: #1d4ed8; }
+.loc-dropdown__option[aria-selected="true"] { background: #eaf2ff; color: #1d4ed8; font-weight: 600; }
+.loc-dropdown__option:disabled { color: #a0acbc; cursor: not-allowed; }
+.loc-dropdown__option-label { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.loc-dropdown__option-check { flex: 0 0 auto; color: #2563eb; opacity: 0; }
+.loc-dropdown__option[aria-selected="true"] .loc-dropdown__option-check { opacity: 1; }
+.loc-dropdown__empty { padding: 16px 10px; color: #8190a7; font-size: 13px; text-align: center; }
+.loc-cascade select.form-input,
+.loc-cascade input.form-input { width: 100%; }
+.loc-cascade select.form-input:disabled,
+.loc-cascade input.form-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+.loc-cascade [hidden] { display: none !important; }
+.loc-cascade .field-hint { display: block; margin-top: 5px; font-size: 12px; color: #94a3b8; }
+@media (max-width: 860px) {
+  .loc-cascade { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+@media (max-width: 560px) {
+  .loc-cascade { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .loc-dropdown__panel { max-height: min(320px, calc(100dvh - 20px)); }
+}

@@ -1,0 +1,14 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if package %}Update Package{% else %}Add Package{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>{% if package %}Update{% else %}Add{% endif %} Tour Package</h1><p>Package information, photos and validity.</p></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:960px" data-submit-loading data-tour-package-form>
+    {% csrf_token %}
+    {% include 'tour_package/_form_fields.html' %}
+    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px">Save Package</button>
+    <a href="{% url 'tour_package:manage' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+</form>
+{% endblock %}
