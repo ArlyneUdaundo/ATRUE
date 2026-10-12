@@ -210,6 +210,18 @@ def offered_roles_have_database_rows(app_configs, **kwargs):
     fly, which is why this is a Warning rather than an Error, but a database
     missing rows is still not in the state a fresh ``migrate`` produces.
     """
+    from django.db import connection
+    from .models import Role
+
+    # Django runs system checks before applying migrations. A fresh staging
+    # database does not have this table yet, so defer the database-backed check.
+    try:
+        if Role._meta.db_table not in connection.introspection.table_names():
+            return []
+    except Exception:
+        # An unavailable/uninitialized database should not block migrations.
+        return []
+
     from .role_catalogue import missing_active_codes
 
     missing = missing_active_codes()
