@@ -19,7 +19,6 @@ env/
 # Django
 *.log
 staticfiles/
-media/
 !media/.gitkeep
 
 # Local databases and exports may contain private account or booking data.
