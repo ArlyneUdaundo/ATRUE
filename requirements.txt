@@ -16,3 +16,7 @@ python-dotenv==1.0.1
 Pillow==10.4.0
 qrcode[pil]==8.2
 reportlab==4.4.4
+
+# Render production WSGI server
+gunicorn==26.2.0
+whitenoise[brotli]==6.12.0
