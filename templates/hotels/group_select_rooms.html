@@ -78,10 +78,8 @@
                             <button type="button" class="rm-thumb{% if forloop.first %} is-active{% endif %}" data-shot-thumb="{{ forloop.counter0 }}" aria-label="Show photo {{ forloop.counter }}"><img src="{{ photo.image.url }}" alt="" loading="lazy"></button>
                             {% endfor %}
                         </div>
-                        <button type="button" class="rm-photo-count-btn" data-open-details="{{ room.id }}"><i class="fas fa-images"></i> {{ card.photos|length }} photos &amp; details</button>
                     {% else %}
                         <div class="rm-media-empty"><i class="fas fa-bed"></i></div>
-                        <button type="button" class="rm-photo-count-btn" data-open-details="{{ room.id }}"><i class="fas fa-circle-info"></i> Room details</button>
                     {% endif %}
                 </div>
 
