@@ -894,6 +894,158 @@
     .hm-signin-dialog { padding: 34px 24px 28px; border-radius: 22px; }
 }
 
+
+/* Landing header brand: crop the tall logo artwork to its emblem and keep the
+   ATRUE wordmark crisp as live text beside it. */
+.home-page .brand { gap: 12px; min-width: 0; }
+.home-page .brand-mark {
+    position: relative;
+    flex: 0 0 54px;
+    width: 54px;
+    height: 54px;
+    overflow: hidden;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none;
+}
+.home-page .brand-mark img {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 150%;
+    height: 150%;
+    max-width: none;
+    object-fit: contain;
+    transform: translateX(-50%);
+}
+.home-page .brand-text { min-width: 0; line-height: 1.12; }
+.home-page .navbar .brand-text b {
+    color: #12223b;
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: .055em;
+}
+.home-page .navbar .brand-text small {
+    margin-top: 4px;
+    color: #71809a;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .2em;
+}
+
+/* Reorganize the landing search into a tabbed booking panel. All existing
+   categories and controls remain in the form. */
+.hm-hero-inner .hm-search {
+    width: min(1400px, calc(100% + 120px));
+    margin: 38px auto 26px;
+    padding: 0 28px 26px;
+    border: 1px solid #e0e5ee;
+    border-radius: 20px;
+    background: #f8f9fb;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .16);
+    text-align: left;
+}
+.hm-search-tabs {
+    display: flex;
+    grid-template-columns: none;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    width: min(100%, 1120px);
+    margin: -34px auto 18px;
+    padding: 0 14px;
+    overflow-x: auto;
+    border: 1px solid #e4e7ed;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, .12);
+    scrollbar-width: thin;
+}
+.hm-search-tabs label {
+    flex: 1 0 auto;
+    min-height: 54px;
+    padding: 12px 15px;
+    border-radius: 0;
+    font-size: 14px;
+    color: #5d6b82;
+}
+.hm-search-tabs label i { color: inherit; }
+.hm-search-tabs input[type="radio"]:checked + label {
+    background: transparent;
+    color: #1764d8;
+}
+.hm-search-tabs input[type="radio"]:checked + label::after {
+    left: 18%;
+    width: 64%;
+    height: 3px;
+}
+.hm-trip-type { padding: 0 4px 14px; }
+.hm-search-fields,
+.hm-search-fields.is-flight-search {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px;
+}
+.hm-search .field,
+.hm-search .gd-field,
+.hm-search .hm-date-range {
+    min-height: 68px;
+    border: 1px solid #d8dee8;
+    border-radius: 12px;
+    background: #fff;
+}
+.hm-search .field { padding: 11px 16px; }
+.hm-search .gd-field { padding: 11px 16px; }
+.hm-search .hm-date-range { grid-column: span 6; }
+.hm-search-fields > #homePropertyField { grid-column: 1 / -1; }
+.hm-search-fields > #homeFlightOriginField,
+.hm-search-fields > #homeFlightDestinationField { grid-column: span 6; }
+.hm-search-fields > #reservationTimeField { grid-column: span 6; }
+.hm-search-fields > #passengersField,
+.hm-search-fields > #guestsRoomsField,
+.hm-search-fields > #guestsUnitsField,
+.hm-search-fields > #touristsGuestsField,
+.hm-search-fields > #guestsTablesField { grid-column: span 6; }
+.hm-search .hm-date-range > .field { min-height: 66px; }
+.hm-search .field label,
+.hm-search .gd-field label { margin-bottom: 5px; }
+.hm-search-btn {
+    grid-column: 4 / 10;
+    width: 100%;
+    min-height: 56px;
+    border-radius: 999px;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .24);
+}
+.hm-search-btn:hover { box-shadow: 0 11px 24px rgba(37, 99, 235, .3); }
+@media (max-width: 1100px) {
+    .hm-hero-inner .hm-search { width: 100%; }
+    .hm-search-tabs { width: 100%; justify-content: flex-start; }
+}
+@media (max-width: 760px) {
+    .home-page .brand-mark { flex-basis: 46px; width: 46px; height: 46px; }
+    .home-page .navbar .brand-text b { font-size: 20px; }
+    .home-page .navbar .brand-text small { font-size: 9px; }
+    .hm-hero-inner .hm-search {
+        margin-top: 28px;
+        padding: 0 16px 18px;
+        border-radius: 18px;
+    }
+    .hm-search-tabs { margin-top: -25px; margin-bottom: 15px; padding: 0 6px; border-radius: 14px; }
+    .hm-search-tabs label { min-height: 48px; padding: 10px 12px; font-size: 12.5px; }
+    .hm-search-fields,
+    .hm-search-fields.is-flight-search { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .hm-search .hm-date-range,
+    .hm-search-fields > #homePropertyField,
+    .hm-search-fields > #homeFlightOriginField,
+    .hm-search-fields > #homeFlightDestinationField,
+    .hm-search-fields > #reservationTimeField,
+    .hm-search-fields > #passengersField,
+    .hm-search-fields > #guestsRoomsField,
+    .hm-search-fields > #guestsUnitsField,
+    .hm-search-fields > #touristsGuestsField,
+    .hm-search-fields > #guestsTablesField { grid-column: 1 / -1; }
+    .hm-search-btn { grid-column: 1 / -1; min-height: 52px; }
+}
+
 </style>
 {% endblock %}
 
