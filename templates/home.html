@@ -194,7 +194,8 @@
 .hm-search .hm-passenger-summary { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 10px; font-size: 15px; }
 .hm-search .hm-passenger-summary strong { font-weight: 700; }
 .hm-search .hm-flight-value { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; opacity: 0; pointer-events: none; }
-.hm-search .hm-passenger-popover { position: absolute; z-index: 80; top: calc(100% + 12px); right: 0; width: min(500px, calc(100vw - 36px)); padding: 16px 18px 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,.18); }
+.hm-search .hm-flight-details.is-passengers-open { z-index: 15001; }
+.hm-search .hm-passenger-popover { position: absolute; z-index: 15002; top: calc(100% + 12px); right: 0; width: min(500px, calc(100vw - 36px)); padding: 16px 18px 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,.18); }
 .hm-search .hm-passenger-popover[hidden] { display: none; }
 .hm-search .hm-passenger-counts { padding: 0 4px; }
 .hm-search .hm-passenger-row { min-height: 60px; display: grid; grid-template-columns: 36px 40px 1fr 36px; align-items: center; gap: 8px; border-bottom: 1px solid #d8dee8; }
@@ -730,6 +731,17 @@
         width: 100%;
         min-height: 58px;
         border-radius: 14px;
+    }
+}
+@media (max-width: 640px) {
+    .hm-search .hm-passenger-popover {
+        position: fixed;
+        z-index: 50000;
+        max-width: calc(100vw - 24px);
+        max-height: min(72vh, 520px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-radius: 16px;
     }
 }
 @media (max-width: 480px) {
@@ -1799,15 +1811,43 @@
         });
         passengersField.querySelectorAll('[data-fare]').forEach(button => button.classList.toggle('is-selected', button.dataset.fare === flightClassSelect?.value));
     }
+    function positionPassengerPopover() {
+        if (!passengerPopover || passengerPopover.hidden || !passengerTrigger) return;
+        if (window.innerWidth > 640) {
+            ['position', 'left', 'right', 'top', 'bottom', 'width', 'maxHeight'].forEach(property => passengerPopover.style.removeProperty(property.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())));
+            return;
+        }
+        const triggerRect = passengerTrigger.getBoundingClientRect();
+        const width = Math.min(500, window.innerWidth - 24);
+        const maxHeight = Math.min(window.innerHeight * 0.72, 520);
+        passengerPopover.style.position = 'fixed';
+        passengerPopover.style.left = Math.max(12, (window.innerWidth - width) / 2) + 'px';
+        passengerPopover.style.right = 'auto';
+        passengerPopover.style.width = width + 'px';
+        passengerPopover.style.maxHeight = maxHeight + 'px';
+        const panelHeight = Math.min(passengerPopover.scrollHeight, maxHeight);
+        const spaceBelow = window.innerHeight - triggerRect.bottom - 12;
+        const top = spaceBelow >= panelHeight + 8
+            ? triggerRect.bottom + 8
+            : Math.max(12, triggerRect.top - panelHeight - 8);
+        passengerPopover.style.top = Math.min(top, window.innerHeight - panelHeight - 12) + 'px';
+        passengerPopover.style.bottom = 'auto';
+    }
     function closePassengerPicker() {
         if (!passengerPopover || !passengerTrigger) return;
         passengerPopover.hidden = true;
+        passengersField.classList.remove('is-passengers-open');
         passengerTrigger.setAttribute('aria-expanded', 'false');
     }
     passengerTrigger?.addEventListener('click', () => {
         passengerPopover.hidden = !passengerPopover.hidden;
-        passengerTrigger.setAttribute('aria-expanded', String(!passengerPopover.hidden));
+        const isOpen = !passengerPopover.hidden;
+        passengersField.classList.toggle('is-passengers-open', isOpen);
+        passengerTrigger.setAttribute('aria-expanded', String(isOpen));
+        if (isOpen) positionPassengerPopover();
     });
+    window.addEventListener('resize', positionPassengerPopover);
+    window.addEventListener('scroll', positionPassengerPopover, true);
     passengersField?.querySelectorAll('[data-count-change]').forEach(button => button.addEventListener('click', () => {
         const key = button.dataset.countChange;
         const next = passengerCounts[key] + Number(button.dataset.delta);
