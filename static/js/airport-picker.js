@@ -35,7 +35,11 @@
             var clearBtn = wrap.querySelector('[data-airport-clear]');
             var text = wrap.querySelector('.atrue-airport-text');
             if (trigger) { trigger.setAttribute('aria-expanded', 'false'); trigger.setAttribute('aria-haspopup', 'listbox'); }
-            if (panel) panel.setAttribute('role', 'listbox');
+            if (panel) {
+                panel.setAttribute('role', 'listbox');
+                wrap._airportPanel = panel;
+                document.body.appendChild(panel);
+            }
             if (input) input.setAttribute('aria-label', 'Search airports by name, code, city, or country');
             var timer = null;
             var searchRequest = null;
@@ -55,6 +59,23 @@
                 }
             }
 
+            function positionPanel() {
+                var rect = trigger.getBoundingClientRect();
+                var mobile = window.innerWidth <= 640;
+                var width = mobile ? Math.min(window.innerWidth - 24, 520) : rect.width;
+                var left = mobile
+                    ? Math.max(12, (window.innerWidth - width) / 2)
+                    : Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+                panel.style.position = 'fixed';
+                panel.style.left = left + 'px';
+                panel.style.right = 'auto';
+                panel.style.width = width + 'px';
+                panel.style.minWidth = '0';
+                panel.style.maxWidth = 'calc(100vw - 24px)';
+                panel.style.maxHeight = Math.min(window.innerHeight * (mobile ? 0.68 : 0.46), mobile ? 520 : 360) + 'px';
+                panel.style.top = Math.min(rect.bottom + 6, window.innerHeight - 60) + 'px';
+            }
+
             function close() {
                 panel.hidden = true;
                 wrap.classList.remove('is-open');
@@ -64,13 +85,14 @@
 
             function open() {
                 if (openPicker && openPicker !== wrap) {
-                    var previousPanel = openPicker.querySelector('[data-airport-panel]');
+                    var previousPanel = openPicker._airportPanel;
                     if (previousPanel) previousPanel.hidden = true;
                     openPicker.classList.remove('is-open');
                     var previousTrigger = openPicker.querySelector('[data-airport-toggle]');
                     if (previousTrigger) previousTrigger.setAttribute('aria-expanded', 'false');
                 }
                 panel.hidden = false;
+                positionPanel();
                 wrap.classList.add('is-open');
                 trigger.setAttribute('aria-expanded', 'true');
                 openPicker = wrap;
@@ -196,8 +218,14 @@
             }
 
             document.addEventListener('click', function (e) {
-                if (openPicker === wrap && !wrap.contains(e.target)) close();
+                if (openPicker === wrap && !wrap.contains(e.target) && !panel.contains(e.target)) close();
             });
+            window.addEventListener('resize', function () {
+                if (openPicker === wrap) positionPanel();
+            });
+            window.addEventListener('scroll', function () {
+                if (openPicker === wrap) positionPanel();
+            }, true);
 
             renderValue();
         });

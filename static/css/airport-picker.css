@@ -159,6 +159,13 @@
 .atrue-airport-field-sm .atrue-airport-placeholder,
 .atrue-airport-field-sm .atrue-airport-value { font-size: 13.5px; }
 .atrue-airport-field-sm .atrue-airport-panel { min-width: 280px; }
-@media (max-width: 560px) {
-  .atrue-airport-panel, .atrue-airport-field-sm .atrue-airport-panel { min-width: 0; max-width: calc(100vw - 24px); }
+@media (max-width: 640px) {
+  .atrue-airport-panel,
+  .atrue-airport-field-sm .atrue-airport-panel {
+    min-width: 0;
+    max-width: calc(100vw - 24px);
+    z-index: 10000;
+  }
+  .atrue-airport-item-name,
+  .atrue-airport-item-sub { overflow-wrap: anywhere; }
 }
