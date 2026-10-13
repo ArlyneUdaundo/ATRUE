@@ -3,6 +3,29 @@
 {% block title %}Simulation Roles{% endblock %}
 
 {% block content %}
+<style>
+.simulation-role-table { width: 100%; }
+@media (max-width: 640px) {
+    .simulation-role-filter-row { grid-template-columns: minmax(0, 1fr) !important; }
+    .simulation-role-filter-actions { flex-wrap: wrap; }
+    .simulation-role-table { table-layout: fixed; }
+    .simulation-role-table .role-col-role,
+    .simulation-role-table .role-col-session,
+    .simulation-role-table .role-col-hotel,
+    .simulation-role-table .role-col-schedule,
+    .simulation-role-table .role-col-status,
+    .simulation-role-table .role-col-assigned { display: none; }
+    .simulation-role-table .role-username,
+    .simulation-role-table .role-secondary-action { display: none !important; }
+    .simulation-role-table .role-col-actions { width: 82px; text-align: right !important; }
+    .simulation-role-table td { padding: 13px 10px; font-size: 14px; }
+    .simulation-role-table .role-student-cell > div { gap: 9px !important; min-width: 0; }
+    .simulation-role-table .role-student-photo { width: 44px !important; height: 44px !important; flex: 0 0 44px !important; border-radius: 12px !important; font-size: 15px !important; }
+    .simulation-role-table .role-student-cell > div > div { min-width: 0; }
+    .simulation-role-table .role-student-name { display: block; overflow-wrap: anywhere; }
+    .simulation-role-table .role-view-btn { min-height: 40px; padding: 8px 11px; white-space: nowrap; }
+}
+</style>
 <div class="page-head">
     <div>
         <h1>Simulation Role Management</h1>
@@ -11,19 +34,10 @@
 </div>
 
 <div class="card card-pad" style="margin-bottom:20px">
-    <form method="get" class="filter-grid" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr 1.2fr 1.4fr auto;gap:14px;align-items:end">
+    <form method="get" class="filter-grid simulation-role-filter-row" style="display:grid;grid-template-columns:1.6fr 1fr 1.4fr 1.2fr 1.4fr auto;gap:14px;align-items:end">
         <div class="form-group" style="margin:0">
             <label>Search Student</label>
             <input type="text" name="q" class="form-input" placeholder="Name, username, email or hotel" value="{{ q }}">
-        </div>
-        <div class="form-group" style="margin:0">
-            <label>Role</label>
-            <select name="role" class="form-input">
-                <option value="">All roles</option>
-                {% for value, label in role_choices %}
-                <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
         </div>
         <div class="form-group" style="margin:0">
             <label>Assigned Hotel</label>
@@ -51,7 +65,7 @@
             <label>Simulation Date</label>
             <input type="date" name="simulation_date" class="form-input" value="{{ simulation_date }}">
         </div>
-        <div style="display:flex;gap:8px">
+        <div class="simulation-role-filter-actions" style="display:flex;gap:8px">
             <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
             <a href="{% url 'simulation:role_list' %}" class="btn btn-outline">Reset</a>
         </div>
@@ -61,30 +75,35 @@
 <div class="card">
     {% if roles %}
     <div class="table-wrap">
-        <table class="table">
+        <table class="table simulation-role-table">
             <thead>
                 <tr>
-                    <th>Student</th>
-                    <th>Role</th>
-                    <th>Session</th>
-                    <th>Hotel</th>
-                    <th>Schedule</th>
-                    <th>Status</th>
-                    <th>Assigned</th>
-                    <th style="text-align:right">Actions</th>
+                    <th class="role-col-student">Student</th>
+                    <th class="role-col-role">Role</th>
+                    <th class="role-col-session">Session</th>
+                    <th class="role-col-hotel">Hotel</th>
+                    <th class="role-col-schedule">Schedule</th>
+                    <th class="role-col-status">Status</th>
+                    <th class="role-col-assigned">Assigned</th>
+                    <th class="role-col-actions" style="text-align:right">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in roles %}
                 <tr>
-                    <td>
-                        <b>{{ r.student.get_full_name|default:r.student.username }}</b>
-                        <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ r.student.username }}</div>
+                    <td class="role-col-student role-student-cell">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span class="avatar role-student-photo" style="width:56px;height:56px;flex:0 0 56px;border-radius:14px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:18px">{% if r.student.profile_picture %}<img src="{{ r.student.profile_picture.url }}" alt="{{ r.student.get_full_name|default:r.student.username }} profile picture" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit">{% else %}{{ r.student.username|slice:":1" }}{% endif %}</span>
+                            <div>
+                                <b class="role-student-name">{{ r.student.get_full_name|default:r.student.username }}</b>
+                                <div class="meta role-username" style="margin:0"><i class="fas fa-at"></i> @{{ r.student.username }}</div>
+                            </div>
+                        </div>
                     </td>
-                    <td><span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% elif r.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span></td>
-                    <td>{{ r.activity_name }}</td>
-                    <td>{% if r.hotel %}{{ r.hotel.name }}{% else %}<span class="meta" style="margin:0">—</span>{% endif %}</td>
-                    <td>
+                    <td class="role-col-role"><span class="badge {% if r.status == 'ACTIVE' %}badge-blue{% elif r.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ r.get_role_display }}</span></td>
+                    <td class="role-col-session">{{ r.activity_name }}</td>
+                    <td class="role-col-hotel">{% if r.hotel %}{{ r.hotel.name }}{% else %}<span class="meta" style="margin:0">—</span>{% endif %}</td>
+                    <td class="role-col-schedule">
                         {% if r.simulation_date %}
                             {{ r.simulation_date|date:"M d, Y" }}
                             <div class="meta" style="margin:0">{% if r.start_time and r.end_time %}{{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
@@ -92,12 +111,12 @@
                             <span class="meta" style="margin:0">—</span>
                         {% endif %}
                     </td>
-                    <td class="role-assignment-status">{{ r.get_status_display }}</td>
-                    <td>{{ r.assigned_at|date:"M d, Y" }}</td>
-                    <td style="text-align:right;white-space:nowrap">
-                        <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
-                        {% if r.status != 'DONE' %}<a href="{% url 'simulation:role_detail' r.id %}#update-role" class="btn btn-outline btn-sm"><i class="fas fa-edit"></i> Edit</a>{% endif %}
-                        <form method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done="Mark this role assignment as done?" style="display:inline">
+                    <td class="role-col-status role-assignment-status">{{ r.get_status_display }}</td>
+                    <td class="role-col-assigned">{{ r.assigned_at|date:"M d, Y" }}</td>
+                    <td class="role-col-actions" style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm role-view-btn"><i class="fas fa-eye"></i> View</a>
+                        {% if r.status != 'DONE' %}<a href="{% url 'simulation:role_detail' r.id %}#update-role" class="btn btn-outline btn-sm role-secondary-action"><i class="fas fa-edit"></i> Edit</a>{% endif %}
+                        <form class="role-secondary-action" method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done="Mark this role assignment as done?" style="display:inline">
                             {% csrf_token %}
                             {% if r.status == 'ACTIVE' %}
                             <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
