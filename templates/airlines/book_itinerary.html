@@ -93,9 +93,8 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>Travel Document Type</label>
-                    <select name="travel_document_type" class="form-input">
-                        <option value="PASSPORT" selected>Passport</option>
-                    </select>
+                    <div class="form-input" aria-label="Travel Document Type">Passport</div>
+                    <input type="hidden" name="travel_document_type" value="PASSPORT">
                 </div>
                 <div class="form-group">
                     <label>Travel Document Number</label>
@@ -537,7 +536,6 @@ function renderPassengerRows() {
     for (var k = 0; k < old.length; k++) {
         keep.push({
             name: old[k].querySelector('input[name="passenger_names"]').value,
-            dt: old[k].querySelector('select[name="travel_document_types"]').value,
             dn: old[k].querySelector('input[name="travel_document_numbers"]').value
         });
     }
@@ -551,20 +549,18 @@ function renderPassengerRows() {
         name.placeholder = 'Passenger ' + (i + 1) + ' name';
         name.required = true;
         if (keep[i - 1]) name.value = keep[i - 1].name;
-        var docType = document.createElement('select');
-        docType.name = 'travel_document_types'; docType.className = 'form-input';
-        [['PASSPORT', 'Passport'], ['OTHER', 'Other']]
-            .forEach(function (opt) {
-                var o = document.createElement('option');
-                o.value = opt[0]; o.textContent = opt[1];
-                if (keep[i - 1] ? keep[i - 1].dt === opt[0] : opt[0] === 'PASSPORT') o.selected = true;
-                docType.appendChild(o);
-            });
+        var docType = document.createElement('div');
+        docType.className = 'form-input';
+        docType.textContent = 'Passport';
+        var docTypeValue = document.createElement('input');
+        docTypeValue.type = 'hidden';
+        docTypeValue.name = 'travel_document_types';
+        docTypeValue.value = 'PASSPORT';
         var docNum = document.createElement('input');
         docNum.type = 'text'; docNum.name = 'travel_document_numbers'; docNum.className = 'form-input';
         docNum.placeholder = 'Travel document #';
         if (keep[i - 1]) docNum.value = keep[i - 1].dn;
-        row.appendChild(name); row.appendChild(docType); row.appendChild(docNum);
+        row.appendChild(name); row.appendChild(docType); row.appendChild(docTypeValue); row.appendChild(docNum);
         wrap.appendChild(row);
     }
     rowCount = n;

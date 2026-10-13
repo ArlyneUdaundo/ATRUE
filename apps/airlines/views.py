@@ -2743,7 +2743,6 @@ def book_flight(request, flight_id):
         seat_numbers = request.POST.getlist('seat_numbers')
         primary_return_seat = (request.POST.get('primary_return_seat') or '').strip().upper()
         return_seat_numbers = request.POST.getlist('return_seat_numbers')
-        travel_document_types = request.POST.getlist('travel_document_types')
         travel_document_numbers = request.POST.getlist('travel_document_numbers')
         fare_class = (request.POST.get('fare_class') or Flight.FareClass.ECONOMY).strip()
         # Seat 1 (the primary guest) is submitted separately; every other
@@ -2859,7 +2858,7 @@ def book_flight(request, flight_id):
             return_date=return_date_obj if trip_type == Booking.TripType.ROUND_TRIP else None,
             extra_baggage=baggage_charge,
             extra_baggage_kg=baggage_kg,
-            travel_document_type=request.POST.get('travel_document_type', ''),
+            travel_document_type='PASSPORT',
             travel_document_number=request.POST.get('travel_document_number', ''),
             payer_name=request.POST.get('payer_name', request.user.get_full_name() or request.user.username),
             payer_contact=request.POST.get('payer_contact', request.user.contact_number or ''),
@@ -2867,14 +2866,14 @@ def book_flight(request, flight_id):
         )
         # The primary guest's travel document is the booking-level one; each
         # additional passenger submits its own from the dynamic rows.
-        booking_doc_type = request.POST.get('travel_document_type', '')
+        booking_doc_type = 'PASSPORT'
         booking_doc_number = request.POST.get('travel_document_number', '')
         for i in range(passengers):
             if i == 0:
                 seat_doc_type = booking_doc_type
                 seat_doc_number = booking_doc_number
             else:
-                seat_doc_type = travel_document_types[i - 1] if i - 1 < len(travel_document_types) else ''
+                seat_doc_type = 'PASSPORT'
                 seat_doc_number = travel_document_numbers[i - 1] if i - 1 < len(travel_document_numbers) else ''
             Booking.BookingSeat.objects.create(
                 booking=booking,
@@ -3156,9 +3155,8 @@ def book_itinerary(request, itinerary_id):
             baggage_charge=baggage_charge, baggage_kg=baggage_kg,
             itinerary_legs=leg_fares)
 
-        travel_document_type = request.POST.get('travel_document_type', '')
+        travel_document_type = 'PASSPORT'
         travel_document_number = request.POST.get('travel_document_number', '')
-        extra_doc_types = request.POST.getlist('travel_document_types')
         extra_doc_numbers = request.POST.getlist('travel_document_numbers')
 
         with transaction.atomic():
@@ -3185,8 +3183,7 @@ def book_itinerary(request, itinerary_id):
                         seat_doc_type = travel_document_type
                         seat_doc_number = travel_document_number
                     else:
-                        seat_doc_type = (extra_doc_types[i - 1]
-                                         if i - 1 < len(extra_doc_types) else '')
+                        seat_doc_type = 'PASSPORT'
                         seat_doc_number = (extra_doc_numbers[i - 1]
                                            if i - 1 < len(extra_doc_numbers) else '')
                     Booking.BookingSeat.objects.create(

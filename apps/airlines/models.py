@@ -69,7 +69,6 @@ FARE_CLASS_CHOICES = [
 
 TRAVEL_DOCUMENT_TYPE_CHOICES = [
     ('PASSPORT', 'Passport'),
-    ('OTHER', 'Other'),
 ]
 
 class TripType(models.TextChoices):
