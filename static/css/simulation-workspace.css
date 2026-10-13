@@ -167,14 +167,17 @@
 
 .simulation-student-list {
     display: grid;
-    gap: 8px;
+    gap: 12px;
     margin-bottom: 12px;
 }
 
 .simulation-student-row {
     border: 1px solid var(--border);
+    border-left: 4px solid var(--brand, #2563eb);
     border-radius: var(--r-md);
-    background: var(--white);
+    background: var(--slate-50, #f8fafc);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
 }
 
 .simulation-student-summary {
@@ -200,6 +203,49 @@
 }
 
 .simulation-student-details[hidden] { display: none !important; }
+
+.sim-student-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1005;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.sim-student-modal[hidden] { display: none; }
+
+.sim-student-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+}
+
+.sim-student-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 760px;
+    max-height: calc(100vh - 36px);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg, 16px);
+    background: var(--white);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.32);
+}
+
+.sim-student-modal-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 4px 20px 18px;
+    overscroll-behavior: contain;
+}
+
+.sim-student-modal-body .simulation-student-details {
+    padding: 14px 0 0;
+    border-top: 0;
+}
 
 .simulation-student-detail-grid {
     display: grid;
@@ -243,6 +289,9 @@
 @media (max-width: 480px) {
     .simulation-student-detail-grid { grid-template-columns: minmax(0, 1fr); }
     .simulation-student-actions > .btn { width: 100%; justify-content: center; }
+    .sim-student-modal { padding: 10px; }
+    .sim-student-dialog { max-height: calc(100vh - 20px); }
+    .sim-student-modal-body { padding: 2px 14px 14px; }
 }
 body.sim-modal-open {
     overflow: hidden;

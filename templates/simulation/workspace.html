@@ -4,7 +4,7 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261013-student-view-details">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261013-student-view-popup">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 {% endblock %}
 
@@ -222,6 +222,26 @@
     </section>
 </div>
 
+<div class="sim-student-modal" id="studentDetailModal" hidden>
+    <div class="sim-student-backdrop" data-student-close></div>
+    <section class="sim-student-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="studentDetailModalTitle" aria-describedby="studentDetailModalMeta"
+        tabindex="-1">
+        <header class="sim-session-head">
+            <div>
+                <h2 id="studentDetailModalTitle"></h2>
+                <p class="sim-session-meta" id="studentDetailModalMeta"></p>
+            </div>
+            <button type="button" class="sim-assign-close" data-student-close
+                aria-label="Close student details"><i class="fas fa-xmark"></i></button>
+        </header>
+        <div class="sim-student-modal-body" id="studentDetailModalBody"></div>
+        <footer class="sim-session-foot">
+            <button type="button" class="btn btn-outline" data-student-close>Close</button>
+        </footer>
+    </section>
+</div>
+
 <div class="sim-assign-modal" id="assignmentModal" hidden>
     <div class="sim-assign-backdrop" data-modal-close></div>
     <div class="sim-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="assignmentModalTitle">
@@ -301,6 +321,10 @@
     if (!modal) return;
 
     var sessionModal = document.getElementById('sessionStudentModal');
+    var studentModal = document.getElementById('studentDetailModal');
+    var studentModalBody = document.getElementById('studentDetailModalBody');
+    var studentModalTitle = document.getElementById('studentDetailModalTitle');
+    var studentModalMeta = document.getElementById('studentDetailModalMeta');
     var sessionBody = document.getElementById('sessionStudentModalBody');
     var sessionTitle = document.getElementById('sessionStudentModalTitle');
     var sessionMeta = document.getElementById('sessionStudentModalMeta');
@@ -308,6 +332,9 @@
     var activeSessionDetails = null;
     var activityPlaceholder = null;
     var sessionOpener = null;
+    var studentDetailsPlaceholder = null;
+    var studentDetailsNode = null;
+    var studentDetailsOpener = null;
     var assignmentOpener = null;
 
     var form = document.getElementById('assignmentForm');
@@ -347,7 +374,47 @@
         document.body.classList.toggle(
             'sim-modal-open',
             !modal.hidden || (sessionModal && !sessionModal.hidden)
+                || (studentModal && !studentModal.hidden)
         );
+    }
+
+    function openStudentDetails(trigger) {
+        var row = trigger.closest('.simulation-student-row');
+        var details = row && row.querySelector('.simulation-student-details');
+        if (!row || !details || !studentModal || !studentModalBody) return;
+
+        studentDetailsNode = details;
+        studentDetailsOpener = trigger;
+        studentDetailsPlaceholder = document.createComment('student details');
+        details.parentNode.insertBefore(studentDetailsPlaceholder, details);
+        studentModalBody.appendChild(details);
+        details.hidden = false;
+        studentModalTitle.textContent = row.querySelector('.simulation-student-name').textContent.trim();
+        studentModalMeta.textContent = row.dataset.studentUsername
+            ? '@' + row.dataset.studentUsername : 'Student details';
+        studentModal.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        setBodyLock();
+        var closeButton = studentModal.querySelector('[data-student-close]');
+        if (closeButton) closeButton.focus();
+    }
+
+    function closeStudentDetails() {
+        if (!studentModal || studentModal.hidden) return;
+        if (studentDetailsNode && studentDetailsPlaceholder && studentDetailsPlaceholder.parentNode) {
+            studentDetailsPlaceholder.parentNode.insertBefore(studentDetailsNode, studentDetailsPlaceholder);
+            studentDetailsPlaceholder.remove();
+            studentDetailsNode.hidden = true;
+        }
+        studentModal.hidden = true;
+        if (studentDetailsOpener) {
+            studentDetailsOpener.setAttribute('aria-expanded', 'false');
+            studentDetailsOpener.focus();
+        }
+        studentDetailsNode = null;
+        studentDetailsPlaceholder = null;
+        studentDetailsOpener = null;
+        setBodyLock();
     }
 
     function focusableElements(dialog) {
@@ -408,6 +475,7 @@
 
     function closeSession() {
         if (!sessionModal || sessionModal.hidden) return;
+        if (studentModal && !studentModal.hidden) closeStudentDetails();
         if (!modal.hidden) return;
         if (activityPlaceholder && activeSessionDetails) {
             activityPlaceholder.parentNode.insertBefore(
@@ -568,18 +636,20 @@
     function renderRow(assignment) {
         var row = document.getElementById('sim-row-' + currentSessionId + '-' + currentStudentId);
         if (!row) return;
+        var studentDetails = document.getElementById('sim-details-' + currentSessionId + '-' + currentStudentId);
+        if (!studentDetails) return;
 
-        row.querySelector('.simulation-student-role-value').innerHTML = '<span class="badge '
+        studentDetails.querySelector('.simulation-student-role-value').innerHTML = '<span class="badge '
             + statusClass(assignment.status) + '">' + escapeHtml(assignment.role_display) + '</span>';
-        row.querySelector('.simulation-student-activity-value').textContent = assignment.activity_name || 'Not assigned';
-        row.querySelector('.simulation-student-establishment-value').textContent = assignment.establishment || 'Not assigned';
-        row.querySelector('.simulation-student-status-value').textContent = assignment.status_display;
-        row.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display || 'Not assigned';
-        row.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display || 'Not assigned';
+        studentDetails.querySelector('.simulation-student-activity-value').textContent = assignment.activity_name || 'Not assigned';
+        studentDetails.querySelector('.simulation-student-establishment-value').textContent = assignment.establishment || 'Not assigned';
+        studentDetails.querySelector('.simulation-student-status-value').textContent = assignment.status_display;
+        studentDetails.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display || 'Not assigned';
+        studentDetails.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display || 'Not assigned';
         var assignmentCount = Number(assignment.assignment_count || 0);
-        row.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
+        studentDetails.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
             + ' assignment' + (assignmentCount === 1 ? '' : 's') + ' in this session';
-        row.querySelector('.simulation-student-schedule-value').textContent = assignment.simulation_date
+        studentDetails.querySelector('.simulation-student-schedule-value').textContent = assignment.simulation_date
             ? assignment.date_display + (assignment.time_display ? ' · ' + assignment.time_display : '')
             : 'Not scheduled';
 
@@ -605,7 +675,7 @@
         } else if (assignment.status === 'DONE') {
             html += ' <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>';
         }
-        row.querySelector('.simulation-student-actions').innerHTML = html;
+        studentDetails.querySelector('.simulation-student-actions').innerHTML = html;
     }
 
     form.addEventListener('submit', function (event) {
@@ -665,15 +735,7 @@
         }
         var detailsTrigger = event.target.closest('[data-student-details-toggle]');
         if (detailsTrigger) {
-            var studentRow = detailsTrigger.closest('.simulation-student-row');
-            var studentDetails = studentRow && studentRow.querySelector('.simulation-student-details');
-            if (!studentDetails) return;
-            var shouldExpand = studentDetails.hidden;
-            studentDetails.hidden = !shouldExpand;
-            detailsTrigger.setAttribute('aria-expanded', String(shouldExpand));
-            detailsTrigger.innerHTML = shouldExpand
-                ? '<i class="fas fa-eye-slash"></i> Hide'
-                : '<i class="fas fa-eye"></i> View';
+            openStudentDetails(detailsTrigger);
             return;
         }
         var trigger = event.target.closest('.js-assignment-open');
@@ -688,6 +750,10 @@
         }
         if (!sessionModal.hidden && event.target.closest('[data-session-close]')) {
             closeSession();
+            return;
+        }
+        if (studentModal && !studentModal.hidden && event.target.closest('[data-student-close]')) {
+            closeStudentDetails();
         }
     });
 
@@ -698,6 +764,13 @@
                 close();
             } else {
                 trapFocus(event, modal.querySelector('[role="dialog"]'));
+            }
+        } else if (studentModal && !studentModal.hidden) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeStudentDetails();
+            } else {
+                trapFocus(event, studentModal.querySelector('[role="dialog"]'));
             }
         } else if (sessionModal && !sessionModal.hidden) {
             if (event.key === 'Escape') {
@@ -713,6 +786,8 @@
         if (!modal.hidden && event.target.matches('.sim-assign-backdrop')) close();
         if (sessionModal && !sessionModal.hidden
                 && event.target.matches('.sim-session-backdrop')) closeSession();
+        if (studentModal && !studentModal.hidden
+                && event.target.matches('.sim-student-backdrop')) closeStudentDetails();
     });
 
     window.addEventListener('beforeunload', function (event) {
