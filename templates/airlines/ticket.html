@@ -11,13 +11,17 @@
     border-top: 8px solid #ffc20e; border-radius: 16px; box-shadow: 0 18px 50px -18px rgba(15,23,42,.18);
     overflow: hidden; font-family: 'Inter', system-ui, sans-serif;
 }
-.etkt-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 24px; border-bottom: 2px dashed #b7c9dd; flex-wrap: wrap; }
-.etkt-brand { display: flex; align-items: center; gap: 14px; }
+.etkt-head { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(220px, .7fr); align-items: start; gap: 20px; padding: 18px 24px; border-bottom: 2px dashed #b7c9dd; }
+.etkt-brand { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: start; gap: 8px 14px; min-width: 0; }
+.etkt-brand-info { min-width: 0; }
 .etkt-logo { width: 52px; height: 52px; object-fit: contain; border-radius: 10px; border: 1px solid #e2e8f0; padding: 4px; background: #fff; }
 .etkt-brand h3 { font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: #0f172a; }
-.etkt-brand .meta { font-size: 12px; color: #64748b; }
+.etkt-brand .meta { font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
 .etkt-brand .meta i { width: auto; margin-right: 4px; }
-.etkt-doc { text-align: right; }
+.etkt-contact-grid { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; min-width: 0; }
+.etkt-contact-item { min-width: 0; line-height: 1.4; }
+.etkt-contact-item i { width: 15px; color: #64748b; }
+.etkt-doc { min-width: 0; padding-left: 18px; border-left: 1px solid #e2e8f0; }
 .etkt-doc h4 { font-size: 15px; font-weight: 800; color: #00539b; letter-spacing: .09em; }
 .etkt-doc .mono { font-size: 14px; }
 .etkt-band { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 10px; align-items: center; padding: 20px 24px; background: linear-gradient(135deg,#004a99,#1d8bcf); color: #fff; page-break-inside: avoid; }
@@ -32,7 +36,15 @@
 .etkt-arrow { text-align: center; }
 .etkt-arrow .arr { font-size: 24px; font-weight: 800; line-height: 1.1; color: #ffc20e; }
 .etkt-arrow .dur { font-size: 11px; opacity: .92; margin-top: 2px; }
-@media (max-width: 640px) { .etkt-band { grid-template-columns: 1fr 1fr; } .etkt-band .fl-no { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+    .etkt-head { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; }
+    .etkt-brand { grid-template-columns: 42px minmax(0, 1fr); gap: 8px 10px; }
+    .etkt-logo { width: 42px; height: 42px; }
+    .etkt-contact-grid { gap: 7px 12px; }
+    .etkt-doc { width: 100%; padding: 12px 0 0; border-left: 0; border-top: 1px solid #e2e8f0; }
+    .etkt-band { grid-template-columns: 1fr 1fr; }
+    .etkt-band .fl-no { grid-column: 1 / -1; }
+}
 .etkt-section { padding: 18px 24px; border-bottom: 1px solid #eef2f7; }
 .etkt-section h5 { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
 .etkt-section h5 i { color: #00539b; }
@@ -87,10 +99,13 @@
                 {% else %}
                 <span class="etkt-logo etkt-logo-fallback" aria-hidden="true"><i class="fas fa-plane"></i></span>
                 {% endif %}
-                <div>
+                <div class="etkt-brand-info">
                     <h3>{{ ticket.airline.name }}</h3>
                     <div class="meta">Airline Code: <b>{{ ticket.airline.code }}</b></div>
-                    <div class="meta"><i class="fas fa-phone"></i> {{ ticket.airline.contact|default:'—' }} · <i class="fas fa-envelope"></i> {{ ticket.airline.email|default:'—' }}</div>
+                </div>
+                <div class="etkt-contact-grid">
+                    <div class="meta etkt-contact-item"><i class="fas fa-phone"></i> {{ ticket.airline.contact|default:'—' }}</div>
+                    <div class="meta etkt-contact-item"><i class="fas fa-envelope"></i> {{ ticket.airline.email|default:'—' }}</div>
                 </div>
             </div>
             <div class="etkt-doc">
