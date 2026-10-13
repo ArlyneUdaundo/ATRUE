@@ -1981,8 +1981,11 @@
             option.hidden = !matchesTab || !matchesQuery;
             if (!option.hidden) visible += 1;
         });
-        destinationSuggestions.hidden = visible === 0;
-        destinationInput.setAttribute('aria-expanded', visible ? 'true' : 'false');
+        // Keep the menu closed until the user enters a search term. In particular,
+        // changing the active booking tab must not expose every destination.
+        const shouldShow = needle.length > 0 && visible > 0;
+        destinationSuggestions.hidden = !shouldShow;
+        destinationInput.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
     }
 
     destinationInput.addEventListener('input', () => {
@@ -2070,7 +2073,7 @@
 
     tabs.forEach(input => {
         input.addEventListener('change', syncSearchFields);
-        input.addEventListener('change', () => filterDestinationOptions(destinationInput.value));
+        input.addEventListener('change', closePlaceSuggestions);
     });
     tripTypes.forEach(input => input.addEventListener('change', syncSearchFields));
     departureInput.addEventListener('change', syncSearchFields);
