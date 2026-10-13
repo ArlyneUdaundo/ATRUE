@@ -11,6 +11,22 @@ from .models import Landmark, Ticket
 User = get_user_model()
 
 
+class PublicLandmarkListingTests(TestCase):
+    def test_public_directory_hides_tourist_spots_but_keeps_landmarks(self):
+        Landmark.objects.create(
+            name='Visible landmark', category=Landmark.Category.LANDMARK,
+        )
+        Landmark.objects.create(
+            name='Hidden tourist spot', category=Landmark.Category.TOURIST_SPOT,
+        )
+
+        response = self.client.get(reverse('landmarks:list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Visible landmark')
+        self.assertNotContains(response, 'Hidden tourist spot')
+
+
 def _assign(user, instructor, landmark, role):
     assignment = SimulationRoleAssignment.objects.create(
         student=user,

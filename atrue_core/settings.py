@@ -180,7 +180,12 @@ _database_url = os.getenv('DATABASE_URL', '').strip()
 if _database_url:
     import dj_database_url
 
-    DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600)}
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _database_url,
+            conn_max_age=int(os.getenv('DB_CONN_MAX_AGE', '600')),
+        )
+    }
 elif os.getenv('DB_ENGINE', '').strip().lower() == 'sqlite':
     # Escape hatch for a machine with no PostgreSQL. See the note above.
     DATABASES = {

@@ -223,11 +223,11 @@ class HomeSearchRoutingTests(TestCase):
             "show_resorts",
             "show_staycations",
             "show_restaurants",
-            "show_spots",
             "show_activities",
             "show_packages",
         ):
             self.assertTrue(results.context[section])
+        self.assertFalse(results.context["show_spots"])
 
     def test_tour_search_shows_existing_tours_activities_and_landmarks(self):
         response = self.client.get(
@@ -236,7 +236,7 @@ class HomeSearchRoutingTests(TestCase):
 
         self.assertTrue(response.context["show_packages"])
         self.assertTrue(response.context["show_activities"])
-        self.assertTrue(response.context["show_spots"])
+        self.assertFalse(response.context["show_spots"])
         self.assertFalse(response.context["show_restaurants"])
 
     def test_all_search_requires_a_destination(self):

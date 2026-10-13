@@ -269,7 +269,9 @@ def home(request):
     resorts_qs = Resort.objects.filter(status='ACTIVE').prefetch_related('photos', 'units').annotate(from_rate=Min('units__rate'))
     staycations_qs = Staycation.objects.filter(status='ACTIVE').prefetch_related('photos')
     restaurants_qs = Restaurant.objects.filter(status='ACTIVE')
-    spots_qs = Landmark.objects.filter(status='ACTIVE', category='TOURIST_SPOT').prefetch_related('photos')
+    # Public destination browsing now focuses on landmarks; tourist spot rows
+    # remain intact for ticket history and management records.
+    spots_qs = Landmark.objects.filter(status='ACTIVE', category='LANDMARK').prefetch_related('photos')
     activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE', provider__verified=True)
     packages_qs = TourPackage.objects.filter(status='ACTIVE').prefetch_related('photos')
 

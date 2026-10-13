@@ -13,44 +13,48 @@ def usable_urls(photos_qs):
     a missing/empty file never renders a blank <img>. Mirrors the
     _usable_images() logic used by the search catalog.
     """
-    out = []
     if photos_qs is None:
-        return out
+        return []
     try:
         rows = list(photos_qs)
     except (TypeError, ValueError):
-        return out
-    for p in rows:
-        image = getattr(p, 'image', None)
-        name = getattr(image, 'name', None) or ''
-        if name:
-            try:
-                if image.storage.exists(name):
-                    out.append(image.url)
-            except Exception:
-                continue
-    return out
+        return []
+    # Reuse the catalog's short-lived, bounded storage existence cache. This
+    # keeps homepage cards accurate without issuing one remote HEAD per render.
+    from atrue_core.search_catalog import _usable_images
+
+    return _usable_images([
+        (image.storage, image.name)
+        for photo in rows
+        if (image := getattr(photo, 'image', None)) and image.name
+    ])
 
 
 @register.filter
 def stored_image_urls(photos_qs):
-    """Return stored image URLs without remote existence probes."""
+    """Return verified stored URLs, using cached existence probes."""
+    return usable_urls(photos_qs)
+
+
+@register.filter
+def first_usable_url(photos_qs):
+    """Get the first valid cover without probing every gallery image."""
     if photos_qs is None:
-        return []
+        return ''
     try:
         rows = list(photos_qs)
     except (TypeError, ValueError):
-        return []
-    urls = []
+        return ''
+    from atrue_core.search_catalog import _usable_images
+
     for photo in rows:
         image = getattr(photo, 'image', None)
-        if not image or not getattr(image, 'name', ''):
+        if not image or not image.name:
             continue
-        try:
-            urls.append(image.url)
-        except (ValueError, NotImplementedError, OSError):
-            continue
-    return urls
+        urls = _usable_images([(image.storage, image.name)])
+        if urls:
+            return urls[0]
+    return ''
 
 
 @register.filter

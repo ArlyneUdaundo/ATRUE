@@ -14,6 +14,8 @@ Views only need to fetch the bookable queryset for their model and call
 import hashlib
 import json
 import os
+import time
+from functools import lru_cache
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -108,15 +110,37 @@ def price_prose(kind, amount, priced, plain_text):
     return plain_text
 
 
+@lru_cache(maxsize=8192)
+def _cached_storage_exists(storage, path, cache_period):
+    """Avoid repeating remote storage HEAD checks for the same image.
+
+    Cache for at most one minute. The storage and path are part of the key, so
+    the same object name in two storage backends cannot collide.
+    """
+    return storage.exists(path)
+
+
 def _usable_images(paths):
     from django.core.files.storage import default_storage
     out = []
-    for path in paths:
+    seen = set()
+    cache_period = int(time.monotonic() // 60)
+    for value in paths:
+        if isinstance(value, tuple):
+            storage, path = value
+        else:
+            storage, path = default_storage, value
         if not path:
             continue
+        key = (storage, path)
+        if key in seen:
+            continue
+        seen.add(key)
         try:
-            if default_storage.exists(path):
-                out.append(default_storage.url(path))
+            if _cached_storage_exists(storage, path, cache_period):
+                url = storage.url(path)
+                if url not in out:
+                    out.append(url)
         except Exception:
             continue
     return out
@@ -525,7 +549,11 @@ def _derive_options(spec, working, idx_for):
 # --- Card builders (one per category) --------------------------------------
 
 def _photo_urls(photos_qs):
-    return _usable_images([p.image.name for p in photos_qs])
+    return _usable_images([
+        (p.image.storage, p.image.name)
+        for p in photos_qs
+        if getattr(p, "image", None) and p.image.name
+    ])
 
 
 # category key -> (app namespace, name of the selection view)

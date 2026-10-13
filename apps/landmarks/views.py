@@ -55,7 +55,10 @@ def _capacity_remaining(destination, visit_date, destination_type, exclude_id=No
 
 
 def landmark_list(request):
-    destinations = Landmark.objects.prefetch_related('photos').filter(status=Landmark.Status.ACTIVE).order_by('category', 'name')
+    destinations = Landmark.objects.prefetch_related('photos').filter(
+        status=Landmark.Status.ACTIVE,
+        category=Landmark.Category.LANDMARK,
+    ).order_by('name')
     return render_search_page(request, 'landmark', destinations)
 
 
