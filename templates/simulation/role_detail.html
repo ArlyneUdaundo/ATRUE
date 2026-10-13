@@ -3,6 +3,21 @@
 {% block title %}{{ assignment.get_role_display }} | Simulation Role{% endblock %}
 
 {% block content %}
+<style>
+@media (max-width: 640px) {
+    #update-role .update-role-form {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        grid-template-areas: "new-role establishment" "reason submit";
+        gap: 14px 10px !important;
+    }
+    #update-role .update-role-form .form-group { min-width: 0; }
+    #update-role .update-role-form .form-input { width: 100%; min-width: 0; }
+    #update-role .update-role-new-role { grid-area: new-role; }
+    #update-role .update-role-establishment { grid-area: establishment; }
+    #update-role .update-role-reason { grid-area: reason; }
+    #update-role .update-role-submit { grid-area: submit; width: 100%; min-height: 48px; justify-content: center; white-space: normal; }
+}
+</style>
 <div class="page-head">
     <div>
         <h1>Simulation Role</h1>
@@ -62,9 +77,9 @@
 {% if can_manage and assignment.status != 'DONE' %}
 <div class="card card-pad" style="margin-top:20px" id="update-role">
     <h3 style="margin:0 0 14px"><i class="fas fa-edit"></i> Update Role</h3>
-    <form method="post" action="{% url 'simulation:role_update' assignment.id %}" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:end">
+    <form method="post" action="{% url 'simulation:role_update' assignment.id %}" class="update-role-form" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:end">
         {% csrf_token %}
-        <div class="form-group" style="margin:0">
+        <div class="form-group update-role-new-role" style="margin:0">
             <label>New Role</label>
             <select name="role" id="editRole" class="form-input" required>
                 {% for value, label in role_choices %}
@@ -72,20 +87,20 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="form-group" style="margin:0" id="editEstablishmentGroup">
+        <div class="form-group update-role-establishment" style="margin:0" id="editEstablishmentGroup">
             <label>Assigned Establishment</label>
             <select name="establishment" id="editEstablishment" class="form-input" disabled data-current="{{ assignment.establishment_id|default_if_none:'' }}">
                 <option value="">Select establishment</option>
             </select>
         </div>
-        <div class="form-group" style="margin:0">
+        <div class="form-group update-role-reason" style="margin:0">
             <label>Reason <em class="muted-hint">Optional</em></label>
             <input type="text" name="reason" class="form-input" placeholder="Reason for change">
         </div>
         {% if assignment.status == 'ACTIVE' %}
-        <button type="submit" class="btn btn-brand"><i class="fas fa-check"></i> Save Update</button>
+        <button type="submit" class="btn btn-brand update-role-submit"><i class="fas fa-check"></i> Save Update</button>
         {% else %}
-        <button type="submit" class="btn btn-brand" disabled>Inactive – Reactivate to update</button>
+        <button type="submit" class="btn btn-brand update-role-submit" disabled>Inactive – Reactivate to update</button>
         {% endif %}
     </form>
 </div>
