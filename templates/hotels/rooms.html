@@ -18,7 +18,7 @@
         <div class="filter-grid" style="display:grid;{% if hotel_scoped_user %}grid-template-columns:1.3fr 1fr 1fr auto;{% else %}grid-template-columns:1.3fr 1fr 1fr 1fr auto;{% endif %}gap:14px;align-items:end">
             <div class="form-group" style="margin:0">
                 <label>Search</label>
-                <input type="text" name="q" class="form-input" placeholder="Room ID, room number or hotel" value="{{ q }}">
+                <input type="text" name="q" class="form-input establishment-ops-search" placeholder="Room ID, room number or hotel" value="{{ q }}">
             </div>
             {% if not hotel_scoped_user %}
             <div class="form-group" style="margin:0">

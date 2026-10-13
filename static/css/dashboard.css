@@ -1047,7 +1047,7 @@ body.flight-booking-modal-open { overflow: hidden; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
 .form-input { width: 100%; padding: 12px 14px; font-size: 14px; border: 1.5px solid var(--slate-200); border-radius: 11px; outline: none; background: var(--white); transition: all .25s cubic-bezier(.22,1,.36,1); }
-.establishment-ops-search { display: block; width: 100%; max-width: 420px; min-height: 36px; height: 36px; padding: 6px 9px; font-size: 13px; justify-self: start; }
+.establishment-ops-search { box-sizing: border-box; display: block; width: 100%; max-width: 320px; min-height: 32px; height: 32px; padding: 5px 9px; font-size: 12.5px; border-radius: 8px; justify-self: start; }
 .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
 .form-input:hover { border-color: var(--slate-300); }
 .form-err { color: #dc2626; font-size: 12.5px; margin-top: 4px; }
