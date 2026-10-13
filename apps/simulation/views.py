@@ -583,6 +583,14 @@ def _assignment_json(assignment):
         'time_display': time_display,
         'status': assignment.status,
         'status_display': assignment.get_status_display(),
+        'assigned_by_display': (
+            _student_display_name(assignment.assigned_by)
+            if assignment.assigned_by_id else 'Not assigned'
+        ),
+        'assigned_at_display': assignment.assigned_at.strftime('%b %d, %Y %H:%M'),
+        'assignment_count': SimulationRoleAssignment.objects.filter(
+            student_id=assignment.student_id, session_id=assignment.session_id,
+        ).count(),
         'view_url': reverse('simulation:role_detail', args=[assignment.pk]),
         'unassign_url': reverse('simulation:unassign', args=[assignment.pk]),
     }

@@ -172,141 +172,78 @@
 }
 
 .simulation-student-row {
-    display: grid;
-    grid-template-columns: 40px minmax(150px, 1.1fr) minmax(120px, .9fr) minmax(190px, 1.2fr) max-content;
-    grid-template-areas:
-        "avatar who role establishment actions"
-        "avatar who role schedule actions";
-    align-items: center;
-    column-gap: 14px;
-    row-gap: 4px;
-    padding: 12px 14px;
     border: 1px solid var(--border);
     border-radius: var(--r-md);
     background: var(--white);
 }
 
-.simulation-student-avatar {
-    grid-area: avatar;
-
-    display: grid;
-    width: 40px;
-    height: 40px;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--grad-brand-soft);
-    color: var(--indigo-deep);
-    font-size: 14px;
-    font-weight: 700;
+.simulation-student-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
 }
 
-.simulation-student-avatar-photo {
-    object-fit: cover;
-    display: block;
-}
-
-.simulation-student-who {
-    grid-area: who;
-    display: grid;
-    gap: 2px;
+.simulation-student-name {
     min-width: 0;
-}
-
-.simulation-student-who strong {
     color: var(--text-1);
     font-size: 15px;
     overflow-wrap: anywhere;
 }
 
-.simulation-student-who small,
-.simulation-student-meta {
+.simulation-student-view { flex: 0 0 auto; }
+
+.simulation-student-details {
+    padding: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.simulation-student-details[hidden] { display: none !important; }
+
+.simulation-student-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+.simulation-student-detail-item {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    min-width: 0;
+}
+
+.simulation-student-detail-item > span {
     color: var(--text-2);
-    font-size: 13px;
-}
-
-.simulation-student-establishment { grid-area: establishment; min-width: 0; overflow-wrap: anywhere; }
-.simulation-student-schedule { grid-area: schedule; min-width: 0; }
-.simulation-student-schedule > span { display: block; }
-
-.simulation-student-role {
-    grid-area: role;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-}
-
-.simulation-student-extra {
-    color: var(--text-3);
     font-size: 12px;
     font-weight: 600;
 }
 
-.simulation-student-meta .muted,
-.simulation-student-establishment .muted {
-    color: var(--text-3);
+.simulation-student-detail-item > strong,
+.simulation-student-role-value {
+    min-width: 0;
+    color: var(--text-1);
+    font-size: 13px;
+    overflow-wrap: anywhere;
 }
 
 .simulation-student-actions {
-    grid-area: actions;
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
     gap: 8px;
-    white-space: nowrap;
+    margin-top: 14px;
 }
 
 @media (max-width: 860px) {
-    .simulation-student-row {
-        grid-template-columns: 40px 1fr;
-        grid-template-areas:
-            "avatar who"
-            "role role"
-            "establishment establishment"
-            "schedule schedule"
-            "actions actions";
-        row-gap: 8px;
-    }
-
-    .simulation-student-avatar {
-    grid-area: avatar;
-
-        grid-area: avatar;
-    }
-
-    .simulation-student-who {
-    grid-area: who;
-        grid-area: who;
-    }
-
-    .simulation-student-establishment { grid-area: establishment; min-width: 0; overflow-wrap: anywhere; }
-.simulation-student-schedule { grid-area: schedule; min-width: 0; }
-.simulation-student-schedule > span { display: block; }
-
-.simulation-student-role {
-    grid-area: role;
-        grid-area: role;
-    }
-
-    .simulation-student-establishment {
-        grid-area: establishment;
-    }
-
-    .simulation-student-schedule {
-        grid-area: schedule;
-    }
-
-    .simulation-student-actions {
-    grid-area: actions;
-        grid-area: actions;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-start;
-        white-space: normal;
-    }
+    .simulation-student-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 480px) {
+    .simulation-student-detail-grid { grid-template-columns: minmax(0, 1fr); }
+    .simulation-student-actions > .btn { width: 100%; justify-content: center; }
+}
 body.sim-modal-open {
     overflow: hidden;
 }

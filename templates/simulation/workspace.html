@@ -4,7 +4,7 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261010-7">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261013-student-view-details">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 {% endblock %}
 
@@ -59,57 +59,58 @@
             <div class="simulation-student-list" role="list">
                 {% for row in session.student_rows %}
                 <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}">
-                    {% if row.student.profile_picture %}<img class="simulation-student-avatar simulation-student-avatar-photo" src="{{ row.student.profile_picture.url }}" alt="{{ row.display_name }} profile photo">{% else %}<span class="simulation-student-avatar" aria-hidden="true">{{ row.initials }}</span>{% endif %}
-                    <div class="simulation-student-who">
-                        <strong>{{ row.display_name }}</strong>
-                        <small>@{{ row.username }}</small>
+                    <div class="simulation-student-summary">
+                        <strong class="simulation-student-name">{{ row.display_name }}</strong>
+                        <button type="button" class="btn btn-outline btn-sm simulation-student-view" data-student-details-toggle aria-expanded="false" aria-controls="sim-details-{{ session.id }}-{{ row.student.id }}"><i class="fas fa-eye"></i> View</button>
                     </div>
-                    <div class="simulation-student-role">
-                        {% if row.assignment %}
-                        <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
-                        {% if row.count > 1 %}<span class="simulation-student-extra" title="This student has {{ row.count }} assignments in this session">+{{ row.count|add:"-1" }} more</span>{% endif %}
-                        {% else %}
-                        <span class="badge badge-gray">No role assigned</span>
-                        {% endif %}
-                    </div>
-                    <div class="simulation-student-meta simulation-student-establishment">
-                        {% if row.assignment.establishment %}<strong>{{ row.assignment.establishment.name }}</strong>{% else %}<span class="muted">Not assigned</span>{% endif %}
-                    </div>
-                    <div class="simulation-student-meta simulation-student-schedule">
-                        {% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% if row.assignment.start_time and row.assignment.end_time %}<span>{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}</span>{% endif %}{% else %}<span class="muted">Not scheduled</span>{% endif %}
-                    </div>
-                    <div class="simulation-student-actions">
-                        {% if row.assignment %}
-                        {% if row.assignment.status != 'DONE' %}<button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
-                            data-endpoint="{% url 'simulation:session_assignment' session.id %}"
-                            data-assignment-id="{{ row.assignment.id }}"
-                            data-session-id="{{ session.id }}"
-                            data-student-id="{{ row.student.id }}"
-                            data-student-name="{{ row.display_name }}"
-                            data-student-username="{{ row.student.username }}"
-                            data-role="{{ row.assignment.role }}"
-                            data-establishment-id="{{ row.assignment.establishment_id|default:'' }}"
-                            data-date="{{ row.assignment.simulation_date|date:'Y-m-d' }}"
-                            data-start="{{ row.assignment.start_time|time:'H:i' }}"
-                            data-end="{{ row.assignment.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
-                        <a href="{% url 'simulation:role_detail' row.assignment.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
-                        {% if row.assignment.status == 'ACTIVE' %}
-                        <a href="{% url 'simulation:unassign' row.assignment.id %}" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
-                        {% endif %}
-                        {% else %}
-                        <button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
-                            data-endpoint="{% url 'simulation:session_assignment' session.id %}"
-                            data-assignment-id=""
-                            data-session-id="{{ session.id }}"
-                            data-student-id="{{ row.student.id }}"
-                            data-student-name="{{ row.display_name }}"
-                            data-student-username="{{ row.student.username }}"
-                            data-role=""
-                            data-establishment-id=""
-                            data-date=""
-                            data-start=""
-                            data-end=""><i class="fas fa-plus"></i> Assign Role</button>
-                        {% endif %}
+                    <div class="simulation-student-details" id="sim-details-{{ session.id }}-{{ row.student.id }}" hidden>
+                        <div class="simulation-student-detail-grid">
+                            <div class="simulation-student-detail-item"><span>Username</span><strong>@{{ row.username }}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Email</span><strong>{{ row.student.email|default:"Not provided" }}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Contact Number</span><strong>{{ row.student.contact_number|default:"Not provided" }}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Role</span><div class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</div></div>
+                            <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}Not assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}Not assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Status</span><strong class="simulation-student-status-value">{% if row.assignment %}{{ row.assignment.get_status_display }}{% else %}Not assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Schedule</span><strong class="simulation-student-schedule-value">{% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% if row.assignment.start_time and row.assignment.end_time %} · {{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% endif %}{% else %}Not scheduled{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assigned By</span><strong class="simulation-student-assigned-by-value">{% if row.assignment.assigned_by %}{{ row.assignment.assigned_by.get_full_name|default:row.assignment.assigned_by.username }}{% else %}Not assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assigned On</span><strong class="simulation-student-assigned-at-value">{% if row.assignment %}{{ row.assignment.assigned_at|date:"M d, Y H:i" }}{% else %}Not assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assignments</span><strong class="simulation-student-assignment-count">{{ row.count }} assignment{{ row.count|pluralize }} in this session</strong></div>
+                        </div>
+                        <div class="simulation-student-actions">
+                            {% if row.assignment %}
+                            {% if row.assignment.status != 'DONE' %}<button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
+                                data-endpoint="{% url 'simulation:session_assignment' session.id %}"
+                                data-assignment-id="{{ row.assignment.id }}"
+                                data-session-id="{{ session.id }}"
+                                data-student-id="{{ row.student.id }}"
+                                data-student-name="{{ row.display_name }}"
+                                data-student-username="{{ row.student.username }}"
+                                data-role="{{ row.assignment.role }}"
+                                data-establishment-id="{{ row.assignment.establishment_id|default:'' }}"
+                                data-date="{{ row.assignment.simulation_date|date:'Y-m-d' }}"
+                                data-start="{{ row.assignment.start_time|time:'H:i' }}"
+                                data-end="{{ row.assignment.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
+                            {% if row.assignment.status == 'ACTIVE' %}
+                            <a href="{% url 'simulation:unassign' row.assignment.id %}" class="btn btn-outline btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
+                            {% elif row.assignment.status == 'DONE' %}
+                            <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>
+                            {% endif %}
+                            {% else %}
+                            <button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
+                                data-endpoint="{% url 'simulation:session_assignment' session.id %}"
+                                data-assignment-id=""
+                                data-session-id="{{ session.id }}"
+                                data-student-id="{{ row.student.id }}"
+                                data-student-name="{{ row.display_name }}"
+                                data-student-username="{{ row.student.username }}"
+                                data-role=""
+                                data-establishment-id=""
+                                data-date=""
+                                data-start=""
+                                data-end=""><i class="fas fa-plus"></i> Assign Role</button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -568,25 +569,19 @@
         var row = document.getElementById('sim-row-' + currentSessionId + '-' + currentStudentId);
         if (!row) return;
 
-        var roleCell = row.querySelector('.simulation-student-role');
-        var roleBadge = roleCell.querySelector('.badge');
-        if (roleBadge) {
-            // Keep any "+N more" note that sits beside the badge.
-            roleBadge.className = 'badge ' + statusClass(assignment.status);
-            roleBadge.textContent = assignment.role_display;
-        } else {
-            roleCell.innerHTML = '<span class="badge ' + statusClass(assignment.status)
-                + '">' + escapeHtml(assignment.role_display) + '</span>';
-        }
-
-        row.querySelector('.simulation-student-establishment').innerHTML = assignment.establishment
-            ? '<strong>' + escapeHtml(assignment.establishment) + '</strong>'
-            : '<span class="muted">Not assigned</span>';
-
-        row.querySelector('.simulation-student-schedule').innerHTML = assignment.simulation_date
-            ? escapeHtml(assignment.date_display)
-                + (assignment.time_display ? '<span>' + escapeHtml(assignment.time_display) + '</span>' : '')
-            : '<span class="muted">Not scheduled</span>';
+        row.querySelector('.simulation-student-role-value').innerHTML = '<span class="badge '
+            + statusClass(assignment.status) + '">' + escapeHtml(assignment.role_display) + '</span>';
+        row.querySelector('.simulation-student-activity-value').textContent = assignment.activity_name || 'Not assigned';
+        row.querySelector('.simulation-student-establishment-value').textContent = assignment.establishment || 'Not assigned';
+        row.querySelector('.simulation-student-status-value').textContent = assignment.status_display;
+        row.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display || 'Not assigned';
+        row.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display || 'Not assigned';
+        var assignmentCount = Number(assignment.assignment_count || 0);
+        row.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
+            + ' assignment' + (assignmentCount === 1 ? '' : 's') + ' in this session';
+        row.querySelector('.simulation-student-schedule-value').textContent = assignment.simulation_date
+            ? assignment.date_display + (assignment.time_display ? ' · ' + assignment.time_display : '')
+            : 'Not scheduled';
 
         var endpoint = form.getAttribute('action');
         var html = '';
@@ -605,9 +600,10 @@
                 + ' data-start="' + escapeHtml(assignment.start_time) + '"'
                 + ' data-end="' + escapeHtml(assignment.end_time) + '"><i class="fas fa-pen"></i> Edit Assignment</button>';
         }
-        html += ' <a href="' + escapeHtml(assignment.view_url) + '" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>';
         if (assignment.status === 'ACTIVE') {
-            html += ' <a href="' + escapeHtml(assignment.unassign_url) + '" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>';
+            html += ' <a href="' + escapeHtml(assignment.unassign_url) + '" class="btn btn-outline btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>';
+        } else if (assignment.status === 'DONE') {
+            html += ' <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>';
         }
         row.querySelector('.simulation-student-actions').innerHTML = html;
     }
@@ -665,6 +661,19 @@
         if (sessionTrigger && sessionModal) {
             event.preventDefault();
             openSession(sessionTrigger);
+            return;
+        }
+        var detailsTrigger = event.target.closest('[data-student-details-toggle]');
+        if (detailsTrigger) {
+            var studentRow = detailsTrigger.closest('.simulation-student-row');
+            var studentDetails = studentRow && studentRow.querySelector('.simulation-student-details');
+            if (!studentDetails) return;
+            var shouldExpand = studentDetails.hidden;
+            studentDetails.hidden = !shouldExpand;
+            detailsTrigger.setAttribute('aria-expanded', String(shouldExpand));
+            detailsTrigger.innerHTML = shouldExpand
+                ? '<i class="fas fa-eye-slash"></i> Hide'
+                : '<i class="fas fa-eye"></i> View';
             return;
         }
         var trigger = event.target.closest('.js-assignment-open');
