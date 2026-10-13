@@ -8,6 +8,7 @@
     <div class="form-group">
         <label for="id_username">Email or Username</label>
         <div class="input-wrap">
+            {% if show_field_icons %}<span class="signin-field-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>{% endif %}
             <input type="text" id="id_username" name="username" autocomplete="username" class="form-input" placeholder="Enter your email or username" value="{{ form.username.value|default:'' }}" required>
             {% for e in form.username.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
         </div>
@@ -15,6 +16,7 @@
     <div class="form-group">
         <label for="id_password">Password</label>
         <div class="input-wrap">
+            {% if show_field_icons %}<span class="signin-field-icon" aria-hidden="true"><i class="fas fa-lock"></i></span>{% endif %}
             <input type="password" id="id_password" name="password" autocomplete="current-password" class="form-input pw-input" placeholder="Enter your password" required>
             <button type="button" class="pw-toggle" aria-label="Show password"><i class="fas fa-eye"></i></button>
             {% for e in form.password.errors %}<div class="form-err">{{ e }}</div>{% endfor %}

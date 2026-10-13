@@ -9,7 +9,7 @@
             <p class="hm-signin-sub">Sign in to your ATRUE account</p>
         </div>
         <div class="hm-signin-error" id="landingSignInError" role="alert" hidden></div>
-        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url %}
+        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url show_field_icons=True %}
         <p class="hm-signin-foot"><button type="button" data-signin-close>&larr; Close</button></p>
     </section>
 </div>

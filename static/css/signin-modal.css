@@ -66,6 +66,7 @@
 .hm-signin-dialog .form-group { margin-bottom: 16px; }
 .hm-signin-dialog .form-group label { display: block; margin-bottom: 8px; color: #172033; font-size: 13px; font-weight: 600; }
 .hm-signin-dialog .input-wrap { position: relative; }
+.hm-signin-dialog .signin-field-icon { position: absolute; top: 50%; left: 15px; z-index: 1; transform: translateY(-50%); color: #94a3b8; font-size: 15px; pointer-events: none; }
 .hm-signin-dialog .form-input {
     box-sizing: border-box;
     width: 100%;
