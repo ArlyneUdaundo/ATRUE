@@ -1,4 +1,4 @@
-﻿{% extends 'dashboard_base.html' %}
+{% extends 'dashboard_base.html' %}
 {% load static %}
 
 {% block title %}Rooms — {{ hotel.name }}{% endblock %}
@@ -28,42 +28,6 @@
     </div>
 </div>
 
-<form method="get" action="{% url 'hotels:group_start' hotel.id %}" class="ag-search" style="margin-bottom:22px">
-    <div class="ag-search-tabs">
-        <a href="{% url 'hotels:detail' hotel.slug %}?check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-ghost btn-sm"><i class="fas fa-hotel"></i> Hotels</a>
-        <span class="badge badge-blue" style="align-self:center"><i class="fas fa-bed"></i> Rooms</span>
-        <a href="{% url 'hotels:detail' hotel.slug %}#services" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Services</a>
-        <a href="{% url 'hotels:detail' hotel.slug %}#amenities" class="btn btn-ghost btn-sm"><i class="fas fa-swimming-pool"></i> Amenities</a>
-    </div>
-    <div class="ag-search-fields" style="grid-template-columns:1.4fr 1fr 1fr auto">
-        <div class="ag-field">
-            <label><i class="fas fa-hotel"></i> Hotel</label>
-            <input type="text" value="{{ hotel.name }}" readonly>
-        </div>
-        <div class="ag-field">
-            <label><i class="fas fa-sign-in-alt"></i> Check-in</label>
-            <input type="date" name="check_in" id="searchCheckIn" value="{{ check_in|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required>
-        </div>
-        <div class="ag-field">
-            <label><i class="fas fa-sign-out-alt"></i> Check-out</label>
-            <input type="date" name="check_out" id="searchCheckOut" value="{{ check_out|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required>
-        </div>
-        <div class="ag-field">
-            <label><i class="fas fa-user-group"></i> Guests &amp; rooms</label>
-            <div class="bk-grow bk-grow-inline">
-                <span class="bk-step">
-                    <button type="button" data-rstep-minus data-min="1" aria-label="Remove room"><i class="fas fa-minus"></i></button>
-                    <span class="bk-num" id="roomsCountText">{{ rooms_needed }}</span>
-                    <input type="hidden" name="rooms" id="roomsInput" value="{{ rooms_needed }}" data-min="1" class="bk-gstepper-val">
-                    <button type="button" data-rstep-plus aria-label="Add room"><i class="fas fa-plus"></i></button>
-                </span>
-                <input type="hidden" name="adults" value="{{ adults }}">
-                <input type="hidden" name="children" value="{{ children }}">
-            </div>
-        </div>
-        <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Update</button>
-    </div>
-</form>
 
 <form method="post" action="{% url 'hotels:group_select_rooms' hotel.id %}" id="bookingForm" novalidate>
 {% csrf_token %}
@@ -370,6 +334,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/rooms.js' %}?v=20261010-guest-info-unified"></script>
+<script src="{% static 'js/rooms.js' %}?v=20261013-no-room-search"></script>
 {% endblock %}
 

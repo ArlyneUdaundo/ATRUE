@@ -358,12 +358,6 @@
             }).join('');
         }
         if (roomsNeededEl) roomsNeededEl.value = SELECTED.length;
-        var searchRooms = document.getElementById('roomsInput');
-        var searchRoomsText = document.getElementById('roomsCountText');
-        if (SELECTED.length) {
-            if (searchRooms) searchRooms.value = SELECTED.length;
-            if (searchRoomsText) searchRoomsText.textContent = SELECTED.length;
-        }
     }
 
     function syncFromDom() {
@@ -839,33 +833,6 @@
         if (guestModalOpen()) { closeGuestModal(); return; }
         if (modal && modal.classList.contains('open')) closeDetails();
     });
-
-    // Header rooms stepper (search bar) before the guest hits Update.
-    var rmInput = document.getElementById('roomsInput');
-    var rmText = document.getElementById('roomsCountText');
-    function bumpSearch(d) {
-        var min = parseInt(rmInput.getAttribute('data-min') || '1', 10);
-        var v = Math.max(min, (parseInt(rmInput.value, 10) || 1) + d);
-        rmInput.value = v;
-        if (rmText) rmText.textContent = v;
-    }
-    Array.prototype.forEach.call(document.querySelectorAll('[data-rstep-plus]'), function (b) {
-        b.addEventListener('click', function () { bumpSearch(1); });
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-rstep-minus]'), function (b) {
-        b.addEventListener('click', function () { bumpSearch(-1); });
-    });
-
-    // Live date changes: sync to the booking form and recompute without reload.
-    var searchCi = document.getElementById('searchCheckIn');
-    var searchCo = document.getElementById('searchCheckOut');
-    function syncDates() {
-        if (searchCi && searchCi.value) ci.value = searchCi.value;
-        if (searchCo && searchCo.value) co.value = searchCo.value;
-        computeAll();
-    }
-    if (searchCi) searchCi.addEventListener('change', syncDates);
-    if (searchCo) searchCo.addEventListener('change', syncDates);
 
     // Dynamic guest sections: live recompute on input.
     wrap.addEventListener('input', function () {
