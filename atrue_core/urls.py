@@ -271,7 +271,7 @@ def home(request):
     restaurants_qs = Restaurant.objects.filter(status='ACTIVE')
     spots_qs = Landmark.objects.filter(status='ACTIVE', category='TOURIST_SPOT').prefetch_related('photos')
     activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE', provider__verified=True)
-    packages_qs = TourPackage.objects.filter(status='ACTIVE')
+    packages_qs = TourPackage.objects.filter(status='ACTIVE').prefetch_related('photos')
 
     if q:
         flights_qs = flights_qs.filter(Q(origin__icontains=q) | Q(destination__icontains=q)

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load hotel_photos %}
+{% load hotel_photos tour_package_tags %}
 {% load static %}
 
 {% block title %}Home{% endblock %}
@@ -1652,9 +1652,11 @@
         <div class="hm-live-grid grid-2" data-reveal>
             {% for p in featured_packages %}
             <div class="hm-item" data-open-url="{% url 'tour_package:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=700&q=60')">
+                {% with package_image=p.photos.all|photo_cover:'' %}
+                <div class="cover"{% if package_image %} style="background-image:url('{{ package_image }}')"{% endif %}>
                     <span class="badge">{{ p.status|title }}</span>
                 </div>
+                {% endwith %}
                 <div class="body">
                     <h4>{{ p.name }}</h4>
                     <p class="meta">{{ p.description|truncatewords:8 }}</p>
