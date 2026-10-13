@@ -5,7 +5,9 @@ import re
 
 from .models import ACCOUNT_TYPE_CHOICES, NATIONALITY_CHOICES, SEX_CHOICES, User
 
-SUFFIX_CHOICES = [(s, s) for s in ('Jr.', 'Sr.', 'III', 'IV', 'V', 'VI', 'VII')]
+SUFFIX_CHOICES = [('', '— Select suffix —')] + [
+    (s, s) for s in ('Jr.', 'Sr.', 'III', 'IV', 'V', 'VI', 'VII')
+]
 
 CONTACT_RE = re.compile(r'^09\d{9}$')
 
@@ -148,7 +150,7 @@ class AccountCreateForm(UserRegistrationForm):
         if creator is not None and can_create_any_account(creator):
             self.fields['account_type'].choices = ACCOUNT_TYPE_CHOICES
         self.fields['suffix'].widget = forms.Select(
-            choices=[('', ' ')] + SUFFIX_CHOICES, attrs={'class': 'form-input'})
+            choices=SUFFIX_CHOICES, attrs={'class': 'form-input'})
         self.fields['sex'].widget = forms.Select(
             choices=[('', ' ')] + SEX_CHOICES, attrs={'class': 'form-input'})
         self.fields['nationality'].widget = forms.Select(
