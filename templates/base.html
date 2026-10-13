@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=20261012-logo-only-animated-2">
+    <link rel="stylesheet" href="{% static 'css/signin-modal.css' %}?v=20261013-global-popup-1">
     <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
     <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
 <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261012">
@@ -97,10 +98,10 @@
                         <a href="{% url 'dashboard' %}" class="btn btn-ghost"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
                         <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Sign Out</a>
                     {% else %}
-                        {% if request.resolver_match.url_name == 'home' %}
-                        <button type="button" class="btn btn-ghost" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
-                        {% else %}
+                        {% if request.resolver_match.url_name == 'login' %}
                         <a href="{% url 'accounts:login' %}" class="btn btn-ghost">Sign In</a>
+                        {% else %}
+                        <button type="button" class="btn btn-ghost" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
                         {% endif %}
                     {% endif %}
                 </div>
@@ -126,10 +127,10 @@
         <a href="{% url 'dashboard' %}">Dashboard</a>
         <a href="{% url 'accounts:logout' %}">Sign Out</a>
         {% else %}
-        {% if request.resolver_match.url_name == 'home' %}
-        <button type="button" class="mobile-signin-trigger" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
-        {% else %}
+        {% if request.resolver_match.url_name == 'login' %}
         <a href="{% url 'accounts:login' %}">Sign In</a>
+        {% else %}
+        <button type="button" class="mobile-signin-trigger" data-signin-open aria-haspopup="dialog" aria-controls="landingSignInModal">Sign In</button>
         {% endif %}
         {% endif %}
     </aside>
@@ -202,10 +203,12 @@
         </div>
     </footer>
 
+    {% include "accounts/_login_modal.html" %}
     <button class="back-top" id="backTop" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
 
     <script>window.ATRUE_LOC_DATA = {{ atrue_loc_tree_json|safe }};</script>
 <script src="{% static 'js/main.js' %}?v=20261012-preloader-3s"></script>
+<script src="{% static 'js/signin-modal.js' %}?v=20261013-global-popup-1"></script>
     <script src="{% static 'js/location-data.js' %}?v=20260922"></script>
     <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
     <script src="{% static 'js/location-picker.js' %}?v=20261005"></script>

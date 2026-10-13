@@ -1663,20 +1663,6 @@
 </section>
 
 
-{% url 'dashboard' as dashboard_url %}<div class="hm-signin-modal" id="landingSignInModal" hidden>
-    <section class="hm-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="landingSignInTitle">
-        <button type="button" class="hm-signin-close" data-signin-close aria-label="Close sign in"><i class="fas fa-xmark"></i></button>
-        <div class="hm-signin-brand">
-            <span class="cb-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
-            <h2 id="landingSignInTitle">Log In</h2>
-            <p class="hm-signin-sub">Sign in to your ATRUE account</p>
-        </div>
-        <div class="hm-signin-error" id="landingSignInError" role="alert" hidden></div>
-        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url %}
-        <p class="hm-signin-foot"><button type="button" data-signin-close>&larr; Back to Home</button></p>
-    </section>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -1697,76 +1683,6 @@
             break;
         }
     }, 5000);
-})();
-</script>
-<script>
-(function () {
-    var modal = document.getElementById('landingSignInModal');
-    var form = document.getElementById('landingSignInForm');
-    if (!modal || !form) return;
-    var errorBox = document.getElementById('landingSignInError');
-    var submit = document.getElementById('landingSignInSubmit');
-    var username = form.querySelector('input[name="username"]');
-    var previousFocus = null;
-
-    function openModal(event) {
-        if (event) event.preventDefault();
-        previousFocus = document.activeElement;
-        modal.hidden = false;
-        document.body.style.overflow = 'hidden';
-        window.setTimeout(function () { username.focus(); }, 20);
-    }
-    function closeModal() {
-        modal.hidden = true;
-        document.body.style.overflow = '';
-        if (previousFocus && previousFocus.focus) previousFocus.focus();
-    }
-
-    document.querySelectorAll('[data-signin-open]').forEach(function (link) {
-        link.addEventListener('click', openModal);
-    });
-    modal.querySelectorAll('[data-signin-close]').forEach(function (button) {
-        button.addEventListener('click', closeModal);
-    });
-    modal.addEventListener('click', function (event) {
-        if (event.target === modal) closeModal();
-    });
-    document.addEventListener('keydown', function (event) {
-        if (!modal.hidden && event.key === 'Escape') closeModal();
-    });
-
-    form.addEventListener('submit', function (event) {
-        event.preventDefault();
-        errorBox.hidden = true;
-        errorBox.textContent = '';
-        submit.disabled = true;
-        submit.textContent = 'Signing in?';
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: { 'X-ATRUE-LOGIN-MODAL': '1' },
-            credentials: 'same-origin'
-        }).then(function (response) {
-            return response.json().then(function (data) {
-                if (!response.ok || !data.ok) throw data;
-                var destination = new URL(data.redirect, window.location.origin);
-                if (window.ATRUE_CTX) destination.searchParams.set('ctx', window.ATRUE_CTX);
-                window.location.assign(destination.pathname + destination.search + destination.hash);
-            });
-        }).catch(function (data) {
-            var messages = [];
-            if (data && data.errors) {
-                Object.keys(data.errors).forEach(function (key) {
-                    messages = messages.concat(data.errors[key] || []);
-                });
-            }
-            errorBox.textContent = messages.join(' ') || 'Sign in failed. Please check your details and try again.';
-            errorBox.hidden = false;
-            submit.disabled = false;
-            submit.innerHTML = 'Log In &rarr;';
-            form.querySelector('input[name="password"]').value = '';
-        });
-    });
 })();
 </script>
 <script>

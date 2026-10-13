@@ -1,0 +1,15 @@
+{% load static %}
+{% url 'dashboard' as dashboard_url %}
+<div class="hm-signin-modal" id="landingSignInModal" hidden>
+    <section class="hm-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="landingSignInTitle">
+        <button type="button" class="hm-signin-close" data-signin-close aria-label="Close sign in"><i class="fas fa-xmark"></i></button>
+        <div class="hm-signin-brand">
+            <span class="cb-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+            <h2 id="landingSignInTitle">Log In</h2>
+            <p class="hm-signin-sub">Sign in to your ATRUE account</p>
+        </div>
+        <div class="hm-signin-error" id="landingSignInError" role="alert" hidden></div>
+        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url %}
+        <p class="hm-signin-foot"><button type="button" data-signin-close>&larr; Close</button></p>
+    </section>
+</div>
