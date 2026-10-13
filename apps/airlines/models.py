@@ -69,8 +69,6 @@ FARE_CLASS_CHOICES = [
 
 TRAVEL_DOCUMENT_TYPE_CHOICES = [
     ('PASSPORT', 'Passport'),
-    ('NATIONAL_ID', 'National ID'),
-    ('DRIVER_LICENSE', 'Driver License'),
     ('OTHER', 'Other'),
 ]
 

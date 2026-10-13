@@ -2711,8 +2711,6 @@ def book_flight(request, flight_id):
             'flight': flight,
             'remaining': remaining,
             'seat_map': seat_map,
-            'services': flight.airline.services.filter(
-                status=Service.ServiceStatus.ACTIVE),
             **_trip_context(),
             **extra,
         })
@@ -2838,8 +2836,7 @@ def book_flight(request, flight_id):
         while len(names) < passengers:
             names.append('')
 
-        extras = flight.airline.services.filter(
-            pk__in=request.POST.getlist('services'), status=Service.ServiceStatus.ACTIVE)
+        extras = Service.objects.none()
         baggage_kg = float(request.POST.get('baggage') or 0)
         baggage_charge = baggage_kg * float(flight.baggage_rate or 0)
         fare = flight.fare_for(fare_class)
@@ -3008,9 +3005,6 @@ def book_itinerary(request, itinerary_id):
             f"Segment {full['flight'].segment_order} "
             f"({full['flight'].flight_number}) is fully booked.")
         return redirect('airlines:itinerary_public_detail', itinerary.pk)
-
-    services = itinerary.airline.services.filter(
-        status=Service.ServiceStatus.ACTIVE)
     timing = itinerary.timing
     try:
         passengers = int(
@@ -3037,7 +3031,6 @@ def book_itinerary(request, itinerary_id):
             'legs': legs,
             'segment_rows': segment_rows,
             'remaining': remaining,
-            'services': services,
             'trip_type': itinerary.trip_type,
             'passengers': passengers,
             'fare_class': selected_fare_class,
@@ -3140,9 +3133,7 @@ def book_itinerary(request, itinerary_id):
         while len(names) < passengers:
             names.append('')
 
-        extras = itinerary.airline.services.filter(
-            pk__in=request.POST.getlist('services'),
-            status=Service.ServiceStatus.ACTIVE)
+        extras = Service.objects.none()
         try:
             baggage_kg = float(request.POST.get('baggage') or 0)
         except (TypeError, ValueError):

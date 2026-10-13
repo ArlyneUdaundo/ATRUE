@@ -47,7 +47,7 @@
             {% endif %}
             <div class="ag-panel-head">
                 <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
-                <div><h3>Passengers &amp; add-ons</h3><p>Add every traveler to this booking. Passenger 1 is the primary guest (account owner). Passenger forms appear dynamically only when you select 2 or more seats. All passengers share ONE booking reference and ONE payment transaction.</p></div>
+                <div><h3>Passengers</h3><p>Add every traveler to this booking. Passenger 1 is the primary guest (account owner). Passenger forms appear dynamically only when you select 2 or more seats. All passengers share ONE booking reference and ONE payment transaction.</p></div>
             </div>
             <div class="form-grid booking-passenger-fare-grid">
                 <div class="form-group">
@@ -95,8 +95,6 @@
                 <label>Travel Document Type</label>
                 <select name="travel_document_type" class="form-input">
                     <option value="PASSPORT" selected>Passport</option>
-                    <option value="NATIONAL_ID">National ID</option>
-                    <option value="DRIVERS_LICENSE">Driver's License</option>
                 </select>
             </div>
             <div class="form-group">
@@ -130,14 +128,6 @@
                     </select>
                 </div>
             </div>
-            {% if services %}
-            <div class="form-group">
-                <label>Add-On Services</label>
-                {% for s in services %}
-                <label class="checkbox"><input type="checkbox" name="services" value="{{ s.id }}" data-rate="{{ s.rate }}" onchange="updateFare()"> {{ s.name }} {% if s.rate %}— ₱ {{ s.rate }}{% endif %}</label>
-                {% endfor %}
-            </div>
-            {% endif %}
             <label class="checkbox" style="margin-bottom:6px">
                 <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
             </label>
@@ -167,7 +157,7 @@
         
         <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Flight</button>
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
-            <div class="ag-pb-note">*Total is computed by the system after applying passengers, fare class, baggage and add-ons.</div>
+            <div class="ag-pb-note">*Total is computed by the system after applying passengers, fare class and baggage.</div>
         </div>
     </aside>
 </div>
@@ -580,7 +570,7 @@ function renderPassengerRows() {
         if (keep[i - 1]) name.value = keep[i - 1].name;
         var docType = document.createElement('select');
         docType.name = 'travel_document_types'; docType.className = 'form-input';
-        [['PASSPORT', 'Passport'], ['NATIONAL_ID', 'National ID'], ['DRIVER_LICENSE', "Driver's License"], ['OTHER', 'Other']]
+        [['PASSPORT', 'Passport'], ['OTHER', 'Other']]
             .forEach(function (opt) {
                 var o = document.createElement('option');
                 o.value = opt[0]; o.textContent = opt[1];
@@ -644,9 +634,6 @@ function updateFare() {
     // is only correct after submission.
     var total = perPax * n * {{ return_flight|yesno:"2,1" }};
     total += (parseFloat(document.getElementById('baggage').value) || 0) * BAG_RATE;
-    document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
-        total += parseFloat(cb.dataset.rate) || 0;
-    });
     document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
 }
 
