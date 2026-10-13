@@ -79,19 +79,17 @@
 .payment-method-icon {
   display: grid;
   place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #edf3fb;
-  color: #31527f;
-  font-size: 15px;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid #e6ebf2;
+  border-radius: 9px;
+  background: #fff;
 }
-.payment-method-icon--gcash { background: #e4f2ff; color: #0074d9; font-size: 11px; font-weight: 800; letter-spacing: -.4px; }
-.payment-method-icon--maya { background: #e3f8ef; color: #119b63; font-size: 11px; font-weight: 800; letter-spacing: -.4px; }
-.payment-method-icon--paypal { background: #e7f2ff; color: #0766a8; }
+.payment-method-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .payment-method-check { margin-left: auto; color: #2563eb; opacity: 0; }
-.payment-method-option[aria-selected="true"] .payment-method-check { opacity: 1; }
+
 @media (max-width: 600px) {
   .payment-method-menu { grid-template-columns: 1fr; max-height: 48vh; }
   .payment-method-trigger { min-height: 46px; }

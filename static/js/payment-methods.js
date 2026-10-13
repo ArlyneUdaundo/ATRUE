@@ -2,28 +2,27 @@
   'use strict';
 
   const methods = [
-    { value: 'GCASH', label: 'GCash', kind: 'gcash', mark: 'G', icon: '' },
-    { value: 'MAYA', label: 'Maya', kind: 'maya', mark: 'M', icon: '' },
-    { value: 'BANK_TRANSFER', label: 'Bank Transfer', icon: 'fa-building-columns' },
-    { value: 'CREDIT_CARD', label: 'Credit Card', icon: 'fa-credit-card' },
-    { value: 'DEBIT_CARD', label: 'Debit Card', icon: 'fa-credit-card' },
-    { value: 'PAYPAL', label: 'PayPal', kind: 'paypal', icon: 'fa-brands fa-paypal' },
-    { value: 'QR_PH', label: 'QR Ph', icon: 'fa-qrcode' }
+    { value: 'GCASH', label: 'GCash', image: 'gcash.svg' },
+    { value: 'MAYA', label: 'Maya', image: 'maya.svg' },
+    { value: 'BANK_TRANSFER', label: 'Bank Transfer', image: 'bank-transfer.svg' },
+    { value: 'CREDIT_CARD', label: 'Credit Card', image: 'credit-card.svg' },
+    { value: 'DEBIT_CARD', label: 'Debit Card', image: 'debit-card.svg' },
+    { value: 'PAYPAL', label: 'PayPal', image: 'paypal.svg' },
+    { value: 'QR_PH', label: 'QR Ph', image: 'qr-ph.svg' }
   ];
 
   function iconNode(method) {
     const icon = document.createElement('span');
-    icon.className = 'payment-method-icon' + (method.kind ? ' payment-method-icon--' + method.kind : '');
-    if (method.mark) icon.textContent = method.mark;
-    else {
-      const glyph = document.createElement('i');
-      glyph.className = method.icon;
-      glyph.setAttribute('aria-hidden', 'true');
-      icon.appendChild(glyph);
-    }
+    icon.className = 'payment-method-icon';
+    const image = document.createElement('img');
+    image.src = '/static/img/payment-methods/' + method.image;
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.setAttribute('aria-hidden', 'true');
+    icon.appendChild(image);
     return icon;
   }
-
   function enhance(select) {
     if (select.dataset.paymentEnhanced === 'true') return;
     const oldValue = select.value;
