@@ -2,7 +2,9 @@
 import json
 import logging
 import os
+import re
 import urllib.request
+import urllib.error
 import uuid
 from decimal import Decimal
 
@@ -14,6 +16,16 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
+
+
+def _email_error_code(exc):
+    """Return a safe, compact diagnostic code without storing provider messages."""
+    message = str(exc)
+    if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE'}:
+        return message
+    if re.fullmatch(r'BREVO_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
+        return message
+    return type(exc).__name__.upper()[:80]
 
 
 def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
@@ -36,8 +48,21 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
             'content-type': 'application/json',
         },
     )
-    with urllib.request.urlopen(req, timeout=5) as response:
-        result = json.loads(response.read().decode() or '{}')
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            result = json.loads(response.read().decode() or '{}')
+    except urllib.error.HTTPError as exc:
+        provider_code = ''
+        try:
+            error_body = json.loads(exc.read().decode() or '{}')
+            raw_code = error_body.get('code', '')
+            provider_code = re.sub(r'[^A-Za-z0-9_-]', '', str(raw_code))[:40].upper()
+        except (ValueError, AttributeError, UnicodeDecodeError):
+            pass
+        safe_code = f'BREVO_HTTP_{exc.code}'
+        if provider_code:
+            safe_code += f'_{provider_code}'
+        raise RuntimeError(safe_code) from exc
     return result.get('messageId', '')
 
 
@@ -71,9 +96,7 @@ def _send_and_record(delivery_id):
     except Exception as exc:
         # Only a fixed category is stored. Never persist provider bodies, PII or secrets.
         row.status = EmailDelivery.Status.FAILED
-        row.error_code = str(exc) if str(exc) in {
-            'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE'
-        } else type(exc).__name__.upper()[:80]
+        row.error_code = _email_error_code(exc)
         logger.warning('Booking email failed; delivery_id=%s code=%s', row.pk, row.error_code)
     row.save(update_fields=['attempts', 'status', 'provider_message_id', 'error_code', 'updated_at'])
 
@@ -195,5 +218,5 @@ def deliver_password_reset(token_id, raw_token):
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
-                       str(exc) if str(exc) in {'EMAIL_CONFIGURATION_MISSING'} else type(exc).__name__.upper())
+                       _email_error_code(exc))
     row.save(update_fields=['email_status', 'provider_message_id'])

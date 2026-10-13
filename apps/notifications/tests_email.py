@@ -1,6 +1,8 @@
 import hashlib
+import io
 import json
 import re
+import urllib.error
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -107,3 +109,14 @@ class BrevoEmailTests(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'EMAIL_CONFIGURATION_MISSING'):
             _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
                         html='Hi', text='Hi', idempotency_key='test')
+
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_brevo_http_error_exposes_safe_status_and_provider_code(self, urlopen):
+        urlopen.side_effect = urllib.error.HTTPError(
+            'https://api.brevo.com/v3/smtp/email', 401, 'Unauthorized', {},
+            io.BytesIO(b'{"code":"unauthorized","message":"sensitive detail"}'),
+        )
+        with self.assertRaisesRegex(RuntimeError, 'BREVO_HTTP_401_UNAUTHORIZED') as raised:
+            _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
+                        html='Hi', text='Hi', idempotency_key='test-http-error')
+        self.assertNotIn('sensitive detail', str(raised.exception))
