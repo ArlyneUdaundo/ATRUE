@@ -43,8 +43,8 @@
             <label>Payment Method</label>
             <select name="method" class="form-input">
                 <option value="">All methods</option>
-                {% for m in method_choices %}
-                <option value="{{ m }}" {% if method == m %}selected{% endif %}>{{ m }}</option>
+                {% for value, label in method_choices %}
+                <option value="{{ value }}" {% if method == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>

@@ -35,6 +35,7 @@ Two rules govern everything here
 """
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES
 
 import logging
 
@@ -1000,7 +1001,7 @@ class PackageAdapter(BaseAdapter):
                     number_of_travelers=max(1, adults + children),
                     number_of_adults=adults,
                     number_of_children=children,
-                    payment_method=ctx.get('payment_method') or 'CASH',
+                    payment_method=ctx.get('payment_method') or DEFAULT_PAYMENT_METHOD,
                     payer_name=f"{guest['first_name']} {guest['last_name']}".strip(),
                     payer_contact=guest['contact'],
                     special_requests=guest.get('special_request', ''),
@@ -1410,11 +1411,8 @@ def get_adapter(key):
 # ---------------------------------------------------------------------------
 
 PAYMENT_METHODS = [
-    {'value': 'GCASH', 'label': 'GCash'},
-    {'value': 'BANK_TRANSFER', 'label': 'Bank Transfer'},
-    {'value': 'CREDIT_CARD', 'label': 'Credit Card'},
-    {'value': 'DEBIT_CARD', 'label': 'Debit Card'},
-    {'value': 'CASH', 'label': 'Cash'},
+    {'value': value, 'label': label}
+    for value, label in PAYMENT_METHOD_CHOICES
 ]
 
 DEFAULT_PAYMENT_METHOD = 'GCASH'

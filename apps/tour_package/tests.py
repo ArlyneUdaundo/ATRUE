@@ -177,7 +177,7 @@ class AssignedTourPackageDirectoryTests(TestCase):
         response = self.client.post(
             reverse('tour_package:book_package', args=[self.package.pk]),
             {'travel_date': date.today().isoformat(), 'travelers': '1', 'adults': '1',
-             'payment_method': 'CASH', 'pay_later': 'on'},
+             'payment_method': 'MAYA', 'pay_later': 'on'},
         )
 
         self.assertEqual(response.status_code, 302)

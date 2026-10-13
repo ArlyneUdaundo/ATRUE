@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from atrue_core.models import BookingFieldsMixin, BookingStatus
 from atrue_core.slugs import SlugByNameMixin
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES, payment_method_label
 
 ROOM_TYPE_CHOICES = [
     ('SINGLE', 'Single'),
@@ -22,13 +23,7 @@ ROOM_STATUS_CHOICES = [
     ('MAINTENANCE', 'Under Maintenance'),
 ]
 
-PAYMENT_MODE_CHOICES = [
-    ('CASH', 'Cash'),
-    ('GCASH', 'GCash'),
-    ('BANK_TRANSFER', 'Bank Transfer'),
-    ('CARD', 'Card'),
-    ('OTHER', 'Other'),
-]
+PAYMENT_MODE_CHOICES = PAYMENT_METHOD_CHOICES
 
 PAYMENT_STATUS_UNPAID = 'UNPAID'
 PAYMENT_STATUS_PARTIALLY_PAID = 'PARTIALLY_PAID'
@@ -489,3 +484,6 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.booking} - {self.get_mode_of_payment_display()} - {self.amount}"
+
+    def get_mode_of_payment_display(self):
+        return payment_method_label(self.mode_of_payment)

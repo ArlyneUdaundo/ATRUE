@@ -28,12 +28,14 @@
     <div style="font-size:28px;font-weight:800;margin:16px 0">₱ {{ total }}</div>
     <div class="form-group">
       <label>Payment Method</label>
-      <select name="payment_method" class="form-input">
-        <option value="GCASH">GCash</option>
-        <option value="BANK_TRANSFER">Bank Transfer</option>
-        <option value="CREDIT_CARD">Credit Card</option>
-        <option value="DEBIT_CARD">Debit Card</option>
-      </select>
+      <select name="payment_method" class="form-input" required>
+                    <option value="GCASH">GCash</option>
+                    <option value="MAYA">Maya</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                    <option value="PAYPAL">PayPal</option>
+                    <option value="QR_PH">QR Ph</option></select>
     </div>
     <label class="checkbox" style="margin-bottom:14px"><input type="checkbox" name="pay_later"> Pay later (booking stays pending)</label>
     <button type="submit" class="btn btn-brand" style="width:100%;padding:14px"><i class="fas fa-lock"></i> Confirm &amp; Pay {{ rows|length }} Item{{ rows|length|pluralize }} as ONE Transaction</button>

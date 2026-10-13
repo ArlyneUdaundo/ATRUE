@@ -25,6 +25,7 @@ from notifications.models import Notification
 from notifications.services import notify
 from simulation import engine
 from simulation.models import SimulationTransaction
+from atrue_core.payment_methods import validate_payment_method
 
 from .models import BillingEvent, SimulatedBill, SimulatedPayment
 
@@ -130,7 +131,7 @@ def issue_bill(transaction, issued_by, *, items=None, total_amount=None, remarks
     return bill
 
 
-def record_payment(bill, recorded_by, amount, *, method=SimulatedPayment.Method.CASH,
+def record_payment(bill, recorded_by, amount, *, method=SimulatedPayment.Method.GCASH,
                    status=SimulatedPayment.Status.PAID, remarks=''):
     """Record a simulated payment against ``bill`` and settle it when it clears.
 
@@ -138,6 +139,7 @@ def record_payment(bill, recorded_by, amount, *, method=SimulatedPayment.Method.
     covers the balance marks it paid and completes the underlying transaction.
     """
     amount = _decimal(amount)
+    method = validate_payment_method(method)
     if amount <= 0:
         raise InvalidAmountError(amount)
 

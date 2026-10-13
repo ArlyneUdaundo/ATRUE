@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from atrue_core.decorators import manager_required
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES
 from atrue_core.services import (
     bill_for_booking,
     log_activity,
@@ -216,6 +217,7 @@ def admin_list(request):
             'date': p.paid_at or p.pk,
             'type': 'Refund' if p.status == 'REFUNDED' else 'Booking Payment',
             'method': method,
+            'method_code': p.method,
             'amount': p.amount,
             'status': {'PENDING': 'Pending', 'PAID': 'Completed', 'REFUNDED': 'Refunded'}.get(p.status, p.status),
             'bill_id': p.bill_id,
@@ -270,7 +272,7 @@ def admin_list(request):
         except ValueError:
             pass
     if method:
-        rows = [r for r in rows if r['method'] == method]
+        rows = [r for r in rows if r.get('method_code', r['method']) == method]
     if amount_min > 0:
         rows = [r for r in rows if r['amount'] >= amount_min]
     if amount_max > 0:
@@ -302,7 +304,7 @@ def admin_list(request):
         'status_choices': [('Pending', 'Pending'), ('Completed', 'Completed'),
                            ('Failed', 'Failed'), ('Cancelled', 'Cancelled'),
                            ('Refunded', 'Refunded')],
-        'method_choices': Payment.objects.order_by().values_list('method', flat=True).distinct(),
+        'method_choices': PAYMENT_METHOD_CHOICES,
     })
 
 

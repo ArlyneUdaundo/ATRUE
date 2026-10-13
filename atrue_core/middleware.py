@@ -55,6 +55,23 @@ from django.urls import Resolver404, resolve
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
+class PaymentMethodValidationMiddleware:
+    """Reject forged payment-method values before a booking view can save them."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method == 'POST':
+            from atrue_core.payment_methods import is_supported_payment_method
+            for field in ('payment_method', 'mode_of_payment', 'method'):
+                value = request.POST.get(field)
+                if value is not None and not is_supported_payment_method(value):
+                    from django.http import HttpResponseBadRequest
+                    return HttpResponseBadRequest('Choose a supported payment method.')
+        return self.get_response(request)
+
+
 # Keys ``django.contrib.auth`` uses to remember the signed-in user in a session.
 AUTH_SESSION_KEYS = (
     SESSION_KEY,

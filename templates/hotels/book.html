@@ -78,12 +78,14 @@
         </div>
         <div class="form-group">
             <label>Payment Method</label>
-            <select name="payment_method" class="form-input">
-                <option value="GCASH">GCash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="CREDIT_CARD">Credit Card</option>
-                <option value="DEBIT_CARD">Debit Card</option>
-            </select>
+            <select name="payment_method" class="form-input" required>
+                    <option value="GCASH">GCash</option>
+                    <option value="MAYA">Maya</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                    <option value="PAYPAL">PayPal</option>
+                    <option value="QR_PH">QR Ph</option></select>
         </div>
         <label class="checkbox" style="margin-bottom:12px">
             <input type="checkbox" name="pay_later"> Pay later (booking stays pending)

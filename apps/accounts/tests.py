@@ -315,7 +315,7 @@ class PerTabSessionIsolationTests(TestCase):
             tab.post(reverse("hotels:group_select_rooms", args=[hotel]),
                      {"room_ids": rooms, "check_in": ci.isoformat(),
                       "check_out": co.isoformat(), "adults": 1,
-                      "children": 0, "payment_method": "GCA"})
+                      "children": 0, "payment_method": "MAYA"})
 
         one.logout()
         self.assertEqual(five.booking().get("room_ids"), rooms_b)

@@ -297,7 +297,7 @@ def book_package(request, package_id):
             number_of_travelers=travelers,
             number_of_adults=adults,
             number_of_children=children,
-            payment_method=request.POST.get('payment_method', Booking.PaymentMethod.CASH),
+            payment_method=request.POST.get('payment_method', 'GCASH'),
             special_requests=request.POST.get('special_requests', ''),
             payer_name=request.POST.get('payer_name', ''),
             payer_contact=request.POST.get('payer_contact', ''),

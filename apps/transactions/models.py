@@ -4,6 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES, payment_method_label
 
 import uuid
 
@@ -35,15 +36,6 @@ BILL_STATUS_CHOICES = [
     ('UNPAID', 'Unpaid'),
     ('PARTIALLY_PAID', 'Partially Paid'),
     ('FULLY_PAID', 'Fully Paid'),
-]
-
-PAYMENT_METHOD_CHOICES = [
-    ('GCASH', 'GCash'),
-    ('BANK_TRANSFER', 'Bank Transfer'),
-    ('CREDIT_CARD', 'Credit Card'),
-    ('DEBIT_CARD', 'Debit Card'),
-    ('CASH', 'Cash'),
-    ('E_WALLET', 'E-Wallet'),
 ]
 
 PAYMENT_STATUS_CHOICES = [
@@ -218,6 +210,9 @@ class Payment(BookingLinked):
 
     class Meta:
         ordering = ['-paid_at', '-id']
+
+    def get_method_display(self):
+        return payment_method_label(self.method)
 
     def __str__(self):
         return f"Payment {self.payment_reference}"

@@ -15,6 +15,7 @@ ledger, so the two never see each other's rows.
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES, payment_method_label
 
 
 def _bill_reference():
@@ -130,10 +131,13 @@ class SimulatedPayment(models.Model):
     """One simulated payment a Billing Officer recorded against a bill."""
 
     class Method(models.TextChoices):
-        CASH = 'CASH', 'Cash'
         GCASH = 'GCASH', 'GCash'
+        MAYA = 'MAYA', 'Maya'
         BANK_TRANSFER = 'BANK_TRANSFER', 'Bank Transfer'
-        CARD = 'CARD', 'Card'
+        CREDIT_CARD = 'CREDIT_CARD', 'Credit Card'
+        DEBIT_CARD = 'DEBIT_CARD', 'Debit Card'
+        PAYPAL = 'PAYPAL', 'PayPal'
+        QR_PH = 'QR_PH', 'QR Ph'
 
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending Verification'
@@ -149,7 +153,7 @@ class SimulatedPayment(models.Model):
     transaction = models.ForeignKey(
         'simulation.SimulationTransaction', on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    method = models.CharField(max_length=16, choices=Method.choices, default=Method.CASH)
+    method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='GCASH')
     status = models.CharField(max_length=10, choices=Status.choices,
                               default=Status.PAID, db_index=True)
     recorded_by = models.ForeignKey(
@@ -169,6 +173,9 @@ class SimulatedPayment(models.Model):
                 condition=models.Q(amount__gt=0),
                 name='simpay_amount_positive'),
         ]
+
+    def get_method_display(self):
+        return payment_method_label(self.method)
 
     def __str__(self):
         return self.payment_reference

@@ -76,6 +76,9 @@ def record_payment(*, customer, amount, method, service="", description="",
     Returns the payment instance.
     """
     from transactions.models import Bill, Payment, Receipt
+    from atrue_core.payment_methods import validate_payment_method
+
+    method = validate_payment_method(method)
 
     if booking is not None and bill is None:
         bill = bill_for_booking(booking)

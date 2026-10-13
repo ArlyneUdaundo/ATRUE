@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from atrue_core.models import BookingFieldsMixin, BookingStatus
 from atrue_core.slugs import SlugByNameMixin
+from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES, payment_method_label
 
 TOUR_PACKAGE_STATUS_CHOICES = [
     ('ACTIVE', 'Active'),
@@ -13,15 +14,6 @@ TOUR_PACKAGE_STATUS_CHOICES = [
     ('FULLY_BOOKED', 'Fully Booked'),
     ('UNDER_MAINTENANCE', 'Under Maintenance'),
 ]
-
-PAYMENT_METHOD_CHOICES = [
-    ('GCASH', 'GCash'),
-    ('BANK_TRANSFER', 'Bank Transfer'),
-    ('CREDIT_CARD', 'Credit Card'),
-    ('DEBIT_CARD', 'Debit Card'),
-    ('CASH', 'Cash'),
-]
-
 
 class TourPackage(SlugByNameMixin, models.Model):
     """Package of valid establishments, activities, and/or services (BR-071).
@@ -126,10 +118,12 @@ class Booking(BookingFieldsMixin):
 
     class PaymentMethod(models.TextChoices):
         GCASH = 'GCASH', 'GCash'
+        MAYA = 'MAYA', 'Maya'
         BANK_TRANSFER = 'BANK_TRANSFER', 'Bank Transfer'
         CREDIT_CARD = 'CREDIT_CARD', 'Credit Card'
         DEBIT_CARD = 'DEBIT_CARD', 'Debit Card'
-        CASH = 'CASH', 'Cash'
+        PAYPAL = 'PAYPAL', 'PayPal'
+        QR_PH = 'QR_PH', 'QR Ph'
 
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='tour_package_bookings')
     package = models.ForeignKey(TourPackage, on_delete=models.PROTECT, related_name='bookings')
@@ -139,7 +133,7 @@ class Booking(BookingFieldsMixin):
     number_of_travelers = models.PositiveIntegerField(default=1)
     number_of_adults = models.PositiveIntegerField(default=1)
     number_of_children = models.PositiveIntegerField(default=0)
-    payment_method = models.CharField(max_length=15, choices=PAYMENT_METHOD_CHOICES, default='CASH')
+    payment_method = models.CharField(max_length=15, choices=PAYMENT_METHOD_CHOICES, default='GCASH')
 
     class Meta:
         ordering = ['-created_at']
@@ -147,6 +141,9 @@ class Booking(BookingFieldsMixin):
     @property
     def primary_traveler_name(self):
         return self.customer.get_full_name() or self.customer.username
+
+    def get_payment_method_display(self):
+        return payment_method_label(self.payment_method)
 
     @property
     def contact_number(self):

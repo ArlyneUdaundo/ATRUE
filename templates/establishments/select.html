@@ -304,7 +304,7 @@ same markup, and any block with no real data behind it is simply not rendered.
             <div class="ag-pb-divider"></div>
             <div class="form-group" style="margin:0">
                 <label>Payment Method</label>
-                <select name="payment_method" class="form-input">
+                <select name="payment_method" class="form-input" required>
                     {% for m in payment_methods %}
                     <option value="{{ m.value }}" {% if selected_payment_method == m.value %}selected{% endif %}>{{ m.label }}</option>
                     {% endfor %}
