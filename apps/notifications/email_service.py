@@ -27,7 +27,6 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
         'to': [{'email': to_email, **({'name': to_name} if to_name else {})}],
         'subject': subject,
         'htmlContent': html,
-        'textContent': text,
         'headers': {'Idempotency-Key': str(uuid.uuid5(uuid.NAMESPACE_URL, idempotency_key))},
     }
     req = urllib.request.Request(

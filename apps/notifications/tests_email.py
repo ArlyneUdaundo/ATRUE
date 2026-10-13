@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 from datetime import timedelta
 from unittest.mock import patch
@@ -96,7 +97,10 @@ class BrevoEmailTests(TestCase):
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, 'https://api.brevo.com/v3/smtp/email')
         self.assertEqual(request.get_header('Api-key'), 'test-key')
-        self.assertIn('Idempotency-Key', request.data.decode())
+        payload = json.loads(request.data.decode())
+        self.assertIn('htmlContent', payload)
+        self.assertNotIn('textContent', payload)
+        self.assertIn('Idempotency-Key', payload['headers'])
 
     @override_settings(BREVO_API_KEY='', BREVO_SENDER_EMAIL='', BREVO_SENDER_NAME='')
     def test_missing_brevo_configuration_is_handled_without_request(self):
