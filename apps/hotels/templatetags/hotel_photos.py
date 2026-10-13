@@ -33,6 +33,27 @@ def usable_urls(photos_qs):
 
 
 @register.filter
+def stored_image_urls(photos_qs):
+    """Return stored image URLs without remote existence probes."""
+    if photos_qs is None:
+        return []
+    try:
+        rows = list(photos_qs)
+    except (TypeError, ValueError):
+        return []
+    urls = []
+    for photo in rows:
+        image = getattr(photo, 'image', None)
+        if not image or not getattr(image, 'name', ''):
+            continue
+        try:
+            urls.append(image.url)
+        except (ValueError, NotImplementedError, OSError):
+            continue
+    return urls
+
+
+@register.filter
 def usable_json(photos_qs):
     """usable_urls() result serialized as a JSON array (for data-images='...')."""
     return mark_safe(json.dumps(usable_urls(photos_qs)))

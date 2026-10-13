@@ -348,8 +348,7 @@ def home(request):
             photo = photo or next(iter(establishment.photos.all()), None)
             if photo and photo.image:
                 try:
-                    if photo.image.storage.exists(photo.image.name):
-                        hero_images.append({'url': photo.image.url, 'name': establishment.name})
+                    hero_images.append({'url': photo.image.url, 'name': establishment.name})
                 except (OSError, ValueError, NotImplementedError):
                     continue
             if len(hero_images) >= 4:

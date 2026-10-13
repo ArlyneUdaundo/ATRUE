@@ -4,7 +4,7 @@ register = template.Library()
 
 
 def _usable_image_urls(photo_rows):
-    """Return only URLs whose underlying media file actually exists on disk."""
+    """Return URLs for saved image paths without remote existence probes."""
     urls = []
     for photo in photo_rows:
         name = getattr(photo, 'image', None)
@@ -14,8 +14,7 @@ def _usable_image_urls(photo_rows):
         if not path:
             continue
         try:
-            if name.storage.exists(path):
-                urls.append(name.url)
+            urls.append(name.url)
         except Exception:
             continue
     return urls

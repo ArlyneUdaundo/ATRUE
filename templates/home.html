@@ -1463,7 +1463,7 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for f in featured_flights %}
-            {% with airline_image=f.airline.photos.all|usable_urls|first %}
+            {% with airline_image=f.airline.photos.all|stored_image_urls|first %}
             <div class="hm-item" data-open-url="{% url 'airlines:list' %}" role="link" tabindex="0">
                 <div class="cover" style="background-image:url('{{ airline_image|default:'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60' }}'){% if airline_image %};background-size:contain;background-repeat:no-repeat;background-color:#fff{% endif %}">
                     <span class="badge">{{ f.status|title }}</span>
@@ -1525,7 +1525,7 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for r in featured_resorts %}
-            {% with resort_image=r.photos.all|usable_urls|first %}
+            {% with resort_image=r.photos.all|stored_image_urls|first %}
             <div class="hm-item" data-open-url="{% url 'resorts:list' %}" role="link" tabindex="0">
                 <div class="cover" style="background-image:url('{{ resort_image|default:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=60' }}')">
                     <span class="badge">{{ r.status|title }}</span>
@@ -1556,7 +1556,7 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for s in featured_staycations %}
-            {% with staycation_image=s.photos.all|usable_urls|first %}
+            {% with staycation_image=s.photos.all|stored_image_urls|first %}
             <div class="hm-item" data-open-url="{% url 'staycations:list' %}" role="link" tabindex="0">
                 <div class="cover" style="background-image:url('{{ staycation_image|default:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=60' }}')">
                     <span class="badge">{{ s.status|title }}</span>
