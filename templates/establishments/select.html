@@ -43,6 +43,7 @@ same markup, and any block with no real data behind it is simply not rendered.
     </div>
 </div>
 
+{% if item_noun != 'Villa' %}
 {% comment %}Date / time bar. A GET form so changing the date never loses the page.{% endcomment %}
 <form method="get" action="{{ select_url }}" class="ag-search" style="margin-bottom:22px">
     <div class="ag-search-tabs">
@@ -75,6 +76,8 @@ same markup, and any block with no real data behind it is simply not rendered.
         <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Update</button>
     </div>
 </form>
+
+{% endif %}
 
 <form method="post" action="{{ select_url }}" id="bookingForm" novalidate>
 {% csrf_token %}
