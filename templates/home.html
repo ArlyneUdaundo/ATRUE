@@ -675,6 +675,62 @@
     .hm-search-fields { grid-template-columns: 1fr; }
     .hm-search .field.grow { grid-column: auto; }
     .hm-search-btn { min-height: 52px; }
+
+    /* Flight search card: readable, full-width controls on phones. */
+    .hm-search:has(#flightTripTypeField:not([hidden])) {
+        padding: 14px;
+        border-radius: 22px;
+        text-align: left;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-trip-type {
+        padding: 0 0 14px;
+        width: 100%;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-tt-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-tt-options label {
+        justify-content: center;
+        min-height: 48px;
+        padding: 9px 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-tt-options input:checked + label {
+        border-color: #2563eb;
+        background: #eaf2ff;
+        color: #1d4ed8;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-search-fields.is-flight-search {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-search-fields.is-flight-search > .field,
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-search-fields.is-flight-search > .hm-date-range {
+        width: 100%;
+        min-width: 0;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .field,
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-date-range {
+        border-radius: 14px;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-date-range.has-return {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-date-range > #returnField {
+        border-top: 1px solid var(--hm-line);
+        border-left: 0;
+    }
+    .hm-search:has(#flightTripTypeField:not([hidden])) .hm-search-btn {
+        width: 100%;
+        min-height: 58px;
+        border-radius: 14px;
+    }
 }
 @media (max-width: 480px) {
     .home-page .container { padding: 0 16px; }
