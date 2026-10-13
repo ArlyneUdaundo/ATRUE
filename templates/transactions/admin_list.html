@@ -40,15 +40,6 @@
             <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
         </div>
         <div class="form-group">
-            <label>Payment Method</label>
-            <select name="method" class="form-input">
-                <option value="">All methods</option>
-                {% for value, label in method_choices %}
-                <option value="{{ value }}" {% if method == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
             <label>Min Amount</label>
             <input type="number" name="amount_min" step="0.01" class="form-input" value="{{ amount_min|default:'' }}">
         </div>
@@ -74,7 +65,7 @@
     <div class="table-wrap">
         <table class="table">
             <thead>
-                <tr><th>Transaction Reference</th><th>Booking Reference</th><th>Customer / Guest</th><th>Date</th><th>Type</th><th>Method</th><th>Amount</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Transaction Reference</th><th>Booking Reference</th><th>Customer / Guest</th><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody>
                 {% for r in rows %}
@@ -84,7 +75,6 @@
                     <td>{{ r.customer }}</td>
                     <td>{{ r.date|date:"M d, Y H:i" }}</td>
                     <td>{{ r.type }}</td>
-                    <td>{{ r.method }}</td>
                     <td>₱ {{ r.amount }}</td>
                     <td><span class="badge {% if r.status == 'Completed' %}badge-green{% elif r.status == 'Pending' %}badge-yellow{% elif r.status == 'Refunded' %}badge-gray{% else %}badge-red{% endif %}">{{ r.status }}</span></td>
                     <td>
@@ -93,7 +83,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="9"><div class="empty"><i class="fas fa-file-invoice-dollar"></i><h3>No transactions found</h3><p>Try adjusting your search or filters.</p></div></td></tr>
+                <tr><td colspan="8"><div class="empty"><i class="fas fa-file-invoice-dollar"></i><h3>No transactions found</h3><p>Try adjusting your search or filters.</p></div></td></tr>
                 {% endfor %}
             </tbody>
         </table>

@@ -62,6 +62,8 @@ def forgot_password_view(request):
                         user=user, token_hash=token_hash, expires_at=now+timedelta(minutes=30))
                     transaction.on_commit(lambda pk=reset.pk, token=raw: __import__(
                         'notifications.email_service', fromlist=['deliver_password_reset']).deliver_password_reset(pk, token))
+        if request.headers.get('X-ATRUE-RESET-MODAL') == '1':
+            return JsonResponse({'ok': True, 'message': generic})
         return render(request, 'accounts/forgot_password.html', {'generic_message': generic}, status=200)
     return render(request, 'accounts/forgot_password.html')
 
@@ -146,6 +148,17 @@ def login_view(request):
         if modal_request:
             return JsonResponse({'ok': True, 'redirect': redirect(target).url})
         return redirect(target)
+
+    if request.method == 'GET':
+        from django.urls import reverse
+        from urllib.parse import urlencode
+        params = {'signin': '1'}
+        target = _next_target(request)
+        if target:
+            params['next'] = target
+        if request.GET.get('ctx'):
+            params['ctx'] = request.GET['ctx']
+        return redirect(f"{reverse('home')}?{urlencode(params)}")
 
     form = UserLoginForm(request, request.POST or None)
     if request.method == 'POST' and form.is_valid():

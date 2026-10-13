@@ -205,17 +205,38 @@
     </footer>
 
     {% include "accounts/_login_modal.html" %}
+    <div class="hm-signin-modal" id="passwordResetModal" hidden>
+        <section class="hm-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+            <button type="button" class="hm-signin-close" data-password-reset-close aria-label="Close password reset"><i class="fas fa-xmark"></i></button>
+            <div class="hm-signin-brand">
+                <span class="cb-logo"><img src="{% static 'img/atrue-logo-transparent.png' %}" alt="ATRUE logo"></span>
+                <h2 id="passwordResetTitle">Reset your password</h2>
+                <p class="hm-signin-sub">Enter your account email to receive secure reset instructions.</p>
+            </div>
+            <div id="passwordResetMessage" class="hm-signin-error" role="status" hidden></div>
+            <form id="passwordResetForm" method="post" action="{% url 'accounts:forgot_password' %}">
+                {% csrf_token %}
+                <div class="form-group"><label for="passwordResetEmail">Email address</label>
+                    <input class="form-input" id="passwordResetEmail" type="email" name="email" autocomplete="email" maxlength="254" required>
+                </div>
+                <button type="submit" class="btn btn-brand btn-full" id="passwordResetSubmit">Send reset instructions</button>
+            </form>
+            <p class="hm-signin-foot"><button type="button" data-password-reset-close>Close</button></p>
+        </section>
+    </div>
     <button class="back-top" id="backTop" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
 
     <script>window.ATRUE_LOC_DATA = {{ atrue_loc_tree_json|safe }};</script>
 <script src="{% static 'js/main.js' %}?v=20261012-preloader-3s"></script>
-<script src="{% static 'js/signin-modal.js' %}?v=20261013-global-popup-1"></script>
+<script src="{% static 'js/phone-validation.js' %}?v=20261014-11-digit"></script>
+<script src="{% static 'js/signin-modal.js' %}?v=20261014-modal-next"></script>
+<script src="{% static 'js/password-reset-modal.js' %}?v=20261014-reset-popup"></script>
     <script src="{% static 'js/location-data.js' %}?v=20260922"></script>
     <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
     <script src="{% static 'js/location-picker.js' %}?v=20261005"></script>
     <script src="{% static 'js/airport-picker.js' %}?v=20261012"></script>
 <script src="{% static 'js/flight-search.js' %}?v=20261012"></script>
-<script src="{% static 'js/atrue-datepicker.js' %}?v=20261011-viewport-popup"></script>
+<script src="{% static 'js/atrue-datepicker.js' %}?v=20261014-year-month"></script>
 <script src="{% static 'js/atrue-timepicker.js' %}?v=20261011-viewport-popup"></script>
 {% block extra_js %}{% endblock %}
 <script src="{% static 'js/payment-methods.js' %}?v=20261013-payment-methods-4"></script>

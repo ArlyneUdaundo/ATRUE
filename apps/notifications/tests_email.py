@@ -29,7 +29,8 @@ class BrevoEmailTests(TestCase):
         provider = ActivityProvider.objects.create(name='Provider', location='Manila')
         activity = Activity.objects.create(provider=provider, name='Kayak', fee='100.00')
         booking = Booking.objects.create(customer=self.user, activity=activity,
-                                         schedule_date=timezone.localdate(), participant_count=2)
+                                         schedule_date=timezone.localdate(), participant_count=2,
+                                         status='CONFIRMED')
         with self.captureOnCommitCallbacks(execute=True):
             queue_booking_confirmation(booking)
             queue_booking_confirmation(booking)
@@ -39,13 +40,16 @@ class BrevoEmailTests(TestCase):
         self.assertEqual(row.provider_message_id, 'provider-message-1')
         self.assertEqual(send.call_count, 1)
         self.assertIn('Payment pending', send.call_args.kwargs['text'])
+        attachment = send.call_args.kwargs['attachments'][0]
+        self.assertTrue(attachment['name'].endswith('.pdf'))
+        self.assertTrue(attachment['content'].startswith(b'%PDF'))
 
     @patch('notifications.email_service._brevo_send', side_effect=OSError('offline'))
     def test_brevo_failure_does_not_remove_booking_and_is_recorded(self, send):
         provider = ActivityProvider.objects.create(name='Provider', location='Manila')
         activity = Activity.objects.create(provider=provider, name='Hike', fee='100.00')
         booking = Booking.objects.create(customer=self.user, activity=activity,
-                                         schedule_date=timezone.localdate())
+                                         schedule_date=timezone.localdate(), status='CONFIRMED')
         with self.captureOnCommitCallbacks(execute=True):
             queue_booking_confirmation(booking)
         booking.refresh_from_db()

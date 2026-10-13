@@ -1,4 +1,5 @@
 """Brevo transactional mail helpers and a small database-backed outbox."""
+import base64
 import json
 import logging
 import os
@@ -21,14 +22,16 @@ BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 def _email_error_code(exc):
     """Return a safe, compact diagnostic code without storing provider messages."""
     message = str(exc)
-    if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE'}:
+    if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE',
+                   'ETICKET_GENERATION_FAILED', 'BOOKING_NOT_CONFIRMED'}:
         return message
     if re.fullmatch(r'BREVO_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
         return message
     return type(exc).__name__.upper()[:80]
 
 
-def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
+def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
+                attachments=None):
     api_key = getattr(settings, 'BREVO_API_KEY', '')
     sender_email = getattr(settings, 'BREVO_SENDER_EMAIL', '')
     sender_name = getattr(settings, 'BREVO_SENDER_NAME', '')
@@ -41,6 +44,11 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
         'htmlContent': html,
         'headers': {'Idempotency-Key': str(uuid.uuid5(uuid.NAMESPACE_URL, idempotency_key))},
     }
+    if attachments:
+        body['attachment'] = [
+            {'name': item['name'], 'content': base64.b64encode(item['content']).decode('ascii')}
+            for item in attachments
+        ]
     req = urllib.request.Request(
         BREVO_URL, data=json.dumps(body).encode(), method='POST',
         headers={
@@ -66,6 +74,59 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key):
     return result.get('messageId', '')
 
 
+def _ticketable(booking):
+    module = booking._meta.app_label
+    if module == 'airlines':
+        from airlines.ticket import TICKETABLE_STATUSES
+        return booking.status in TICKETABLE_STATUSES
+    from atrue_core.etickets import TICKETABLE_STATUSES
+    return module in TICKETABLE_STATUSES and booking.status in TICKETABLE_STATUSES[module]
+
+
+def _build_ticket_pdf(booking):
+    """Render the system's actual persisted booking e-ticket to a PDF attachment."""
+    try:
+        module = booking._meta.app_label
+        if module == 'airlines':
+            from io import BytesIO
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.lib.units import mm
+            from reportlab.platypus import SimpleDocTemplate
+            from airlines.ticket import build_ticket_context
+            from airlines.ticket_pdf_itinerary import _build as build_story
+
+            context = build_ticket_context(booking)
+            buffer = BytesIO()
+            document = SimpleDocTemplate(
+                buffer, pagesize=landscape(A4), leftMargin=14 * mm,
+                rightMargin=14 * mm, topMargin=9 * mm, bottomMargin=10 * mm,
+                title=f"ATRUE E-Ticket {booking.booking_reference}",
+                author='ATRUE Travel & Tours (Simulation)',
+            )
+            story, on_page = build_story(context)
+            document.build(story, onFirstPage=on_page, onLaterPages=on_page)
+            content = buffer.getvalue()
+            buffer.close()
+            filename = context['download_name']
+        else:
+            from atrue_core.services import bill_for_booking
+            from atrue_core.etickets import build_eticket_context
+            from atrue_core.eticket_pdf import build_pdf_response
+
+            bill = bill_for_booking(booking)
+            context = build_eticket_context(module, booking, bill)
+            response = build_pdf_response(context)
+            content = response.content
+            filename = context['download_name']
+        if not content.startswith(b'%PDF'):
+            raise ValueError('Generated ticket is not a PDF')
+        filename = re.sub(r'[^A-Za-z0-9_.-]', '_', str(filename))[:120]
+        return {'name': filename or 'ATRUE-eticket.pdf', 'content': content}
+    except Exception as exc:
+        logger.warning('E-ticket PDF generation failed; booking=%s', booking.pk)
+        raise RuntimeError('ETICKET_GENERATION_FAILED') from exc
+
+
 def _send_and_record(delivery_id):
     from .models import EmailDelivery
     row = EmailDelivery.objects.filter(pk=delivery_id).first()
@@ -86,9 +147,11 @@ def _send_and_record(delivery_id):
         context = {**details, 'brand': 'ATRUE Simulation Portal'}
         html = render_to_string('emails/booking_confirmation.html', context)
         plain = render_to_string('emails/booking_confirmation.txt', context)
+        ticket_pdf = _build_ticket_pdf(booking)
         message_id = _brevo_send(
             to_email=row.recipient, to_name=details['customer_name'], subject=subject,
             html=html, text=plain, idempotency_key=row.idempotency_key,
+            attachments=[ticket_pdf],
         )
         row.status = EmailDelivery.Status.SENT
         row.provider_message_id = message_id
@@ -105,6 +168,9 @@ def queue_booking_confirmation(booking):
     """Create one delivery record per persisted booking; send only post-commit."""
     from .models import EmailDelivery
     from django.db import IntegrityError
+    if not _ticketable(booking):
+        # A pending or unconfirmed booking has no valid e-ticket to send yet.
+        return None
     model = booking._meta.concrete_model
     key = f'booking-confirmation:{model._meta.label_lower}:{booking.pk}'
     customer = (getattr(booking, 'customer', None) or getattr(booking, 'passenger', None)

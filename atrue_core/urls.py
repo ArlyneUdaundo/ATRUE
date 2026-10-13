@@ -269,7 +269,7 @@ def home(request):
     resorts_qs = Resort.objects.filter(status='ACTIVE').annotate(from_rate=Min('units__rate'))
     staycations_qs = Staycation.objects.filter(status='ACTIVE')
     restaurants_qs = Restaurant.objects.filter(status='ACTIVE')
-    spots_qs = Landmark.objects.filter(status='ACTIVE', category='TOURIST_SPOT')
+    spots_qs = Landmark.objects.filter(status='ACTIVE', category='TOURIST_SPOT').prefetch_related('photos')
     activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE', provider__verified=True)
     packages_qs = TourPackage.objects.filter(status='ACTIVE')
 
@@ -338,6 +338,16 @@ def home(request):
     def count(x): return x.count() if hasattr(x,'count') and not isinstance(x,list) else len(x)
 
     home_destinations = destination_options()
+    hero_images = []
+    hero_spots = Landmark.objects.filter(
+        status='ACTIVE', category='TOURIST_SPOT'
+    ).prefetch_related('photos').order_by('name')
+    for hero_spot in hero_spots:
+        hero_photo = hero_spot.photos.first()
+        if hero_photo and hero_photo.image:
+            hero_images.append({'url': hero_photo.image.url, 'name': hero_spot.name})
+        if len(hero_images) >= 4:
+            break
     return render(request,'home.html',{
         'featured_flights':featured(flights_qs), 'featured_hotels':featured(hotels_qs),
         'featured_resorts':featured(resorts_qs), 'featured_staycations':featured(staycations_qs),
@@ -371,6 +381,7 @@ def home(request):
             if (request.GET.get('destination_airport') or '').isdigit()
             else None
         ),
+        'hero_images': hero_images,
         'destination_options': home_destinations,
         'destination_search_options': destination_search_options(home_destinations, properties_only=True),
         'search_rooms':request.GET.get('rooms','1'),'search_adults':request.GET.get('adults',request.GET.get('guests','2')),'search_children':request.GET.get('children','0'),
@@ -391,7 +402,7 @@ urlpatterns=[
     path('accounts/',include('accounts.urls')), path('flights/',include('airlines.urls')), path('simulation/',include('simulation.urls')),
     path('hotels/',include('hotels.urls')), path('resorts/',include('resorts.urls')), path('staycations/',include('staycations.urls')),
     path('restaurants/',include('restaurants.urls')), path('transportation/',include('transportation.urls')), path('landmarks/',include('landmarks.urls')),
-    path('activities/',include('activities.urls')), path('packages/',include('tour_package.urls')), path('transactions/',include('transactions.urls')), path('records/',include('records.urls')),
+    path('activities/',include('activities.urls')), path('packages/',include('tour_package.urls')), path('transactions/',include('transactions.urls')),
 ]
 if settings.SERVE_MEDIA_FILES:
     # django.conf.urls.static.static() intentionally returns no route when

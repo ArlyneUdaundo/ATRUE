@@ -88,6 +88,39 @@ class StorageUploadErrorMiddleware:
         return None
 
 
+class ContactNumberValidationMiddleware:
+    """Reject malformed contact numbers on every POST, including raw-view forms."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method == 'POST':
+            import re
+            from django.core.validators import validate_email
+            from django.core.exceptions import ValidationError
+            from django.http import HttpResponseBadRequest
+            phone_field = re.compile(r'(?:^|_)(?:emergency_)?contact(?:_number)?$', re.I)
+            for name in request.POST:
+                if not phone_field.search(name):
+                    continue
+                value = (request.POST.get(name) or '').strip()
+                if not value:
+                    continue
+                if re.fullmatch(r'\d{11}', value):
+                    continue
+                if name.lower().endswith('payer_contact'):
+                    try:
+                        validate_email(value)
+                        continue
+                    except ValidationError:
+                        pass
+                return HttpResponseBadRequest(
+                    'Invalid contact number. Enter exactly 11 digits.'
+                )
+        return self.get_response(request)
+
+
 class PaymentMethodValidationMiddleware:
     """Reject forged payment-method values before a booking view can save them."""
 

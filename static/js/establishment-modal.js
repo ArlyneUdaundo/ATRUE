@@ -145,6 +145,56 @@
                 credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
+            if (form.matches('[data-landmark-form]') && response.headers.get('content-type', '').includes('application/json')) {
+                var result = await response.json();
+                if (!response.ok || !result.ok) {
+                    var error = body.querySelector('.attraction-edit-error');
+                    if (!error) {
+                        error = document.createElement('div');
+                        error.className = 'alert alert-error attraction-edit-error';
+                        form.prepend(error);
+                    }
+                    error.textContent = (result.errors || ['Could not save the attraction.']).join(' ');
+                    return;
+                }
+                var card = document.querySelector('[data-attraction-card][data-attraction-id="' + result.id + '"]');
+                if (card) {
+                    card.querySelector('[data-attraction-name]').textContent = result.name;
+                    card.querySelector('[data-attraction-location]').textContent = result.location;
+                    var badge = card.querySelector('[data-attraction-status]');
+                    badge.textContent = result.status_display;
+                    badge.classList.toggle('badge-green', result.status === 'ACTIVE');
+                    badge.classList.toggle('badge-blue', result.status !== 'ACTIVE');
+                    var image = card.querySelector('[data-attraction-photo]');
+                    var placeholder = card.querySelector('[data-attraction-placeholder]');
+                    if (result.image_url) {
+                        if (!image) {
+                            image = document.createElement('img');
+                            image.setAttribute('data-attraction-photo', '');
+                            image.alt = result.name;
+                            image.loading = 'lazy';
+                            image.style.cssText = 'width:96px;height:72px;object-fit:cover;border-radius:12px;flex:none';
+                            if (placeholder) placeholder.replaceWith(image);
+                            else card.querySelector('div[style*="display:flex"]').prepend(image);
+                        }
+                        image.src = result.image_url;
+                        image.alt = result.name;
+                    } else if (image) {
+                        var empty = document.createElement('span');
+                        empty.setAttribute('data-attraction-placeholder', '');
+                        empty.className = 'scard-ico ico-blue';
+                        empty.innerHTML = '<i class="fas fa-landmark"></i>';
+                        image.replaceWith(empty);
+                    }
+                }
+                closeModal();
+                var notice = document.createElement('div');
+                notice.className = 'alert alert-success';
+                notice.setAttribute('role', 'status');
+                notice.textContent = 'Attraction updated successfully.';
+                document.querySelector('.content')?.prepend(notice);
+                return;
+            }
             var html = await response.text();
             if (response.redirected) {
                 closeModal();

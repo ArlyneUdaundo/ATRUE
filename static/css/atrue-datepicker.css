@@ -320,6 +320,27 @@
     letter-spacing: 0.01em;
 }
 
+.adp-month-controls {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+}
+.adp-select {
+    min-width: 0;
+    height: 30px;
+    padding: 2px 5px;
+    border: 1px solid var(--adp-border);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--adp-ink);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+.adp-month-select { max-width: 104px; }
+.adp-year-select { max-width: 76px; }
 .adp-nav {
     flex: none;
     display: inline-flex;

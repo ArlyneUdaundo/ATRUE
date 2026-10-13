@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from atrue_core.decorators import manager_required
-from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES
 from atrue_core.services import (
     bill_for_booking,
     log_activity,
@@ -21,7 +20,6 @@ from atrue_core.services import (
 )
 
 from .models import AdditionalTransaction, Bill, Payment, Receipt
-from records.models import TransactionRecord
 
 
 def _money(value):
@@ -179,13 +177,10 @@ def transaction_list(request):
             items__content_type=package_booking_type,
             items__object_id__in=disallowed,
         ).distinct()
-    records = (TransactionRecord.objects.filter(user=user)
-               .order_by('-recorded_at')[:100])
     return render(request, 'transactions/list.html', {
         'bills': bills,
         'payments': payments,
         'receipts': receipts,
-        'records': records,
         'orders': orders,
     })
 
@@ -209,15 +204,12 @@ def admin_list(request):
 
     rows = []
     for p in payments:
-        method = p.get_method_display()
         rows.append({
             'reference': p.payment_reference,
             'booking_ref': _linked_booking_ref(p),
             'customer': p.customer.get_full_name() or p.customer.username,
             'date': p.paid_at or p.pk,
             'type': 'Refund' if p.status == 'REFUNDED' else 'Booking Payment',
-            'method': method,
-            'method_code': p.method,
             'amount': p.amount,
             'status': {'PENDING': 'Pending', 'PAID': 'Completed', 'REFUNDED': 'Refunded'}.get(p.status, p.status),
             'bill_id': p.bill_id,
@@ -229,7 +221,6 @@ def admin_list(request):
             'customer': a.customer.get_full_name() or a.customer.username,
             'date': a.created_at,
             'type': f"Adjustment - {a.get_transaction_type_display()}",
-            'method': '—',
             'amount': a.total_amount,
             'status': a.get_status_display(),
             'bill_id': None,
@@ -240,7 +231,6 @@ def admin_list(request):
     status = request.GET.get('status', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
-    method = request.GET.get('method', '')
     amount_min = _money(request.GET.get('amount_min') or 0)
     amount_max = _money(request.GET.get('amount_max') or 0)
     sort = request.GET.get('sort', 'date')
@@ -271,8 +261,6 @@ def admin_list(request):
             rows = [r for r in rows if _row_date(r['date']) is not None and _row_date(r['date']) <= dmax]
         except ValueError:
             pass
-    if method:
-        rows = [r for r in rows if r.get('method_code', r['method']) == method]
     if amount_min > 0:
         rows = [r for r in rows if r['amount'] >= amount_min]
     if amount_max > 0:
@@ -293,7 +281,6 @@ def admin_list(request):
         'status': status,
         'date_from': date_from,
         'date_to': date_to,
-        'method': method,
         'amount_min': amount_min,
         'amount_max': amount_max,
         'sort': sort,
@@ -304,7 +291,6 @@ def admin_list(request):
         'status_choices': [('Pending', 'Pending'), ('Completed', 'Completed'),
                            ('Failed', 'Failed'), ('Cancelled', 'Cancelled'),
                            ('Refunded', 'Refunded')],
-        'method_choices': PAYMENT_METHOD_CHOICES,
     })
 
 
@@ -407,7 +393,6 @@ def additional_list(request):
                .order_by('-created_at'))
     records = _hide_unassigned_package_links(request, records)
     return render(request, 'transactions/additional.html', {
-        'records': records,
         'booking_pairs': _user_bookings(request.user, request),
         'additional_types': AdditionalTransaction.TransactionType.choices,
     })

@@ -646,7 +646,6 @@ ROLE_DEFS = {
             ('transactions:additional_list', 'fa-plus-circle', 'Additional Charges'),
             ('transactions:additional_add', 'fa-plus', 'Add Additional Charge'),
             ('transactions:booking_list', 'fa-bookmark', 'Bookings Ledger'),
-            ('records:list', 'fa-book', 'Transaction Records'),
         ],
     ),
     # -- Guest / customer tier -------------------------------------------------

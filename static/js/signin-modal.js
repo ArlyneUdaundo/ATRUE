@@ -24,6 +24,7 @@
     document.querySelectorAll('[data-signin-open]').forEach(function (button) {
         button.addEventListener('click', openModal);
     });
+    if (new URLSearchParams(window.location.search).get('signin') === '1') openModal();
     modal.querySelectorAll('[data-signin-close]').forEach(function (button) {
         button.addEventListener('click', closeModal);
     });

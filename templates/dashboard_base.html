@@ -60,7 +60,6 @@
                         <a href="{% url 'accounts:change_password' %}" class="user-dd-item{% if '/change-password' in request.path %} active{% endif %}"><span class="dd-chip udd-security"><i class="fas fa-key"></i></span><span class="dd-txt"><b>Change Password</b><small>Update your password</small></span></a>
                         <a href="{% url 'transactions:booking_list' %}" class="user-dd-item{% if '/transactions/bookings/' in request.path %} active{% endif %}"><span class="dd-chip udd-bookings"><i class="fas fa-bookmark"></i></span><span class="dd-txt"><b>My Bookings</b><small>Manage reservations</small></span></a>
                         <a href="{% url 'transactions:list' %}" class="user-dd-item{% if '/transactions/' in request.path %} active{% endif %}"><span class="dd-chip udd-transactions"><i class="fas fa-credit-card"></i></span><span class="dd-txt"><b>Transactions</b><small>Payments &amp; receipts</small></span></a>
-                        <a href="{% url 'records:list' %}" class="user-dd-item{% if '/records/' in request.path %} active{% endif %}"><span class="dd-chip udd-records"><i class="fas fa-book"></i></span><span class="dd-txt"><b>Transaction Records</b><small>Official records</small></span></a>
                         <a href="{% url 'simulation:logs' %}" class="user-dd-item{% if '/logs/' in request.path %} active{% endif %}"><span class="dd-chip udd-logs"><i class="fas fa-history"></i></span><span class="dd-txt"><b>Activity Logs</b><small>Simulation history</small></span></a>
                         <a href="{% url 'accounts:logout' %}" class="user-dd-item"><span class="dd-chip udd-security"><i class="fas fa-sign-out-alt"></i></span><span class="dd-txt"><b>Log Out</b><small>Sign out of your account</small></span></a>
                     </div>
@@ -473,7 +472,8 @@ document.addEventListener('DOMContentLoaded', function () {
     <script src="{% static 'js/location-cascade.js' %}?v=20261012"></script>
     <script src="{% static 'js/airport-picker.js' %}?v=20261012"></script>
 <script src="{% static 'js/flight-search.js' %}?v=20261012"></script>
-<script src="{% static 'js/atrue-datepicker.js' %}?v=20261011-viewport-popup"></script>
+<script src="{% static 'js/atrue-datepicker.js' %}?v=20261014-year-month"></script>
+<script src="{% static 'js/phone-validation.js' %}?v=20261014-11-digit"></script>
 <script src="{% static 'js/atrue-timepicker.js' %}?v=20261011-viewport-popup"></script>
 {% block extra_js %}{% endblock %}
 <script src="{% static 'js/payment-methods.js' %}?v=20261013-payment-methods-4"></script>

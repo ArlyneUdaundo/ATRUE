@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserCreationForm
 from django.contrib.auth import authenticate
 import re
+from datetime import date
 
 from .models import ACCOUNT_TYPE_CHOICES, NATIONALITY_CHOICES, SEX_CHOICES, User
 
@@ -9,7 +10,7 @@ SUFFIX_CHOICES = [('', '— Select suffix —')] + [
     (s, s) for s in ('Jr.', 'Sr.', 'III', 'IV', 'V', 'VI', 'VII')
 ]
 
-CONTACT_RE = re.compile(r'^09\d{9}$')
+CONTACT_RE = re.compile(r'^\d{11}$')
 
 # FR-001 Create User Account INPUT order (ATRUE_FR.md module 1).
 FR_FIELD_ORDER = (
@@ -31,7 +32,7 @@ def _reorder_fields(form):
 def _validate_phone(value, label="Number"):
     num = (value or '').strip()
     if num and not CONTACT_RE.match(num):
-        raise forms.ValidationError(f"{label} must start with 09 and be 11 digits.")
+        raise forms.ValidationError(f"{label} must contain exactly 11 digits.")
     return num
 
 
@@ -51,6 +52,19 @@ class UserLoginForm(AuthenticationForm):
 
 
 class UserRegistrationForm(UserCreationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'date_of_birth' in self.fields:
+            self.fields['date_of_birth'].widget.attrs.update({
+                'type': 'date', 'max': date.today().isoformat(),
+            })
+
+    def clean_date_of_birth(self):
+        value = self.cleaned_data.get('date_of_birth')
+        if value and value > date.today():
+            raise forms.ValidationError('Birthdate cannot be in the future.')
+        return value
+
     # Username is derived from the email prefix (BR-001), so the field is
     # hidden from the UI and optional; clean_username fills it in.
     username = forms.CharField(required=False, max_length=150)
@@ -160,6 +174,7 @@ class AccountCreateForm(UserRegistrationForm):
         self.fields['username'].required = True
         self.fields['username'].help_text = 'The exact username the user will sign in with.'
         self.fields['date_of_birth'].widget.input_type = 'date'
+        self.fields['date_of_birth'].widget.attrs['max'] = date.today().isoformat()
         self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'placeholder': '09XXXXXXXXX', 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         _reorder_fields(self)
@@ -249,7 +264,7 @@ class UserAccountForm(forms.ModelForm):
     class Meta:
         model = User
         fields = (
-            'first_name', 'last_name', 'middle_name', 'middle_initial', 'suffix',
+            'first_name', 'last_name', 'middle_name', 'middle_initial', 'suffix', 'email',
             'date_of_birth', 'sex', 'nationality',
             'contact_number', 'residential_address',
             'emergency_contact_name', 'emergency_contact_number',
@@ -260,7 +275,7 @@ class UserAccountForm(forms.ModelForm):
             'sex': forms.Select(choices=SEX_CHOICES),
             'nationality': forms.Select(choices=NATIONALITY_CHOICES),
             'suffix': forms.Select(choices=SUFFIX_CHOICES),
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'max': date.today().isoformat()}),
             'status': forms.Select(),
             'account_type': forms.Select(),
         }
@@ -280,9 +295,24 @@ class UserAccountForm(forms.ModelForm):
                 'Upload an image for the blue avatar beside your name. '
                 'Select Clear to remove the current picture.'
             )
-        self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]*', 'maxlength': 11})
-        self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]*', 'maxlength': 11})
+        self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
+        self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
+        self.fields['email'].widget.attrs.update({'type': 'email', 'autocomplete': 'email', 'maxlength': 254})
         _reorder_fields(self)
+
+    def clean_date_of_birth(self):
+        value = self.cleaned_data.get('date_of_birth')
+        if value and value > date.today():
+            raise forms.ValidationError('Birthdate cannot be in the future.')
+        return value
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip().casefold()
+        if not email:
+            raise forms.ValidationError('Email address is required.')
+        if User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email
 
     def clean_contact_number(self):
         return _validate_phone(self.cleaned_data.get('contact_number', ''), "Contact number")

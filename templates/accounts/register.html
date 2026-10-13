@@ -56,7 +56,7 @@
                     <div class="form-group">
                         <label>Date of birth</label>
                         <div class="input-wrap">
-                            <input type="date" name="date_of_birth" class="form-input" value="{{ form.date_of_birth.value|default:'' }}">
+                            <input type="date" name="date_of_birth" class="form-input" max="{% now 'Y-m-d' %}" value="{{ form.date_of_birth.value|default:'' }}">
                             {% for e in form.date_of_birth.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
                         </div>
                     </div>

@@ -1054,10 +1054,9 @@
 <!-- ===================== HERO ===================== -->
 <section class="hm-hero" id="top">
     <div class="hero-bg">
-        <img class="hm-hero-slide is-active" src="{% get_media_prefix %}landmark_photos/white-beach-boracay--01.jpg" alt="" aria-hidden="true" fetchpriority="high" decoding="async">
-        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/kawasan-falls--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
-        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/mayon-volcano--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
-        <img class="hm-hero-slide" src="{% get_media_prefix %}landmark_photos/banaue-rice-terraces--01.jpg" alt="" aria-hidden="true" loading="eager" decoding="async" fetchpriority="low">
+        {% for image in hero_images %}
+        <img class="hm-hero-slide{% if forloop.first %} is-active{% endif %}" src="{{ image.url }}" alt="" aria-hidden="true" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+        {% endfor %}
         <div class="hm-hero-overlay"></div>
     </div>
     <div class="container hm-hero-inner">

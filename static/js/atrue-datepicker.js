@@ -360,9 +360,44 @@
             prev.setAttribute('aria-label', 'Previous month');
             prev.innerHTML = '<i class="fas fa-chevron-left"></i>';
 
-            var caption = document.createElement('span');
-            caption.className = 'adp-month-title-text';
-            caption.textContent = MONTHS[visible.getMonth()] + ' ' + visible.getFullYear();
+            var controls = document.createElement('span');
+            controls.className = 'adp-month-controls';
+            var monthSelect = document.createElement('select');
+            monthSelect.className = 'adp-select adp-month-select';
+            monthSelect.setAttribute('aria-label', 'Select month');
+            MONTHS.forEach(function (label, monthIndex) {
+                var option = document.createElement('option');
+                option.value = String(monthIndex);
+                option.textContent = label;
+                monthSelect.appendChild(option);
+            });
+            monthSelect.value = String(visible.getMonth());
+            var yearSelect = document.createElement('select');
+            yearSelect.className = 'adp-select adp-year-select';
+            yearSelect.setAttribute('aria-label', 'Select year');
+            var thisYear = new Date().getFullYear();
+            var firstYear = Math.min(1900, visible.getFullYear());
+            var lastYear = Math.max(thisYear + 10, visible.getFullYear());
+            var maxBound = parseISO(controller.maxISO);
+            var minBound = parseISO(controller.minISO);
+            if (minBound) firstYear = Math.min(firstYear, minBound.getFullYear());
+            if (maxBound) lastYear = Math.max(thisYear, maxBound.getFullYear());
+            for (var year = firstYear; year <= lastYear; year++) {
+                var yearOption = document.createElement('option');
+                yearOption.value = String(year);
+                yearOption.textContent = String(year);
+                yearSelect.appendChild(yearOption);
+            }
+            yearSelect.value = String(visible.getFullYear());
+            controls.appendChild(monthSelect);
+            controls.appendChild(yearSelect);
+            function selectVisibleMonth(monthOffset) {
+                var selected = new Date(Number(yearSelect.value), Number(monthSelect.value), 1, 12, 0, 0, 0);
+                controller.base = addMonths(selected, -monthOffset);
+                renderMonths(controller);
+            }
+            monthSelect.addEventListener('change', selectVisibleMonth.bind(null, i));
+            yearSelect.addEventListener('change', selectVisibleMonth.bind(null, i));
 
             var next = document.createElement('button');
             next.type = 'button';
@@ -371,7 +406,7 @@
             next.innerHTML = '<i class="fas fa-chevron-right"></i>';
 
             title.appendChild(prev);
-            title.appendChild(caption);
+            title.appendChild(controls);
             title.appendChild(next);
 
             var weekdays = document.createElement('div');

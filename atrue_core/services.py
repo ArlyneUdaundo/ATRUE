@@ -358,6 +358,9 @@ def confirm_booking(booking, user, notify=True, session=None, establishment=None
         complete_reservation_confirmation(
             user, establishment=resolved_establishment, session=session,
             booking_reference=getattr(booking, 'booking_reference', '') or '')
+    # Send the system-generated ticket only after status and payment checks pass.
+    from notifications.email_service import queue_booking_confirmation
+    queue_booking_confirmation(booking)
     return booking
 
 

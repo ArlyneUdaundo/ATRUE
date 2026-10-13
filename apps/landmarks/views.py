@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.image_utils import is_valid_image
@@ -73,7 +75,7 @@ def manage(request):
 def _save_attraction(category, request, instance=None, key=''):
     prefix = key + '_' if key else ''
     data = {
-        'name': request.POST.get(f'{prefix}name'),
+        'name': (request.POST.get(f'{prefix}name') or '').strip(),
         'description': request.POST.get(f'{prefix}description', ''),
         'country': request.POST.get(f'{prefix}country', ''),
         'region': request.POST.get(f'{prefix}region', ''),
@@ -83,10 +85,32 @@ def _save_attraction(category, request, instance=None, key=''):
         'contact_number': request.POST.get(f'{prefix}contact_number', ''),
         'open_hours': request.POST.get(f'{prefix}open_hours', ''),
         'entry_fee': request.POST.get(f'{prefix}entry_fee') or 0,
-        'capacity': int(request.POST.get(f'{prefix}capacity') or 0),
+        'capacity': request.POST.get(f'{prefix}capacity') or 0,
         'guided_tour_rate': request.POST.get(f'{prefix}guided_tour_rate') or 0,
         'private_tour_rate': request.POST.get(f'{prefix}private_tour_rate') or 0,
+        'status': request.POST.get(f'{prefix}status', 'ACTIVE'),
     }
+    if not data['name']:
+        raise ValueError('Name is required.')
+    if data['status'] not in dict(Landmark.Status.choices):
+        raise ValueError('Choose a valid status.')
+    try:
+        data['capacity'] = int(data['capacity'])
+        if data['capacity'] < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError('Capacity must be zero or a positive whole number.')
+    try:
+        from decimal import Decimal, InvalidOperation
+        for amount_field in ('entry_fee', 'guided_tour_rate', 'private_tour_rate'):
+            data[amount_field] = Decimal(str(data[amount_field]))
+            if data[amount_field] < 0:
+                raise InvalidOperation
+    except (InvalidOperation, ValueError):
+        raise ValueError('Fees must be valid non-negative amounts.')
+    images = request.FILES.getlist('photos')
+    if any(not is_valid_image(image) for image in images):
+        raise ValueError('Upload valid JPEG, PNG, or WebP image files no larger than 10 MB.')
     if instance:
         for field, value in data.items():
             setattr(instance, field, value)
@@ -94,7 +118,6 @@ def _save_attraction(category, request, instance=None, key=''):
     else:
         data['category'] = category
         instance = Landmark.objects.create(**data)
-    images = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
     for image in images:
         LandmarkPhoto.objects.create(landmark=instance, image=image, is_primary=not instance.photos.exists())
     for photo in instance.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -120,9 +143,22 @@ def add_spot(request):
 def update_spot(request, spot_id):
     spot = get_object_or_404(Landmark, pk=spot_id, category=Landmark.Category.TOURIST_SPOT)
     if request.method == 'POST':
-        _save_attraction(Landmark.Category.TOURIST_SPOT, request, instance=spot)
+        try:
+            _save_attraction(Landmark.Category.TOURIST_SPOT, request, instance=spot)
+        except (ValueError, ValidationError) as exc:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = exc.messages if isinstance(exc, ValidationError) else [str(exc)]
+                return JsonResponse({'ok': False, 'errors': errors}, status=400)
+            messages.error(request, str(exc))
+            return render(request, 'landmarks/spot_form.html', {'spot': spot, 'title': 'Tourist Spot'}, status=400)
         log_activity(request.user, "Updated tourist spot", spot.name)
         messages.success(request, "Tourist spot updated.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            photo = spot.photos.first()
+            return JsonResponse({'ok': True, 'id': spot.pk, 'name': spot.name,
+                'location': spot.location, 'status': spot.status,
+                'status_display': spot.get_status_display(),
+                'image_url': photo.image.url if photo and photo.image else ''})
         return redirect('landmarks:manage')
     return render(request, 'landmarks/spot_form.html', {'spot': spot, 'title': 'Tourist Spot'})
 
@@ -141,9 +177,22 @@ def add_landmark(request):
 def update_landmark(request, landmark_id):
     landmark = get_object_or_404(Landmark, pk=landmark_id, category=Landmark.Category.LANDMARK)
     if request.method == 'POST':
-        _save_attraction(Landmark, request, instance=landmark)
+        try:
+            _save_attraction(Landmark.Category.LANDMARK, request, instance=landmark)
+        except (ValueError, ValidationError) as exc:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = exc.messages if isinstance(exc, ValidationError) else [str(exc)]
+                return JsonResponse({'ok': False, 'errors': errors}, status=400)
+            messages.error(request, str(exc))
+            return render(request, 'landmarks/landmark_form.html', {'landmark': landmark, 'title': 'Landmark'}, status=400)
         log_activity(request.user, "Updated landmark", landmark.name)
         messages.success(request, "Landmark updated.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            photo = landmark.photos.first()
+            return JsonResponse({'ok': True, 'id': landmark.pk, 'name': landmark.name,
+                'location': landmark.location, 'status': landmark.status,
+                'status_display': landmark.get_status_display(),
+                'image_url': photo.image.url if photo and photo.image else ''})
         return redirect('landmarks:manage')
     return render(request, 'landmarks/landmark_form.html', {'landmark': landmark, 'title': 'Landmark'})
 

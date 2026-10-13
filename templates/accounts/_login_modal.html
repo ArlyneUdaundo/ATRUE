@@ -1,5 +1,6 @@
 {% load static %}
 {% url 'dashboard' as dashboard_url %}
+{% firstof request.GET.next dashboard_url as login_next %}
 <div class="hm-signin-modal" id="landingSignInModal" hidden>
     <section class="hm-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="landingSignInTitle">
         <button type="button" class="hm-signin-close" data-signin-close aria-label="Close sign in"><i class="fas fa-xmark"></i></button>
@@ -9,7 +10,7 @@
             <p class="hm-signin-sub">Sign in to your ATRUE account</p>
         </div>
         <div class="hm-signin-error" id="landingSignInError" role="alert" hidden></div>
-        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=dashboard_url show_field_icons=True %}
+        {% include "accounts/_login_form.html" with login_form_id="landingSignInForm" login_submit_id="landingSignInSubmit" next_url=login_next show_field_icons=True %}
         <p class="hm-signin-foot"><button type="button" data-signin-close>&larr; Close</button></p>
     </section>
 </div>
