@@ -327,6 +327,7 @@ STATICFILES_DIRS = [
 # Media files (User-uploaded files)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / "media"
+SERVE_MEDIA_FILES = os.getenv('SERVE_MEDIA_FILES', 'False').strip().lower() == 'true'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

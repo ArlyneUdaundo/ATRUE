@@ -393,5 +393,5 @@ urlpatterns=[
     path('restaurants/',include('restaurants.urls')), path('transportation/',include('transportation.urls')), path('landmarks/',include('landmarks.urls')),
     path('activities/',include('activities.urls')), path('packages/',include('tour_package.urls')), path('transactions/',include('transactions.urls')), path('records/',include('records.urls')),
 ]
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,document_root=settings.MEDIA_ROOT)
+if settings.DEBUG or settings.SERVE_MEDIA_FILES:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
