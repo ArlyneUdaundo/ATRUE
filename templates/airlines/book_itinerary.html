@@ -74,9 +74,8 @@
                 <div><h3>Seats</h3><p>Choose a seat for every passenger on every segment. The popup shows each segment's own aircraft, so a seat number from one leg is never mixed up with another.</p></div>
             </div>
             <div class="seat-pick-bar">
-            <div class="seat-open-list" id="seat-open-list"></div>
-            <ul class="seat-summary" id="seat-summary" hidden></ul>
-        </div>
+                <div class="seat-open-list" id="seat-open-list"></div>
+            </div>
 
             <div class="ag-customer-box" style="margin-top:18px">
                 <div class="ag-detail-row"><i class="fas fa-user"></i> Lead passenger: {{ request.user.get_full_name|default:request.user.username }}</div>
@@ -507,7 +506,7 @@ function syncForm() {
         document.getElementById('seg-' + segment + '-seat-numbers').value =
             seatsHere.join('|');
     });
-    renderSeatSummary();
+    renderSeatButtons();
 }
 function addSeatButton(buttons, passengerIndex, seat) {
     var button = document.createElement('button');
@@ -519,26 +518,14 @@ function addSeatButton(buttons, passengerIndex, seat) {
         + '</span>';
     buttons.appendChild(button);
 }
-function renderSeatSummary() {
+function renderSeatButtons() {
     var n = paxCount();
     var buttons = document.getElementById('seat-open-list');
-    var list = document.getElementById('seat-summary');
-    var lines = [];
-    var anySeat = false;
     buttons.innerHTML = '';
     for (var i = 0; i < n; i++) {
-        var parts = [paxName(i)];
-        var seatsHere = SEGMENTS.map(function (s) { return seatOf(s, i); });
-        var chosenSeat = seatsHere[0];
-        if (seatsHere.some(function (v) { return v; })) anySeat = true;
-        SEGMENTS.forEach(function (s, at) {
-            parts.push('Seg ' + SEGMENT_ORDERS[at] + ' ' + (seatsHere[at] || '?'));
-        });
-        lines.push('<li>' + parts.join(' &middot; ') + '</li>');
+        var chosenSeat = seatOf(SEGMENTS[0], i);
         addSeatButton(buttons, i, chosenSeat);
     }
-    list.innerHTML = lines.join('');
-    list.hidden = !anySeat;
 }
 
 function renderPassengerRows() {

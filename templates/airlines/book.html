@@ -75,7 +75,6 @@
         </div>
         <div class="seat-pick-bar">
             <div class="seat-open-list" id="seat-open-list"></div>
-            <ul class="seat-summary" id="seat-summary" hidden></ul>
         </div>
         <div class="ag-customer-box" style="margin-top:18px">
             <div class="ag-detail-row"><i class="fas fa-user"></i> Lead passenger: {{ request.user.get_full_name|default:request.user.username }}</div>
@@ -522,7 +521,7 @@ function syncForm() {
         el.type = 'hidden'; el.name = 'return_seat_numbers'; el.value = s;
         form.appendChild(el);
     });
-    renderSeatSummary();
+    renderSeatButtons();
 }
 function addSeatButton(buttons, passengerIndex, seat) {
     var button = document.createElement('button');
@@ -534,24 +533,13 @@ function addSeatButton(buttons, passengerIndex, seat) {
         + '</span>';
     buttons.appendChild(button);
 }
-function renderSeatSummary() {
+function renderSeatButtons() {
     var n = paxCount();
     var buttons = document.getElementById('seat-open-list');
-    var list = document.getElementById('seat-summary');
-    var lines = [];
-    var anySeat = false;
     buttons.innerHTML = '';
     for (var i = 0; i < n; i++) {
-        var out = seatOf('departure', i);
-        var back = HAS_RETURN ? seatOf('return', i) : '';
-        if (out || back) anySeat = true;
-        var text = paxName(i) + ' &mdash; ' + (out || 'no seat');
-        if (HAS_RETURN) text += ' &middot; ' + (back || 'no return seat');
-        lines.push('<li>' + text + '</li>');
-        addSeatButton(buttons, i, out);
+        addSeatButton(buttons, i, seatOf('departure', i));
     }
-    list.innerHTML = lines.join('');
-    list.hidden = !anySeat;
 }
 
 function renderPassengerRows() {

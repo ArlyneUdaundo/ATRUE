@@ -1577,19 +1577,6 @@ body.flight-booking-modal-open { overflow: hidden; }
 }
 .seat-open-list { display:flex; flex:1 1 100%; flex-wrap:wrap; gap:10px; }
 .seat-open-btn { flex: 0 0 auto; min-width: 170px; }
-.seat-summary {
-    flex: 1 1 220px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
-    font-size: 12px;
-    color: var(--slate-300);
-}
-.seat-summary[hidden] { display: none; }
-
 /* ==========================================================================
    Seat selection popup
    A light, white modal: flight segment tabs across the top, the passenger list
