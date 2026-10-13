@@ -38,7 +38,15 @@
 .etkt-arrow { text-align: center; }
 .etkt-arrow .arr { font-size: 24px; font-weight: 800; line-height: 1.1; }
 .etkt-arrow .dur { font-size: 11px; opacity: .92; margin-top: 2px; }
-@media (max-width: 640px) { .etkt-band { grid-template-columns: 1fr 1fr; } .etkt-band .fl-no { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+    .etkt-band { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px 8px; }
+    .etkt-band .fl-no { grid-column: 1 / -1; min-width: 0; font-size: 19px; overflow-wrap: anywhere; }
+    .etkt-leg { min-width: 0; overflow-wrap: anywhere; }
+    .etkt-leg { padding: 10px 6px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: rgba(255,255,255,.08); }
+    .etkt-leg .code { font-size: clamp(16px, 4.5vw, 22px); }
+    .etkt-leg .place, .etkt-leg .dt { font-size: 11px; }
+    .etkt-arrow .dur { display: none; }
+}
 .etkt-section { padding: 18px 24px; border-bottom: 1px solid #eef2f7; }
 .etkt-section h5 { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
 .etkt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
