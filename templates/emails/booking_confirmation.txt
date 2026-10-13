@@ -1,0 +1,19 @@
+ATRue Simulation Portal — Booking received
+
+Hello {{ customer_name }},
+Your booking has been saved.
+Reference: {{ booking_reference }}
+{% if service %}Service: {{ service }}{% endif %}
+{% if travel_date %}Date: {{ travel_date }}{% endif %}
+{% if itinerary %}Itinerary: {{ itinerary }}{% endif %}
+{% if check_in %}Check in: {{ check_in }}{% endif %}
+{% if check_out %}Check out: {{ check_out }}{% endif %}
+{% if schedule_date %}Schedule: {{ schedule_date }}{% endif %}
+{% if visit_date %}Visit date: {{ visit_date }}{% endif %}
+{% if departure_date %}Departure date: {{ departure_date }}{% endif %}
+{% if rooms %}Rooms: {{ rooms }}{% endif %}
+{% if guests %}Guests: {{ guests }}{% endif %}
+{% if status %}Booking status: {{ status }}{% endif %}
+{% if payment_status %}Payment: {{ payment_status }}{% endif %}
+Contact: {{ contact_email }}
+{% if contact_phone %}Phone: {{ contact_phone }}{% endif %}

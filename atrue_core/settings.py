@@ -352,3 +352,9 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").strip().lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+
+# Brevo transactional email credentials/configuration are supplied by Render.
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL', '')
+BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', '')
+APP_BASE_URL = os.getenv('APP_BASE_URL', '').rstrip('/')

@@ -40,6 +40,14 @@ services:
         value: "60"
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.console.EmailBackend
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: ATRUE Simulation Portal
+      - key: APP_BASE_URL
+        value: https://atrue-performance-staging.onrender.com
 
 databases:
   - name: atrue-performance-staging-db

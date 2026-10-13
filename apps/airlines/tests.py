@@ -3570,20 +3570,25 @@ class ReservationAgentBookingAccessTests(TestCase):
         self.assertRedirects(ticket, reverse('airlines:list'))
 
     def test_confirming_a_pending_booking_emails_the_passenger_only_once(self):
-        from django.core import mail
+        from unittest.mock import patch
+        from notifications.models import EmailDelivery
 
         url = reverse('airlines:booking_detail', args=[self.booking.pk])
-        response = self.client.post(url, {'action': 'confirm'})
+        with patch('notifications.email_service._brevo_send', return_value='brevo-accepted-1') as send:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(url, {'action': 'confirm'})
 
         self.assertRedirects(response, url)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['passenger@example.com'])
-        self.assertIn(self.booking.booking_reference, mail.outbox[0].body)
+        delivery = EmailDelivery.objects.get(event='BOOKING_CONFIRMATION')
+        self.assertEqual(delivery.recipient, 'passenger@example.com')
+        self.assertEqual(delivery.status, EmailDelivery.Status.SENT)
+        self.assertEqual(delivery.provider_message_id, 'brevo-accepted-1')
+        self.assertIn(self.booking.booking_reference, send.call_args.kwargs['text'])
 
         self.client.post(url, {'action': 'confirm'})
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(send.call_count, 1)
 
     def test_agent_cannot_confirm_their_own_booking(self):
         own_booking = Booking.objects.create(

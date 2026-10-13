@@ -1,6 +1,5 @@
 import json
 import logging
-from smtplib import SMTPException
 import uuid
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -12,7 +11,6 @@ from accounts.roles import FULL_ACCESS_TYPES, can_access_module, effective_role_
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Case, Count, ExpressionWrapper, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce
@@ -3382,47 +3380,10 @@ def booking_detail(request, booking_id):
                          f"{booking.flight.flight_number} {booking.flight.origin}-{booking.flight.destination}"
                          + (f" | Remarks: {remark}" if remark else ""))
             if was_pending:
-                recipient = booking.passenger.email.strip()
-                if not recipient:
-                    messages.warning(
-                        request,
-                        "Booking confirmed, but the passenger has no email address on their account.")
-                else:
-                    message = (
-                        f"Hello {booking.passenger.get_full_name() or booking.passenger.username},\n\n"
-                        f"Your flight booking has been confirmed.\n\n"
-                        f"Airline: {booking.flight.airline.name}\n"
-                        f"Booking reference: {booking.booking_reference}\n"
-                        f"Flight: {booking.flight.flight_number}\n"
-                        f"Route: {booking.flight.origin} to {booking.flight.destination}\n"
-                        f"Departure: {timezone.localtime(booking.flight.departure_time):%B %d, %Y %H:%M}\n\n"
-                        "Sign in to ATRUE to view your booking and e-ticket."
-                    )
-                    try:
-                        sent = send_mail(
-                            subject=f"Flight booking {booking.booking_reference} confirmed",
-                            message=message,
-                            from_email=None,
-                            recipient_list=[recipient],
-                            fail_silently=False,
-                        )
-                    except (OSError, SMTPException):
-                        logger.exception(
-                            "Failed to send airline booking confirmation email for booking %s",
-                            booking.pk,
-                        )
-                        messages.error(
-                            request,
-                            "Booking confirmed, but the confirmation email could not be sent.")
-                    else:
-                        if sent:
-                            messages.success(
-                                request,
-                                f"Confirmation email sent to {recipient}.")
-                        else:
-                            messages.error(
-                                request,
-                                "Booking confirmed, but the email backend did not send the confirmation.")
+                # Booking creation already queues this notification centrally.
+                # The shared outbox makes retries idempotent across modules.
+                from notifications.email_service import queue_booking_confirmation
+                queue_booking_confirmation(booking)
         elif action == 'decline':
             decline_booking(booking, request.user)
             if remark:

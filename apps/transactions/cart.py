@@ -100,6 +100,8 @@ def create_single_booking_order(*, request, booking, service, amount, descriptio
             description=description,
             amount=amount,
         )
+        from notifications.email_service import queue_booking_confirmation
+        queue_booking_confirmation(booking)
         combined_bill = create_bill(service='bundle', customer=request.user, items=bill_items)
         order.bill = combined_bill
         order.save(update_fields=['bill'])

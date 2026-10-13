@@ -155,6 +155,10 @@ def create_bill(*, service, customer, items, booking=None):
     if booking is not None:
         bill.link_to_booking(booking)
     bill.calculate(items)
+    if booking is not None:
+        # Queue alongside the persisted booking and dispatch after commit.
+        from notifications.email_service import queue_booking_confirmation
+        queue_booking_confirmation(booking)
     return bill
 
 

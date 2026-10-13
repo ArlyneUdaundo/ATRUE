@@ -23,4 +23,5 @@
         </div>
     </div>
     <button type="submit" class="btn btn-brand btn-full"{% if login_submit_id %} id="{{ login_submit_id }}"{% endif %}>Log In &rarr;</button>
+    <div class="auth-links" style="text-align:center;margin-top:8px"><a href="{% url 'accounts:forgot_password' %}">Forgot your password?</a></div>
 </form>

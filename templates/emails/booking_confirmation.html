@@ -1,0 +1,25 @@
+<!doctype html><html><body style="margin:0;background:#f2f6fc;font-family:Arial,sans-serif;color:#17243b">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:14px;overflow:hidden">
+<tr><td style="background:#145bd7;color:#fff;padding:22px 28px;font-size:20px;font-weight:bold">ATRue Simulation Portal</td></tr>
+<tr><td style="padding:28px"><h1 style="font-size:22px">Booking received</h1>
+<p>Hello {{ customer_name }},</p><p>Your booking has been saved. Here are the details currently available:</p>
+<table role="presentation" cellspacing="0" cellpadding="7">
+<tr><td><b>Reference</b></td><td>{{ booking_reference }}</td></tr>
+{% if service %}<tr><td><b>Service</b></td><td>{{ service }}</td></tr>{% endif %}
+{% if travel_date %}<tr><td><b>Date</b></td><td>{{ travel_date }}</td></tr>{% endif %}
+{% if itinerary %}<tr><td><b>Itinerary</b></td><td>{{ itinerary }}</td></tr>{% endif %}
+{% if check_in %}<tr><td><b>Check in</b></td><td>{{ check_in }}</td></tr>{% endif %}
+{% if check_out %}<tr><td><b>Check out</b></td><td>{{ check_out }}</td></tr>{% endif %}
+{% if schedule_date %}<tr><td><b>Schedule</b></td><td>{{ schedule_date }}</td></tr>{% endif %}
+{% if visit_date %}<tr><td><b>Visit date</b></td><td>{{ visit_date }}</td></tr>{% endif %}
+{% if departure_date %}<tr><td><b>Departure date</b></td><td>{{ departure_date }}</td></tr>{% endif %}
+{% if rooms %}<tr><td><b>Rooms</b></td><td>{{ rooms }}</td></tr>{% endif %}
+{% if guests %}<tr><td><b>Guests</b></td><td>{{ guests }}</td></tr>{% endif %}
+{% if status %}<tr><td><b>Booking status</b></td><td>{{ status }}</td></tr>{% endif %}
+{% if payment_status %}<tr><td><b>Payment</b></td><td>{{ payment_status }}</td></tr>{% endif %}
+<tr><td><b>Contact</b></td><td>{{ contact_email }}</td></tr>
+{% if contact_phone %}<tr><td><b>Phone</b></td><td>{{ contact_phone }}</td></tr>{% endif %}
+</table><p>Please sign in to ATRUE to view your booking.</p></td></tr>
+<tr><td style="padding:16px 28px;background:#f6f8fb;color:#63728b;font-size:12px">This is an automated booking message.</td></tr>
+</table></td></tr></table></body></html>

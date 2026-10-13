@@ -578,6 +578,8 @@ def establishment_booking(request):
             ct = ContentType.objects.get_for_model(booking)
             TravelOrderItem.objects.create(order=order, content_type=ct, object_id=booking.pk,
                                            service=service, description=desc, amount=amount)
+            from notifications.email_service import queue_booking_confirmation
+            queue_booking_confirmation(booking)
 
         bill = create_bill(service='bundle', customer=request.user, items=items)
         order.bill = bill

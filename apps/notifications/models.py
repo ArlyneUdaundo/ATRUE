@@ -8,6 +8,8 @@ notifications to another student", and test 45).
 """
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils import timezone
 
@@ -100,3 +102,43 @@ class Notification(models.Model):
             if save:
                 self.save(update_fields=['is_read', 'read_at'])
         return self
+
+
+class EmailDelivery(models.Model):
+    """Transactional email outbox. SENT means Brevo accepted the request."""
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        SENT = 'SENT', 'Accepted by provider'
+        FAILED = 'FAILED', 'Failed'
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveBigIntegerField(null=True, blank=True)
+    booking = GenericForeignKey('content_type', 'object_id')
+    event = models.CharField(max_length=40)
+    recipient = models.EmailField(blank=True)
+    idempotency_key = models.CharField(max_length=180, unique=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    provider_message_id = models.CharField(max_length=255, blank=True)
+    error_code = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['status', 'created_at'], name='email_outbox_status_idx')]
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    email_status = models.CharField(max_length=12, default='PENDING')
+    provider_message_id = models.CharField(max_length=255, blank=True)
+
+
+class PasswordResetRequest(models.Model):
+    email_digest = models.CharField(max_length=64, db_index=True)
+    ip_digest = models.CharField(max_length=64, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False, db_index=True)

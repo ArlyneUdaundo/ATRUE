@@ -3,13 +3,20 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.contrib import messages
 from django.db.models import Q
+from django.db import transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from urllib.parse import urlparse
+import hashlib
+import hmac
+import secrets
+from datetime import timedelta
 
 import datetime
 
@@ -19,6 +26,81 @@ from .forms import (AccountCreateForm, ProfilePhotoForm, UserAccountForm,
                    UserLoginForm, UserRegistrationForm)
 from .models import ACCOUNT_TYPE_CHOICES, User
 from .roles import effective_role_keys
+
+
+def forgot_password_view(request):
+    from django.conf import settings
+    from django.utils import timezone
+    from notifications.models import PasswordResetRequest, PasswordResetToken
+
+    generic = 'If an account matches that email, password reset instructions will be sent shortly.'
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip().casefold()[:254]
+        ip = request.META.get('REMOTE_ADDR', '')[:64]
+        secret = settings.SECRET_KEY.encode()
+        digest = lambda value: hmac.new(secret, value.encode(), hashlib.sha256).hexdigest()
+        now = timezone.now()
+        PasswordResetRequest.objects.filter(created_at__lt=now-timedelta(days=2)).delete()
+        email_digest, ip_digest = digest(email), digest(ip)
+        PasswordResetRequest.objects.create(email_digest=email_digest, ip_digest=ip_digest)
+        limited = (PasswordResetRequest.objects.filter(email_digest=email_digest, created_at__gte=now-timedelta(hours=1)).count() > 5
+                   or PasswordResetRequest.objects.filter(ip_digest=ip_digest, created_at__gte=now-timedelta(hours=1)).count() > 20)
+        valid_email = bool(email)
+        if valid_email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                valid_email = False
+        if valid_email and not limited:
+            user = User.objects.filter(email__iexact=email, is_active=True).order_by('pk').first()
+            if user and user.email:
+                raw = secrets.token_urlsafe(32)
+                token_hash = hashlib.sha256(raw.encode()).hexdigest()
+                with transaction.atomic():
+                    PasswordResetToken.objects.filter(user=user, used_at__isnull=True).update(used_at=now)
+                    reset = PasswordResetToken.objects.create(
+                        user=user, token_hash=token_hash, expires_at=now+timedelta(minutes=30))
+                    transaction.on_commit(lambda pk=reset.pk, token=raw: __import__(
+                        'notifications.email_service', fromlist=['deliver_password_reset']).deliver_password_reset(pk, token))
+        return render(request, 'accounts/forgot_password.html', {'generic_message': generic}, status=200)
+    return render(request, 'accounts/forgot_password.html')
+
+
+def reset_password_view(request, user_id):
+    from django.utils import timezone
+    from notifications.models import PasswordResetToken
+
+    response_status = 200
+    success = False
+    if request.method == 'POST':
+        raw = (request.POST.get('token') or '')[:128]
+        token_hash = hashlib.sha256(raw.encode()).hexdigest()
+        with transaction.atomic():
+            reset = PasswordResetToken.objects.select_for_update().filter(
+                user_id=user_id, token_hash=token_hash, used_at__isnull=True,
+                expires_at__gt=timezone.now()).select_related('user').first()
+            if reset:
+                form = SetPasswordForm(reset.user, request.POST)
+                if form.is_valid():
+                    form.save()
+                    reset.used_at = timezone.now()
+                    reset.save(update_fields=['used_at'])
+                    PasswordResetToken.objects.filter(user=reset.user, used_at__isnull=True).update(used_at=timezone.now())
+                    success = True
+                else:
+                    response_status = 400
+            else:
+                form = None
+                response_status = 400
+    else:
+        form = None
+    response = render(request, 'accounts/reset_password.html', {
+        'form': form, 'success': success,
+        'invalid_token': request.method == 'POST' and form is None,
+    }, status=response_status)
+    response['Cache-Control'] = 'no-store'
+    response['Referrer-Policy'] = 'no-referrer'
+    return response
 
 
 def _next_target(request):

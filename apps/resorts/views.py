@@ -594,6 +594,8 @@ def resort_group_review(request):
                     reservation.total_bill = amount
                     reservation.balance_due = amount
                     reservation.save(update_fields=['total_bill', 'balance_due'])
+                    from notifications.email_service import queue_booking_confirmation
+                    queue_booking_confirmation(reservation)
                 combined_bill = create_bill(service='bundle', customer=request.user, items=bill_items)
                 order.bill = combined_bill
                 order.save(update_fields=['bill'])
