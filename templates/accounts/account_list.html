@@ -25,12 +25,13 @@
     .account-list-table .account-col-type,
     .account-list-table .account-col-status,
     .account-list-table .account-col-created { display: none; }
-    .account-list-table .account-user-avatar,
     .account-list-table .account-username,
     .account-list-table .account-secondary-action { display: none !important; }
     .account-list-table .account-col-actions { width: 82px; text-align: right !important; }
     .account-list-table td { padding: 13px 10px; font-size: 14px; }
-    .account-list-table .account-col-user > div { gap: 0 !important; }
+    .account-list-table .account-col-user > div { gap: 9px !important; min-width: 0; }
+    .account-list-table .account-user-avatar { width: 44px !important; height: 44px !important; flex: 0 0 44px !important; border-radius: 12px !important; font-size: 15px !important; }
+    .account-list-table .account-col-user > div > div { min-width: 0; }
     .account-list-table .account-user-name { display: block; overflow-wrap: anywhere; }
     .account-list-table .account-view-btn { min-height: 40px; padding: 8px 11px; white-space: nowrap; }
 }
