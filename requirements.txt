@@ -20,5 +20,6 @@ reportlab==4.4.4
 # Render production WSGI server
 gunicorn==26.2.0
 whitenoise[brotli]==6.12.0
+django-storages[s3]==1.14.6
 
 dj-database-url

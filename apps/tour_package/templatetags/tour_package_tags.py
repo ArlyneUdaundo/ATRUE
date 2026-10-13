@@ -1,7 +1,4 @@
-import os
-
 from django import template
-from django.conf import settings
 
 register = template.Library()
 
@@ -17,10 +14,9 @@ def _usable_image_urls(photo_rows):
         if not path:
             continue
         try:
-            full = os.path.join(settings.MEDIA_ROOT, path)
-            if os.path.isfile(full) and os.path.getsize(full) > 0:
-                urls.append(settings.MEDIA_URL + path)
-        except OSError:
+            if name.storage.exists(path):
+                urls.append(name.url)
+        except Exception:
             continue
     return urls
 

@@ -4,6 +4,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from atrue_core.storage_backends import ProfilePictureStorage
 from django.utils.functional import cached_property
 
 from simulation.models import SimulationRoleAssignment
@@ -87,6 +88,7 @@ class User(AbstractUser):
     emergency_contact_relationship = models.CharField(max_length=50, blank=True)
     profile_picture = models.ImageField(
         upload_to=profile_picture_upload_to, blank=True,
+        storage=ProfilePictureStorage(),
     )
     account_type = models.CharField(max_length=40, choices=ACCOUNT_TYPE_CHOICES, default='STUDENT')
     status = models.CharField(max_length=10, choices=USER_STATUS_CHOICES, default=USER_STATUS_ACTIVE)

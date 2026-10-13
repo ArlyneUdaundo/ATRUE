@@ -1,8 +1,5 @@
 import json
-import os
-
 from django import template
-from django.conf import settings
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -24,10 +21,14 @@ def usable_urls(photos_qs):
     except (TypeError, ValueError):
         return out
     for p in rows:
-        f = getattr(getattr(p, "image", None), "name", None) or ""
-        full = os.path.join(settings.MEDIA_ROOT, f)
-        if os.path.isfile(full) and os.path.getsize(full) > 0:
-            out.append(settings.MEDIA_URL + f)
+        image = getattr(p, 'image', None)
+        name = getattr(image, 'name', None) or ''
+        if name:
+            try:
+                if image.storage.exists(name):
+                    out.append(image.url)
+            except Exception:
+                continue
     return out
 
 

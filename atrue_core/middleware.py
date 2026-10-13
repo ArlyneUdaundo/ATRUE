@@ -55,6 +55,39 @@ from django.urls import Resolver404, resolve
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
+class StorageUploadErrorMiddleware:
+    """Return a clear, credential-safe response when remote image storage fails."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_exception(self, request, exception):
+        from botocore.exceptions import BotoCoreError, ClientError
+        from django.core.exceptions import ImproperlyConfigured
+        from django.http import HttpResponse
+        from atrue_core.image_utils import InvalidImageUpload
+
+        if isinstance(exception, InvalidImageUpload):
+            return HttpResponse(str(exception), status=400,
+                                content_type='text/plain; charset=utf-8')
+
+        missing_storage_config = (
+            isinstance(exception, ImproperlyConfigured)
+            and 'SUPABASE' in str(exception).upper()
+        )
+        if isinstance(exception, (BotoCoreError, ClientError)) or missing_storage_config:
+            return HttpResponse(
+                'Image storage is unavailable. The image was not saved; please '
+                'try again later or contact an administrator.',
+                status=503,
+                content_type='text/plain; charset=utf-8',
+            )
+        return None
+
+
 class PaymentMethodValidationMiddleware:
     """Reject forged payment-method values before a booking view can save them."""
 

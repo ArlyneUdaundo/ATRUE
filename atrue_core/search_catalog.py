@@ -109,15 +109,15 @@ def price_prose(kind, amount, priced, plain_text):
 
 
 def _usable_images(paths):
+    from django.core.files.storage import default_storage
     out = []
     for path in paths:
         if not path:
             continue
         try:
-            full = os.path.join(settings.MEDIA_ROOT, path)
-            if os.path.isfile(full) and os.path.getsize(full) > 0:
-                out.append(settings.MEDIA_URL + path)
-        except OSError:
+            if default_storage.exists(path):
+                out.append(default_storage.url(path))
+        except Exception:
             continue
     return out
 

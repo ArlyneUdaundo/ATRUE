@@ -1,23 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The repository includes the project's existing media assets. Serve them on
-# Render Free even when the optional persistent-disk environment variables
-# have not been configured.
+# The repository includes any tracked media assets; serve them locally when
+# Supabase Storage has not yet been configured.
 export SERVE_MEDIA_FILES=True
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# A Blueprint can provide this path even when the service is still on Free.
-# Use the bundled repository media unless /var/data is actually mounted.
+# Use the bundled repository media if a stale Blueprint setting points to an
+# unavailable Render disk. Supabase is the permanent user-upload store.
 if [[ "${MEDIA_ROOT:-}" == /var/data/* ]] && ! mountpoint -q /var/data; then
   export MEDIA_ROOT="$PROJECT_ROOT/media"
 fi
 
-if mountpoint -q /var/data; then
+if [[ -n "${SUPABASE_URL:-}" && -n "${SUPABASE_S3_ENDPOINT:-}" && \
+      -n "${SUPABASE_S3_ACCESS_KEY_ID:-}" && \
+      -n "${SUPABASE_S3_SECRET_ACCESS_KEY:-}" && \
+      -n "${SUPABASE_STORAGE_REGION:-}" && \
+      -n "${SUPABASE_STORAGE_BUCKET:-}" && \
+      -n "${SUPABASE_PRIVATE_BUCKET:-}" ]]; then
+  echo "User upload storage: Supabase Storage"
+elif mountpoint -q /var/data; then
   echo "User upload storage: persistent Render disk at ${MEDIA_ROOT:-$PROJECT_ROOT/media}"
 else
-  echo "User upload storage: ephemeral service filesystem at ${MEDIA_ROOT:-$PROJECT_ROOT/media}; attach a paid persistent disk to preserve uploads across restarts/deploys"
+  echo "User upload storage: local ephemeral fallback at ${MEDIA_ROOT:-$PROJECT_ROOT/media}; configure Supabase Storage to retain uploads across restarts/deploys"
 fi
 
 if [[ -n "${MEDIA_ROOT:-}" && "$MEDIA_ROOT" != "$PROJECT_ROOT/media" ]]; then

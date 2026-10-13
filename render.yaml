@@ -3,16 +3,12 @@ services:
     name: atrue-performance-staging
     runtime: python
     region: singapore
-    plan: 0.5c-512mb
+    plan: free
     branch: render-staging
     buildCommand: bash build.sh
     startCommand: bash start.sh
     healthCheckPath: /
     autoDeployTrigger: commit
-    disk:
-      name: atrue-staging-media
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.7
@@ -20,8 +16,6 @@ services:
         value: "False"
       - key: SERVE_MEDIA_FILES
         value: "True"
-      - key: MEDIA_ROOT
-        value: /var/data/media
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -48,6 +42,20 @@ services:
         value: ATRUE Simulation Portal
       - key: APP_BASE_URL
         value: https://atrue-performance-staging.onrender.com
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: SUPABASE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_REGION
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: establishment-images
+      - key: SUPABASE_PRIVATE_BUCKET
+        value: profile-images
 
 databases:
   - name: atrue-performance-staging-db

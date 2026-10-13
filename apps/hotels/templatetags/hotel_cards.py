@@ -1,7 +1,4 @@
 from django import template
-from django.conf import settings
-
-import os
 
 register = template.Library()
 
@@ -21,10 +18,9 @@ def _usable_image_urls(photo_rows):
         if not path:
             continue
         try:
-            full = os.path.join(settings.MEDIA_ROOT, path)
-            if os.path.isfile(full) and os.path.getsize(full) > 0:
-                urls.append(settings.MEDIA_URL + path)
-        except OSError:
+            if name.storage.exists(path):
+                urls.append(name.url)
+        except Exception:
             continue
     return urls
 
@@ -38,8 +34,15 @@ def existing_photos(photos_qs):
         rows = list(photos_qs)
     except (TypeError, ValueError):
         return []
-    return [p for p in rows if any(getattr(p, 'image', None).name == u.replace(settings.MEDIA_URL, '')
-                                       for u in _usable_image_urls([p]))]
+    usable = []
+    for photo in rows:
+        image = getattr(photo, 'image', None)
+        try:
+            if image and image.name and image.storage.exists(image.name):
+                usable.append(photo)
+        except Exception:
+            continue
+    return usable
 
 
 @register.filter

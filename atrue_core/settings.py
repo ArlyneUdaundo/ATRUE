@@ -114,6 +114,7 @@ MIDDLEWARE = [
     'atrue_core.middleware.PaymentMethodValidationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'atrue_core.middleware.StorageUploadErrorMiddleware',
 ]
 
 # Keep the CSRF secret in the session rather than in a cookie.
@@ -333,6 +334,33 @@ MEDIA_ROOT_ENV = os.getenv('MEDIA_ROOT')
 # disagree with mountpoint for some bind-mounted disks, which would make Django
 # write uploads somewhere other than the path preserved by Render.
 MEDIA_ROOT = Path(MEDIA_ROOT_ENV or str(BASE_DIR / 'media'))
+SUPABASE_PUBLIC_STORAGE_CONFIGURED = all(os.getenv(key, '').strip() for key in (
+    'SUPABASE_URL', 'SUPABASE_S3_ENDPOINT', 'SUPABASE_S3_ACCESS_KEY_ID',
+    'SUPABASE_S3_SECRET_ACCESS_KEY', 'SUPABASE_STORAGE_REGION',
+    'SUPABASE_STORAGE_BUCKET',
+))
+SUPABASE_PRIVATE_STORAGE_CONFIGURED = (
+    SUPABASE_PUBLIC_STORAGE_CONFIGURED
+    and bool(os.getenv('SUPABASE_PRIVATE_BUCKET', '').strip())
+)
+# Local development may use MEDIA_ROOT. Production must fail closed: accepting
+# uploads into Render's ephemeral filesystem would report success but lose them.
+SUPABASE_STORAGE_CONFIGURED = (
+    SUPABASE_PUBLIC_STORAGE_CONFIGURED and SUPABASE_PRIVATE_STORAGE_CONFIGURED
+)
+STORAGES = {
+    'default': {
+        'BACKEND': ('atrue_core.storage_backends.SupabasePublicStorage'
+                    if SUPABASE_PUBLIC_STORAGE_CONFIGURED or not DEBUG
+                    else 'django.core.files.storage.FileSystemStorage'),
+    },
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    'profile_private': {
+        'BACKEND': ('atrue_core.storage_backends.SupabasePrivateStorage'
+                    if SUPABASE_PRIVATE_STORAGE_CONFIGURED or not DEBUG
+                    else 'django.core.files.storage.FileSystemStorage'),
+    },
+}
 SERVE_MEDIA_FILES = (
     os.getenv('SERVE_MEDIA_FILES', 'True').strip().lower() == 'true'
     or not DEBUG
