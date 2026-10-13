@@ -807,8 +807,8 @@ article.bk-card.bk-card--package.bk-card--establishment .bk-pricebox {
 @media (max-width: 767px) {
   .bk-page { padding: 12px 12px 96px; }
   .bk-hero { padding: 16px; border-radius: 18px; }
-  .bk-search { flex-direction: column; }
-  .bk-field { width: 100%; }
+  .bk-search { flex-direction: column; align-items: stretch; }
+  .bk-search > .bk-field { flex: 0 0 auto !important; width: 100%; min-width: 0; min-height: 0; }
   .bk-actions { width: 100%; }
   .bk-actions .bk-btn { flex: 1; }
   .bk-card { grid-template-columns: 1fr; gap: 12px; }
