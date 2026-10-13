@@ -43,7 +43,7 @@ same markup, and any block with no real data behind it is simply not rendered.
     </div>
 </div>
 
-{% if item_noun != 'Villa' %}
+{% if item_noun != 'Villa' and item_noun != 'Stay' and item_noun != 'Table' and item_noun != 'Entry Pass' %}
 {% comment %}Date / time bar. A GET form so changing the date never loses the page.{% endcomment %}
 <form method="get" action="{{ select_url }}" class="ag-search" style="margin-bottom:22px">
     <div class="ag-search-tabs">
