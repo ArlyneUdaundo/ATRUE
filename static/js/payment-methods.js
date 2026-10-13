@@ -2,18 +2,18 @@
   'use strict';
 
   const methods = [
-    { value: 'GCASH', label: 'GCash', image: 'gcash.svg' },
+    { value: 'GCASH', label: 'GCash', image: 'gcash-icon.png' },
     { value: 'MAYA', label: 'Maya', image: 'maya.svg' },
     { value: 'BANK_TRANSFER', label: 'Bank Transfer', image: 'bank-transfer.svg' },
     { value: 'CREDIT_CARD', label: 'Credit Card', image: 'credit-card.svg' },
     { value: 'DEBIT_CARD', label: 'Debit Card', image: 'debit-card.svg' },
     { value: 'PAYPAL', label: 'PayPal', image: 'paypal.svg' },
-    { value: 'QR_PH', label: 'QR Ph', image: 'qr-ph.svg' }
+    { value: 'QR_PH', label: 'QR Ph', image: 'qr-ph.svg', logoWide: true }
   ];
 
   function iconNode(method) {
     const icon = document.createElement('span');
-    icon.className = 'payment-method-icon';
+    icon.className = 'payment-method-icon' + (method.logoWide ? ' payment-method-icon--wide' : '');
     const image = document.createElement('img');
     image.src = '/static/img/payment-methods/' + method.image;
     image.alt = '';

@@ -87,6 +87,7 @@
   border-radius: 8px;
   background: #fff;
 }
+.payment-method-icon--wide { flex-basis: 52px; width: 52px; }
 .payment-method-icon img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
 .payment-method-check { margin-left: auto; color: #2563eb; opacity: 0; }
 
