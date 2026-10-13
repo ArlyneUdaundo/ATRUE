@@ -7,6 +7,8 @@ from django.core.files import File
 from django.core.files.storage import storages
 from django.core.management.base import BaseCommand, CommandError
 
+from atrue_core.image_utils import MAX_IMAGE_UPLOAD_BYTES, is_valid_image
+
 
 class Command(BaseCommand):
     help = 'Copy existing local media to Supabase without changing database paths.'
@@ -22,12 +24,25 @@ class Command(BaseCommand):
             raise CommandError(f'MEDIA_ROOT does not exist: {root}')
         public = storages['default']
         private = storages['profile_private']
-        copied = skipped = 0
+        copied = skipped = invalid = 0
+        invalid_names = []
         for path in root.rglob('*'):
             if not path.is_file():
                 continue
             name = path.relative_to(root).as_posix()
             target = private if name.startswith('profile_pictures/') else public
+            if path.stat().st_size > MAX_IMAGE_UPLOAD_BYTES:
+                invalid += 1
+                invalid_names.append(name)
+                continue
+            try:
+                with path.open('rb') as check:
+                    if not is_valid_image(check):
+                        invalid += 1
+                        invalid_names.append(name)
+                        continue
+            except OSError as exc:
+                raise CommandError(f'Could not read {name}: {exc}') from exc
             if target.exists(name):
                 skipped += 1
                 continue
@@ -38,5 +53,10 @@ class Command(BaseCommand):
                 raise CommandError(f'Upload failed for {name}: {exc}') from exc
             copied += 1
         self.stdout.write(self.style.SUCCESS(
-            f'Media migration finished: {copied} copied, {skipped} already present.'
+            f'Media migration finished: {copied} copied, {skipped} already present, '
+            f'{invalid} invalid images skipped.'
         ))
+        if invalid_names:
+            self.stdout.write('Skipped invalid images:')
+            for invalid_name in invalid_names:
+                self.stdout.write(f'  {invalid_name}')
