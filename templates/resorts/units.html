@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Resort Unit Management</h1>
-        <p>Search, filter and manage resort rooms, villas, suites and cabanas.</p>
+        <p>Filter and manage resort rooms, villas, suites and cabanas.</p>
     </div>
     {% if resort_id %}
     <a href="{% url 'resorts:add_unit' resort_id %}" class="btn btn-brand"><i class="fas fa-bed"></i> Add Unit</a>
@@ -15,11 +15,7 @@
 
 <div class="card card-pad" style="margin-bottom:20px">
     <form method="get">
-        <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr auto;gap:14px;align-items:end">
-            <div class="form-group" style="margin:0">
-                <label>Search</label>
-                <input type="text" name="q" class="form-input establishment-ops-search" placeholder="Unit ID, number or resort" value="{{ q }}">
-            </div>
+        <div class="filter-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:14px;align-items:end">
             <div class="form-group" style="margin:0">
                 <label>Resort</label>
                 <select name="resort" class="form-input">
