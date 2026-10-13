@@ -332,7 +332,7 @@ function renderPaxCards() {
             card.innerHTML =
                 '<span class="seat-pax-idx">' + (i + 1) + '</span>'
                 + '<span class="seat-pax-body">'
-                + '<span class="seat-pax-name">' + paxName(i) + '</span>'
+                + '<span class="seat-pax-name">Passenger ' + (i + 1) + '</span>'
                 + '<span class="' + (seat ? 'seat-pax-seat' : 'seat-pax-state') + '">'
                 + (seat || 'No seat yet') + '</span>'
                 + '</span>'
