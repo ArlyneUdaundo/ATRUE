@@ -96,12 +96,12 @@
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Payer Name</label>
-                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}">
+                        <label>Primary Guest Name</label>
+                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.full_profile }}" readonly aria-readonly="true">
                     </div>
                     <div class="form-group">
-                        <label>Payer Contact</label>
-                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}">
+                        <label>Primary Guest Contact</label>
+                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" readonly aria-readonly="true">
                     </div>
                 </div>
             </div>

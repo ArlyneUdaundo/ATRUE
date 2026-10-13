@@ -33,6 +33,11 @@
         <h3><i class="fas fa-hotel"></i> Guest &amp; Room</h3>
         <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }} · {{ booking.payer_contact }}</div>
+        <div class="meta"><b>Guest assigned to each room:</b>
+            {% for entry in booking.room_entries.all %}
+            <div>Room {{ forloop.counter }}{% if forloop.first %} — Primary Guest{% else %} — Additional Guest{% endif %}: {{ entry.room.hotel.name }} — {{ entry.room.room_number }} · {{ entry.guest_first_name }} {{ entry.guest_middle_name }} {{ entry.guest_last_name }} · {{ entry.guest_email }} · {{ entry.guest_contact }}</div>
+            {% endfor %}
+        </div>
         <div class="meta">Rooms:
             {% for r in booking.rooms.all %}{{ r.hotel.name }} — {{ r.room_number }} ({{ r.get_room_type_display }}){% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}
         </div>

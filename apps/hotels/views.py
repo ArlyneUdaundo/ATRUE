@@ -815,13 +815,18 @@ def _room_display_status(room, check_in, check_out):
     return "Reserved"
 
 
-def _guest_line_defaults(rooms):
-    """Empty guest lines used to pre-render an untouched selection."""
-    return [{
+def _guest_line_defaults(rooms, user=None):
+    """Guest lines ordered by selected rooms, with account holder first."""
+    lines = [{
         'first_name': '', 'middle_name': '', 'last_name': '',
         'email': '', 'contact': '', 'adults': 1, 'children': 0,
         'special_request': '', 'services': [], 'amenities': [],
     } for _ in rooms]
+    if lines and user is not None:
+        lines[0].update({'first_name': user.first_name or user.username,
+            'middle_name': user.middle_name or '', 'last_name': user.last_name or '',
+            'email': user.email or '', 'contact': user.contact_number or ''})
+    return lines
 
 
 def _parse_guest_lines(request, rooms):
@@ -840,6 +845,12 @@ def _parse_guest_lines(request, rooms):
         email = (request.POST.get(prefix + 'email') or '').strip()
         contact = (request.POST.get(prefix + 'contact') or '').strip()
         special = (request.POST.get(prefix + 'special_request') or '').strip()
+        if idx == 0:
+            first = request.user.first_name or request.user.username
+            middle = request.user.middle_name or ''
+            last = request.user.last_name or ''
+            email = request.user.email or ''
+            contact = request.user.contact_number or ''
         try:
             adults = max(0, int(request.POST.get(prefix + 'adults') or 0))
             children = max(0, int(request.POST.get(prefix + 'children') or 0))
@@ -967,7 +978,7 @@ def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, ad
         card['display_status'] = display_status.get(card['room'].id, '')
     selected_rooms = selected_rooms or []
     if guest_lines is None:
-        guest_lines = _guest_line_defaults(selected_rooms)
+        guest_lines = _guest_line_defaults(selected_rooms, request.user)
     session = request.session.get('hotel_group_booking') or {}
     return render(request, 'hotels/group_select_rooms.html', {
         'hotel': hotel,
@@ -992,6 +1003,9 @@ def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, ad
         'services': services,
         'amenities': amenities,
         'preselected': _preselected_data(selected_rooms, guest_lines),
+        'primary_guest': {'first_name': request.user.first_name or request.user.username,
+            'middle_name': request.user.middle_name or '', 'last_name': request.user.last_name or '',
+            'email': request.user.email or '', 'contact': request.user.contact_number or ''},
         'errors': errors or [],
     })
 
@@ -1016,8 +1030,8 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                     raise ValueError(f"Room {room.room_number} is no longer available for the selected dates.")
             booking = Booking.objects.create(
                 customer=user,
-                payer_name=(guest_lines[0].get('first_name', '') + ' ' + guest_lines[0].get('last_name', '')).strip(),
-                payer_contact=guest_lines[0].get('contact', ''),
+                payer_name=user.full_profile,
+                payer_contact=user.contact_number or '',
                 status=Booking.Status.PENDING,
             )
             bill_items = []
@@ -1026,7 +1040,7 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                 adults = int(g['adults']); children = int(g['children'])
                 total_guests = adults + children
                 entry = booking.room_entries.create(
-                    room=room, check_in=check_in, check_out=check_out,
+                    room=room, selection_order=idx + 1, check_in=check_in, check_out=check_out,
                     number_of_adults=adults, number_of_children=children,
                     guest_first_name=g.get('first_name', ''), guest_middle_name=g.get('middle_name', ''),
                     guest_last_name=g.get('last_name', ''), guest_email=g.get('email', ''),
@@ -1233,7 +1247,7 @@ def hotel_group_guests(request):
         request.session.modified = True
         return redirect('hotels:group_review')
     return render(request, 'hotels/group_guests.html', {
-        'hotel': hotel, 'room_forms': list(zip(rooms, [{} for _ in rooms])), 'check_in': check_in, 'check_out': check_out,
+        'hotel': hotel, 'room_forms': list(zip(rooms, _guest_line_defaults(rooms, request.user))), 'check_in': check_in, 'check_out': check_out,
         'nights': max(1, (check_out - check_in).days),
     })
 

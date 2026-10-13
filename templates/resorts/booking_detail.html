@@ -27,7 +27,12 @@
         <h3><i class="fas fa-umbrella-beach"></i> Guest &amp; Accommodation</h3>
         <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
-        <div class="meta">Unit: {{ booking.unit.resort.name }} — {{ booking.unit.unit_number }} ({{ booking.unit.get_unit_type_display }})</div>
+        <div class="meta">Selected units:
+            <div><b>Unit 1 — Primary Guest:</b> {{ booking.unit.resort.name }} — {{ booking.unit.unit_number }} ({{ booking.unit.get_unit_type_display }}) · {{ booking.customer.full_profile }} · {{ booking.customer.email }} · {{ booking.customer.contact_number }}</div>
+            {% for g in booking.additional_guests.all %}
+            {% if g.unit_id %}<div><b>Unit {{ g.selection_order }} — Additional Guest:</b> {{ g.unit.resort.name }} — {{ g.unit.unit_number }} ({{ g.unit.get_unit_type_display }}) · {{ g.first_name }} {{ g.middle_name }} {{ g.last_name }} · {{ g.email }} · {{ g.contact }} · {{ g.adults }} adult(s), {{ g.children }} child(ren){% if g.special_requests %} · {{ g.special_requests }}{% endif %}</div>{% endif %}
+            {% endfor %}
+        </div>
         <div class="meta">Check-in: {{ booking.check_in|date:"M d, Y" }} · Check-out: {{ booking.check_out|date:"M d, Y" }} · {{ booking.nights }} night(s)</div>
         <div class="meta">Guests: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C</div>
         {% if booking.checked_in_at %}<div class="meta">Actual check-in: <b>{{ booking.checked_in_at|date:"M d, Y H:i" }}</b></div>{% endif %}

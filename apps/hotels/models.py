@@ -359,6 +359,7 @@ class BookingRoom(models.Model):
 
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='room_entries')
     room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name='booking_entries')
+    selection_order = models.PositiveSmallIntegerField(null=True, blank=True)
     check_in = models.DateField()
     check_out = models.DateField()
     number_of_adults = models.PositiveIntegerField(default=1)
@@ -377,6 +378,7 @@ class BookingRoom(models.Model):
     )
 
     class Meta:
+        ordering = ['selection_order', 'pk']
         unique_together = ('booking', 'room')
 
     @property

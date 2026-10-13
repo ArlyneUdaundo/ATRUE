@@ -348,6 +348,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 {{ amenities|json_script:'amenityData' }}
 {{ item_details_json|json_script:'itemDetails' }}
 {{ guests|json_script:'preselected' }}
+{{ primary_guest_json|json_script:'primaryGuest' }}
 {{ selected_ids_json|json_script:'selectedIds' }}
 {% endblock %}
 

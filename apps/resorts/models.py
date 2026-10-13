@@ -164,9 +164,20 @@ class AdditionalGuest(models.Model):
     a table."""
 
     reservation = models.ForeignKey('Reservation', on_delete=models.CASCADE, related_name='additional_guests')
+    unit = models.ForeignKey('RoomVilla', null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned_guests')
+    selection_order = models.PositiveSmallIntegerField(null=True, blank=True)
     first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100)
+    email = models.EmailField(blank=True)
+    contact = models.CharField(max_length=20, blank=True)
+    adults = models.PositiveSmallIntegerField(default=1)
+    children = models.PositiveSmallIntegerField(default=0)
+    special_requests = models.TextField(blank=True)
     country = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ['selection_order', 'pk']
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

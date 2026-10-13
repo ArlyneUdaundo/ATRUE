@@ -139,6 +139,7 @@ class HotelGroupRoomTabTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username='traveller', password='pw', email='t@example.com',
+            first_name='Taylor', last_name='Account', contact_number='09171112222',
         )
         self.client.force_login(self.user)
         self.hotel = Hotel.objects.create(
@@ -215,9 +216,9 @@ class HotelGroupRoomTabTests(TestCase):
         )
         entries = list(booking.room_entries.select_related('room').order_by('pk'))
         self.assertEqual([e.room_id for e in entries], [third.pk, first.pk])
-        self.assertEqual([e.guest_first_name for e in entries], ['Third', 'First'])
+        self.assertEqual([e.guest_first_name for e in entries], ['Taylor', 'First'])
         self.assertEqual([e.guest_email for e in entries],
-                         ['third@example.com', 'first@example.com'])
+                         ['t@example.com', 'first@example.com'])
         self.assertEqual(
             entries[0].booked_services.get().service_id, self.service.pk)
         self.assertEqual(
@@ -242,7 +243,7 @@ class HotelGroupRoomTabTests(TestCase):
         )
         entries = list(booking.room_entries.select_related('room').order_by('pk'))
         self.assertEqual([e.room_id for e in entries], [first.pk, third.pk])
-        self.assertEqual([e.guest_first_name for e in entries], ['First', 'Third'])
+        self.assertEqual([e.guest_first_name for e in entries], ['Taylor', 'Third'])
         self.assertEqual(
             entries[1].booked_amenities.get().amenity_id, self.amenity.pk)
 
@@ -265,7 +266,7 @@ class HotelGroupRoomTabTests(TestCase):
         self.assertEqual([p['room_id'] for p in preselected],
                          [third.pk, first.pk, second.pk])
         self.assertEqual([p['guest']['first_name'] for p in preselected],
-                         ['Third', '', 'Second'])
+                         ['Taylor', '', 'Second'])
         self.assertEqual(preselected[2]['services'], [self.service.pk])
         self.assertFalse(Booking.objects.exists())
 
@@ -299,6 +300,7 @@ class HotelGuestModalMarkupTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username='traveller', password='pw', email='t@example.com',
+            first_name='Taylor', last_name='Account', contact_number='09171112222',
         )
         self.client.force_login(self.user)
         self.hotel = Hotel.objects.create(

@@ -102,8 +102,18 @@ def empty_guest():
     }
 
 
-def guest_defaults(count):
-    return [empty_guest() for _ in range(count)]
+def account_primary_guest(user):
+    return {'first_name': (user.first_name or user.username).strip(),
+            'middle_name': getattr(user, 'middle_name', '') or '',
+            'last_name': user.last_name or '', 'email': user.email or '',
+            'contact': getattr(user, 'contact_number', '') or ''}
+
+
+def guest_defaults(count, user=None):
+    lines = [empty_guest() for _ in range(count)]
+    if lines and user is not None:
+        lines[0].update(account_primary_guest(user))
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -557,7 +567,7 @@ class ResortAdapter(BaseAdapter):
                     unit = RoomVilla.objects.select_for_update().get(pk=sel['card']['id'])
                     if unit.status != RoomVilla.Status.AVAILABLE or unit.resort_id != est.pk:
                         raise ValueError(f'Villa {unit.unit_number} is no longer available.')
-                payer = selections[0]['guest']
+                payer = account_primary_guest(user)
                 booking = Reservation.objects.create(
                     customer=user,
                     unit=RoomVilla.objects.get(pk=selections[0]['card']['id']),
@@ -566,13 +576,24 @@ class ResortAdapter(BaseAdapter):
                     check_out=check_out,
                     number_of_adults=sum(max(0, int(s['guest']['adults'])) for s in selections),
                     number_of_children=sum(max(0, int(s['guest']['children'])) for s in selections),
-                    payer_name=f"{payer['first_name']} {payer['last_name']}".strip(),
+                    payer_name=user.full_profile,
                     payer_contact=payer['contact'],
                     special_requests='; '.join(
                         s['guest']['special_request'] for s in selections
                         if s['guest'].get('special_request')
                     ),
                 )
+                if self.key == 'resort':
+                    from resorts.models import AdditionalGuest
+                    for order, sel in enumerate(selections[1:], start=2):
+                        guest = sel['guest']
+                        AdditionalGuest.objects.create(
+                            reservation=booking, unit_id=sel['card']['id'], selection_order=order,
+                            first_name=guest['first_name'], middle_name=guest.get('middle_name', ''),
+                            last_name=guest['last_name'], email=guest.get('email', ''),
+                            contact=guest.get('contact', ''), adults=guest['adults'],
+                            children=guest['children'], special_requests=guest.get('special_request', ''),
+                        )
                 bill_items = []
                 svc_map = {s.id: s for s in est.services.filter(status=Service.ServiceStatus.ACTIVE)}
                 for idx, sel in enumerate(selections, start=1):
@@ -1481,6 +1502,8 @@ def parse_guest_lines(request, cards, adapter):
         for extra in adapter.guest_extra_fields:
             line[extra['name']] = (request.POST.get(prefix + extra['name']) or '').strip()
 
+        if idx == 0:
+            line.update(account_primary_guest(request.user))
         who = cards[idx]['name']
         if not line['first_name']:
             errors.append(f'{who}: guest first name is required.')
@@ -1533,7 +1556,7 @@ def _context_for(request, adapter, est, check_in, check_out, source,
         keep = {c['id'] for c in selected_cards}
         cards = [c for c in cards if c['id'] in keep] or cards
     if guest_lines is None:
-        guest_lines = guest_defaults(len(cards))
+        guest_lines = guest_defaults(len(cards), request.user)
     return {
         'adapter': adapter,
         'category': adapter.key,
@@ -1553,6 +1576,7 @@ def _context_for(request, adapter, est, check_in, check_out, source,
         'services': service_rows,
         'amenities': amenity_rows_,
         'guests': guest_lines,
+        'primary_guest_json': account_primary_guest(request.user),
         'errors': errors or [],
         'payment_methods': PAYMENT_METHODS,
         'selected_payment_method': (source.get('payment_method') or DEFAULT_PAYMENT_METHOD),

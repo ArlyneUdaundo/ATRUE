@@ -298,8 +298,8 @@ def book_staycation(request, staycation_id):
             number_of_adults=int(request.POST.get('adults') or 1),
             number_of_children=int(request.POST.get('children') or 0),
             special_requests=request.POST.get('special_requests', ''),
-            payer_name=request.POST.get('payer_name', ''),
-            payer_contact=request.POST.get('payer_contact', ''),
+            payer_name=request.user.full_profile,
+            payer_contact=request.user.contact_number or '',
             status=Reservation.Status.PENDING,
         )
         reservation.services.set(request.POST.getlist('services'))

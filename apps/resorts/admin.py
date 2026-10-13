@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Reservation, Resort, ResortPhoto, RoomVilla, Service, UnitPhoto
+from .models import AdditionalGuest, Reservation, Resort, ResortPhoto, RoomVilla, Service, UnitPhoto
 
 
 @admin.register(Resort)
@@ -33,9 +33,16 @@ class ResortPhotoAdmin(admin.ModelAdmin):
     list_filter = ('is_primary',)
 
 
+class AdditionalGuestInline(admin.TabularInline):
+    model = AdditionalGuest
+    extra = 0
+    fields = ('selection_order', 'unit', 'first_name', 'middle_name', 'last_name', 'email', 'contact', 'adults', 'children', 'special_requests')
+
+
 @admin.register(Reservation)
 class ReservationAdmin(admin.ModelAdmin):
     list_display = ('pk', 'customer', 'unit', 'check_in', 'check_out',
                     'number_of_guests', 'status', 'created_at')
     list_filter = ('status',)
+    inlines = (AdditionalGuestInline,)
     date_hierarchy = 'check_in'

@@ -36,6 +36,7 @@
     var AMENITIES = readJSON('amenityData') || [];
     var DETAILS = readJSON('itemDetails') || {};
     var PRESELECTED = readJSON('preselected') || [];
+    var PRIMARY_GUEST = readJSON('primaryGuest') || {};
     var SELECTED_IDS = readJSON('selectedIds') || [];
     if (!Array.isArray(PRESELECTED)) { PRESELECTED = []; }
     if (!Array.isArray(SELECTED_IDS)) { SELECTED_IDS = []; }
@@ -134,7 +135,7 @@
             rate: Number(m.rate || 0),
             max_guests: Number(m.max_guests || 1),
             charge: c,
-            guest: emptyGuest(),
+            guest: SELECTED.length === 0 ? Object.assign(emptyGuest(), PRIMARY_GUEST) : emptyGuest(),
             services: [],
             amenities: []
         };
@@ -201,7 +202,14 @@
 
     function removeItem(id) {
         var idx = findIndex(id);
-        if (idx !== -1) { SELECTED.splice(idx, 1); }
+        if (idx !== -1) {
+            SELECTED.splice(idx, 1);
+            if (idx === 0 && SELECTED.length) {
+                ['first_name','middle_name','last_name','email','contact'].forEach(function (key) {
+                    SELECTED[0].guest[key] = PRIMARY_GUEST[key] || '';
+                });
+            }
+        }
     }
 
     function toggleItem(id) {
@@ -298,7 +306,7 @@
         return '' +
         '<section class="bk-guest-card" data-guest-section="' + i + '">' +
             '<div class="bk-guest-head">' +
-                '<div><span class="badge badge-blue">' + esc(BADGE) + ' ' + (i + 1) + '</span>' +
+                '<div><span class="badge badge-blue">' + esc(BADGE) + ' ' + (i + 1) + (i === 0 ? ' - Primary Guest' : ' - Additional Guest') + '</span>' +
                 '<h3 style="margin:8px 0 2px">' + esc(s.name) + '</h3>' +
                 '<small>' + info.join(' &middot; ') + '</small>' +
                 '</div>' +
@@ -307,17 +315,17 @@
             '</div>' +
             '<div class="form-grid" style="margin-top:16px">' +
                 '<div class="form-group"><label>First Name *</label>' +
-                    '<input name="item_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"></div>' +
+                    '<input name="item_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
                 '<div class="form-group"><label>Middle Name</label>' +
-                    '<input name="item_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"></div>' +
+                    '<input name="item_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
                 '<div class="form-group"><label>Last Name *</label>' +
-                    '<input name="item_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"></div>' +
+                    '<input name="item_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
             '</div>' +
             '<div class="form-grid">' +
                 '<div class="form-group"><label>Email *</label>' +
-                    '<input type="email" name="item_' + i + '_email" class="form-input" value="' + esc(g.email) + '"></div>' +
+                    '<input type="email" name="item_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
                 '<div class="form-group"><label>Contact Number *</label>' +
-                    '<input type="text" name="item_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' +
+                    '<input type="text" name="item_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') +
                     ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off"' +
                     ' oninput="this.value=this.value.replace(/\\D/g, \'\')" title="Numbers only"></div>' +
             '</div>' +

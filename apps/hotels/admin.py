@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import HotelPhoto, Booking, Hotel, Room, RoomPhoto, Service
+from .models import HotelPhoto, Booking, BookingRoom, Hotel, Room, RoomPhoto, Service
 
 
 @admin.register(Hotel)
@@ -27,11 +27,20 @@ class RoomPhotoAdmin(admin.ModelAdmin):
     list_filter = ('room__hotel',)
 
 
+class BookingRoomInline(admin.TabularInline):
+    model = BookingRoom
+    extra = 0
+    fields = ('selection_order', 'room', 'guest_first_name', 'guest_middle_name',
+              'guest_last_name', 'guest_email', 'guest_contact', 'number_of_adults',
+              'number_of_children', 'guest_special_request')
+
+
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     list_display = ('pk', 'customer', 'rooms_list', 'dates', 'number_of_guests', 'status', 'created_at')
     list_filter = ('status',)
     list_select_related = ('customer',)
+    inlines = (BookingRoomInline,)
 
     def rooms_list(self, obj):
         return ", ".join(room.room_number for room in obj.rooms.all())

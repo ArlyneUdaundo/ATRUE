@@ -238,6 +238,26 @@
         </section>
 
         {{ preselected|json_script:'preselected' }}
+        {{ primary_guest|json_script:'primaryGuest' }}
+
+<div class="rm-modal" id="guestModal" role="dialog" aria-modal="true" aria-labelledby="guestModalTitle">
+    <div class="rm-modal-card">
+        <div class="rm-modal-head">
+            <div>
+                <h3 id="guestModalTitle"><i class="fas fa-user-check"></i> Guest Information</h3>
+                <p id="guestModalSub">Please provide the guest details below.</p>
+            </div>
+            <button type="button" class="rm-modal-x" data-guest-close aria-label="Close guest information"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="rm-modal-body">
+            <div id="selectedRoomsSection" class="bk-guest-wrap"></div>
+        </div>
+        <div class="rm-modal-foot">
+            <button type="button" class="ag-btn ag-btn-muted" data-guest-close><i class="fas fa-xmark"></i> Cancel</button>
+            <button type="button" class="ag-btn" id="guestModalSave"><i class="fas fa-check"></i> Continue</button>
+        </div>
+    </div>
+</div>
 
         <div id="computationSummary"></div>
         {% else %}
@@ -309,28 +329,6 @@
 {{ services_map|json_script:'servicesData' }}
 {{ amenities_map|json_script:'amenitiesData' }}
 {{ room_details|json_script:'roomDetails' }}
-{% endblock %}
-
-{# Guest modal: fields submit through form="" back to #bookingForm. #}
-{% block overlay %}
-<div class="rm-modal" id="guestModal" role="dialog" aria-modal="true" aria-labelledby="guestModalTitle">
-    <div class="rm-modal-card">
-        <div class="rm-modal-head">
-            <div>
-                <h3 id="guestModalTitle"><i class="fas fa-user-check"></i> Guest Information</h3>
-                <p id="guestModalSub">Please provide the guest details below.</p>
-            </div>
-            <button type="button" class="rm-modal-x" data-guest-close aria-label="Close guest information"><i class="fas fa-xmark"></i></button>
-        </div>
-        <div class="rm-modal-body">
-            <div id="selectedRoomsSection" class="bk-guest-wrap"></div>
-        </div>
-        <div class="rm-modal-foot">
-            <button type="button" class="ag-btn ag-btn-muted" data-guest-close><i class="fas fa-xmark"></i> Cancel</button>
-            <button type="button" class="ag-btn" id="guestModalSave"><i class="fas fa-check"></i> Continue</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}

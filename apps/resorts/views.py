@@ -446,6 +446,7 @@ def resort_group_start(request, resort_id):
             messages.error(request, 'Choose at least one villa to book.')
             return redirect('resorts:group_start', resort.id)
         villas = list(RoomVilla.objects.filter(resort=resort, pk__in=villa_ids).prefetch_related('photos'))
+        villas.sort(key=lambda unit: villa_ids.index(unit.pk))
         for unit in villas:
             if unit.status != RoomVilla.Status.AVAILABLE or overlapping_booking_exists(
                 Reservation, resource_field='unit', resource=unit, start=check_in, end=check_out
@@ -466,8 +467,8 @@ def resort_group_start(request, resort_id):
             'adults': max(1, adults),
             'children': max(0, children),
             'special_requests': (request.POST.get('special_requests') or '').strip(),
-            'payer_name': (request.POST.get('payer_name') or request.user.get_full_name() or request.user.username).strip(),
-            'payer_contact': (request.POST.get('payer_contact') or request.user.contact_number or '').strip(),
+            'payer_name': request.user.full_profile,
+            'payer_contact': request.user.contact_number or '',
             'villas': villas_data,
         }
         request.session.modified = True
@@ -554,8 +555,8 @@ def resort_group_review(request):
                         number_of_adults=max(1, data.get('adults', 1)),
                         number_of_children=max(0, data.get('children', 0)),
                         special_requests=data.get('special_requests', ''),
-                        payer_name=data.get('payer_name', ''),
-                        payer_contact=data.get('payer_contact', ''),
+                        payer_name=request.user.full_profile,
+                        payer_contact=request.user.contact_number or '',
                         status=Reservation.Status.PENDING,
                     )
                     reservation.services.set(line['services'])
@@ -686,8 +687,8 @@ def book_resort(request, unit_id):
             number_of_adults=_parse_int(request.POST.get('adults'), 1),
             number_of_children=_parse_int(request.POST.get('children'), 0),
             special_requests=request.POST.get('special_requests', ''),
-            payer_name=request.POST.get('payer_name', ''),
-            payer_contact=request.POST.get('payer_contact', ''),
+            payer_name=request.user.full_profile,
+            payer_contact=request.user.contact_number or '',
             status=Reservation.Status.PENDING,
         )
         reservation.services.set(request.POST.getlist('services'))
@@ -841,7 +842,7 @@ def booking_detail(request, booking_id):
     from transactions.models import Bill, Payment
 
     booking = get_object_or_404(
-        Reservation.objects.select_related('customer', 'unit__resort').prefetch_related('additional_guests'),
+        Reservation.objects.select_related('customer', 'unit__resort').prefetch_related('additional_guests__unit'),
         pk=booking_id,
     )
     if booking.customer_id != request.user.id and not can_manage_booking(request.user, 'resorts'):

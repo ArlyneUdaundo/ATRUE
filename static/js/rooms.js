@@ -22,6 +22,7 @@
     var SERVICES = readJson('servicesData', {});
     var AMENITIES = readJson('amenitiesData', {});
     var PRESELECTED = readJson('preselected', []);
+    var PRIMARY_GUEST = readJson('primaryGuest', {});
     var DETAILS = readJson('roomDetails', {});
 
     var form = document.getElementById('bookingForm');
@@ -133,7 +134,7 @@
             capacity: Number(m.capacity || 1),
             max_guests: Number(m.max_guests || 1),
             additional_charge: Number(m.additional_charge || 0),
-            guest: emptyGuest(),
+            guest: SELECTED.length === 0 ? Object.assign(emptyGuest(), PRIMARY_GUEST) : emptyGuest(),
             services: [],
             amenities: []
         };
@@ -151,6 +152,13 @@
         if (idx === -1) return;
         var wasActive = (ACTIVE === idx);
         SELECTED.splice(idx, 1);
+        if (idx === 0 && SELECTED.length) {
+            SELECTED[0].guest.first_name = PRIMARY_GUEST.first_name || '';
+            SELECTED[0].guest.middle_name = PRIMARY_GUEST.middle_name || '';
+            SELECTED[0].guest.last_name = PRIMARY_GUEST.last_name || '';
+            SELECTED[0].guest.email = PRIMARY_GUEST.email || '';
+            SELECTED[0].guest.contact = PRIMARY_GUEST.contact || '';
+        }
         if (wasActive) ACTIVE = Math.min(idx, SELECTED.length - 1);
         else if (idx < ACTIVE) ACTIVE -= 1;
         if (ACTIVE < 0) ACTIVE = 0;
@@ -309,18 +317,18 @@
         return '' +
         '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
             '<div class="bk-guest-head">' +
-                '<div><span class="badge badge-blue">ROOM ' + (i + 1) + '</span>' +
+                '<div><span class="badge badge-blue">Room ' + (i + 1) + (i === 0 ? ' — Primary Guest' : ' — Additional Guest') + '</span>' +
                 '<h3 style="margin:8px 0 2px">' + esc(s.room_type) + ' Room</h3>' +
                 '<small>Room ' + esc(s.room_number) + ' · ' + fmt(s.rate) + '/night · Included guests: ' + s.capacity + ' · Max: ' + s.max_guests + (s.additional_charge > 0 ? ' · Extra guest: ' + fmt(s.additional_charge) + '/guest/night' : '') + '</small>' +
                 '</div>' +
                 '<button type="button" class="bk-remove" data-remove-room="' + s.room_id + '"><i class="fas fa-times"></i> Remove</button>' +
             '</div>' +
             '<div class="bk-guest-grid">' +
-                '<div class="form-group"><label>First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"></div>' +
-                '<div class="form-group"><label>Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"></div>' +
-                '<div class="form-group"><label>Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"></div>' +
-                '<div class="form-group"><label>Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"></div>' +
-                '<div class="form-group"><label>Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '" inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
+                '<div class="form-group"><label>First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                '<div class="form-group"><label>Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                '<div class="form-group"><label>Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                '<div class="form-group"><label>Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                '<div class="form-group"><label>Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
                 '<div class="form-group"><label>Adults *</label><input type="number" name="room_' + i + '_adults" class="form-input" value="' + Number(g.adults || 0) + '" min="0"></div>' +
                 '<div class="form-group"><label>Children</label><input type="number" name="room_' + i + '_children" class="form-input" value="' + Number(g.children || 0) + '" min="0"></div>' +
                 '<div class="form-group"><label>Total guests</label><div class="form-input" style="background:#f8fafc" data-guest-total="' + i + '">' + (Number(g.adults || 0) + Number(g.children || 0)) + ' <small class="meta">of ' + s.max_guests + ' max</small></div></div>' +
