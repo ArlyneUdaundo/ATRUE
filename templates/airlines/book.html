@@ -74,9 +74,7 @@
             <div><h3>Seats</h3><p>Choose a seat for every passenger. The popup shows this flight{% if return_flight %} and its return{% endif %}, with each passenger holding one seat per flight.</p></div>
         </div>
         <div class="seat-pick-bar">
-            <button type="button" class="ag-btn seat-open-btn" id="seat-open" data-seat-open>
-                <i class="fas fa-chair"></i> <span id="seat-open-label">Select Seat</span>
-            </button>
+            <div class="seat-open-list" id="seat-open-list"></div>
             <ul class="seat-summary" id="seat-summary" hidden></ul>
         </div>
         <div class="ag-customer-box" style="margin-top:18px">
@@ -272,6 +270,7 @@ var rowCount = -1;
 var paxInput = document.getElementById('passengers');
 var fareInput = document.getElementById('fare-class');
 var modal = document.getElementById('seat-modal');
+var lastSeatButton = null;
 
 function paxCount() {
     var v = parseInt(paxInput.value) || 1;
@@ -466,13 +465,15 @@ function pinModalToViewport() {
     }
 }
 
-function openModal() {
+function openModal(passengerIndex) {
     pinModalToViewport();
     resizeSeats();
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
+    setSegment('departure');
     var missing = firstUnseated(activeSegment);
-    if (missing !== -1) activePax = missing;
+    if (Number.isInteger(passengerIndex)) activePax = passengerIndex;
+    else if (missing !== -1) activePax = missing;
     renderPaxCards();
     syncTiles();
     updateFooter();
@@ -481,7 +482,8 @@ function openModal() {
 function closeModal() {
     modal.hidden = true;
     document.body.style.overflow = '';
-    document.getElementById('seat-open').focus();
+    if (lastSeatButton && document.contains(lastSeatButton)) lastSeatButton.focus();
+    else document.querySelector('#seat-open-list button')?.focus();
 }
 
 /* ---- the booking form behind the popup ---------------------------------- */
@@ -522,25 +524,36 @@ function syncForm() {
     });
     renderSeatSummary();
 }
+function addSeatButton(buttons, passengerIndex, seat) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ag-btn seat-open-btn';
+    button.setAttribute('data-seat-pax', passengerIndex);
+    button.innerHTML = '<i class="fas fa-chair"></i> <span>'
+        + (seat ? seat + ' &ndash; Change Seat' : 'Passenger ' + (passengerIndex + 1) + ' &ndash; Select Seat')
+        + '</span>';
+    buttons.appendChild(button);
+}
 function renderSeatSummary() {
     var n = paxCount();
+    var buttons = document.getElementById('seat-open-list');
     var list = document.getElementById('seat-summary');
     var lines = [];
     var anySeat = false;
+    buttons.innerHTML = '';
     for (var i = 0; i < n; i++) {
         var out = seatOf('departure', i);
-        if (out) anySeat = true;
+        var back = HAS_RETURN ? seatOf('return', i) : '';
+        if (out || back) anySeat = true;
         var text = paxName(i) + ' &mdash; ' + (out || 'no seat');
-        if (HAS_RETURN) text += ' &middot; ' + (seatOf('return', i) || 'no return seat');
+        if (HAS_RETURN) text += ' &middot; ' + (back || 'no return seat');
         lines.push('<li>' + text + '</li>');
+        addSeatButton(buttons, i, out);
     }
     list.innerHTML = lines.join('');
     list.hidden = !anySeat;
-    // Before a seat is chosen the button invites the passenger in; afterwards it
-    // names the seat and offers to change it.
-    document.getElementById('seat-open-label').textContent =
-        anySeat ? seatOf('departure', 0) + ' – Change Seat' : 'Select Seat';
 }
+
 function renderPassengerRows() {
     var n = paxCount();
     var wrap = document.getElementById('passenger-rows');
@@ -638,7 +651,10 @@ SEGMENTS.forEach(bindTiles);
 document.querySelectorAll('.seat-tab').forEach(function (tab) {
     tab.addEventListener('click', function () { setSegment(tab.dataset.seatSegment); });
 });
-document.getElementById('seat-open').addEventListener('click', openModal);
+document.getElementById('seat-open-list').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-seat-pax]');
+    if (button) { lastSeatButton = button; openModal(Number(button.dataset.seatPax)); }
+});
 document.querySelector('.seat-modal-close').addEventListener('click', closeModal);
 modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 document.addEventListener('keydown', function (e) {

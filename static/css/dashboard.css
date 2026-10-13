@@ -1575,6 +1575,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     border-radius: 10px;
     background: var(--slate-800);
 }
+.seat-open-list { display:flex; flex:1 1 100%; flex-wrap:wrap; gap:10px; }
 .seat-open-btn { flex: 0 0 auto; min-width: 170px; }
 .seat-summary {
     flex: 1 1 220px;
