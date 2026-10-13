@@ -1087,8 +1087,6 @@
                     <label for="tb-land-transportation"><i class="fas fa-bus"></i> Land Transport</label>
                     <input type="radio" name="tab" id="tb-activities" value="activities" {% if search_tab == 'activities' %}checked{% endif %}>
                     <label for="tb-activities"><i class="fas fa-running"></i> Activities</label>
-                    <input type="radio" name="tab" id="tb-landmarks" value="landmarks" {% if search_tab == 'landmarks' %}checked{% endif %}>
-                    <label for="tb-landmarks"><i class="fas fa-landmark"></i> Landmarks</label>
                 </div>
                 <div class="hm-trip-type" id="flightTripTypeField">
                     <div class="hm-tt-options" role="radiogroup" aria-label="Trip type">
@@ -1413,16 +1411,6 @@
                 </div>
             </a>
 
-            <a class="hm-card" data-reveal href="{% url 'landmarks:list' %}" target="_blank" rel="noopener" aria-label="Open Landmarks & Tourist Spots">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&q=60')">
-                    
-                </div>
-                <div class="body">
-                    <h3>Landmarks &amp; Tourist Spots</h3>
-                    <p>Purchase tickets for famous destinations with date-based scheduling and group visits.</p>
-                    <div class="feat"><span>Tickets</span><span>Group visits</span><span>Scheduling</span></div>
-                </div>
-            </a>
 
             <a class="hm-card" data-reveal href="{% url 'activities:list' %}" target="_blank" rel="noopener" aria-label="Open Activities & Adventures">
                 <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=60')">
@@ -1475,8 +1463,9 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for f in featured_flights %}
+            {% with airline_image=f.airline.photos.all|usable_urls|first %}
             <div class="hm-item" data-open-url="{% url 'airlines:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60')">
+                <div class="cover" style="background-image:url('{{ airline_image|default:'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60' }}'){% if airline_image %};background-size:contain;background-repeat:no-repeat;background-color:#fff{% endif %}">
                     <span class="badge">{{ f.status|title }}</span>
                 </div>
                 <div class="body">
@@ -1488,6 +1477,7 @@
                     <a href="{% url 'airlines:list' %}" class="mini">Book <i class="fas fa-arrow-right"></i></a>
                 </div>
             </div>
+            {% endwith %}
             {% empty %}
             <div class="hm-empty">No flights available yet.</div>
             {% endfor %}
@@ -1535,8 +1525,9 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for r in featured_resorts %}
+            {% with resort_image=r.photos.all|usable_urls|first %}
             <div class="hm-item" data-open-url="{% url 'resorts:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=60')">
+                <div class="cover" style="background-image:url('{{ resort_image|default:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=700&q=60' }}')">
                     <span class="badge">{{ r.status|title }}</span>
                 </div>
                 <div class="body">
@@ -1548,6 +1539,7 @@
                     <a href="{% url 'resorts:list' %}" class="mini">View units <i class="fas fa-arrow-right"></i></a>
                 </div>
             </div>
+            {% endwith %}
             {% empty %}
             <div class="hm-empty">No resorts available yet.</div>
             {% endfor %}
@@ -1564,8 +1556,9 @@
         </div>
         <div class="hm-live-grid" data-reveal>
             {% for s in featured_staycations %}
+            {% with staycation_image=s.photos.all|usable_urls|first %}
             <div class="hm-item" data-open-url="{% url 'staycations:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=60')">
+                <div class="cover" style="background-image:url('{{ staycation_image|default:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=60' }}')">
                     <span class="badge">{{ s.status|title }}</span>
                 </div>
                 <div class="body">
@@ -1577,6 +1570,7 @@
                     <a href="{% url 'staycations:list' %}" class="mini">View <i class="fas fa-arrow-right"></i></a>
                 </div>
             </div>
+            {% endwith %}
             {% empty %}
             <div class="hm-empty">No staycations available yet.</div>
             {% endfor %}
@@ -1612,34 +1606,6 @@
         </div>
         {% endif %}
 
-        {% if show_spots %}
-        <div class="hm-live-sec" data-reveal>
-            <div class="hm-live-title">
-                <span class="ico" style="background:linear-gradient(135deg,#1d4ed8,#60a5fa)"><i class="fas fa-landmark"></i></span>
-                <div><h3>Tourist Spots</h3><p>Must-see landmarks with tickets open</p></div>
-            </div>
-            <a href="{% url 'landmarks:list' %}" class="hm-more">View all spots <i class="fas fa-arrow-right"></i></a>
-        </div>
-        <div class="hm-live-grid" data-reveal>
-            {% for s in featured_spots %}
-            <div class="hm-item" data-open-url="{% url 'landmarks:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=700&q=60')">
-                    <span class="badge">{{ s.status|title }}</span>
-                </div>
-                <div class="body">
-                    <h4>{{ s.name }}</h4>
-                    <p class="meta"><i class="fas fa-location-dot"></i> {{ s.municipality }}, {{ s.province }}</p>
-                </div>
-                <div class="foot">
-                    <div class="price"><b>₱{{ s.entry_fee }}</b> <span>/pax</span></div>
-                    <a href="{% url 'landmarks:list' %}" class="mini">Get tickets <i class="fas fa-arrow-right"></i></a>
-                </div>
-            </div>
-            {% empty %}
-            <div class="hm-empty">No tourist spots available yet.</div>
-            {% endfor %}
-        </div>
-        {% endif %}
 
         {% if show_packages %}
         <div class="hm-live-sec" data-reveal>

@@ -264,10 +264,10 @@ def home(request):
     loc_municipality = (request.GET.get('loc_municipality') or '').strip()
     loc_barangay = (request.GET.get('loc_barangay') or '').strip()
 
-    flights_qs = Flight.objects.select_related('airline', 'aircraft').exclude(status__in=['CANCELLED','COMPLETED'])
+    flights_qs = Flight.objects.select_related('airline', 'aircraft').prefetch_related('airline__photos').exclude(status__in=['CANCELLED','COMPLETED'])
     hotels_qs = Hotel.objects.filter(status='ACTIVE').prefetch_related('photos','rooms').annotate(from_rate=Min('rooms__rate'))
-    resorts_qs = Resort.objects.filter(status='ACTIVE').annotate(from_rate=Min('units__rate'))
-    staycations_qs = Staycation.objects.filter(status='ACTIVE')
+    resorts_qs = Resort.objects.filter(status='ACTIVE').prefetch_related('photos', 'units').annotate(from_rate=Min('units__rate'))
+    staycations_qs = Staycation.objects.filter(status='ACTIVE').prefetch_related('photos')
     restaurants_qs = Restaurant.objects.filter(status='ACTIVE')
     spots_qs = Landmark.objects.filter(status='ACTIVE', category='TOURIST_SPOT').prefetch_related('photos')
     activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE', provider__verified=True)
@@ -327,25 +327,33 @@ def home(request):
 
     groups={
         'flights':['flights'],'hotels':['hotels'],'resorts':['resorts'],'staycations':['staycations'],
-        'restaurants':['restaurants'],'landmarks':['spots'],'activities':['activities'],'landtransportation':[],'packages':['packages'],
-        'tours':['packages','activities','spots'],
-        'all':['flights','hotels','resorts','staycations','restaurants','spots','activities','packages'],
+        'restaurants':['restaurants'],'landmarks':[],'activities':['activities'],'landtransportation':[],'packages':['packages'],
+        'tours':['packages','activities'],
+        'all':['flights','hotels','resorts','staycations','restaurants','activities','packages'],
     }
     show=groups.get(tab,groups['all'])
     active=bool(q or loc_country or loc_province or loc_municipality or loc_barangay)
     featured=lambda qs: qs if active else qs[:3]
-    shown={'flights':flights_qs,'hotels':hotels_qs,'resorts':resorts_qs,'staycations':staycations_qs,'restaurants':restaurants_qs,'spots':spots_qs,'activities':activities_qs,'packages':packages_qs}
+    shown={'flights':flights_qs,'hotels':hotels_qs,'resorts':resorts_qs,'staycations':staycations_qs,'restaurants':restaurants_qs,'activities':activities_qs,'packages':packages_qs}
     def count(x): return x.count() if hasattr(x,'count') and not isinstance(x,list) else len(x)
 
     home_destinations = destination_options()
     hero_images = []
-    hero_spots = Landmark.objects.filter(
-        status='ACTIVE', category='TOURIST_SPOT'
-    ).prefetch_related('photos').order_by('name')
-    for hero_spot in hero_spots:
-        hero_photo = hero_spot.photos.first()
-        if hero_photo and hero_photo.image:
-            hero_images.append({'url': hero_photo.image.url, 'name': hero_spot.name})
+    for source in (
+        Resort.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
+        Staycation.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
+    ):
+        for establishment in source:
+            photo = next((item for item in establishment.photos.all() if item.is_primary), None)
+            photo = photo or next(iter(establishment.photos.all()), None)
+            if photo and photo.image:
+                try:
+                    if photo.image.storage.exists(photo.image.name):
+                        hero_images.append({'url': photo.image.url, 'name': establishment.name})
+                except (OSError, ValueError, NotImplementedError):
+                    continue
+            if len(hero_images) >= 4:
+                break
         if len(hero_images) >= 4:
             break
     return render(request,'home.html',{
