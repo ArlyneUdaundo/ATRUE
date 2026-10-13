@@ -326,8 +326,17 @@ STATICFILES_DIRS = [
 
 # Media files (User-uploaded files)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media')))
-SERVE_MEDIA_FILES = os.getenv('SERVE_MEDIA_FILES', 'False').strip().lower() == 'true'
+MEDIA_ROOT_ENV = os.getenv('MEDIA_ROOT')
+if MEDIA_ROOT_ENV and MEDIA_ROOT_ENV.startswith('/var/data/') and not os.path.ismount('/var/data'):
+    # On Render Free there is no persistent disk at /var/data. Use the media
+    # files bundled with the deployed repository instead.
+    MEDIA_ROOT = BASE_DIR / 'media'
+else:
+    MEDIA_ROOT = Path(MEDIA_ROOT_ENV or str(BASE_DIR / 'media'))
+SERVE_MEDIA_FILES = (
+    os.getenv('SERVE_MEDIA_FILES', 'True').strip().lower() == 'true'
+    or not DEBUG
+)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
