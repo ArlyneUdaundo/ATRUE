@@ -3,12 +3,16 @@ services:
     name: atrue-performance-staging
     runtime: python
     region: singapore
-    plan: free
+    plan: 0.5c-512mb
     branch: render-staging
     buildCommand: bash build.sh
-    startCommand: python -m gunicorn atrue_core.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 4 --worker-class gthread --timeout 120 --access-logfile - --error-logfile -
+    startCommand: bash start.sh
     healthCheckPath: /
     autoDeployTrigger: commit
+    disk:
+      name: atrue-staging-media
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.7
@@ -16,6 +20,8 @@ services:
         value: "False"
       - key: SERVE_MEDIA_FILES
         value: "True"
+      - key: MEDIA_ROOT
+        value: /var/data/media
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -40,4 +46,4 @@ databases:
     region: singapore
     databaseName: atrue_perf_staging
     user: atrue_perf_staging
-    plan: free
+    plan: 0.1c-256mb
