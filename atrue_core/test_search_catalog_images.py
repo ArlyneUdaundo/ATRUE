@@ -102,4 +102,3 @@ class SearchCatalogImageTests(SimpleTestCase):
         ])
 
         self.assertEqual(urls, ['https://images.example/good.jpg'])
-
