@@ -14,6 +14,22 @@
 #accountDeactivateModal::backdrop {
     background: rgba(15, 23, 42, .28);
 }
+.account-list-table { width: 100%; }
+@media (max-width: 640px) {
+    .account-list-table { table-layout: fixed; }
+    .account-list-table .account-col-email,
+    .account-list-table .account-col-type,
+    .account-list-table .account-col-status,
+    .account-list-table .account-col-created { display: none; }
+    .account-list-table .account-user-avatar,
+    .account-list-table .account-username,
+    .account-list-table .account-secondary-action { display: none !important; }
+    .account-list-table .account-col-actions { width: 82px; text-align: right !important; }
+    .account-list-table td { padding: 13px 10px; font-size: 14px; }
+    .account-list-table .account-col-user > div { gap: 0 !important; }
+    .account-list-table .account-user-name { display: block; overflow-wrap: anywhere; }
+    .account-list-table .account-view-btn { min-height: 40px; padding: 8px 11px; white-space: nowrap; }
+}
 </style>
 <div class="page-head">
     <div>
@@ -87,45 +103,45 @@
 <div class="card">
     {% if accounts %}
     <div class="table-wrap">
-        <table class="table">
+        <table class="table account-list-table">
             <thead>
                 <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Date Created</th>
-                    <th style="text-align:right">Actions</th>
+                    <th class="account-col-user">User</th>
+                    <th class="account-col-email">Email</th>
+                    <th class="account-col-type">Type</th>
+                    <th class="account-col-status">Status</th>
+                    <th class="account-col-created">Date Created</th>
+                    <th class="account-col-actions" style="text-align:right">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in accounts %}
                 <tr>
-                    <td>
+                    <td class="account-col-user">
                         <div style="display:flex;align-items:center;gap:10px">
-                            <span class="avatar" style="width:80px;height:80px;flex:0 0 80px;border-radius:16px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:24px">{% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="{{ u.get_full_name|default:u.username }} profile picture" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit">{% else %}{{ u.username|slice:":1" }}{% endif %}</span>
+                            <span class="avatar account-user-avatar" style="width:80px;height:80px;flex:0 0 80px;border-radius:16px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:24px">{% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="{{ u.get_full_name|default:u.username }} profile picture" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit">{% else %}{{ u.username|slice:":1" }}{% endif %}</span>
                             <div>
-                                <b>{{ u.get_full_name|default:u.username }}</b>
-                                <div class="meta" style="margin:0"><i class="fas fa-at"></i> @{{ u.username }}</div>
+                                <b class="account-user-name">{{ u.get_full_name|default:u.username }}</b>
+                                <div class="meta account-username" style="margin:0"><i class="fas fa-at"></i> @{{ u.username }}</div>
                             </div>
                         </div>
                     </td>
-                    <td>{{ u.email }}</td>
-                    <td><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
-                    <td class="account-status-cell"><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
-                    <td>{{ u.date_joined|date:"M d, Y" }}</td>
-                    <td style="text-align:right;white-space:nowrap">
-                        <a href="{% url 'accounts:account_detail' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
+                    <td class="account-col-email">{{ u.email }}</td>
+                    <td class="account-col-type"><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
+                    <td class="account-col-status account-status-cell"><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
+                    <td class="account-col-created">{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td class="account-col-actions" style="text-align:right;white-space:nowrap">
+                        <a href="{% url 'accounts:account_detail' u.id %}" class="btn btn-ghost btn-sm account-view-btn"><i class="fas fa-eye"></i> View</a>
                         {% if can_update %}
-                        <a href="{% url 'accounts:account_update' u.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Update</a>
+                        <a href="{% url 'accounts:account_update' u.id %}" class="btn btn-ghost btn-sm account-secondary-action"><i class="fas fa-edit"></i> Update</a>
                         {% endif %}
                         {% if u.status == 'INACTIVE' %}
-                        <form method="post" action="{% url 'accounts:account_deactivate' u.id %}" data-confirm="Reactivate this account?" style="display:inline">
+                        <form method="post" action="{% url 'accounts:account_deactivate' u.id %}" data-confirm="Reactivate this account?" class="account-secondary-action" style="display:inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-undo"></i> Reactivate</button>
                         </form>
                         {% else %}
-                        <button type="button" class="btn btn-outline btn-sm js-account-deactivate" data-deactivate-url="{% url 'accounts:account_deactivate' u.id %}" data-account-name="{{ u.get_full_name|default:u.username }}" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</button>
+                        <button type="button" class="btn btn-outline btn-sm js-account-deactivate account-secondary-action" data-deactivate-url="{% url 'accounts:account_deactivate' u.id %}" data-account-name="{{ u.get_full_name|default:u.username }}" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</button>
                         {% endif %}
                     </td>
                 </tr>
