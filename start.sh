@@ -14,6 +14,12 @@ if [[ "${MEDIA_ROOT:-}" == /var/data/* ]] && ! mountpoint -q /var/data; then
   export MEDIA_ROOT="$PROJECT_ROOT/media"
 fi
 
+if mountpoint -q /var/data; then
+  echo "User upload storage: persistent Render disk at ${MEDIA_ROOT:-$PROJECT_ROOT/media}"
+else
+  echo "User upload storage: ephemeral service filesystem at ${MEDIA_ROOT:-$PROJECT_ROOT/media}; attach a paid persistent disk to preserve uploads across restarts/deploys"
+fi
+
 if [[ -n "${MEDIA_ROOT:-}" && "$MEDIA_ROOT" != "$PROJECT_ROOT/media" ]]; then
   mkdir -p "$MEDIA_ROOT"
 
