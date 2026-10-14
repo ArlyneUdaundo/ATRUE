@@ -10,7 +10,7 @@
     </div>
 </div>
 
-{% if q is not None %}
+{% if q and search_results %}
 <div class="card" style="margin-bottom:24px">
     <div class="card-pad">
         <h3 style="margin-bottom:4px">Search results for "<span class="mono">{{ q }}</span>"</h3>
