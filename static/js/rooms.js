@@ -283,9 +283,17 @@
         guestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
         var card = wrap.querySelector('.bk-guest-card:not([hidden])');
-        var fields = card ? modalFocusables(card) : [];
-        var target = fields.filter(function (el) { return el.tagName === 'INPUT' && !el.value; })[0] || fields[0];
-        if (target) target.focus();
+        var target = card && card.querySelector(
+            'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        // Let the modal paint before moving focus. Measuring every control with
+        // getClientRects() here forced a synchronous layout before the modal
+        // became visible, which could stall the page on slower devices.
+        if (target) requestAnimationFrame(function () {
+            if (!guestModalOpen() || !target.isConnected) return;
+            try { target.focus({ preventScroll: true }); }
+            catch (err) { target.focus(); }
+        });
     }
 
     function closeGuestModal() {
