@@ -21,7 +21,7 @@
             <button type="button" class="pw-toggle" aria-label="Show password"><i class="fas fa-eye"></i></button>
             {% for e in form.password.errors %}<div class="form-err">{{ e }}</div>{% endfor %}
         </div>
-        <div class="auth-links" style="text-align:center;margin-top:8px"><a href="{% url 'accounts:forgot_password' %}" data-password-reset-open>Forgot your password?</a></div>
+        <div class="auth-links" style="text-align:right;margin-top:8px"><a href="{% url 'accounts:forgot_password' %}" data-password-reset-open>Forgot your password?</a></div>
     </div>
     <button type="submit" class="btn btn-brand btn-full"{% if login_submit_id %} id="{{ login_submit_id }}"{% endif %}>Log In &rarr;</button>
 </form>
