@@ -1107,6 +1107,52 @@
     .home-page .brand-text small { font-size: 9px; letter-spacing: .16em; }
 }
 
+/* Keep every booking category visible on desktop; phone scrolling stays intact. */
+@media (min-width: 761px) {
+    .hm-search-tabs {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+}
+@media (min-width: 1101px) {
+    .hm-search-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: stretch;
+        gap: 2px;
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+    .hm-search-tabs label {
+        box-sizing: border-box;
+        flex: 1 1 0;
+        min-width: 0;
+        gap: 6px;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: clamp(11px, .95vw, 13px);
+    }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+    .hm-search-tabs {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 4px;
+        padding: 4px 8px;
+        overflow: visible;
+    }
+    .hm-search-tabs label {
+        box-sizing: border-box;
+        min-width: 0;
+        padding: 10px 5px;
+        font-size: 12px;
+    }
+}
+
 </style>
 {% endblock %}
 
