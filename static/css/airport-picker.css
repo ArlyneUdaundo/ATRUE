@@ -2,13 +2,14 @@
    ATRUE worldwide airport picker (searchable, DB-backed)
    ============================================================ */
 
-.atrue-airport-wrap { position: relative; }
+.atrue-airport-wrap { position: relative; min-width: 0; max-width: 100%; }
 
 .atrue-airport-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   background: #fff;
@@ -26,18 +27,30 @@
 .atrue-airport-value {
   display: inline-flex;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   gap: 7px;
   font-weight: 700;
   font-size: 14px;
   color: var(--bk-ink, #1a2b3c);
 }
-.atrue-airport-value i { color: #0a58ca; }
+.atrue-airport-value i { flex: none; color: #0a58ca; }
 
 .atrue-airport-placeholder { font-size: 14px; color: #8a94a6; }
+.atrue-airport-text,
+.atrue-airport-placeholder {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .atrue-airport-wrap.has-apt .atrue-airport-placeholder { display: none; }
 .atrue-airport-wrap:not(.has-apt) .atrue-airport-value { display: none; }
 
 .atrue-airport-caret {
+  flex: none;
   margin-left: auto;
   display: inline-flex;
   align-items: center;
@@ -59,6 +72,7 @@
 /* ---- search panel ------------------------------------------ */
 .atrue-airport-panel {
   position: absolute;
+  box-sizing: border-box;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
@@ -71,12 +85,15 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 320px;
+  min-width: min(320px, calc(100vw - 32px));
 }
 .atrue-airport-panel[hidden] { display: none; }
 
 .atrue-airport-input {
+  box-sizing: border-box;
+  flex: 0 0 auto;
   width: 100%;
+  min-height: 44px;
   border: 1px solid #dfe5ee;
   border-radius: 12px;
   padding: 10px 12px;
@@ -87,22 +104,27 @@
 .atrue-airport-input:focus { border-color: #0a58ca; background: #fff; }
 
 .atrue-airport-list {
+  flex: 1 1 auto;
+  min-height: 0;
   list-style: none;
   margin: 0;
   padding: 0;
   overflow-y: auto;
   max-height: min(46vh, 320px);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .atrue-airport-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
   border: 0;
   background: #fff;
   text-align: left;
-  padding: 9px 8px;
+  padding: 7px 8px;
+  min-height: 48px;
   border-radius: 12px;
   cursor: pointer;
   font: inherit;
@@ -124,8 +146,8 @@
   font-size: 13px;
 }
 .atrue-airport-item-txt { line-height: 1.25; min-width: 0; flex: 1; }
-.atrue-airport-item-name { font-weight: 700; font-size: 14px; display: block; }
-.atrue-airport-item-sub { font-size: 12px; color: #7b8698; display: block; }
+.atrue-airport-item-name { font-weight: 700; font-size: clamp(13px, 3.6vw, 14px); display: block; overflow-wrap: anywhere; }
+.atrue-airport-item-sub { font-size: clamp(11px, 3vw, 12px); color: #7b8698; display: block; overflow-wrap: anywhere; }
 .atrue-airport-item-check { flex: none; color: #2563eb; opacity: 0; }
 .atrue-airport-item.is-selected .atrue-airport-item-check { opacity: 1; }
 
@@ -162,9 +184,48 @@
 @media (max-width: 640px) {
   .atrue-airport-panel,
   .atrue-airport-field-sm .atrue-airport-panel {
+    box-sizing: border-box;
+    width: calc(100vw - 32px);
     min-width: 0;
-    max-width: calc(100vw - 24px);
+    max-width: 650px;
+    max-height: min(70vh, 520px);
+    max-height: min(70dvh, 520px);
+    padding: 10px;
     z-index: 10000;
+    overflow: hidden;
+    border-radius: 16px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .atrue-airport-input {
+    font-size: 16px;
+    border-radius: 10px;
+  }
+  .atrue-airport-list {
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  .atrue-airport-item {
+    gap: 8px;
+    padding: 7px 6px;
+    min-height: 46px;
+  }
+  .atrue-airport-item-ico {
+    width: 30px;
+    height: 30px;
+  }
+  .atrue-airport-item-txt { flex: 1 1 90px; }
+  .atrue-airport-item-code {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  .atrue-airport-item-check { font-size: 12px; }
+  html.airport-picker-open,
+  body.airport-picker-open {
+    overflow: hidden !important;
+    overscroll-behavior: none;
   }
   .atrue-airport-item-name,
   .atrue-airport-item-sub { overflow-wrap: anywhere; }

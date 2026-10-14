@@ -913,9 +913,9 @@
 .home-page .brand { gap: 12px; min-width: 0; }
 .home-page .brand-mark {
     position: relative;
-    flex: 0 0 54px;
-    width: 54px;
-    height: 54px;
+    flex: 0 0 62px;
+    width: 62px;
+    height: 62px;
     overflow: hidden;
     border-radius: 0;
     background: transparent !important;
@@ -1034,7 +1034,7 @@
     .hm-search-tabs { width: 100%; justify-content: flex-start; }
 }
 @media (max-width: 760px) {
-    .home-page .brand-mark { flex-basis: 46px; width: 46px; height: 46px; }
+    .home-page .brand-mark { flex-basis: 52px; width: 52px; height: 52px; }
     .home-page .navbar .brand-text b { font-size: 20px; }
     .home-page .navbar .brand-text small { font-size: 9px; }
     .hm-hero-inner .hm-search {
@@ -1102,6 +1102,12 @@
     .hm-search-fields > #touristsGuestsField,
     .hm-search-fields > #guestsTablesField { grid-column: 1 / -1; }
     .hm-search-btn { grid-column: 1 / -1; min-height: 52px; }
+}
+@media (max-width: 360px) {
+    .home-page .brand { gap: 6px; }
+    .home-page .brand-mark { flex-basis: 46px; width: 46px; height: 46px; }
+    .home-page .brand-text b { font-size: 18px; }
+    .home-page .brand-text small { font-size: 9px; letter-spacing: .16em; }
 }
 
 </style>

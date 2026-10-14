@@ -14,6 +14,34 @@
 
     var API_SRC = '/flights/api/airports/';
     var openPicker = null;
+    var lockedPageY = 0;
+    var pageScrollLocked = false;
+
+    function lockPageScroll() {
+        if (pageScrollLocked) return;
+        lockedPageY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.documentElement.classList.add('airport-picker-open');
+        document.body.classList.add('airport-picker-open');
+        document.body.style.position = 'fixed';
+        document.body.style.top = '-' + lockedPageY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+        pageScrollLocked = true;
+    }
+
+    function unlockPageScroll() {
+        if (!pageScrollLocked) return;
+        document.documentElement.classList.remove('airport-picker-open');
+        document.body.classList.remove('airport-picker-open');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        pageScrollLocked = false;
+        window.scrollTo(0, lockedPageY);
+    }
 
     function el(tag, className, html) {
         var node = document.createElement(tag);
@@ -36,11 +64,20 @@
             var text = wrap.querySelector('.atrue-airport-text');
             if (trigger) { trigger.setAttribute('aria-expanded', 'false'); trigger.setAttribute('aria-haspopup', 'listbox'); }
             if (panel) {
-                panel.setAttribute('role', 'listbox');
                 wrap._airportPanel = panel;
                 document.body.appendChild(panel);
             }
-            if (input) input.setAttribute('aria-label', 'Search airports by name, code, city, or country');
+            if (list) {
+                if (!list.id) list.id = 'airport-options-' + Math.random().toString(36).slice(2, 10);
+                list.setAttribute('role', 'listbox');
+            }
+            if (input) {
+                input.setAttribute('aria-label', 'Search airports by name, code, city, or country');
+                input.setAttribute('role', 'combobox');
+                input.setAttribute('aria-autocomplete', 'list');
+                input.setAttribute('aria-expanded', 'false');
+                if (list) input.setAttribute('aria-controls', list.id);
+            }
             var timer = null;
             var searchRequest = null;
 
@@ -62,25 +99,38 @@
             function positionPanel() {
                 var rect = trigger.getBoundingClientRect();
                 var mobile = window.innerWidth <= 640;
-                var width = mobile ? Math.min(window.innerWidth - 24, 520) : rect.width;
+                var viewport = window.visualViewport;
+                var viewportWidth = viewport ? viewport.width : window.innerWidth;
+                var viewportHeight = viewport ? viewport.height : window.innerHeight;
+                var viewportLeft = viewport ? viewport.offsetLeft : 0;
+                var viewportTop = viewport ? viewport.offsetTop : 0;
+                var width = mobile ? Math.min(viewportWidth - 32, 650) : rect.width;
                 var left = mobile
-                    ? Math.max(12, (window.innerWidth - width) / 2)
+                    ? viewportLeft + Math.max(16, (viewportWidth - width) / 2)
                     : Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+                var maxHeight = Math.min(viewportHeight * (mobile ? 0.70 : 0.46), mobile ? 520 : 360);
+                var maxTop = viewportTop + viewportHeight - maxHeight - (mobile ? 12 : 8);
+                var top = mobile
+                    ? Math.min(Math.max(viewportTop + 12, rect.bottom + 6), maxTop)
+                    : Math.min(rect.bottom + 6, maxTop);
                 panel.style.position = 'fixed';
                 panel.style.left = left + 'px';
                 panel.style.right = 'auto';
                 panel.style.width = width + 'px';
                 panel.style.minWidth = '0';
-                panel.style.maxWidth = 'calc(100vw - 24px)';
-                panel.style.maxHeight = Math.min(window.innerHeight * (mobile ? 0.68 : 0.46), mobile ? 520 : 360) + 'px';
-                panel.style.top = Math.min(rect.bottom + 6, window.innerHeight - 60) + 'px';
+                panel.style.maxWidth = mobile ? 'calc(100vw - 32px)' : 'min(650px, calc(100vw - 24px))';
+                panel.style.maxHeight = Math.max(0, maxHeight) + 'px';
+                panel.style.top = Math.max(viewportTop + 8, top) + 'px';
+                panel.style.bottom = 'auto';
             }
 
             function close() {
                 panel.hidden = true;
                 wrap.classList.remove('is-open');
                 trigger.setAttribute('aria-expanded', 'false');
+                if (input) input.setAttribute('aria-expanded', 'false');
                 openPicker = null;
+                unlockPageScroll();
             }
 
             function open() {
@@ -91,10 +141,12 @@
                     var previousTrigger = openPicker.querySelector('[data-airport-toggle]');
                     if (previousTrigger) previousTrigger.setAttribute('aria-expanded', 'false');
                 }
+                if (window.innerWidth <= 640) lockPageScroll();
                 panel.hidden = false;
                 positionPanel();
                 wrap.classList.add('is-open');
                 trigger.setAttribute('aria-expanded', 'true');
+                if (input) input.setAttribute('aria-expanded', 'true');
                 openPicker = wrap;
                 input.focus();
             }
@@ -221,11 +273,22 @@
                 if (openPicker === wrap && !wrap.contains(e.target) && !panel.contains(e.target)) close();
             });
             window.addEventListener('resize', function () {
-                if (openPicker === wrap) positionPanel();
+                if (openPicker !== wrap) return;
+                if (window.innerWidth <= 640) lockPageScroll();
+                else unlockPageScroll();
+                positionPanel();
             });
             window.addEventListener('scroll', function () {
                 if (openPicker === wrap) positionPanel();
             }, true);
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function () {
+                    if (openPicker === wrap) positionPanel();
+                });
+                window.visualViewport.addEventListener('scroll', function () {
+                    if (openPicker === wrap) positionPanel();
+                });
+            }
 
             renderValue();
         });
