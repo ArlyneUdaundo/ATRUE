@@ -1042,8 +1042,53 @@
         padding: 0 16px 18px;
         border-radius: 18px;
     }
-    .hm-search-tabs { margin-top: -25px; margin-bottom: 15px; padding: 0 6px; border-radius: 14px; }
-    .hm-search-tabs label { min-height: 48px; padding: 10px 12px; font-size: 12.5px; }
+    .hm-search-tabs {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        margin-top: -25px;
+        margin-bottom: 15px;
+        padding: 4px;
+        gap: 4px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-radius: 14px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        scroll-snap-type: x proximity;
+    }
+    .hm-search-tabs::-webkit-scrollbar { display: none; }
+    .hm-search-tabs label {
+        box-sizing: border-box;
+        flex: 0 0 44px;
+        width: 44px;
+        min-width: 44px;
+        min-height: 48px;
+        height: 48px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        font-size: 20px;
+        scroll-snap-align: center;
+    }
+    .hm-search-tabs label .hm-search-tab-name { display: none; }
+    .hm-search-tabs label i { font-size: 20px; }
+    .hm-search-tabs label .hm-tab-icon-combo { position: relative; display: inline-grid; place-items: center; width: 24px; height: 24px; }
+    .hm-search-tabs label .hm-tab-icon-combo .hm-tab-icon-detail { position: absolute; right: -5px; bottom: -4px; font-size: 10px; -webkit-text-stroke: 1.5px #fff; }
+    .hm-search-tabs input[type="radio"]:checked + label {
+        background: #dbeafe;
+        border-color: #bfdbfe;
+        color: #1764d8;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, .12);
+    }
+    .hm-search-tabs input[type="radio"]:checked + label i { color: #1764d8; }
+    .hm-search-tabs input[type="radio"]:checked + label::after { display: none; }
+    .hm-search-tabs input[type="radio"]:focus-visible + label { outline: 3px solid rgba(37, 99, 235, .45); outline-offset: 2px; }
     .hm-search-fields,
     .hm-search-fields.is-flight-search { grid-template-columns: minmax(0, 1fr); gap: 10px; }
     .hm-search .hm-date-range,
@@ -1083,23 +1128,25 @@
             </p>
             <form class="hm-search" method="get" action="{% url 'home' %}" data-reveal id="homeSearchForm">
                 <input type="hidden" name="search_submit" value="1">
-                <div class="hm-search-tabs">
-                    <input type="radio" name="tab" id="tb-flights" value="flights" {% if search_tab == 'flights' or not search_active %}checked{% endif %}>
-                    <label for="tb-flights"><i class="fas fa-plane"></i> Flights</label>
-                    <input type="radio" name="tab" id="tb-hotels" value="hotels" {% if search_tab == 'hotels' %}checked{% endif %}>
-                    <label for="tb-hotels"><i class="fas fa-hotel"></i> Hotels</label>
-                    <input type="radio" name="tab" id="tb-resorts" value="resorts" {% if search_tab == 'resorts' %}checked{% endif %}>
-                    <label for="tb-resorts"><i class="fas fa-umbrella-beach"></i> Resorts</label>
-                    <input type="radio" name="tab" id="tb-staycations" value="staycations" {% if search_tab == 'staycations' %}checked{% endif %}>
-                    <label for="tb-staycations"><i class="fas fa-couch"></i> Staycations</label>
-                    <input type="radio" name="tab" id="tb-restaurants" value="restaurants" {% if search_tab == 'restaurants' %}checked{% endif %}>
-                    <label for="tb-restaurants"><i class="fas fa-utensils"></i> Restaurants</label>
-                    <input type="radio" name="tab" id="tb-tours" value="tours" {% if search_tab == 'tours' %}checked{% endif %}>
-                    <label for="tb-tours"><i class="fas fa-suitcase-rolling"></i> Tours</label>
-                    <input type="radio" name="tab" id="tb-land-transportation" value="landtransportation" {% if search_tab == 'landtransportation' %}checked{% endif %}>
-                    <label for="tb-land-transportation"><i class="fas fa-bus"></i> Land Transport</label>
-                    <input type="radio" name="tab" id="tb-activities" value="activities" {% if search_tab == 'activities' %}checked{% endif %}>
-                    <label for="tb-activities"><i class="fas fa-running"></i> Activities</label>
+                <div class="hm-search-tabs" role="radiogroup" aria-label="Choose a travel category">
+                    <input type="radio" name="tab" id="tb-hotels" value="hotels" aria-label="Hotels" {% if search_tab == 'hotels' %}checked{% endif %}>
+                    <label for="tb-hotels" aria-label="Hotels" title="Hotels"><i class="fas fa-hotel" aria-hidden="true"></i><span class="hm-search-tab-name">Hotels</span></label>
+                    <input type="radio" name="tab" id="tb-flights" value="flights" aria-label="Flights" {% if search_tab == 'flights' or not search_active %}checked{% endif %}>
+                    <label for="tb-flights" aria-label="Flights" title="Flights"><i class="fas fa-plane" aria-hidden="true"></i><span class="hm-search-tab-name">Flights</span></label>
+                    <input type="radio" name="tab" id="tb-land-transportation" value="landtransportation" aria-label="Land Transportation" {% if search_tab == 'landtransportation' %}checked{% endif %}>
+                    <label for="tb-land-transportation" aria-label="Land Transportation" title="Land Transportation"><i class="fas fa-bus" aria-hidden="true"></i><span class="hm-search-tab-name">Land Transportation</span></label>
+                    <input type="radio" name="tab" id="tb-resorts" value="resorts" aria-label="Resorts" {% if search_tab == 'resorts' %}checked{% endif %}>
+                    <label for="tb-resorts" aria-label="Resorts" title="Resorts"><span class="hm-tab-icon-combo" aria-hidden="true"><i class="fas fa-tree"></i><i class="fas fa-water hm-tab-icon-detail"></i></span><span class="hm-search-tab-name">Resorts</span></label>
+                    <input type="radio" name="tab" id="tb-restaurants" value="restaurants" aria-label="Restaurants" {% if search_tab == 'restaurants' %}checked{% endif %}>
+                    <label for="tb-restaurants" aria-label="Restaurants" title="Restaurants"><i class="fas fa-utensils" aria-hidden="true"></i><span class="hm-search-tab-name">Restaurants</span></label>
+                    <input type="radio" name="tab" id="tb-staycations" value="staycations" aria-label="Staycations" {% if search_tab == 'staycations' %}checked{% endif %}>
+                    <label for="tb-staycations" aria-label="Staycations" title="Staycations"><span class="hm-tab-icon-combo" aria-hidden="true"><i class="fas fa-house"></i><i class="fas fa-bed hm-tab-icon-detail"></i></span><span class="hm-search-tab-name">Staycations</span></label>
+                    <input type="radio" name="tab" id="tb-activities" value="activities" aria-label="Activities" {% if search_tab == 'activities' %}checked{% endif %}>
+                    <label for="tb-activities" aria-label="Activities" title="Activities"><i class="fas fa-person-hiking" aria-hidden="true"></i><span class="hm-search-tab-name">Activities</span></label>
+                    <input type="radio" name="tab" id="tb-tours" value="tours" aria-label="Tour Packages" {% if search_tab == 'tours' %}checked{% endif %}>
+                    <label for="tb-tours" aria-label="Tour Packages" title="Tour Packages"><span class="hm-tab-icon-combo" aria-hidden="true"><i class="fas fa-map-location-dot"></i><i class="fas fa-camera hm-tab-icon-detail"></i></span><span class="hm-search-tab-name">Tour Packages</span></label>
+                    <input type="radio" name="tab" id="tb-landmarks" value="landmarks" aria-label="Landmarks" {% if search_tab == 'landmarks' %}checked{% endif %}>
+                    <label for="tb-landmarks" aria-label="Landmarks" title="Landmarks"><i class="fas fa-church" aria-hidden="true"></i><span class="hm-search-tab-name">Landmarks</span></label>
                 </div>
                 <div class="hm-trip-type" id="flightTripTypeField">
                     <div class="hm-tt-options" role="radiogroup" aria-label="Trip type">
