@@ -74,6 +74,7 @@ def reset_password_view(request, user_id):
 
     response_status = 200
     success = False
+    raw = ''
     if request.method == 'POST':
         raw = (request.POST.get('token') or '')[:128]
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
@@ -98,6 +99,7 @@ def reset_password_view(request, user_id):
         form = None
     response = render(request, 'accounts/reset_password.html', {
         'form': form, 'success': success,
+        'token': raw if form is not None else '',
         'invalid_token': request.method == 'POST' and form is None,
     }, status=response_status)
     response['Cache-Control'] = 'no-store'

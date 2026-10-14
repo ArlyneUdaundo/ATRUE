@@ -271,7 +271,9 @@ def deliver_password_reset(token_id, raw_token):
         link = f'{base}/accounts/reset-password/{row.user_id}/#{raw_token}'
         html = render_to_string('emails/password_reset.html', {
             'user_name': row.user.get_full_name() or row.user.get_username(),
-            'reset_url': link, 'expires_minutes': 30,
+            'reset_url': link,
+            'logo_url': f'{base}/static/img/atrue-logo-transparent.png',
+            'expires_minutes': 30,
         })
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
