@@ -791,16 +791,13 @@ if (!guestBox) { return; }
         var book = ev.target.closest('[data-item-book]');
         if (book) {
             var id = book.getAttribute('data-item-book');
-            var wasSelected = findIndex(id) !== -1;
             syncFromDom();
             toggleItem(id);
             renderAll();
-            // Selecting an item opens guest information straight away; the page
-            // never scrolls down to the form.
-            if (!wasSelected && findIndex(id) !== -1) {
-                guestOpener = book;
-                openGuestModal(id);
-            }
+            // Keep selection immediate so users can select several items
+            // without a modal covering the remaining cards. Guest details are
+            // available from the newly shown Guest info button; submitting the
+            // booking with incomplete details opens the same modal for them.
             return;
         }
         var open = ev.target.closest('[data-open-details]');

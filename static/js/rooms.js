@@ -740,16 +740,12 @@
 
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
-                var wasSelected = findIndex(roomId) !== -1;
                 syncFromDom();
                 toggleRoom(roomId);
                 renderAll();
-                // Selecting a room opens the guest information modal straight
-                // away; the page never scrolls down to the form.
-                if (!wasSelected) {
-                    guestOpener = b;
-                    openGuestModal(roomId);
-                }
+                // Keep the room list interactive while users select multiple
+                // rooms. Guest information opens from the selected room's
+                // Guest info button or when booking validation needs it.
             });
         });
 
@@ -778,17 +774,11 @@
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (b) {
         b.addEventListener('click', function () {
-            var wasSelected = findIndex(Number(b.getAttribute('data-compare-book'))) !== -1;
             syncFromDom();
             var roomId = Number(b.getAttribute('data-compare-book'));
             if (findIndex(roomId) === -1) addRoom(roomId);
             else removeRoom(roomId);
             renderAll();
-            // Same behaviour as the card button: modal, not a page scroll.
-            if (!wasSelected) {
-                guestOpener = b;
-                openGuestModal(roomId);
-            }
         });
     });
 
