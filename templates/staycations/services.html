@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Staycation Service Management</h1>
-        <p>Search, filter, view and update add-ons across all staycations (BR-011, BR-024).</p>
+        <p>Search, filter, view and update add-ons across all staycations.</p>
     </div>
     <a href="{% url 'staycations:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Staycation Admin</a>
 </div>
@@ -16,7 +16,7 @@
         <div class="filter-grid" style="display:grid;grid-template-columns:1.3fr 1fr 1.3fr auto;gap:14px;align-items:end">
             <div class="form-group" style="margin:0">
                 <label>Service Name / ID</label>
-                <input type="text" name="q" class="form-input establishment-ops-search" placeholder="Service name or SVC- ID" value="{{ q }}">
+                <input type="text" name="q" class="form-input" placeholder="Service name or SVC- ID" value="{{ q }}">
             </div>
             <div class="form-group" style="margin:0">
                 <label>Status</label>
