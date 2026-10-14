@@ -24,8 +24,9 @@
         </div>
         {% if t.imgs|length > 1 %}
             <div class="bk-thumbs">
-                {% for img in t.imgs|slice:"0:4" %}
-                    <img class="bk-thumb" src="{{ img }}" alt="{{ t.title }} photo {{ forloop.counter }}" loading="lazy" data-index="{{ forloop.counter0 }}"
+                {# The main image is already photo 1; thumbs start at photo 2 to avoid showing it twice. #}
+                {% for img in t.imgs|slice:"1:5" %}
+                    <img class="bk-thumb" src="{{ img }}" alt="{{ t.title }} photo {{ forloop.counter|add:1 }}" loading="lazy" data-index="{{ forloop.counter }}"
                          data-load-fallback="{% static 'img/hotel-placeholder.svg' %}">
                 {% endfor %}
             </div>
