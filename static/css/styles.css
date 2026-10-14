@@ -1746,4 +1746,6 @@ input, select, textarea { font-family: inherit; }
     .stack-card { width: 180px; padding: 20px; }
     .btn { padding: 11px 18px; font-size: 14px; }
     .mobile-drawer { padding-top: 72px; }
+    /* Keep the floating control from covering booking buttons on phones. */
+    .back-top { display: none; }
 }

@@ -756,6 +756,19 @@
     .hm-more { padding: 9px 14px; font-size: 13px; }
     .hm-about-photo { border-radius: 22px; }
     .hm-feat-item { padding: 14px 0; }
+
+    /* Keep featured flight cards compact and usable in narrow mobile browsers. */
+    .hm-live-grid { gap: 14px; margin-bottom: 36px; }
+    .hm-item { min-width: 0; border-radius: 18px; }
+    .hm-item .cover { height: 126px; padding: 10px; }
+    .hm-item .body { padding: 14px 14px 2px; }
+    .hm-item .body h4 { font-size: 15px; }
+    .hm-item .body .meta { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+    .hm-item .foot { align-items: center; gap: 8px; padding: 10px 14px 14px; }
+    .hm-item .foot .price { min-width: 0; }
+    .hm-item .foot .price b { font-size: 15px; }
+    .hm-item .foot .price span { font-size: 11px; }
+    .hm-item .foot .mini { flex: none; padding: 8px 10px; font-size: 12px; }
 }
 
 /* Landing-page sign-in dialog */
@@ -1465,7 +1478,7 @@
             {% for f in featured_flights %}
             {% with airline_image=f.airline.photos.all|first_usable_url %}
             <div class="hm-item" data-open-url="{% url 'airlines:list' %}" role="link" tabindex="0">
-                <div class="cover" style="background-image:url('{{ airline_image|default:'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60' }}'),url('{% static 'img/hotel-placeholder.svg' %}'){% if airline_image %};background-size:contain;background-repeat:no-repeat;background-color:#fff{% endif %}">
+                <div class="cover" style="background-image:url('{{ airline_image|default:'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=700&q=60' }}'){% if airline_image %};background-size:contain;background-repeat:no-repeat;background-color:#fff{% endif %}">
                     <span class="badge">{{ f.status|title }}</span>
                 </div>
                 <div class="body">
