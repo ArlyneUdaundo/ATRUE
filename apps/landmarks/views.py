@@ -498,7 +498,18 @@ def landmark_detail(request, pk):
     check_out = parse_date(request.GET.get('check_out'), check_in + timedelta(days=1))
     if check_out <= check_in:
         check_out = check_in + timedelta(days=1)
-    return render(request, 'establishments/detail.html', detail_context(adapter, landmark, check_in, check_out))
+    context = detail_context(adapter, landmark, check_in, check_out)
+    # The shared detail page is also used by public visitors. Show the
+    # management shortcuts only to accounts that can enter management flows.
+    from accounts.roles import can_access_module
+    context['is_landmark_manager'] = bool(
+        request.user.is_authenticated and can_access_module(request.user, 'landmarks')
+    )
+    context['landmark_edit_url'] = (
+        'landmarks:update_landmark' if landmark.category == Landmark.Category.LANDMARK
+        else 'landmarks:update_spot'
+    )
+    return render(request, 'establishments/detail.html', context)
 
 
 @login_required
