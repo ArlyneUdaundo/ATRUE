@@ -829,6 +829,9 @@ def _landmark_card(item, request):
     images = _photo_urls(item.photos.all())
     if not images:
         images = [settings.STATIC_URL + 'img/landmark-placeholder.svg']
+    # The search card renders one cover plus four thumbnails. Keep its count
+    # and clickable gallery aligned with those five photos.
+    images = images[:5]
     price, price_kind = price_display(item.entry_fee, free_when_zero=True)
     return {
         "card_class": "bk-card--establishment",

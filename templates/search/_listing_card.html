@@ -12,7 +12,9 @@
                      data-gallery="{{ t.imgs_json }}" data-index="0"
                      data-load-fallback="{% static 'img/hotel-placeholder.svg' %}">
                 {% if t.imgs|length > 1 %}
-                    <span class="bk-photo-count"><i class="fas fa-images"></i> {{ t.imgs|length }} photos</span>
+                    {% with visible_photos=t.imgs|slice:":5" %}
+                    <span class="bk-photo-count"><i class="fas fa-images"></i> {{ visible_photos|length }} photos</span>
+                    {% endwith %}
                 {% endif %}
                 {# Hotel badge removed as requested #}
             {% else %}

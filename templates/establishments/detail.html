@@ -28,7 +28,7 @@ drives the selection page, and hand off to it via the single primary action.
     <a href="{{ list_url }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All {{ category_label }}</a>
 </div>
 
-<div class="ag-booking">
+<div class="ag-booking{% if category == 'landmark' and request.user.is_instructor %} landmark-instructor-view{% endif %}">
     <div class="ag-booking-main">
         {% with first=cards.0 %}
         {% if first.photos %}
@@ -154,6 +154,7 @@ drives the selection page, and hand off to it via the single primary action.
         </div>
     </div>
 
+    {% if category != 'landmark' or not request.user.is_instructor %}
     <aside class="ag-price-box">
         <div class="ag-pb-head"><i class="fas fa-compass"></i> <b>{{ est_name }}</b></div>
         <div class="ag-pb-body">
@@ -190,5 +191,6 @@ drives the selection page, and hand off to it via the single primary action.
             <div class="ag-pb-note"><a href="{{ list_url }}">Back to all {{ category_label|lower }}</a></div>
         </div>
     </aside>
+    {% endif %}
 </div>
 {% endblock %}

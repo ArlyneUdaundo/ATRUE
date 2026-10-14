@@ -207,6 +207,7 @@
     max-width: var(--shell-booking, 1150px);
     margin: 0 auto;
 }
+.ag-booking.landmark-instructor-view { grid-template-columns: minmax(0, 1fr); }
 .ag-booking-main { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
 .landtransport-continue { margin-top: 18px; }
 .landtransport-booking-flow:not(.is-summary-step) { grid-template-columns: minmax(0, 1fr); }
