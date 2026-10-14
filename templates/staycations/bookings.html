@@ -4,6 +4,11 @@
 
 {% block extra_css %}
 <style>
+    .content > form.card.staycation-reservation-filters {
+        width: 100%;
+        max-width: none;
+        margin: 0 0 18px;
+    }
     .staycation-booking-filters.form-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -33,7 +38,7 @@
 {% block content %}
 <div class="page-head"><div><h1>Staycation Reservations</h1><p>Search and manage staycation reservations (BR-016, BR-017).</p></div></div>
 
-<form method="get" class="card card-pad" style="margin-bottom:18px">
+<form method="get" class="card card-pad staycation-reservation-filters">
     <div class="form-grid staycation-booking-filters">
         <div class="form-group staycation-booking-search">
             <label>Search Keyword</label>
