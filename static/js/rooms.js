@@ -780,12 +780,16 @@
 
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
+                var wasSelected = findIndex(roomId) !== -1;
                 if (guestModalOpen()) syncFromDom();
                 toggleRoom(roomId);
                 updateRoomSelection(roomId);
-                // Keep the room list interactive while users select multiple
-                // rooms. Guest information opens from the selected room's
-                // Guest info button or when booking validation needs it.
+                // Restore the original booking flow: selecting a new room
+                // opens its Guest Information form; deselecting only removes it.
+                if (!wasSelected && findIndex(roomId) !== -1) {
+                    guestOpener = b;
+                    openGuestModal(roomId);
+                }
             });
         });
 
@@ -815,10 +819,15 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (b) {
         b.addEventListener('click', function () {
             var roomId = Number(b.getAttribute('data-compare-book'));
+            var wasSelected = findIndex(roomId) !== -1;
             if (guestModalOpen()) syncFromDom();
             if (findIndex(roomId) === -1) addRoom(roomId);
             else removeRoom(roomId);
             updateRoomSelection(roomId);
+            if (!wasSelected && findIndex(roomId) !== -1) {
+                guestOpener = b;
+                openGuestModal(roomId);
+            }
         });
     });
 

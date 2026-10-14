@@ -825,13 +825,16 @@ if (!guestBox) { return; }
         var book = ev.target.closest('[data-item-book]');
         if (book) {
             var id = book.getAttribute('data-item-book');
+            var wasSelected = findIndex(id) !== -1;
             if (guestModalOpen()) { syncFromDom(); }
             toggleItem(id);
             updateItemSelection(book, id);
-            // Keep selection immediate so users can select several items
-            // without a modal covering the remaining cards. Guest details are
-            // available from the newly shown Guest info button; submitting the
-            // booking with incomplete details opens the same modal for them.
+            // Restore the original booking flow by opening Guest Information
+            // for each newly selected item.
+            if (!wasSelected && findIndex(id) !== -1) {
+                guestOpener = book;
+                openGuestModal(id);
+            }
             return;
         }
         var open = ev.target.closest('[data-open-details]');
