@@ -34,10 +34,10 @@ if [[ -n "${MEDIA_ROOT:-}" && "$MEDIA_ROOT" != "$PROJECT_ROOT/media" ]]; then
   cp -rn "$PROJECT_ROOT"/media/. "$MEDIA_ROOT"/
 fi
 
-# Keep the small-instance defaults conservative, while allowing Render's
-# measured instance capacity to set worker/thread counts without editing code.
+# Keep one worker to bound memory on small Render instances. Threads allow
+# more requests to wait on database and storage I/O without blocking the worker.
 GUNICORN_WORKERS="${GUNICORN_WORKERS:-${WEB_CONCURRENCY:-1}}"
-GUNICORN_THREADS="${GUNICORN_THREADS:-4}"
+GUNICORN_THREADS="${GUNICORN_THREADS:-8}"
 
 exec python -m gunicorn atrue_core.wsgi:application \
   --bind "0.0.0.0:${PORT}" \

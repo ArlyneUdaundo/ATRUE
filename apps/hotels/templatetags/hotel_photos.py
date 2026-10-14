@@ -7,11 +7,11 @@ register = template.Library()
 
 @register.filter
 def usable_urls(photos_qs):
-    """Return only image URLs whose media file actually exists on disk.
+    """Return usable URLs for stored gallery images.
 
-    Use on any HotelPhoto / RoomPhoto queryset (e.g. hotel.photos.all) so that
-    a missing/empty file never renders a blank <img>. Mirrors the
-    _usable_images() logic used by the search catalog.
+    Local media paths are checked before rendering. Public Supabase objects
+    use deterministic URLs and get a browser-side placeholder if missing, so
+    listing requests do not block on remote HEAD checks.
     """
     if photos_qs is None:
         return []

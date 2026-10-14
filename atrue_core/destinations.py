@@ -1,3 +1,7 @@
+import threading
+import time
+from functools import lru_cache
+
 from django.db.models import Q
 from django.shortcuts import render
 from django.utils.text import slugify
@@ -86,7 +90,22 @@ DESTINATIONS = {
 }
 
 
+_DESTINATION_OPTIONS_LOCK = threading.Lock()
+_DESTINATION_SEARCH_LOCK = threading.Lock()
+
+
+@lru_cache(maxsize=2)
+def _destination_options_cached(cache_period):
+    return _build_destination_options()
+
+
 def destination_options():
+    """Cache the destination catalogue for five minutes per app process."""
+    with _DESTINATION_OPTIONS_LOCK:
+        return _destination_options_cached(int(time.monotonic() // 300))
+
+
+def _build_destination_options():
     """Return curated destinations plus every location used by live listings."""
     from activities.models import Activity, ActivityProvider
     from airlines.models import Flight
@@ -148,7 +167,30 @@ def destination_options():
     ]
 
 
+@lru_cache(maxsize=8)
+def _destination_search_options_cached(cache_period, destination_names, properties_only):
+    destinations = [
+        {"name": name, "slug": slug}
+        for name, slug in destination_names
+    ]
+    return _build_destination_search_options(destinations, properties_only)
+
+
 def destination_search_options(destinations=None, properties_only=False):
+    """Cache the expensive autocomplete catalogue for five minutes."""
+    if destinations is None and not properties_only:
+        destinations = destination_options()
+    destination_names = tuple(
+        (str(item.get("name", "")), str(item.get("slug", "")))
+        for item in (destinations or ())
+    )
+    with _DESTINATION_SEARCH_LOCK:
+        return _destination_search_options_cached(
+            int(time.monotonic() // 300), destination_names, bool(properties_only)
+        )
+
+
+def _build_destination_search_options(destinations=None, properties_only=False):
     """Return destinations and active listing names for homepage autocomplete.
 
     When ``properties_only`` is True the suggestions are restricted to live

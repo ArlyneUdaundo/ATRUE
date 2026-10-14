@@ -1,13 +1,16 @@
+{% load static %}
 <article class="bk-card{% if t.card_class %} {{ t.card_class }}{% endif %}">
     <!-- Gallery -->
     <div class="bk-gallery">
         <div class="bk-gallery-main">
             {% if t.imgs and "bk-card--package" in t.card_class %}
-                <img class="bk-package-backdrop" src="{{ t.imgs.0 }}" alt="" aria-hidden="true" loading="lazy">
+                <img class="bk-package-backdrop" src="{{ t.imgs.0 }}" alt="" aria-hidden="true" loading="lazy"
+                     data-load-fallback="{% static 'img/tour-package-placeholder.svg' %}">
             {% endif %}
             {% if t.imgs %}
                 <img class="bk-gmain" src="{{ t.imgs.0 }}" alt="{{ t.title }}" loading="lazy"
-                     data-gallery="{{ t.imgs_json }}" data-index="0">
+                     data-gallery="{{ t.imgs_json }}" data-index="0"
+                     data-load-fallback="{% static 'img/hotel-placeholder.svg' %}">
                 {% if t.imgs|length > 1 %}
                     <span class="bk-photo-count"><i class="fas fa-images"></i> {{ t.imgs|length }} photos</span>
                 {% endif %}
@@ -22,7 +25,8 @@
         {% if t.imgs|length > 1 %}
             <div class="bk-thumbs">
                 {% for img in t.imgs|slice:"0:4" %}
-                    <img class="bk-thumb" src="{{ img }}" alt="{{ t.title }} photo {{ forloop.counter }}" loading="lazy" data-index="{{ forloop.counter0 }}">
+                    <img class="bk-thumb" src="{{ img }}" alt="{{ t.title }} photo {{ forloop.counter }}" loading="lazy" data-index="{{ forloop.counter0 }}"
+                         data-load-fallback="{% static 'img/hotel-placeholder.svg' %}">
                 {% endfor %}
             </div>
         {% endif %}

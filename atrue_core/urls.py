@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib import admin
 from datetime import date, time
+import threading
+import time as monotonic_time
 
 from django.shortcuts import render
 from django.urls import include, path, re_path, reverse
@@ -14,6 +16,29 @@ from atrue_core.destinations import (
     destination_options,
     destination_search_options,
 )
+
+
+_HOME_COUNT_LOCK = threading.Lock()
+_HOME_COUNT_CACHE = {}
+
+
+def _cached_home_search_count(key, querysets):
+    """Avoid repeating the same multi-catalog COUNT queries during a traffic burst."""
+    now = monotonic_time.monotonic()
+    with _HOME_COUNT_LOCK:
+        cached = _HOME_COUNT_CACHE.get(key)
+        if cached and cached[0] > now:
+            return cached[1]
+        total = sum(
+            queryset.count()
+            if hasattr(queryset, 'count') and not isinstance(queryset, list)
+            else len(queryset)
+            for queryset in querysets
+        )
+        if len(_HOME_COUNT_CACHE) >= 128:
+            _HOME_COUNT_CACHE.clear()
+        _HOME_COUNT_CACHE[key] = (now + 20, total)
+        return total
 
 
 def home(request):
@@ -337,7 +362,6 @@ def home(request):
     active=bool(q or loc_country or loc_province or loc_municipality or loc_barangay)
     featured=lambda qs: qs if active else qs[:3]
     shown={'flights':flights_qs,'hotels':hotels_qs,'resorts':resorts_qs,'staycations':staycations_qs,'restaurants':restaurants_qs,'activities':activities_qs,'packages':packages_qs}
-    def count(x): return x.count() if hasattr(x,'count') and not isinstance(x,list) else len(x)
 
     home_destinations = destination_options()
     hero_images = []
@@ -369,7 +393,12 @@ def home(request):
         'search_today':date.today().isoformat(),
         'loc_country':loc_country,'loc_province':loc_province,'loc_municipality':loc_municipality,'loc_barangay':loc_barangay,
         'loc_display':location_display(loc_province,loc_municipality,loc_barangay,loc_country),
-        'search_count':sum(count(shown[k]) for k in show),
+        'search_count':_cached_home_search_count(
+            (tuple(show), q.casefold(), loc_country.casefold(),
+             loc_province.casefold(), loc_municipality.casefold(),
+             loc_barangay.casefold()),
+            [shown[k] for k in show],
+        ),
         'search_check_in':request.GET.get('check_in',''),'search_check_out':request.GET.get('check_out',''),'search_guests':request.GET.get('guests','2'),
         'search_trip_type':request.GET.get('trip_type','ONE_WAY'),
         'search_flight_class':request.GET.get(

@@ -4,6 +4,19 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    // Public Supabase URLs are emitted without a blocking S3 HEAD check. If a
+    // legacy database row points at a missing object, show a local placeholder
+    // instead of leaving a broken image in a listing card.
+    document.querySelectorAll('img[data-load-fallback]').forEach(img => {
+        img.addEventListener('error', () => {
+            const fallback = img.dataset.loadFallback;
+            if (!fallback) return;
+            const fallbackUrl = new URL(fallback, window.location.href).href;
+            if (img.src !== fallbackUrl) img.src = fallbackUrl;
+            else img.hidden = true;
+        });
+    });
+
     // ----- Preloader -----
     const preloader = document.getElementById('preloader');
     const hidePreloader = () => preloader && preloader.classList.add('done');
@@ -184,9 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- Inline image carousel on hotel cards (Agoda style) -----
     // Wire the arrows + loop + counter that appear on feature/listing hotel
-    // cards. data-images is the JSON serialized by the usable_urls filter, so
-    // only images whose file actually exists are ever shown. First image is
-    // already rendered server-side; we just need to drive the rest.
+    // cards. data-images contains the server-selected gallery URLs. First
+    // image is already rendered server-side; we just need to drive the rest.
     document.querySelectorAll('[data-carousel]').forEach(car => {
         let list = [];
         try { list = JSON.parse(car.getAttribute('data-images') || '[]'); } catch (e) { list = []; }

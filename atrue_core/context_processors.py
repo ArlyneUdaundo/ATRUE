@@ -1,4 +1,5 @@
 import json
+import time
 from functools import lru_cache
 
 from atrue_core.location_hierarchy import build_location_hierarchy
@@ -21,6 +22,12 @@ def _location_tree_cached(country_code=''):
     return build_location_hierarchy(country_code or None)
 
 
+@lru_cache(maxsize=16)
+def _location_tree_json_cached(country_code='', cache_period=0):
+    """Cache serialization too; the location tree is shared across pages."""
+    return json.dumps(_location_tree_cached(country_code), ensure_ascii=False)
+
+
 def location_tree(request):
     """Expose the Country -> Province -> Municipality -> Barangay tree to every
     template as ``atrue_loc_tree`` (a dict) and ``atrue_loc_tree_json`` (a safe
@@ -36,7 +43,8 @@ def location_tree(request):
     tree = _location_tree_cached('')
     return {
         'atrue_loc_tree': tree,
-        'atrue_loc_tree_json': json.dumps(tree, ensure_ascii=False),
+        'atrue_loc_tree_json': _location_tree_json_cached(
+            '', int(time.monotonic() // 300)),
     }
 
 

@@ -65,6 +65,10 @@ class SupabasePublicStorage(_SupabaseS3Storage):
     """Public URLs for establishment, room, airline, and gallery images."""
 
     bucket_env = 'SUPABASE_STORAGE_BUCKET'
+    # Public URLs are deterministic and do not need an S3 HEAD request before
+    # rendering. Avoiding one remote request per gallery image keeps listing
+    # pages responsive under concurrent traffic.
+    can_render_url_without_exists_check = True
 
 
 class SupabasePrivateStorage(_SupabaseS3Storage):

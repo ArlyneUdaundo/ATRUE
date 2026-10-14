@@ -137,7 +137,8 @@ def _usable_images(paths):
             continue
         seen.add(key)
         try:
-            if _cached_storage_exists(storage, path, cache_period):
+            if (getattr(storage, 'can_render_url_without_exists_check', False)
+                    or _cached_storage_exists(storage, path, cache_period)):
                 url = storage.url(path)
                 if url not in out:
                     out.append(url)
