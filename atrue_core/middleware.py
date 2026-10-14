@@ -138,6 +138,30 @@ class PaymentMethodValidationMiddleware:
         return self.get_response(request)
 
 
+class AdminMoneyFormattingMiddleware:
+    """Load the shared money formatter in Django's built-in admin pages."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if (not request.path.startswith('/admin/')
+                or getattr(response, 'streaming', False)
+                or not (response.get('Content-Type', '').lower().startswith('text/html'))):
+            return response
+        content = response.content
+        if b'money-format.js' in content or b'</body>' not in content.lower():
+            return response
+        from django.templatetags.static import static
+        script_url = static('js/money-format.js') + '?v=20261014-money-format-2'
+        script = ('<script src="' + script_url + '"></script>').encode(response.charset or 'utf-8')
+        marker = b'</body>'
+        position = content.lower().rfind(marker)
+        response.content = content[:position] + script + content[position:]
+        return response
+
+
 # Keys ``django.contrib.auth`` uses to remember the signed-in user in a session.
 AUTH_SESSION_KEYS = (
     SESSION_KEY,

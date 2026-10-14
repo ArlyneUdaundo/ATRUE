@@ -116,6 +116,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'atrue_core.middleware.StorageUploadErrorMiddleware',
+    'atrue_core.middleware.AdminMoneyFormattingMiddleware',
 ]
 
 # Keep the CSRF secret in the session rather than in a cookie.
