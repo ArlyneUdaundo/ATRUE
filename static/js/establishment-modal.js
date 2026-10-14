@@ -145,6 +145,74 @@
                 credentials: 'same-origin',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
+            if (form.matches('[data-staycation-form]') && response.headers.get('content-type', '').includes('application/json')) {
+                var staycationResult = await response.json();
+                if (!response.ok || !staycationResult.ok) {
+                    var staycationError = body.querySelector('.staycation-edit-error');
+                    if (!staycationError) {
+                        staycationError = document.createElement('div');
+                        staycationError.className = 'alert alert-error staycation-edit-error';
+                        form.prepend(staycationError);
+                    }
+                    staycationError.textContent = staycationResult.error || 'Could not save this staycation.';
+                    return;
+                }
+                var detailValue = function (selector, value) {
+                    var node = document.querySelector(selector);
+                    if (node) node.textContent = value;
+                };
+                detailValue('[data-staycation-detail-name]', staycationResult.name);
+                detailValue('[data-staycation-detail-location]', staycationResult.location);
+                detailValue('[data-staycation-detail-capacity]', staycationResult.capacity_adults + 'A / ' + staycationResult.capacity_children + 'C · up to ' + staycationResult.capacity + ' guests');
+                detailValue('[data-staycation-detail-contact]', staycationResult.contact_number || '—');
+                detailValue('[data-staycation-detail-email]', staycationResult.email || '—');
+                detailValue('[data-staycation-detail-rate]', staycationResult.rate);
+                var statusBadge = document.querySelector('[data-staycation-detail-status]');
+                if (statusBadge) {
+                    statusBadge.textContent = staycationResult.status_display;
+                    statusBadge.classList.toggle('badge-green', staycationResult.status === 'ACTIVE');
+                    statusBadge.classList.toggle('badge-red', staycationResult.status === 'SUSPENDED');
+                    statusBadge.classList.toggle('badge-blue', !['ACTIVE', 'SUSPENDED'].includes(staycationResult.status));
+                }
+                var gallery = document.querySelector('[data-staycation-detail-gallery]');
+                if (gallery) {
+                    var updatedGallery;
+                    if (staycationResult.photos.length) {
+                        updatedGallery = document.createElement('div');
+                        updatedGallery.className = 'hotel-gallery';
+                        updatedGallery.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px';
+                        staycationResult.photos.forEach(function (url, index) {
+                            var image = document.createElement('img');
+                            image.src = url;
+                            image.alt = staycationResult.name + ' photo ' + (index + 1);
+                            image.loading = 'lazy';
+                            image.decoding = 'async';
+                            image.style.cssText = 'width:100%;height:230px;object-fit:cover;border-radius:14px';
+                            updatedGallery.appendChild(image);
+                        });
+                    } else {
+                        updatedGallery = document.createElement('div');
+                        updatedGallery.id = 'staycation-gallery-fallback';
+                        updatedGallery.className = 'hotel-gallery-fallback';
+                        updatedGallery.style.marginBottom = '18px';
+                        var placeholder = document.createElement('img');
+                        placeholder.src = gallery.dataset.staycationPlaceholder;
+                        placeholder.alt = staycationResult.name;
+                        placeholder.style.cssText = 'width:100%;height:300px;object-fit:cover;border-radius:14px';
+                        updatedGallery.appendChild(placeholder);
+                    }
+                    updatedGallery.setAttribute('data-staycation-detail-gallery', '');
+                    updatedGallery.dataset.staycationPlaceholder = gallery.dataset.staycationPlaceholder;
+                    gallery.replaceWith(updatedGallery);
+                }
+                closeModal();
+                var notice = document.createElement('div');
+                notice.className = 'alert alert-success';
+                notice.setAttribute('role', 'status');
+                notice.textContent = 'Staycation updated successfully.';
+                document.querySelector('.content')?.prepend(notice);
+                return;
+            }
             if (form.matches('[data-landmark-form]') && response.headers.get('content-type', '').includes('application/json')) {
                 var result = await response.json();
                 if (!response.ok || !result.ok) {

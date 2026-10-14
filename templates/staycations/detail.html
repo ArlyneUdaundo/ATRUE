@@ -7,12 +7,12 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h1>{{ staycation.name }}</h1>
-        <p><span class="badge badge-blue">{{ staycation.accommodation_type }}</span> <span class="badge {% if staycation.status == 'ACTIVE' %}badge-green{% elif staycation.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ staycation.get_status_display }}</span></p>
+        <h1 data-staycation-detail-name>{{ staycation.name }}</h1>
+        <p><span class="badge badge-blue">{{ staycation.accommodation_type }}</span> <span data-staycation-detail-status class="badge {% if staycation.status == 'ACTIVE' %}badge-green{% elif staycation.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ staycation.get_status_display }}</span></p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
-        <a href="{% url 'staycations:update_staycation' staycation.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'staycations:update_staycation' staycation.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'staycations:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
         {% else %}
         <a href="{% url 'staycations:flow_select' staycation.id %}" class="btn btn-brand"><i class="fas fa-calendar-check"></i> Reserve</a>
@@ -22,13 +22,13 @@
 </div>
 
 {% if staycation.photos.all %}
-<div class="hotel-gallery" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px">
+<div class="hotel-gallery" data-staycation-detail-gallery data-staycation-placeholder="{% static 'img/hotel-placeholder.svg' %}" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:18px">
     {% for photo in staycation.photos.all|usable_urls %}
     <img src="{{ photo }}" alt="{{ staycation.name }} photo {{ forloop.counter }}" loading="lazy" decoding="async" style="width:100%;height:230px;object-fit:cover;border-radius:14px">
     {% endfor %}
 </div>
 {% else %}
-<div id="staycation-gallery-fallback" class="hotel-gallery-fallback" style="margin-bottom:18px">
+<div id="staycation-gallery-fallback" data-staycation-detail-gallery data-staycation-placeholder="{% static 'img/hotel-placeholder.svg' %}" class="hotel-gallery-fallback" style="margin-bottom:18px">
     <img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ staycation.name }}" style="width:100%;height:300px;object-fit:cover;border-radius:14px">
 </div>
 {% endif %}
@@ -37,13 +37,13 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
             <div class="meta"><i class="fas fa-fingerprint"></i> Establishment ID: <b>{{ staycation.establishment_id }}</b></div>
-            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ staycation.location }}</div>
-            <div class="meta"><i class="fas fa-users"></i> {{ staycation.capacity_adults }}A / {{ staycation.capacity_children }}C · up to {{ staycation.capacity }} guests</div>
+            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> <span data-staycation-detail-location>{{ staycation.location }}</span></div>
+            <div class="meta"><i class="fas fa-users"></i> <span data-staycation-detail-capacity>{{ staycation.capacity_adults }}A / {{ staycation.capacity_children }}C · up to {{ staycation.capacity }} guests</span></div>
         </div>
         <div style="min-width:220px;text-align:right">
-            <div class="meta"><i class="fas fa-phone"></i> {{ staycation.contact_number|default:"—" }}</div>
-            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> {{ staycation.email|default:"—" }}</div>
-            <div class="ag-price" style="margin-top:8px"><small>rate</small><b>₱ {{ staycation.rate }}</b><span class="ag-per">/night</span></div>
+            <div class="meta"><i class="fas fa-phone"></i> <span data-staycation-detail-contact>{{ staycation.contact_number|default:"—" }}</span></div>
+            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> <span data-staycation-detail-email>{{ staycation.email|default:"—" }}</span></div>
+            <div class="ag-price" style="margin-top:8px"><small>rate</small><b>₱ <span data-staycation-detail-rate>{{ staycation.rate }}</span></b><span class="ag-per">/night</span></div>
         </div>
     </div>
 </div>
@@ -51,7 +51,7 @@
 {% if staycation.house_rules %}
 <div class="card card-pad" style="margin-bottom:18px">
     <h3 style="margin:0 0 10px"><i class="fas fa-ruler-combined"></i> House Rules / Operating Schedule</h3>
-    <div style="white-space:pre-line">{{ staycation.house_rules }}</div>
+    <div data-staycation-detail-rules style="white-space:pre-line">{{ staycation.house_rules }}</div>
 </div>
 {% endif %}
 

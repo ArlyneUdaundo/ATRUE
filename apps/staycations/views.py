@@ -143,9 +143,14 @@ def update_staycation(request, staycation_id):
                 'location': staycation.location,
                 'capacity_adults': staycation.capacity_adults,
                 'capacity_children': staycation.capacity_children,
+                'capacity': staycation.capacity,
                 'rate': str(staycation.rate),
                 'status': staycation.status,
                 'status_display': staycation.get_status_display(),
+                'contact_number': staycation.contact_number,
+                'email': staycation.email,
+                'house_rules': staycation.house_rules,
+                'photos': [photo.image.url for photo in staycation.photos.all() if photo.image],
             })
         messages.success(request, "Staycation updated.")
         return redirect('staycations:manage')
