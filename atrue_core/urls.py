@@ -297,7 +297,7 @@ def home(request):
     # Public destination browsing now focuses on landmarks; tourist spot rows
     # remain intact for ticket history and management records.
     spots_qs = Landmark.objects.filter(status='ACTIVE', category='LANDMARK').prefetch_related('photos')
-    activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE', provider__verified=True)
+    activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE')
     packages_qs = TourPackage.objects.filter(status='ACTIVE').prefetch_related('photos')
 
     if q:

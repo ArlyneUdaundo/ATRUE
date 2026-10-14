@@ -141,9 +141,9 @@ def hotel_list(request):
             return not _room_date_conflict(room, check_in, check_out)
         return True
 
-    if request.user.is_authenticated and request.user.can_manage_hotels:
-        # Managers need to see newly created active hotels even before rooms
-        # have been added; availability filtering is for customer searches.
+    if (request.user.is_authenticated and request.user.can_manage_hotels) or not (check_in and check_out):
+        # Show every active hotel in the catalogue until a customer requests
+        # specific dates. Apply room availability only to an actual date search.
         filtered = list(hotels)
     else:
         filtered = []

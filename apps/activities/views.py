@@ -83,10 +83,9 @@ def activity_list(request):
         # Managers can see new activities before their provider verification is complete.
         activities = scope_activities(request, activities)
     else:
-        activities = activities.filter(
-            status=Activity.Status.ACTIVE,
-            provider__verified=True,
-        )
+        # Publish every active activity in the catalogue. The card still marks
+        # activities unavailable until their provider is verified.
+        activities = activities.filter(status=Activity.Status.ACTIVE)
     return render_search_page(request, 'activity', activities)
 
 

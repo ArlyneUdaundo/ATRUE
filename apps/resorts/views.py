@@ -77,31 +77,9 @@ def _assigned_resort_ids(request):
 
 
 def resort_list(request):
-    resort_rows = list(Resort.objects.filter(status=Resort.Status.ACTIVE).prefetch_related(
+    resorts = Resort.objects.filter(status=Resort.Status.ACTIVE).prefetch_related(
         'photos', 'units', 'units__photos', 'services'
-    ))
-    grouped = {}
-    for resort in resort_rows:
-        units = list(resort.units.all())
-        available_units = [u for u in units if u.status == RoomVilla.Status.AVAILABLE]
-        if units and not available_units:
-            continue
-        identity = (
-            (resort.name or '').strip().casefold(),
-            (resort.location or '').strip().casefold(),
-        )
-        grouped.setdefault(identity, []).append((resort, units, available_units))
-
-    resorts = []
-    for matches in grouped.values():
-        # If duplicate records share the same resort name and address, prefer
-        # the one with available bookable units so incomplete duplicates do
-        # not appear as a second listing with no price.
-        resort, _, _ = max(
-            matches,
-            key=lambda row: (bool(row[2]), len(row[2]), bool(row[1]), -row[0].pk),
-        )
-        resorts.append(resort)
+    )
     return render_search_page(request, 'resort', resorts)
 
 

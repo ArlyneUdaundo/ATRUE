@@ -97,10 +97,9 @@ def _components_bookable(package):
 
 
 def package_list(request):
-    today = date.today()
-    packages = TourPackage.objects.filter(status=TourPackage.Status.ACTIVE,
-                                          validity_end_date__gte=today,
-                                          validity_start_date__lte=today).prefetch_related('photos')
+    packages = TourPackage.objects.filter(
+        status=TourPackage.Status.ACTIVE,
+    ).prefetch_related('photos')
     return render_search_page(request, 'package', packages)
 
 
