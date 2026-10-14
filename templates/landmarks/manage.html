@@ -5,7 +5,29 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Attractions Management</h1><p>Create, update and manage tourist spots and landmarks (BR-059 to BR-063).</p></div>
+    {% if request.user.is_account_manager %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="{% url 'landmarks:add_landmark' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Landmark</a>
+        <a href="{% url 'landmarks:add_spot' %}" class="btn btn-outline"><i class="fas fa-plus"></i> Add Tourist Spot</a>
+    </div>
+    {% endif %}
 </div>
+
+<form method="get" class="card card-pad" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:22px">
+    <div class="form-group" style="flex:1;min-width:220px;margin:0">
+        <label for="landmark-query">Search attractions</label>
+        <input id="landmark-query" class="form-input" type="search" name="q" value="{{ query }}" placeholder="Name, description, location">
+    </div>
+    <div class="form-group" style="min-width:170px;margin:0">
+        <label for="landmark-status">Status</label>
+        <select id="landmark-status" class="form-input" name="status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
+    {% if query or selected_status %}<a href="{% url 'landmarks:manage' %}" class="btn btn-outline">Clear</a>{% endif %}
+</form>
 
 <h3 style="margin-bottom:14px"><i class="fas fa-hiking"></i> Tourist Spots</h3>
 {% for t in spots %}

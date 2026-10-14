@@ -20,7 +20,7 @@ from atrue_core.services import (
     record_payment,
     resource_is_bookable,
 )
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -69,9 +69,26 @@ def manage(request):
     landmarks = Landmark.objects.prefetch_related('photos').filter(category=Landmark.Category.LANDMARK)
     spots = landmark_scope.scope_queryset(request, spots)
     landmarks = landmark_scope.scope_queryset(request, landmarks)
+    query = (request.GET.get('q') or '').strip()
+    status = (request.GET.get('status') or '').strip()
+    if query:
+        search = (
+            Q(name__icontains=query) | Q(description__icontains=query)
+            | Q(country__icontains=query) | Q(region__icontains=query)
+            | Q(province__icontains=query) | Q(municipality__icontains=query)
+            | Q(barangay__icontains=query)
+        )
+        spots = spots.filter(search)
+        landmarks = landmarks.filter(search)
+    if status in dict(Landmark.Status.choices):
+        spots = spots.filter(status=status)
+        landmarks = landmarks.filter(status=status)
     return render(request, 'landmarks/manage.html', {
         'spots': spots,
         'landmarks': landmarks,
+        'query': query,
+        'selected_status': status,
+        'status_choices': Landmark.Status.choices,
     })
 
 
@@ -133,6 +150,7 @@ def _save_attraction(category, request, instance=None, key=''):
 
 
 @manager_required
+@landmark_scope.decorator()
 def add_spot(request):
     if request.method == 'POST':
         spot = _save_attraction(Landmark.Category.TOURIST_SPOT, request)
@@ -143,8 +161,13 @@ def add_spot(request):
 
 
 @manager_required
+@landmark_scope.decorator()
 def update_spot(request, spot_id):
-    spot = get_object_or_404(Landmark, pk=spot_id, category=Landmark.Category.TOURIST_SPOT)
+    spot = get_object_or_404(
+        landmark_scope.scope_queryset(request, Landmark.objects.prefetch_related('photos')),
+        pk=spot_id,
+        category=Landmark.Category.TOURIST_SPOT,
+    )
     if request.method == 'POST':
         try:
             _save_attraction(Landmark.Category.TOURIST_SPOT, request, instance=spot)
@@ -167,6 +190,7 @@ def update_spot(request, spot_id):
 
 
 @manager_required
+@landmark_scope.decorator()
 def add_landmark(request):
     if request.method == 'POST':
         landmark = _save_attraction(Landmark.Category.LANDMARK, request)
@@ -177,8 +201,13 @@ def add_landmark(request):
 
 
 @manager_required
+@landmark_scope.decorator()
 def update_landmark(request, landmark_id):
-    landmark = get_object_or_404(Landmark, pk=landmark_id, category=Landmark.Category.LANDMARK)
+    landmark = get_object_or_404(
+        landmark_scope.scope_queryset(request, Landmark.objects.prefetch_related('photos')),
+        pk=landmark_id,
+        category=Landmark.Category.LANDMARK,
+    )
     if request.method == 'POST':
         try:
             _save_attraction(Landmark.Category.LANDMARK, request, instance=landmark)

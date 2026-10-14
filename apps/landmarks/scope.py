@@ -13,7 +13,9 @@ landmark_scope = EstablishmentScope(
     establishment_type='LANDMARK',
     module='landmarks',
     list_views={'manage', 'bookings'},
-    platform_views=set(),
+    # Creating a new catalogue destination is a platform-level action. Scoped
+    # landmark staff may edit only the establishment assigned to them.
+    platform_views={'add_spot', 'add_landmark'},
     id_resolvers={'booking_id': _ticket_landmark_ids},
     allowed_attr='allowed_landmark_ids',
     assignment_attr='assigned_landmark_assignment',
