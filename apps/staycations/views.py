@@ -5,6 +5,7 @@ from transactions.establishment_flow import add_booking as add_establishment_boo
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import JsonResponse
 from django.utils import timezone
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.image_utils import is_valid_image
@@ -134,6 +135,18 @@ def update_staycation(request, staycation_id):
             first.save(update_fields=['is_primary'])
         log_activity(request.user, "Updated staycation",
                      f"{staycation.name} ({staycation.establishment_id})")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'ok': True,
+                'id': staycation.pk,
+                'name': staycation.name,
+                'location': staycation.location,
+                'capacity_adults': staycation.capacity_adults,
+                'capacity_children': staycation.capacity_children,
+                'rate': str(staycation.rate),
+                'status': staycation.status,
+                'status_display': staycation.get_status_display(),
+            })
         messages.success(request, "Staycation updated.")
         return redirect('staycations:manage')
     return render(request, 'staycations/form.html', {'staycation': staycation})
