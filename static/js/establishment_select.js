@@ -665,7 +665,10 @@ if (!guestBox) { return; }
 
     function renderAll() {
         renderHiddenIds();
-        renderSections();
+        // Guest fields and their service/amenity checkboxes are expensive to
+        // rebuild for every item selection. Create them only when the modal is
+        // open or when the user opens guest details.
+        if (guestModalOpen()) { renderSections(); }
         renderCardStates();
         computeAll();
     }

@@ -273,6 +273,10 @@
         if (!guestModal || !SELECTED.length) return;
         var idx = (roomId === undefined || roomId === null) ? ACTIVE : findIndex(roomId);
         if (idx === -1) return;
+        // Build the guest form only when it is needed. Rebuilding every
+        // selected room's service/amenity controls on each Select click can
+        // freeze the browser when a property has many extras.
+        renderSections();
         setActive(idx);
         var s = SELECTED[ACTIVE];
         if (guestModalSub && s) {
@@ -597,7 +601,7 @@
 
     function renderAll() {
         syncRoomIds();
-        renderSections();
+        if (guestModalOpen()) renderSections();
         paintCards();
         computeAll();
     }
@@ -806,7 +810,7 @@
         modal.addEventListener('click', function (e) { if (e.target === modal) closeDetails(); });
     }
 
-    // Guest information modal: opened by Select, closed by X / Cancel /
+    // Guest information modal: opened by Guest info, closed by X / Cancel /
     // backdrop / Escape. It never scrolls the page, and the form inside it keeps
     // the existing per-room field names so the booking submit is unchanged.
     Array.prototype.forEach.call(document.querySelectorAll('[data-guest-close]'), function (b) {
@@ -875,6 +879,7 @@
         var errs = validateAll();
         if (errs.length) {
             e.preventDefault();
+            openGuestModal(SELECTED[errs[0].index].room_id);
             showErrors(errs);
             return;
         }
