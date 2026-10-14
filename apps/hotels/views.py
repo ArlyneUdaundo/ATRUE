@@ -236,7 +236,7 @@ def add_hotel(request):
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created hotel", f"{hotel.name} ({hotel.establishment_id})")
         messages.success(request, f"Hotel '{hotel.name}' created (ID: {hotel.establishment_id}).")
-        return redirect('hotels:list')
+        return redirect('hotels:manage')
     return render(request, 'hotels/form.html', {'hotel': None, 'fd': {}})
 
 
