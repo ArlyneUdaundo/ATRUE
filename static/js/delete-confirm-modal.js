@@ -106,7 +106,7 @@
         var explicit = element && element.dataset && element.dataset.confirm;
         if (explicit) return explicit;
         if (element instanceof HTMLFormElement && hasSelectedRemoval(element)) {
-            return 'Are you sure you want to remove the selected photo(s)?';
+            return 'Are you sure you want to remove the selected item(s)?';
         }
         return 'Are you sure you want to remove this?';
     }
@@ -133,18 +133,6 @@
     }, true);
 
     document.addEventListener('click', function (event) {
-        var removalCheckbox = event.target instanceof Element
-            ? event.target.closest('input[type="checkbox"][name*="delete" i], input[type="checkbox"][name*="remove" i]')
-            : null;
-        if (removalCheckbox && removalCheckbox.checked) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            askForDelete('Are you sure you want to remove this photo?', function () {
-                removalCheckbox.checked = true;
-                if (removalCheckbox.form) removalCheckbox.form.dataset.deleteConfirmed = '1';
-            }, removalCheckbox);
-            return;
-        }
         var target = event.target instanceof Element ? event.target.closest('a, button, input[type="submit"], input[type="button"]') : null;
         if (!target || target.dataset.deleteConfirmed === '1' || !isDeleteConfirmation(target)) return;
         if (target.matches('[data-count-change], [data-gd-minus], [data-rstep-minus]')) return;
