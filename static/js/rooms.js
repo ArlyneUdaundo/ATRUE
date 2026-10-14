@@ -170,6 +170,42 @@
         else removeRoom(id);
     }
 
+    // Paint the clicked room immediately; defer totals and the detailed
+    // summary so large amenity/service datasets cannot block the click.
+    var selectionComputeTimer = null;
+    function updateRoomSelection(roomId) {
+        syncRoomIds();
+        var picked = findIndex(roomId) !== -1;
+        var card = cardOf(roomId);
+        if (card) {
+            card.classList.toggle('is-selected', picked);
+            var rate = card.querySelector('.rm-rate');
+            if (rate) rate.classList.toggle('is-selected', picked);
+            Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (el) {
+                el.classList.toggle('is-on', picked);
+                el.setAttribute('aria-pressed', picked ? 'true' : 'false');
+                el.innerHTML = picked
+                    ? '<i class="fas fa-check"></i> Selected'
+                    : '<i class="fas fa-circle-check"></i> Select';
+            });
+            var guestButton = card.querySelector('[data-guest-open]');
+            if (guestButton) guestButton.hidden = !picked;
+        }
+        if (roomCountPanel) roomCountPanel.textContent = SELECTED.length + ' selected';
+        if (pbRoomsSelected) pbRoomsSelected.textContent = SELECTED.length;
+        if (btn) {
+            btn.disabled = !SELECTED.length || currentNights() === null;
+            btn.innerHTML = SELECTED.length
+                ? '<i class="fas fa-bed"></i> BOOK ' + SELECTED.length + ' ROOM' + (SELECTED.length === 1 ? '' : 'S')
+                : '<i class="fas fa-bed"></i> Book room(s)';
+        }
+        if (selectionComputeTimer) window.clearTimeout(selectionComputeTimer);
+        selectionComputeTimer = window.setTimeout(function () {
+            selectionComputeTimer = null;
+            computeAll();
+        }, 0);
+    }
+
     /* ------------------------------------------------------- card chrome */
 
     function paintRoomButtons() {
@@ -744,9 +780,9 @@
 
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
-                syncFromDom();
+                if (guestModalOpen()) syncFromDom();
                 toggleRoom(roomId);
-                renderAll();
+                updateRoomSelection(roomId);
                 // Keep the room list interactive while users select multiple
                 // rooms. Guest information opens from the selected room's
                 // Guest info button or when booking validation needs it.
@@ -778,11 +814,11 @@
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (b) {
         b.addEventListener('click', function () {
-            syncFromDom();
             var roomId = Number(b.getAttribute('data-compare-book'));
+            if (guestModalOpen()) syncFromDom();
             if (findIndex(roomId) === -1) addRoom(roomId);
             else removeRoom(roomId);
-            renderAll();
+            updateRoomSelection(roomId);
         });
     });
 

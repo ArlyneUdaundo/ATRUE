@@ -217,6 +217,37 @@
         if (findIndex(id) === -1) { addItem(id); } else { removeItem(id); }
     }
 
+    // Update the selected item immediately and run the detailed booking
+    // computation after the browser has returned control to the page.
+    var selectionComputeTimer = null;
+    function updateItemSelection(button, id) {
+        renderHiddenIds();
+        var picked = findIndex(id) !== -1;
+        button.setAttribute('aria-pressed', picked ? 'true' : 'false');
+        button.classList.toggle('is-on', picked);
+        button.innerHTML = picked
+            ? '<i class="fas fa-check"></i> Selected'
+            : '<i class="fas fa-circle-check"></i> Select';
+        var card = button.closest('[data-item-card]');
+        if (card) {
+            card.classList.toggle('is-selected', picked);
+            var guestButton = card.querySelector('[data-guest-open]');
+            if (guestButton) guestButton.hidden = !picked;
+        }
+        if (countPanel) {
+            countPanel.textContent = SELECTED.length
+                ? SELECTED.length + ' ' + ITEM_PLURAL + (SELECTED.length === 1 ? '' : 's') + ' selected'
+                : '0 selected';
+        }
+        if (countSelected) countSelected.textContent = SELECTED.length;
+        if (continueBtn) continueBtn.disabled = !SELECTED.length;
+        if (selectionComputeTimer) window.clearTimeout(selectionComputeTimer);
+        selectionComputeTimer = window.setTimeout(function () {
+            selectionComputeTimer = null;
+            computeAll();
+        }, 0);
+    }
+
     function renderCardStates() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-item-book]'), function (btn) {
             var id = btn.getAttribute('data-item-book');
@@ -794,9 +825,9 @@ if (!guestBox) { return; }
         var book = ev.target.closest('[data-item-book]');
         if (book) {
             var id = book.getAttribute('data-item-book');
-            syncFromDom();
+            if (guestModalOpen()) { syncFromDom(); }
             toggleItem(id);
-            renderAll();
+            updateItemSelection(book, id);
             // Keep selection immediate so users can select several items
             // without a modal covering the remaining cards. Guest details are
             // available from the newly shown Guest info button; submitting the
