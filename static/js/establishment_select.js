@@ -574,13 +574,18 @@ if (!guestBox) { return; }
         guestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
         var card = guestBox.querySelector('.bk-guest-card:not([hidden])');
-        var fields = card ? modalFocusables(card) : [];
-        var target = fields.filter(function (el) {
-            return el.tagName === 'INPUT' && !el.value;
-        })[0] || fields[0];
+        var target = card && card.querySelector(
+            'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        // Wait for the modal to paint before focusing an input. Calling
+        // getClientRects() for every field here forced synchronous layout and
+        // could stall category selection on slower devices.
         if (target) {
-            try { target.focus({ preventScroll: true }); }
-            catch (err) { target.focus(); }
+            requestAnimationFrame(function () {
+                if (!guestModalOpen() || !target.isConnected) { return; }
+                try { target.focus({ preventScroll: true }); }
+                catch (err) { target.focus(); }
+            });
         }
         guestModalBodyReset();
     }
