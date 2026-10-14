@@ -7,11 +7,23 @@
     .staycation-booking-filters.form-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+    .staycation-booking-filters .staycation-booking-search {
+        grid-column: 1;
+    }
+    .staycation-booking-filters .staycation-booking-status {
+        grid-column: 3;
+    }
+    @media (max-width: 900px) {
+        .staycation-booking-filters .staycation-booking-status {
+            grid-column: 2;
+        }
+    }
     @media (max-width: 640px) {
         .staycation-booking-filters.form-grid {
             grid-template-columns: 1fr;
         }
-        .staycation-booking-filters .form-group[style*="grid-column"] {
+        .staycation-booking-filters .staycation-booking-search,
+        .staycation-booking-filters .staycation-booking-status {
             grid-column: 1;
         }
     }
@@ -23,11 +35,11 @@
 
 <form method="get" class="card card-pad" style="margin-bottom:18px">
     <div class="form-grid staycation-booking-filters">
-        <div class="form-group" style="grid-column:span 2">
+        <div class="form-group staycation-booking-search">
             <label>Search Keyword</label>
             <input type="text" name="q" class="form-input establishment-ops-search" value="{{ q }}" placeholder="Booking reference or guest / customer name">
         </div>
-        <div class="form-group">
+        <div class="form-group staycation-booking-status">
             <label>Booking Status</label>
             <select name="status" class="form-input">
                 <option value="">All statuses</option>
