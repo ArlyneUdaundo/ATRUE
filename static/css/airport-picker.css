@@ -93,6 +93,7 @@
   box-sizing: border-box;
   flex: 0 0 auto;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   border: 1px solid #dfe5ee;
   border-radius: 12px;
@@ -188,13 +189,13 @@
     width: calc(100vw - 32px);
     min-width: 0;
     max-width: 650px;
-    max-height: min(70vh, 520px);
-    max-height: min(70dvh, 520px);
+    max-height: min(60vh, 520px);
+    max-height: min(60dvh, 520px);
     padding: 10px;
     z-index: 10000;
     overflow: hidden;
     border-radius: 16px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
   .atrue-airport-input {
     font-size: 16px;

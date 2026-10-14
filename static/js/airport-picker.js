@@ -108,11 +108,19 @@
                 var left = mobile
                     ? viewportLeft + Math.max(16, (viewportWidth - width) / 2)
                     : Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
-                var maxHeight = Math.min(viewportHeight * (mobile ? 0.70 : 0.46), mobile ? 520 : 360);
-                var maxTop = viewportTop + viewportHeight - maxHeight - (mobile ? 12 : 8);
-                var top = mobile
-                    ? Math.min(Math.max(viewportTop + 12, rect.bottom + 6), maxTop)
-                    : Math.min(rect.bottom + 6, maxTop);
+                var maxHeight = Math.min(viewportHeight * (mobile ? 0.60 : 0.46), mobile ? 520 : 360);
+                var top;
+                if (mobile) {
+                    // Keep the picker as a compact bottom sheet within the visible
+                    // viewport (including when the on-screen keyboard is open).
+                    var sheetHeight = Math.min(maxHeight, Math.max(0, viewportHeight - 24));
+                    top = viewportTop + viewportHeight - sheetHeight - 12;
+                    panel.style.height = sheetHeight + 'px';
+                } else {
+                    var maxTop = viewportTop + viewportHeight - maxHeight - 8;
+                    top = Math.min(rect.bottom + 6, maxTop);
+                    panel.style.height = '';
+                }
                 panel.style.position = 'fixed';
                 panel.style.left = left + 'px';
                 panel.style.right = 'auto';

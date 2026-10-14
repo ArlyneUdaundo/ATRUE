@@ -208,8 +208,8 @@ input, select, textarea { font-family: inherit; }
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
-    width: clamp(56px, 4.8vw, 64px);
-    height: clamp(56px, 4.8vw, 64px);
+    width: clamp(68px, 5vw, 76px);
+    height: clamp(68px, 5vw, 76px);
     flex: 0 0 auto;
     border-radius: 16px;
     background: transparent;
@@ -229,7 +229,7 @@ input, select, textarea { font-family: inherit; }
     height: 100%;
     object-fit: contain;
     border-radius: 0;
-    transform: scale(1.35);
+    transform: none;
 }
 .brand-text b { display: block; font-size: 21px; font-weight: 800; letter-spacing: 0.04em; color: var(--white); }
 .brand-text small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
