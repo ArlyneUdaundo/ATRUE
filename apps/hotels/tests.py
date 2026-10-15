@@ -294,8 +294,8 @@ class HotelGroupRoomTabTests(TestCase):
 
 class HotelGuestModalMarkupTests(TestCase):
     """Guest information is presented through a modal instead of a section the
-    user has to scroll down to. The per-room fields must stay inside the booking
-    form so the existing submit keeps working untouched."""
+    user has to scroll down to. The modal stays outside the animated page
+    content, while JavaScript associates its fields with the booking form."""
 
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -316,12 +316,13 @@ class HotelGuestModalMarkupTests(TestCase):
             )
             for number in ('101', '102')
         ]
-        check_in = timezone.localdate() + timedelta(days=10)
+        self.check_in = timezone.localdate() + timedelta(days=10)
+        self.check_out = self.check_in + timedelta(days=2)
         session = self.client.session
         session['hotel_group_booking'] = {
             'hotel_id': self.hotel.pk,
-            'check_in': check_in.isoformat(),
-            'check_out': (check_in + timedelta(days=2)).isoformat(),
+            'check_in': self.check_in.isoformat(),
+            'check_out': self.check_out.isoformat(),
             'rooms_needed': 2, 'adults_search': 2, 'children_search': 0,
             'room_ids': [room.pk for room in self.rooms],
         }
@@ -338,22 +339,53 @@ class HotelGuestModalMarkupTests(TestCase):
         section_at = html.index('id="selectedRoomsSection"')
         # The guest fields render inside the modal, not further down the page.
         self.assertLess(modal_at, section_at)
-        self.assertLess(section_at, html.index('id="computationSummary"'))
+        self.assertLess(section_at, html.index('id="roomModal"'))
         self.assertIn('role="dialog"', html[modal_at:modal_at + 400])
         self.assertIn('aria-modal="true"', html[modal_at:modal_at + 400])
 
-    def test_guest_modal_sits_inside_the_booking_form(self):
+    def test_guest_modal_sits_outside_the_animated_content_and_booking_form(self):
         html = self._page().content.decode()
         form_at = html.index('id="bookingForm"')
         form_end = html.index('</form>', form_at)
         modal_at = html.index('id="guestModal"')
-        self.assertLess(modal_at, form_end,
-                        'the per-room fields must submit with the booking form')
+        main_end = html.index('</main>', form_at)
+        self.assertGreater(modal_at, form_end,
+                           'the fixed modal must not be nested in the booking form')
+        self.assertGreater(modal_at, main_end,
+                           'the fixed modal must be outside animated .content')
+
+    def test_room_select_and_modal_render_for_another_student_hotel(self):
+        other_hotel = Hotel.objects.create(
+            name='Harbor View Inn', establishment_id='H-9002',
+            country='Philippines', province='Cebu', municipality='Cebu City',
+            status=Hotel.Status.ACTIVE,
+        )
+        room = Room.objects.create(
+            hotel=other_hotel, room_number='201', room_type='DELUXE',
+            capacity_adults=2, capacity_children=1, max_guest_capacity=4,
+            rate='3200.00', status=Room.RoomStatus.AVAILABLE,
+        )
+        session = self.client.session
+        session['hotel_group_booking'] = {
+            'hotel_id': other_hotel.pk,
+            'check_in': self.check_in.isoformat(),
+            'check_out': self.check_out.isoformat(),
+            'rooms_needed': 1, 'adults_search': 1, 'children_search': 0,
+            'room_ids': [room.pk],
+        }
+        session.save()
+
+        response = self.client.get(reverse('hotels:group_start', args=[other_hotel.pk]))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f'data-room-book="{room.pk}"', html)
+        self.assertIn('id="guestModal"', html)
+        self.assertGreater(html.index('id="guestModal"'), html.index('</main>'))
 
     def test_guest_modal_has_cancel_and_continue_controls(self):
         html = self._page().content.decode()
         modal_at = html.index('id="guestModal"')
-        modal_html = html[modal_at:html.index('id="computationSummary"')]
+        modal_html = html[modal_at:html.index('id="roomModal"', modal_at)]
         self.assertIn('data-guest-close', modal_html)
         self.assertIn('id="guestModalSave"', modal_html)
         self.assertIn('Guest Information', modal_html)
@@ -366,6 +398,6 @@ class HotelGuestModalMarkupTests(TestCase):
         html = self._page().content.decode()
         modal_at = html.index('id="guestModal"')
         summary_at = html.index('id="computationSummary"')
-        self.assertLess(modal_at, summary_at)
+        self.assertGreater(modal_at, summary_at)
         # Only one guest host element exists, and it is the one in the modal.
         self.assertEqual(html.count('id="selectedRoomsSection"'), 1)
