@@ -41,6 +41,7 @@ Running *below* those three would leave all of that state shared, which is the
 bug this arrangement exists to prevent.
 """
 import importlib
+import secrets
 
 from django.conf import settings
 from django.contrib.auth import (
@@ -276,30 +277,43 @@ class TabSessionMiddleware:
     def __call__(self, request):
         from accounts.models import AuthContext
 
+        cookie_name = 'atrue_browser_session'
+        browser_key = request.COOKIES.get(cookie_name, '')
+        if not browser_key or len(browser_key) > 64:
+            browser_key = secrets.token_urlsafe(32)
+            request._atrue_browser_cookie_missing = True
+        request._atrue_browser_key = browser_key
+
         token = _request_ctx_token(request)
         if not token:
-            return self.get_response(request)
-
-        cookie_session = request.session
-        tab_session = self._activate(AuthContext, request, token)
-        if tab_session is None:
-            return self.get_response(request)
-
-        request.session = tab_session
-        try:
             response = self.get_response(request)
-        finally:
-            # Persist the tab's own session, then hand the cookie session back so
-            # SessionMiddleware never repoints the shared cookie at this tab.
-            # This runs in a finally block: if the view raises, leaving the tab
-            # session installed would let SessionMiddleware below hand the whole
-            # browser this tab's session key on the way out of a 500.
-            if tab_session.modified:
-                tab_session.save()
-            self._resync_binding(AuthContext, token, tab_session)
-            request.session = cookie_session
+        else:
+            cookie_session = request.session
+            tab_session = self._activate(AuthContext, request, token)
+            if tab_session is None:
+                response = self.get_response(request)
+            else:
+                request.session = tab_session
+                try:
+                    response = self.get_response(request)
+                finally:
+                    # Persist the tab's own session, then hand the cookie session back so
+                    # SessionMiddleware never repoints the shared cookie at this tab.
+                    if tab_session.modified:
+                        tab_session.save()
+                    self._resync_binding(AuthContext, token, tab_session, browser_key)
+                    request.session = cookie_session
 
-        _preserve_ctx_on_redirect(response, token)
+                _preserve_ctx_on_redirect(response, token)
+        if getattr(request, '_atrue_browser_cookie_missing', False):
+            response.set_cookie(
+                cookie_name,
+                browser_key,
+                httponly=True,
+                secure=settings.SESSION_COOKIE_SECURE,
+                samesite='Lax',
+                path='/',
+            )
         return response
 
     def _activate(self, AuthContext, request, token):
@@ -309,7 +323,8 @@ class TabSessionMiddleware:
                .select_related('user')
                .first())
 
-        if ctx is not None:
+        browser_key = getattr(request, '_atrue_browser_key', '')
+        if ctx is not None and ctx.browser_key == browser_key:
             session = _load_session(ctx.session_key)
             if ctx.user_id is None:
                 # A tab that has signed out keeps its own anonymous workspace so
@@ -326,6 +341,10 @@ class TabSessionMiddleware:
             # one request.
             AuthContext.objects.filter(pk=ctx.pk).delete()
             return None
+        elif ctx is not None:
+            # The URL/sessionStorage token survived, but the browser session
+            # cookie did not. Treat the old tab session as signed out.
+            AuthContext.objects.filter(pk=ctx.pk).delete()
 
         if _is_login_submission(request):
             # A tab signing in needs a session of its own, otherwise login()
@@ -356,7 +375,8 @@ class TabSessionMiddleware:
 
         if source is not None:
             source_session = _load_session(source.session_key)
-            if (source.user_id
+            if (source.browser_key == browser_key
+                    and source.user_id
                     and source_session.get(SESSION_KEY) == str(source.user_id)
                     and source.user.is_active):
                 user = source.user
@@ -378,13 +398,14 @@ class TabSessionMiddleware:
         session.save()
         AuthContext.objects.create(
             token=token,
+            browser_key=browser_key,
             user=user,
             session_key=session.session_key,
         )
         return session
 
     # -- response phase ---------------------------------------------------
-    def _resync_binding(self, AuthContext, token, session):
+    def _resync_binding(self, AuthContext, token, session, browser_key):
         """Record the token against whatever session the request ended up with.
 
         ``login()`` recycles the session key, so the key observed before the
@@ -401,7 +422,11 @@ class TabSessionMiddleware:
         if not user_id:
             AuthContext.objects.update_or_create(
                 token=token,
-                defaults={'user': None, 'session_key': session.session_key},
+                defaults={
+                    'user': None,
+                    'session_key': session.session_key,
+                    'browser_key': browser_key,
+                },
             )
             return
         user = get_user_model().objects.filter(pk=user_id).first()
@@ -410,5 +435,9 @@ class TabSessionMiddleware:
             return
         AuthContext.objects.update_or_create(
             token=token,
-            defaults={'user': user, 'session_key': session.session_key},
+            defaults={
+                'user': user,
+                'session_key': session.session_key,
+                'browser_key': browser_key,
+            },
         )
