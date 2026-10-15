@@ -7,10 +7,12 @@
 <div class="page-head">
     <div><h1>Booking {{ booking.booking_reference }}</h1><p>Hotel reservation details, billing and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'hotels:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
         {% else %}
         <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
         {% endif %}
         <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
     </div>
@@ -99,11 +101,15 @@
         <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
         {% endif %}
         {% if booking.status == 'CONFIRMED' %}
+        {% if can_process_checkin %}
         <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In</button>
+        {% endif %}
         <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking and release the room?"><i class="fas fa-ban"></i> Cancel</button>
         {% endif %}
         {% if booking.status == 'CHECKED_IN' %}
+        {% if can_process_checkin %}
         <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out</button>
+        {% endif %}
         {% endif %}
     </form>
 

@@ -497,6 +497,30 @@ def can_manage_booking(user, module):
     )
 
 
+_RESERVATION_ONLY_ROLE_KEYS = {
+    'hotels': {'HOTEL_RESERVATION_OFFICER'},
+    'resorts': {'RESORT_RESERVATION_OFFICER'},
+    'restaurants': {'RESTAURANT_RESERVATION_OFFICER'},
+    'staycations': {'STAYCATION_RESERVATION_OFFICER'},
+    'transportation': {'TRANSPORT_RESERVATION_AGENT', 'TRANSPORT_RESERVATION_OFFICER'},
+    'activities': {'ACTIVITY_RESERVATION_OFFICER'},
+    'landmarks': {'LANDMARK_RESERVATION_OFFICER'},
+    'tour_package': {'TOUR_PACKAGE_RESERVATION_OFFICER', 'TOUR_RESERVATION_AGENT'},
+}
+
+
+def can_process_booking_checkin(user, module):
+    """Reservation-only roles can manage requests but cannot process arrival/departure."""
+    if not user or not user.is_authenticated:
+        return False
+    if is_platform_user(user):
+        return True
+    keys = effective_role_keys(user)
+    if keys & _RESERVATION_ONLY_ROLE_KEYS.get(module, set()):
+        return False
+    return can_manage_booking(user, module)
+
+
 def is_platform_user(user):
     """True for platform accounts (staff and management account types), regardless
     of temporary student role assignments (used to keep booking-as-customer open

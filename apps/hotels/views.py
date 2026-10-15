@@ -6,6 +6,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.core.validators import validate_email
@@ -1437,8 +1438,13 @@ def booking_detail(request, booking_id):
 
     can_manage = request.user.is_staff or is_manager_user(request.user)
 
+    from accounts.roles import can_process_booking_checkin
+    can_process_checkin = can_process_booking_checkin(request.user, 'hotels')
+
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
+        if action in {'checkin', 'checkout'} and not can_process_checkin:
+            raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
@@ -1519,6 +1525,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
+        'can_process_checkin': can_process_checkin,
     })
 
 
@@ -1539,8 +1547,8 @@ def _get_ticket_booking(request, booking_id):
         ),
         pk=booking_id,
     )
-    if booking.customer_id != request.user.id and not can_manage_booking(request.user, 'hotels'):
-        messages.warning(request, "You cannot view this booking.")
+    if booking.customer_id != request.user.id or can_manage_booking(request.user, 'hotels') or request.user.is_staff:
+        messages.warning(request, "Only the guest who owns this booking may print its ticket.")
         return None
     return booking
 

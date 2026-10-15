@@ -6,10 +6,12 @@
 <div class="page-head">
     <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Table reservation details, billing, remarks and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'restaurants:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
         {% else %}
         <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting Restaurant Reservation Officer confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
         {% endif %}
         <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' or booking.status == 'DECLINED' or booking.status == 'REJECTED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.status }}</span>
     </div>
@@ -107,11 +109,15 @@
             <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Reject Reservation</button>
             {% endif %}
             {% if booking.status == 'CONFIRMED' %}
+        {% if can_process_checkin %}
             <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Mark Seated</button>
+        {% endif %}
             <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this reservation and release the table?"><i class="fas fa-ban"></i> Cancel</button>
             {% endif %}
             {% if booking.status == 'CHECKED_IN' %}
+        {% if can_process_checkin %}
             <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Complete Meal</button>
+        {% endif %}
             {% endif %}
         </div>
     </form>

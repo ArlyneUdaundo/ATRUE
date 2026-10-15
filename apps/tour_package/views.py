@@ -492,6 +492,7 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_review': is_reservation,
         'can_frontdesk': is_frontdesk,
     })

@@ -704,8 +704,13 @@ def booking_detail(request, booking_id):
     bill = bill_for_booking(booking)
     payments = bill.payments.all() if bill else Payment.objects.none()
 
+    from accounts.roles import can_process_booking_checkin
+    can_process_checkin = can_process_booking_checkin(request.user, 'restaurants')
+
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
+        if action in {'checkin', 'checkout'} and not can_process_checkin:
+            raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         remark = (request.POST.get('remark') or '').strip()
         if action in {'confirm', 'decline'} and not can_confirm:
             raise PermissionDenied(
@@ -807,6 +812,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
+        'can_process_checkin': can_process_checkin,
         'can_confirm': can_confirm,
     })
 

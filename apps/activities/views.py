@@ -419,6 +419,7 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
     })
 
 
@@ -438,15 +439,12 @@ def ticket_pdf(request, booking_id):
 
 def _require_activity_ticket_access(request, booking_id):
     booking = get_object_or_404(Booking, pk=booking_id)
-    if booking.customer_id == request.user.id or is_activity_platform_user(request.user):
+    from accounts.roles import can_manage_booking
+    if (booking.customer_id == request.user.id
+            and not request.user.is_staff
+            and not can_manage_booking(request.user, 'activities')):
         return
-    allowed = assigned_activity_ids_for_roles(request, {
-        'ACTIVITY_RESERVATION_OFFICER',
-        'ACTIVITY_FRONT_DESK_OFFICER',
-        'ACTIVITY_OPERATOR',
-    })
-    if allowed is None or booking.activity_id not in allowed:
-        raise PermissionDenied('You cannot access this activity ticket.')
+    raise PermissionDenied('Only the guest who owns this activity booking may print its ticket.')
 
 
 # ---------------------------------------------------------------------------

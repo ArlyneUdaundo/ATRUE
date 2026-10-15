@@ -467,10 +467,11 @@ def _load_booking(module, booking_id):
 
 def _user_may_view(request, module, booking):
     from accounts.roles import can_manage_booking
-    if request.user.is_staff or can_manage_booking(request.user, module):
-        return True
     cid = booking.customer_id if hasattr(booking, 'customer_id') else getattr(booking, 'passenger_id', None)
-    return cid == request.user.id
+    # Only the guest who owns the booking may print or download its ticket.
+    return cid == request.user.id and not (
+        request.user.is_staff or can_manage_booking(request.user, module)
+    )
 
 
 def eticket_detail(request, module, booking_id):
