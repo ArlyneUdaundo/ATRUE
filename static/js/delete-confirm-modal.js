@@ -2,10 +2,12 @@
     'use strict';
 
     var overlay = null;
+    var titleNode = null;
     var messageNode = null;
     var cancelButton = null;
     var confirmButton = null;
     var pendingAction = null;
+    var pendingCancel = null;
     var returnFocus = null;
 
     function ensureModal() {
@@ -17,27 +19,33 @@
         overlay.hidden = true;
         overlay.innerHTML = '<div class="delete-confirm-modal__panel">' +
             '<div class="delete-confirm-modal__icon"><i class="fas fa-trash-alt" aria-hidden="true"></i></div>' +
-            '<h2 id="deleteConfirmTitle">Are you sure?</h2>' +
+            '<h2 id="deleteConfirmTitle">Are you sure you want to remove this?</h2>' +
             '<p id="deleteConfirmMessage">Are you sure you want to delete this?</p>' +
             '<div class="delete-confirm-modal__actions"><button type="button" class="delete-confirm-modal__cancel">Cancel</button>' +
             '<button type="button" class="delete-confirm-modal__confirm">Delete</button></div></div>';
         document.body.appendChild(overlay);
+        titleNode = overlay.querySelector('#deleteConfirmTitle');
         messageNode = overlay.querySelector('#deleteConfirmMessage');
         cancelButton = overlay.querySelector('.delete-confirm-modal__cancel');
         confirmButton = overlay.querySelector('.delete-confirm-modal__confirm');
-        cancelButton.addEventListener('click', closeModal);
+        cancelButton.addEventListener('click', function () { closeModal(true); });
         overlay.addEventListener('click', function (event) {
-            if (event.target === overlay) closeModal();
+            if (event.target === overlay) closeModal(true);
         });
         confirmButton.addEventListener('click', function () {
+            if (!pendingAction) return;
             var action = pendingAction;
-            closeModal();
-            if (action) action();
+            pendingAction = null;
+            pendingCancel = null;
+            confirmButton.disabled = true;
+            confirmButton.textContent = 'Processing…';
+            closeModal(false);
+            action();
         });
         overlay.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 event.preventDefault();
-                closeModal();
+                closeModal(true);
                 return;
             }
             if (event.key === 'Tab') {
@@ -54,31 +62,55 @@
         });
     }
 
-    function closeModal() {
+    function closeModal(cancelled) {
         if (!overlay || overlay.hidden) return;
+        var cancelAction = cancelled ? pendingCancel : null;
         if (overlay.open) overlay.close();
         overlay.hidden = true;
         document.body.classList.remove('delete-confirm-open');
         pendingAction = null;
+        pendingCancel = null;
+        confirmButton.disabled = false;
+        confirmButton.textContent = 'Yes, Delete';
+        if (cancelAction) cancelAction();
         if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
         returnFocus = null;
     }
 
-    function askForDelete(message, action, trigger) {
+    function askForDelete(message, action, trigger, options) {
+        options = options || {};
         ensureModal();
         returnFocus = trigger || document.activeElement;
         messageNode.textContent = message || 'Are you sure you want to remove this?';
-        confirmButton.textContent = /delete/i.test(messageNode.textContent) ? 'Delete' :
-            (/remove/i.test(messageNode.textContent) ? 'Remove' : 'Confirm');
+        titleNode.textContent = options.title || 'Are you sure you want to remove this?';
+        confirmButton.textContent = options.confirmLabel || 'Yes, Delete';
         overlay.hidden = false;
         if (typeof overlay.showModal === 'function' && !overlay.open) overlay.showModal();
         document.body.classList.add('delete-confirm-open');
         pendingAction = action;
+        pendingCancel = options.onCancel || null;
         cancelButton.focus({ preventScroll: true });
     }
 
     function hasSelectedRemoval(form) {
-        return !!form.querySelector('input[type="checkbox"]:checked[name*="delete" i], input[type="checkbox"]:checked[name*="remove" i]');
+        return selectedRemovalInputs(form).length > 0;
+    }
+
+    function hasRemoveAction(form) {
+        if (!(form instanceof HTMLFormElement)) return false;
+        return Array.prototype.some.call(form.querySelectorAll('[name="action"], [data-action]'), function (control) {
+            var value = control.value || control.dataset.action || '';
+            return /^(delete|remove)$/i.test(String(value).trim());
+        });
+    }
+
+    function selectedRemovalInputs(form) {
+        return Array.prototype.slice.call(form.querySelectorAll('input[type="checkbox"]:checked'))
+            .filter(function (input) { return /delete|remove/i.test(input.name || ''); });
+    }
+
+    function isPhotoRemoval(inputs) {
+        return inputs.some(function (input) { return /photo|image|logo/i.test(input.name || ''); });
     }
 
     function isDeleteConfirmation(element, submitter) {
@@ -99,14 +131,29 @@
             submitter && submitter.textContent
         ].filter(Boolean).join(' ');
         if (!isForm) label += ' ' + (element.textContent || '');
-        return /delete|remove/i.test(label) || (isForm && hasSelectedRemoval(element));
+        if (isForm && (hasSelectedRemoval(element) || hasRemoveAction(element))) return true;
+        var actionUrl = element.getAttribute && (element.getAttribute('action') || element.getAttribute('href')) || '';
+        if (/\/(delete|remove)(\/|\?|$)|\b(delete|remove)_/i.test(actionUrl)) return true;
+        if (element.dataset && element.dataset.confirm) return true;
+        if (isForm && /delete|remove/i.test(label) && (element.method || '').toLowerCase() === 'post') return true;
+        if (submitter && submitter.type === 'submit' && /delete|remove/i.test(label) &&
+                submitter.closest && submitter.closest('form') && (submitter.closest('form').method || '').toLowerCase() === 'post') return true;
+        return (element instanceof HTMLAnchorElement || element instanceof HTMLButtonElement || element instanceof HTMLInputElement) && /delete|remove/i.test(label);
     }
 
     function confirmationMessage(element, submitter) {
         var explicit = element && element.dataset && element.dataset.confirm;
         if (explicit) return explicit;
         if (element instanceof HTMLFormElement && hasSelectedRemoval(element)) {
-            return 'Are you sure you want to remove the selected item(s)?';
+            var selections = selectedRemovalInputs(element);
+            var count = selections.length;
+            var noun = isPhotoRemoval(selections) ? (count === 1 ? 'photo' : 'photos') : (count === 1 ? 'item' : 'items');
+            return 'Are you sure you want to remove ' + count + ' selected ' + noun + '? This action cannot be undone.';
+        }
+        var actionLabel = [element && element.textContent, submitter && submitter.textContent,
+            submitter && submitter.value, submitter && submitter.name].filter(Boolean).join(' ');
+        if (/remove|delete/i.test(actionLabel) && /photo|image|logo/i.test(actionLabel)) {
+            return 'Are you sure you want to remove this photo? This action cannot be undone.';
         }
         return 'Are you sure you want to remove this?';
     }
@@ -121,6 +168,15 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         var submitter = event.submitter || null;
+        var pendingRemovals = selectedRemovalInputs(form);
+        var photoRemoval = pendingRemovals.length > 0 && isPhotoRemoval(pendingRemovals);
+        var photoAction = photoRemoval || (/remove|delete/i.test([form.action, submitter && submitter.textContent, submitter && submitter.value].filter(Boolean).join(' ')) && /photo|image|logo/i.test([form.action, submitter && submitter.textContent, submitter && submitter.value].filter(Boolean).join(' ')));
+        var message = confirmationMessage(form, submitter);
+        var confirmLabel = 'Confirm';
+        if (photoAction) confirmLabel = photoRemoval && pendingRemovals.length > 1 ? 'Yes, Remove Photos' : 'Yes, Remove Photo';
+        else if (/cancel/i.test(message)) confirmLabel = 'Yes, Cancel';
+        else if (/remove/i.test(message)) confirmLabel = 'Yes, Remove';
+        else if (/delete/i.test(message)) confirmLabel = 'Yes, Delete';
         askForDelete(confirmationMessage(form, submitter), function () {
             form.dataset.deleteConfirmed = '1';
             if (typeof form.requestSubmit === 'function') {
@@ -129,18 +185,27 @@
             } else {
                 form.submit();
             }
-        }, submitter || form.querySelector('[type="submit"]'));
+        }, submitter || form.querySelector('[type="submit"]'), {
+            title: photoRemoval ? 'Remove selected photos?' : (photoAction ? 'Remove this photo?' : (/cancel/i.test(message) ? 'Confirm cancellation?' : undefined)),
+            confirmLabel: confirmLabel,
+            onCancel: pendingRemovals.length ? function () {
+                pendingRemovals.forEach(function (input) { input.checked = false; });
+            } : null
+        });
     }, true);
 
     document.addEventListener('click', function (event) {
         var target = event.target instanceof Element ? event.target.closest('a, button, input[type="submit"], input[type="button"]') : null;
-        if (!target || target.dataset.deleteConfirmed === '1' || !isDeleteConfirmation(target)) return;
-        if (target.matches('[data-count-change], [data-gd-minus], [data-rstep-minus]')) return;
+        if (!target || target.dataset.deleteConfirmed === '1') return;
+        if (target.matches('[data-count-change], [data-gd-minus], [data-rstep-minus], [data-remove-segment], [data-remove-room], [data-remove-item], .guest-remove, .bk-remove') ||
+                (target.type === 'button' && target.hasAttribute('onclick') && /\.remove\(\)/.test(target.getAttribute('onclick')))) return;
+        if (!isDeleteConfirmation(target)) return;
         var form = target.form || target.closest('form');
         if (form && form.matches('form[data-confirm]')) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        askForDelete(confirmationMessage(target), function () {
+        var targetMessage = confirmationMessage(target);
+        askForDelete(targetMessage, function () {
             if (target instanceof HTMLAnchorElement) {
                 window.location.assign(target.href);
             } else if (form && target.type === 'submit') {
@@ -152,6 +217,9 @@
                 target.click();
                 delete target.dataset.deleteConfirmed;
             }
-        }, target);
+        }, target, {
+            title: /cancel/i.test(targetMessage) ? 'Confirm cancellation?' : undefined,
+            confirmLabel: /cancel/i.test(targetMessage) ? 'Yes, Cancel' : (/remove/i.test(targetMessage) ? 'Yes, Remove' : (/delete/i.test(targetMessage) ? 'Yes, Delete' : 'Confirm'))
+        });
     }, true);
 })();
