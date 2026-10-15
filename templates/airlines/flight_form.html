@@ -511,7 +511,7 @@
         var from = airportField(fromName);
         if (!from || !from.value) return null;
         to.value = from.value;
-        ['data-airport-code', 'data-airport-city', 'data-airport-country'].forEach(function (attr) {
+        ['data-airport-name', 'data-airport-address', 'data-airport-code', 'data-airport-city', 'data-airport-country'].forEach(function (attr) {
             to.setAttribute(attr, from.getAttribute(attr) || '');
         });
         var wrap = to.closest('[data-airport-picker]');
@@ -522,8 +522,8 @@
                 var city = from.getAttribute('data-airport-city');
                 text.textContent = [code, city].filter(Boolean).join(' — ');
             }
-            var placeholder = wrap.querySelector('.atrue-airport-placeholder');
-            if (placeholder) placeholder.style.display = 'none';
+            var input = wrap.querySelector('[data-airport-input]');
+            if (input) input.value = [from.getAttribute('data-airport-name'), from.getAttribute('data-airport-code') ? '(' + from.getAttribute('data-airport-code') + ')' : '', from.getAttribute('data-airport-city')].filter(Boolean).join(' ');
         }
         return to.value;
     }
@@ -711,15 +711,16 @@
             var hidden = row.querySelector('[data-airport-value][name="' + pair[0] + '"]');
             if (!hidden) return;
             hidden.value = pair[1] || '';
+            hidden.dataset.airportName = pair[1] || '';
             hidden.dataset.airportCode = pair[2] || '';
             hidden.dataset.airportCity = pair[3] || '';
             hidden.dataset.airportCountry = '';
             var wrap = hidden.closest('[data-airport-picker]');
             if (!wrap) return;
             var text = wrap.querySelector('.atrue-airport-text');
-            if (text && pair[1]) {
-                text.textContent = [pair[2], pair[3]].filter(Boolean).join(' — ');
-            }
+            var input = wrap.querySelector('[data-airport-input]');
+            if (text && pair[1]) text.textContent = [pair[2], pair[3]].filter(Boolean).join(' - ');
+            if (input && pair[1]) input.value = [pair[1], pair[2] ? '(' + pair[2] + ')' : '', pair[3]].filter(Boolean).join(' ');
         });
     }
 

@@ -16,24 +16,20 @@ Usage:
 {% endcomment %}
 <div class="atrue-airport-wrap atrue-airport-field{% if compact %} atrue-airport-field-sm{% endif %}"
      data-airport-picker>
-    <button type="button" class="atrue-airport-trigger" data-airport-toggle aria-label="Choose airport">
-        <span class="atrue-airport-value">
-            <i class="fas fa-plane-departure"></i>
-            <span class="atrue-airport-text"></span>
-        </span>
-        <span class="atrue-airport-placeholder">{{ placeholder|default:'Search worldwide airports' }}</span>
-        <span class="atrue-airport-clear" data-airport-clear title="Clear airport"><i class="fas fa-times-circle"></i></span>
-        <span class="atrue-airport-caret"><i class="fas fa-chevron-down"></i></span>
-    </button>
-    <div class="atrue-airport-panel" data-airport-panel hidden>
+    <label class="atrue-airport-control">
+        <i class="fas fa-plane-departure" aria-hidden="true"></i>
         <input type="text" class="atrue-airport-input" data-airport-input
-               placeholder="Search airport name, code, city, address or country" autocomplete="off">
-        <ul class="atrue-airport-list" data-airport-list></ul>
-        <p class="atrue-airport-empty" data-airport-empty hidden></p>
-    </div>
+               placeholder="{{ placeholder|default:'Search airport name, code, city or address' }}"
+               autocomplete="off"{% if required %} required{% endif %}>
+    </label>
+    <span class="atrue-airport-text" aria-hidden="true" hidden></span>
+    <ul class="atrue-airport-list" data-airport-list hidden></ul>
+    <p class="atrue-airport-empty" data-airport-empty hidden></p>
     <input type="hidden" name="{{ field_name }}" value="{{ airport.id|default:'' }}"
            data-airport-value
+           data-airport-name="{{ airport.airport_name|default:'' }}"
+           data-airport-address="{{ airport.address|default:'' }}"
            data-airport-code="{{ airport.code|default:'' }}"
            data-airport-city="{{ airport.city|default:'' }}"
-           data-airport-country="{{ airport.country|default:'' }}"{% if required %} required{% endif %}>
+           data-airport-country="{{ airport.country|default:'' }}">
 </div>

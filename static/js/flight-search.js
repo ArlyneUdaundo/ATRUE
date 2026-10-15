@@ -11,13 +11,15 @@
     function renderAirport(wrap) {
         var hidden = wrap.querySelector('[data-airport-value]');
         var text = wrap.querySelector('.atrue-airport-text');
-        if (!hidden || !text) return;
+        var input = wrap.querySelector('[data-airport-input]');
+        if (!hidden) return;
         var code = hidden.dataset.airportCode || '';
         var city = hidden.dataset.airportCity || '';
         var country = hidden.dataset.airportCountry || '';
-        text.textContent = hidden.value
-            ? (code ? code + ' — ' : '') + [city, country].filter(Boolean).join(', ')
-            : '';
+        var name = hidden.dataset.airportName || '';
+        var label = hidden.value ? [name, code ? '(' + code + ')' : '', city, country].filter(Boolean).join(' ') : '';
+        if (text) text.textContent = label;
+        if (input) input.value = label;
         wrap.classList.toggle('has-apt', Boolean(hidden.value));
     }
 
@@ -25,7 +27,7 @@
         var origin = form.querySelector('[data-flight-origin] [data-airport-value]');
         var destination = form.querySelector('[data-flight-destination] [data-airport-value]');
         if (!origin || !destination) return;
-        var keys = ['value', 'airportCode', 'airportCity', 'airportCountry'];
+        var keys = ['value', 'airportName', 'airportAddress', 'airportCode', 'airportCity', 'airportCountry'];
         var originState = keys.map(function (key) {
             return key === 'value' ? origin.value : origin.dataset[key];
         });
@@ -98,13 +100,13 @@
             if (origin && !origin.value) {
                 event.preventDefault();
                 setMessage('Select a flying-from airport.');
-                form.querySelector('[data-flight-origin] [data-airport-toggle]')?.focus();
+                (form.querySelector('[data-flight-origin] [data-airport-input]') || form.querySelector('[data-flight-origin] [data-airport-toggle]'))?.focus();
                 return;
             }
             if (destination && !destination.value) {
                 event.preventDefault();
                 setMessage('Select a flying-to airport.');
-                form.querySelector('[data-flight-destination] [data-airport-toggle]')?.focus();
+                (form.querySelector('[data-flight-destination] [data-airport-input]') || form.querySelector('[data-flight-destination] [data-airport-toggle]'))?.focus();
                 return;
             }
             if (departure && !departure.value) {

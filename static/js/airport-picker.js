@@ -1,319 +1,176 @@
-/* ============================================================
-   ATRUE worldwide airport picker
-   ------------------------------------------------
-   Turns each `[data-airport-picker]` wrapper into a searchable
-   dropdown backed by /flights/api/airports/?q=... (airports,
-   IATA/ICAO codes, cities and countries all search server-side,
-   so nothing is hard-coded into the page).
-
-   A selected airport is stored as the Airport id in the hidden
-   input named by the partial (`origin_airport`, `destination_airport`, ...).
-   ============================================================ */
 (function () {
     'use strict';
 
     var API_SRC = '/flights/api/airports/';
-    var openPicker = null;
-    var lockedPageY = 0;
-    var pageScrollLocked = false;
-
-    function lockPageScroll() {
-        if (pageScrollLocked) return;
-        lockedPageY = window.scrollY || document.documentElement.scrollTop || 0;
-        document.documentElement.classList.add('airport-picker-open');
-        document.body.classList.add('airport-picker-open');
-        document.body.style.position = 'fixed';
-        document.body.style.top = '-' + lockedPageY + 'px';
-        document.body.style.left = '0';
-        document.body.style.right = '0';
-        document.body.style.width = '100%';
-        pageScrollLocked = true;
-    }
-
-    function unlockPageScroll() {
-        if (!pageScrollLocked) return;
-        document.documentElement.classList.remove('airport-picker-open');
-        document.body.classList.remove('airport-picker-open');
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.width = '';
-        pageScrollLocked = false;
-        window.scrollTo(0, lockedPageY);
-    }
-
-    function el(tag, className, html) {
-        var node = document.createElement(tag);
-        if (className) node.className = className;
-        if (html !== undefined) node.innerHTML = html;
-        return node;
-    }
 
     function init() {
         document.querySelectorAll('.atrue-airport-wrap[data-airport-picker]').forEach(function (wrap) {
             if (wrap.dataset.airportReady) return;
             wrap.dataset.airportReady = '1';
             var hidden = wrap.querySelector('[data-airport-value]');
-            var trigger = wrap.querySelector('[data-airport-toggle]');
-            var panel = wrap.querySelector('[data-airport-panel]');
             var input = wrap.querySelector('[data-airport-input]');
             var list = wrap.querySelector('[data-airport-list]');
             var empty = wrap.querySelector('[data-airport-empty]');
-            var clearBtn = wrap.querySelector('[data-airport-clear]');
             var text = wrap.querySelector('.atrue-airport-text');
-            if (trigger) { trigger.setAttribute('aria-expanded', 'false'); trigger.setAttribute('aria-haspopup', 'listbox'); }
-            if (panel) {
-                wrap._airportPanel = panel;
-                document.body.appendChild(panel);
-            }
-            if (list) {
-                if (!list.id) list.id = 'airport-options-' + Math.random().toString(36).slice(2, 10);
-                list.setAttribute('role', 'listbox');
-            }
-            if (input) {
-                input.setAttribute('aria-label', 'Search airports by name, code, city, or country');
-                input.setAttribute('role', 'combobox');
-                input.setAttribute('aria-autocomplete', 'list');
-                input.setAttribute('aria-expanded', 'false');
-                if (list) input.setAttribute('aria-controls', list.id);
-            }
-            var timer = null;
-            var searchRequest = null;
-            var activeOption = -1;
+            if (!input || !list || !empty) return;
 
-            function renderValue() {
-                if (hidden && hidden.value) {
-                    var code = hidden.dataset.airportCode || '';
-                    var city = hidden.dataset.airportCity || '';
-                    var country = hidden.dataset.airportCountry || '';
-                    text.textContent = code
-                        ? code + ' — ' + [city, country].filter(Boolean).join(', ')
-                        : [city, country].filter(Boolean).join(', ');
-                    wrap.classList.add('has-apt');
-                } else {
-                    text.textContent = '';
-                    wrap.classList.remove('has-apt');
-                }
-            }
+            if (!list.id) list.id = 'airport-options-' + Math.random().toString(36).slice(2, 10);
+            list.setAttribute('role', 'listbox');
+            input.setAttribute('role', 'combobox');
+            input.setAttribute('aria-autocomplete', 'list');
+            input.setAttribute('aria-expanded', 'false');
+            input.setAttribute('aria-controls', list.id);
 
-            function positionPanel() {
-                var rect = trigger.getBoundingClientRect();
-                var mobile = window.innerWidth <= 640;
-                var viewport = window.visualViewport;
-                var viewportWidth = viewport ? viewport.width : window.innerWidth;
-                var viewportHeight = viewport ? viewport.height : window.innerHeight;
-                var viewportLeft = viewport ? viewport.offsetLeft : 0;
-                var viewportTop = viewport ? viewport.offsetTop : 0;
-                var width = mobile ? Math.min(viewportWidth - 32, 650) : rect.width;
-                var left = mobile
-                    ? viewportLeft + Math.max(16, (viewportWidth - width) / 2)
-                    : Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
-                var maxHeight = Math.min(viewportHeight * (mobile ? 0.60 : 0.46), mobile ? 520 : 360);
-                var top;
-                if (mobile) {
-                    // Keep the picker as a compact bottom sheet within the visible
-                    // viewport (including when the on-screen keyboard is open).
-                    var sheetHeight = Math.min(maxHeight, Math.max(0, viewportHeight - 24));
-                    top = viewportTop + viewportHeight - sheetHeight - 12;
-                    panel.style.height = sheetHeight + 'px';
-                } else {
-                    var maxTop = viewportTop + viewportHeight - maxHeight - 8;
-                    top = Math.min(rect.bottom + 6, maxTop);
-                    panel.style.height = '';
-                }
-                panel.style.position = 'fixed';
-                panel.style.left = left + 'px';
-                panel.style.right = 'auto';
-                panel.style.width = width + 'px';
-                panel.style.minWidth = '0';
-                panel.style.maxWidth = mobile ? 'calc(100vw - 32px)' : 'min(650px, calc(100vw - 24px))';
-                panel.style.maxHeight = Math.max(0, maxHeight) + 'px';
-                panel.style.top = Math.max(viewportTop + 8, top) + 'px';
-                panel.style.bottom = 'auto';
-            }
+            var timer;
+            var request;
+            var active = -1;
 
             function close() {
-                panel.hidden = true;
+                list.hidden = true;
+                empty.hidden = true;
+                input.setAttribute('aria-expanded', 'false');
                 wrap.classList.remove('is-open');
-                trigger.setAttribute('aria-expanded', 'false');
-                if (input) input.setAttribute('aria-expanded', 'false');
-                openPicker = null;
-                unlockPageScroll();
+                active = -1;
             }
 
-            function open() {
-                if (openPicker && openPicker !== wrap) {
-                    var previousPanel = openPicker._airportPanel;
-                    if (previousPanel) previousPanel.hidden = true;
-                    openPicker.classList.remove('is-open');
-                    var previousTrigger = openPicker.querySelector('[data-airport-toggle]');
-                    if (previousTrigger) previousTrigger.setAttribute('aria-expanded', 'false');
-                }
-                if (window.innerWidth <= 640) lockPageScroll();
-                panel.hidden = false;
-                positionPanel();
+            function show() {
+                list.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
                 wrap.classList.add('is-open');
-                trigger.setAttribute('aria-expanded', 'true');
-                if (input) input.setAttribute('aria-expanded', 'true');
-                openPicker = wrap;
-                input.focus();
             }
 
-            function fetchResults(query, cb) {
-                var url = API_SRC + '?q=' + encodeURIComponent(query || '');
-                var xhr = new XMLHttpRequest();
-                if (searchRequest) searchRequest.abort();
-                searchRequest = xhr;
-                xhr.open('GET', url, true);
+            function renderValue() {
+                if (!hidden || !hidden.value) return;
+                var name = hidden.dataset.airportName || '';
+                var code = hidden.dataset.airportCode || '';
+                var city = hidden.dataset.airportCity || '';
+                var country = hidden.dataset.airportCountry || '';
+                input.value = [name, code ? '(' + code + ')' : '', city, country].filter(Boolean).join(' ');
+                if (text) text.textContent = input.value;
+                wrap.classList.add('has-apt');
+            }
+
+            function render(results, message) {
+                list.innerHTML = '';
+                active = -1;
+                if (!results.length) {
+                    empty.textContent = message || 'No airports found. Try a name, IATA code, city, address, or country.';
+                    empty.hidden = false;
+                    return;
+                }
+                empty.hidden = true;
+                results.forEach(function (airport) {
+                    var item = document.createElement('li');
+                    var button = document.createElement('button');
+                    var name = document.createElement('span');
+                    var details = document.createElement('span');
+                    var code = airport.iata || airport.icao || '';
+                    button.type = 'button';
+                    button.className = 'atrue-airport-item';
+                    button.setAttribute('role', 'option');
+                    button.setAttribute('aria-selected', 'false');
+                    name.className = 'atrue-airport-item-name';
+                    name.textContent = airport.name || '';
+                    details.className = 'atrue-airport-item-sub';
+                    details.textContent = [code, airport.city, airport.address, airport.region, airport.country].filter(Boolean).join(' · ');
+                    button.appendChild(name);
+                    button.appendChild(details);
+                    button.addEventListener('click', function () {
+                        if (hidden) {
+                            hidden.value = airport.id;
+                            hidden.dataset.airportName = airport.name || '';
+                            hidden.dataset.airportAddress = airport.address || '';
+                            hidden.dataset.airportCode = airport.code || code;
+                            hidden.dataset.airportCity = airport.city || '';
+                            hidden.dataset.airportCountry = airport.country || '';
+                            hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        input.value = [airport.name, code ? '(' + code + ')' : '', airport.city].filter(Boolean).join(' ');
+                        if (text) text.textContent = input.value;
+                        wrap.classList.add('has-apt');
+                        close();
+                    });
+                    item.appendChild(button);
+                    list.appendChild(item);
+                });
+            }
+
+            function search(query) {
+                if (request) request.abort();
+                request = new XMLHttpRequest();
+                var xhr = request;
+                xhr.open('GET', API_SRC + '?q=' + encodeURIComponent(query), true);
                 xhr.onload = function () {
-                    if (searchRequest !== xhr) return;
-                    searchRequest = null;
+                    if (request !== xhr) return;
+                    request = null;
                     if (xhr.status !== 200) {
-                        cb([], 'Airport suggestions are unavailable. Please try again.');
+                        render([], 'Airport suggestions are unavailable. Please try again.');
                         return;
                     }
-                    try { cb(JSON.parse(xhr.responseText).results || []); }
-                    catch (e) {
-                        cb([], 'Airport suggestions could not be read. Please try again.');
-                    }
+                    try { render(JSON.parse(xhr.responseText).results || []); }
+                    catch (error) { render([], 'Airport suggestions could not be read.'); }
                 };
                 xhr.onerror = function () {
-                    if (searchRequest !== xhr) return;
-                    searchRequest = null;
-                    cb([], 'Airport suggestions are unavailable. Check your connection and try again.');
+                    if (request !== xhr) return;
+                    request = null;
+                    render([], 'Airport suggestions are unavailable. Check your connection.');
                 };
                 xhr.send();
             }
 
-            function render(results, errorMessage) {
-                list.innerHTML = '';
-                activeOption = -1;
-                if (!results.length) {
-                    empty.hidden = false;
-                    empty.textContent = errorMessage || 'No airports found. Try the IATA code or a city / country.';
+            input.addEventListener('input', function () {
+                if (hidden && hidden.value) {
+                    hidden.value = '';
+                    hidden.dataset.airportCode = '';
+                    hidden.dataset.airportName = '';
+                    hidden.dataset.airportAddress = '';
+                    hidden.dataset.airportCity = '';
+                    hidden.dataset.airportCountry = '';
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                wrap.classList.remove('has-apt');
+                show();
+                clearTimeout(timer);
+                if (request) request.abort();
+                var query = input.value.trim();
+                if (!query) {
+                    list.innerHTML = '';
+                    empty.hidden = true;
                     return;
                 }
-                empty.hidden = true;
-                results.forEach(function (r) {
-                    var li = el('li');
-                    var code = r.iata || r.icao || '—';
-                    var selected = hidden && String(hidden.value) === String(r.id);
-                    var btn = el('button', 'atrue-airport-item' + (selected ? ' is-selected' : ''));
-                    btn.setAttribute('role', 'option');
-                    btn.setAttribute('aria-selected', String(!!selected));
-                    var sub = [r.city, r.address, r.region, r.country].filter(Boolean).join(', ');
-                    btn.innerHTML =
-                        '<span class="atrue-airport-item-ico"><i class="fas fa-plane-departure"></i></span>' +
-                        '<span class="atrue-airport-item-txt">' +
-                        '<span class="atrue-airport-item-name"></span>' +
-                        '<span class="atrue-airport-item-sub"></span>' +
-                        '</span>' +
-                        '<span class="atrue-airport-item-code"></span>' +
-                        '<i class="fas fa-check atrue-airport-item-check" aria-hidden="true"></i>';
-                    btn.querySelector('.atrue-airport-item-name').textContent = r.name;
-                    btn.querySelector('.atrue-airport-item-sub').textContent =
-                        (code === '–' ? '' : code + ' — ') + sub;
-                    btn.querySelector('.atrue-airport-item-code').textContent = code;
-                    btn.type = 'button';
-                    btn.addEventListener('click', function () {
-                        if (hidden) {
-                            hidden.value = r.id;
-                            hidden.dataset.airportCode = r.code || '';
-                            hidden.dataset.airportCity = r.city || '';
-                            hidden.dataset.airportCountry = r.country || '';
-                            hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        renderValue();
-                        close();
+                list.innerHTML = '<li class="atrue-airport-loading">Searching airports…</li>';
+                timer = setTimeout(function () { search(query); }, 180);
+            });
+
+            input.addEventListener('focus', function () {
+                if (input.value.trim()) {
+                    show();
+                    if (!list.children.length) search(input.value.trim());
+                }
+            });
+
+            input.addEventListener('keydown', function (event) {
+                var options = Array.prototype.slice.call(list.querySelectorAll('[role="option"]'));
+                if (event.key === 'Escape') { close(); return; }
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    if (!options.length) return;
+                    event.preventDefault();
+                    active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+                    options.forEach(function (option, index) {
+                        option.setAttribute('aria-selected', String(index === active));
+                        if (index === active) option.scrollIntoView({ block: 'nearest' });
                     });
-                    li.appendChild(btn);
-                    list.appendChild(li);
-                });
-            }
-
-            function loading() {
-                list.innerHTML = '';
-                if (empty) empty.hidden = true;
-                var li = el('li', 'atrue-airport-loading');
-                li.textContent = 'Searching worldwide airports…';
-                list.appendChild(li);
-            }
-
-            trigger.addEventListener('click', function () {
-                if (panel.hidden) {
-                    open();
-                    loading();
-                    fetchResults('', render);
-                } else {
-                    close();
+                } else if (event.key === 'Enter' && active >= 0 && options[active]) {
+                    event.preventDefault();
+                    options[active].click();
                 }
             });
 
-            input.addEventListener('input', function () {
-                clearTimeout(timer);
-                timer = setTimeout(function () {
-                    loading();
-                    fetchResults(input.value, render);
-                }, 180);
+            document.addEventListener('click', function (event) {
+                if (!wrap.contains(event.target)) close();
             });
 
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') { close(); e.preventDefault(); }
-                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                    var items = Array.prototype.slice.call(list.querySelectorAll('[role="option"]'));
-                    if (!items.length) return;
-                    e.preventDefault(); activeOption = (activeOption + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-                    items.forEach(function (item, index) {
-                        item.setAttribute('aria-selected', String(index === activeOption));
-                        if (index === activeOption) item.scrollIntoView({ block: 'nearest' });
-                    });
-                }
-                if (e.key === 'Enter') {
-                    var active = list.querySelector('[role="option"][aria-selected="true"]');
-                    if (active) { e.preventDefault(); active.click(); }
-                    else e.preventDefault();
-                }
-            });
-
-            if (clearBtn) {
-                clearBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    if (hidden) {
-                        hidden.value = '';
-                        hidden.dataset.airportCode = '';
-                        hidden.dataset.airportCity = '';
-                        hidden.dataset.airportCountry = '';
-                        hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    input.value = '';
-                    renderValue();
-                    close();
-                });
-            }
-
-            document.addEventListener('click', function (e) {
-                if (openPicker === wrap && !wrap.contains(e.target) && !panel.contains(e.target)) close();
-            });
-            window.addEventListener('resize', function () {
-                if (openPicker !== wrap) return;
-                if (window.innerWidth <= 640) lockPageScroll();
-                else unlockPageScroll();
-                positionPanel();
-            });
-            window.addEventListener('scroll', function () {
-                if (openPicker === wrap) positionPanel();
-            }, true);
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', function () {
-                    if (openPicker === wrap) positionPanel();
-                });
-                window.visualViewport.addEventListener('scroll', function () {
-                    if (openPicker === wrap) positionPanel();
-                });
-            }
-
-            renderValue();
+            if (hidden && hidden.value) renderValue();
         });
     }
 

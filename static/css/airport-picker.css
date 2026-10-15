@@ -4,7 +4,7 @@
 
 .atrue-airport-wrap { position: relative; min-width: 0; max-width: 100%; }
 
-.atrue-airport-trigger {
+.atrue-airport-control {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -17,12 +17,10 @@
   min-height: 46px;
   font: inherit;
   color: inherit;
-  text-align: left;
-  cursor: pointer;
   transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
-.atrue-airport-trigger:hover { border-color: #93b4ed; background: #fbfdff; }
-.atrue-airport-trigger:focus-visible, .atrue-airport-wrap.is-open .atrue-airport-trigger { outline: 0; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); }
+.atrue-airport-control:focus-within, .atrue-airport-wrap.is-open .atrue-airport-control { outline: 0; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); }
+.atrue-airport-control > i { flex: none; color: #0a58ca; }
 
 .atrue-airport-value {
   display: inline-flex;
@@ -37,37 +35,7 @@
 }
 .atrue-airport-value i { flex: none; color: #0a58ca; }
 
-.atrue-airport-placeholder { font-size: 14px; color: #8a94a6; }
-.atrue-airport-text,
-.atrue-airport-placeholder {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.atrue-airport-wrap.has-apt .atrue-airport-placeholder { display: none; }
-.atrue-airport-wrap:not(.has-apt) .atrue-airport-value { display: none; }
-
-.atrue-airport-caret {
-  flex: none;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  color: #98a2b3;
-}
-
-.atrue-airport-clear {
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: #f43f5e;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 6px;
-}
-.atrue-airport-wrap:not(.has-apt) .atrue-airport-clear { display: none; }
+.atrue-airport-text { display: none !important; }
 
 /* ---- search panel ------------------------------------------ */
 .atrue-airport-panel {
@@ -91,25 +59,36 @@
 
 .atrue-airport-input {
   box-sizing: border-box;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  min-height: 44px;
-  border: 1px solid #dfe5ee;
-  border-radius: 12px;
-  padding: 10px 12px;
+  min-height: 24px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   font-size: 14px;
   outline: none;
-  background: #fbfcfe;
+  background: transparent;
+  color: inherit;
 }
-.atrue-airport-input:focus { border-color: #0a58ca; background: #fff; }
+.atrue-airport-input:focus { outline: none; }
+.atrue-airport-input::placeholder { color: #8a94a6; }
 
 .atrue-airport-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  position: absolute;
+  box-sizing: border-box;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9000;
+  min-width: min(320px, calc(100vw - 32px));
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(15, 35, 65, .2);
   overflow-y: auto;
   max-height: min(46vh, 320px);
   overscroll-behavior: contain;
@@ -178,35 +157,11 @@
 }
 
 /* compact variant (search filters) */
-.atrue-airport-field-sm .atrue-airport-trigger { min-height: 38px; padding: 7px 10px; }
-.atrue-airport-field-sm .atrue-airport-placeholder,
-.atrue-airport-field-sm .atrue-airport-value { font-size: 13.5px; }
-.atrue-airport-field-sm .atrue-airport-panel { min-width: 280px; }
+.atrue-airport-field-sm .atrue-airport-control { min-height: 38px; padding: 7px 10px; }
+.atrue-airport-field-sm .atrue-airport-input { font-size: 13.5px; }
 @media (max-width: 640px) {
-  .atrue-airport-panel,
-  .atrue-airport-field-sm .atrue-airport-panel {
-    box-sizing: border-box;
-    width: calc(100vw - 32px);
-    min-width: 0;
-    max-width: 650px;
-    max-height: min(60vh, 520px);
-    max-height: min(60dvh, 520px);
-    padding: 10px;
-    z-index: 10000;
-    overflow: hidden;
-    border-radius: 16px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
   .atrue-airport-input {
     font-size: 16px;
-    border-radius: 10px;
-  }
-  .atrue-airport-list {
-    max-height: none;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
   }
   .atrue-airport-item {
     gap: 8px;
@@ -223,11 +178,6 @@
     font-size: 11px;
   }
   .atrue-airport-item-check { font-size: 12px; }
-  html.airport-picker-open,
-  body.airport-picker-open {
-    overflow: hidden !important;
-    overscroll-behavior: none;
-  }
   .atrue-airport-item-name,
   .atrue-airport-item-sub { overflow-wrap: anywhere; }
 }
