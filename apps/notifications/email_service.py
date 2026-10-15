@@ -143,7 +143,7 @@ def _send_and_record(delivery_id):
         details.update({'customer_name': user.get_full_name() or user.get_username(),
                         'booking_reference': getattr(booking, 'booking_reference', booking.pk),
                         'contact_email': row.recipient})
-        subject = f"Booking received: {details['booking_reference']}"
+        subject = f"Booking confirmed: {details['booking_reference']}"
         context = {**details, 'brand': 'ATRUE Simulation Portal'}
         html = render_to_string('emails/booking_confirmation.html', context)
         plain = render_to_string('emails/booking_confirmation.txt', context)

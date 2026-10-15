@@ -1,7 +1,7 @@
-ATRue Simulation Portal — Booking received
+ATRue Simulation Portal — Booking confirmed
 
 Hello {{ customer_name }},
-Your booking has been saved.
+Your booking is confirmed. Your e-ticket or voucher is attached to this email.
 Reference: {{ booking_reference }}
 {% if service %}Service: {{ service }}{% endif %}
 {% if travel_date %}Date: {{ travel_date }}{% endif %}
