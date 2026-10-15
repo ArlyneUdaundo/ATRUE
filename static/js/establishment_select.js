@@ -105,6 +105,13 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // Keep profile values fixed when present, but do not strand a guest with
+    // an empty, read-only field when their account profile is incomplete.
+    function primaryReadonly(value, index) {
+        return index === 0 && String(value || '').trim() !== ''
+            ? ' readonly aria-readonly="true"' : '';
+    }
+
     function plural(count, one, many) {
         return count === 1 ? one : (many || one + 's');
     }
@@ -333,17 +340,17 @@
             '</div>' +
             '<div class="form-grid" style="margin-top:16px">' +
                 '<div class="form-group"><label>First Name *</label>' +
-                    '<input name="item_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                    '<input name="item_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + primaryReadonly(g.first_name, i) + '></div>' +
                 '<div class="form-group"><label>Middle Name</label>' +
-                    '<input name="item_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                    '<input name="item_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + primaryReadonly(g.middle_name, i) + '></div>' +
                 '<div class="form-group"><label>Last Name *</label>' +
-                    '<input name="item_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                    '<input name="item_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + primaryReadonly(g.last_name, i) + '></div>' +
             '</div>' +
             '<div class="form-grid">' +
                 '<div class="form-group"><label>Email *</label>' +
-                    '<input type="email" name="item_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
+                    '<input type="email" name="item_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + primaryReadonly(g.email, i) + '></div>' +
                 '<div class="form-group"><label>Contact Number *</label>' +
-                    '<input type="text" name="item_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') +
+                    '<input type="text" name="item_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + primaryReadonly(g.contact, i) +
                     ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off"' +
                     ' oninput="this.value=this.value.replace(/\\D/g, \'\')" title="Numbers only"></div>' +
             '</div>' +

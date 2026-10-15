@@ -73,6 +73,13 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // Profile fields stay read-only only when the account has a value; an
+    // incomplete profile must still let the guest finish booking details.
+    function primaryReadonly(value, index) {
+        return index === 0 && String(value || '').trim() !== ''
+            ? ' readonly aria-readonly="true"' : '';
+    }
+
     function peso(n) {
         return Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
     }
@@ -375,11 +382,11 @@
                 '<button type="button" class="bk-remove" data-remove-room="' + s.room_id + '"><i class="fas fa-times"></i> Remove</button>' +
             '</div>' +
             '<div class="bk-guest-grid">' +
-                '<div class="form-group"><label>First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
-                '<div class="form-group"><label>Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
-                '<div class="form-group"><label>Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
-                '<div class="form-group"><label>Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + '></div>' +
-                '<div class="form-group"><label>Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + (i === 0 ? ' readonly aria-readonly="true"' : '') + ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
+                '<div class="form-group"><label>First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + primaryReadonly(g.first_name, i) + '></div>' +
+                '<div class="form-group"><label>Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + primaryReadonly(g.middle_name, i) + '></div>' +
+                '<div class="form-group"><label>Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + primaryReadonly(g.last_name, i) + '></div>' +
+                '<div class="form-group"><label>Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + primaryReadonly(g.email, i) + '></div>' +
+                '<div class="form-group"><label>Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + primaryReadonly(g.contact, i) + ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
                 '<div class="form-group"><label>Adults *</label><input type="number" name="room_' + i + '_adults" class="form-input" value="' + Number(g.adults || 0) + '" min="0"></div>' +
                 '<div class="form-group"><label>Children</label><input type="number" name="room_' + i + '_children" class="form-input" value="' + Number(g.children || 0) + '" min="0"></div>' +
                 '<div class="form-group"><label>Total guests</label><div class="form-input" style="background:#f8fafc" data-guest-total="' + i + '">' + (Number(g.adults || 0) + Number(g.children || 0)) + ' <small class="meta">of ' + s.max_guests + ' max</small></div></div>' +
