@@ -16,9 +16,6 @@
 <div class="card" style="max-width:1000px;margin:0 auto;border-radius:18px;overflow:hidden">
     {% if is_create %}
     <style>
-    .account-create-tabs{display:flex;gap:8px;padding:16px 24px;background:var(--slate-50);border-bottom:1px solid var(--slate-200)}
-    .account-create-tab{border:1px solid var(--slate-200);background:#fff;color:var(--slate-700);border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
-    .account-create-tab.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
     .account-import-panel{padding:22px 26px 26px}
     .account-drop-zone{border:2px dashed var(--slate-300);border-radius:14px;padding:28px;text-align:center;background:var(--slate-50);cursor:pointer;transition:.15s}
     .account-drop-zone.dragging{border-color:var(--indigo);background:#eef2ff}
@@ -28,12 +25,8 @@
     .account-import-error{color:#b42318;max-width:340px}
     .account-import-panel [hidden]{display:none!important}
     .account-import-panel .btn:disabled{opacity:.48;cursor:not-allowed;box-shadow:none;filter:saturate(.45);transform:none}
-    @media(max-width:640px){.account-create-tabs{padding:12px;flex-direction:column}.account-create-tab{text-align:left}.account-import-panel{padding:16px}.account-drop-zone{padding:20px}.account-import-table{min-width:760px}}
+    @media(max-width:640px){.account-import-panel{padding:16px}.account-drop-zone{padding:20px}.account-import-table{min-width:760px}}
     </style>
-    <div class="account-create-tabs" role="tablist" aria-label="Account creation method">
-        <button class="account-create-tab active" id="singleAccountTab" type="button" role="tab" aria-selected="true"><i class="fas fa-user"></i> Create Single Account</button>
-        <button class="account-create-tab" id="bulkAccountTab" type="button" role="tab" aria-selected="false"><i class="fas fa-file-excel"></i> Import from Excel</button>
-    </div>
     {% endif %}
     <div style="padding:18px 26px;border-bottom:1px solid var(--slate-200);background:linear-gradient(135deg,var(--slate-50),var(--white))">
         <h3 style="margin:0;font-size:16.5px"><i class="fas fa-clipboard-list" style="color:var(--indigo)"></i> Account Details</h3>
@@ -75,7 +68,7 @@
         </div>
     </form>
     {% if is_create %}
-    <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-labelledby="bulkAccountTab">
+    <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-label="Bulk account import">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
         <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and unique temporary passwords are generated automatically. After creation, download the credentials to distribute them; passwords are shown only in this result.</p></div>
             <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
@@ -107,10 +100,7 @@
     </section>
     <script>
     (() => {
-        const singleTab = document.getElementById('singleAccountTab');
-        const bulkTab = document.getElementById('bulkAccountTab');
         const singlePanel = document.getElementById('singleAccountPanel');
-        const bulkPanel = document.getElementById('bulkAccountPanel');
         const fileInput = document.getElementById('accountImportFile');
         const dropZone = document.getElementById('accountDropZone');
         const selectedFile = document.getElementById('selectedImportFile');
@@ -126,14 +116,6 @@
         let currentRows = [];
         let validated = false;
         const csrf = singlePanel.querySelector('[name=csrfmiddlewaretoken]').value;
-        const showTab = (bulk) => {
-            singleTab.classList.toggle('active', !bulk); bulkTab.classList.toggle('active', bulk);
-            singleTab.setAttribute('aria-selected', String(!bulk)); bulkTab.setAttribute('aria-selected', String(bulk));
-            singlePanel.hidden = bulk; bulkPanel.hidden = !bulk;
-        };
-        singleTab.addEventListener('click', () => showTab(false));
-        bulkTab.addEventListener('click', () => showTab(true));
-        {% if initial_import %}showTab(true);{% endif %}
         const setFile = (file) => {
             if (!file) return;
             fileInput.files = (() => { const data = new DataTransfer(); data.items.add(file); return data.files; })();
