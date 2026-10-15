@@ -139,7 +139,6 @@
 </div>
 
 {% if can_manage %}
-<div class="card card-pad airline-booking-panel">
     {% if not reservation_agent_restricted %}
     {% if booking.status == 'PENDING' or booking.status == 'CONFIRMED' or booking.status == 'MODIFIED' %}
     <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
@@ -202,7 +201,6 @@
     {% endif %}
     {% endif %}
     {% endif %}
-</div>
 {% endif %}
 
 {% if can_manage %}
