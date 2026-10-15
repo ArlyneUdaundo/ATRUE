@@ -90,7 +90,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 <div class="alert alert-danger" id="serverErrors" style="background:#fef2f2;color:#991b1b;padding:12px 16px;border-radius:12px;margin-bottom:16px"><b>Please fix before confirming:</b><ul style="margin:8px 0 0 18px">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
 {% endif %}
 
-<div class="ag-booking">
+<div class="ag-booking{% if category == 'resort' %} resort-unit-selection-flow{% endif %}">
     <div class="ag-booking-main">
 
         {% if cards %}

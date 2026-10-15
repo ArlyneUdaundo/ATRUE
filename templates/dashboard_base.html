@@ -374,7 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Keep establishment booking details and the confirmation summary on separate steps.
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.ag-booking').forEach(function (flow) {
-        if (flow.classList.contains('landtransport-booking-flow') || flow.querySelector('[data-booking-summary-step]')) return;
+        if (flow.classList.contains('landtransport-booking-flow') ||
+            flow.classList.contains('resort-unit-selection-flow') ||
+            flow.querySelector('[data-booking-summary-step]')) return;
         var main = flow.querySelector(':scope > .ag-booking-main') || flow.querySelector('.ag-booking-main');
         var summary = flow.querySelector(':scope > .ag-price-box') || flow.querySelector('.ag-price-box');
         if (!main || !summary) return;
