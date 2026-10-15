@@ -163,7 +163,7 @@ drives the selection page, and hand off to it via the single primary action.
         {% endif %}
     </div>
 
-    {% if category != 'landmark' or not request.user.is_instructor %}
+    {% if not request.user.is_instructor %}
     <aside class="ag-price-box">
         <div class="ag-pb-head"><i class="fas fa-compass"></i> <b>{{ est_name }}</b></div>
         <div class="ag-pb-body">
