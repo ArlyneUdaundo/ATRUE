@@ -289,7 +289,10 @@
         if (!SELECTED.length) return;
         syncFromDom();
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, i));
-        paintTabs();
+        // Keep only the visible room's guest controls in the DOM. A hotel can
+        // have many services and amenities; rendering every checkbox for every
+        // selected room at once can freeze the browser during room selection.
+        renderSections();
     }
 
     /* ------------------------------------------------- guest info modal */
@@ -388,7 +391,7 @@
     }
 
     function renderSections() {
-        wrap.innerHTML = tabsMarkup() + SELECTED.map(buildSection).join('');
+        wrap.innerHTML = tabsMarkup() + (SELECTED.length ? buildSection(SELECTED[ACTIVE], ACTIVE) : '');
         // The guest modal lives outside <form>, so the per-room fields are tied
         // back to the booking form with the HTML form="" attribute. Same inputs,
         // same names, same submit.

@@ -288,38 +288,25 @@
         var c = s.charge || {};
         var totals = lineTotals(s);
 
-        var svcBoxes = SERVICES.map(function (svc) {
-            var checked = s.services.indexOf(Number(svc.id)) !== -1 ? ' checked' : '';
-            return '<label class="checkbox"><input type="checkbox" name="item_' + i + '_services"'
-                + ' data-service value="' + esc(svc.id) + '"' + checked + '> '
-                + esc(svc.name) + ' (+' + fmt(svc.rate) + ')</label>';
-        }).join('');
-        var amnBoxes = AMENITIES.map(function (amn) {
-            var checked = s.amenities.indexOf(Number(amn.id)) !== -1 ? ' checked' : '';
-            return '<label class="checkbox"><input type="checkbox" name="item_' + i + '_amenities"'
-                + ' data-amenity value="' + esc(amn.id) + '"' + checked + '> '
-                + esc(amn.name) + '</label>';
-        }).join('');
-
-        // Both sections are always present so the guest-information card is the
-        // same in all seven categories. When a category has no stored rows the
-        // block keeps its heading and states that plainly - no options are
-        // invented, so nothing is ever added to the total.
-        function extrasBlock(title, boxes, emptyNote) {
-            return '<div class="bk-guest-extras">' +
-                '<div style="flex:1 1 100%"><b>' + title + '</b></div>' +
-                (boxes || '<small class="meta">' + emptyNote + '</small>') +
-                '</div>';
+        // Keep Select and the required guest fields responsive even when an
+        // establishment has a large service/amenity catalogue. The option DOM
+        // is created only when its disclosure is opened.
+        function extrasBlock(kind, title, emptyNote, count) {
+            return '<details class="bk-guest-extras" data-guest-extras="' + kind + '"' +
+                ' data-guest-index="' + i + '">' +
+                '<summary><b>' + title + '</b> <small class="meta">(' + count + ')</small></summary>' +
+                '<div data-extras-options>' +
+                (count ? '<small class="meta">Open to load options.</small>' :
+                    '<small class="meta">' + emptyNote + '</small>') +
+                '</div></details>';
         }
         var svcBlock = extrasBlock(
-            'Optional services for ' + esc(ITEM) + ' ' + (i + 1),
-            svcBoxes,
-            'No optional services for this ' + esc(ITEM.toLowerCase()) + '.'
+            'services', 'Optional services for ' + esc(ITEM) + ' ' + (i + 1),
+            'No optional services for this ' + esc(ITEM.toLowerCase()) + '.', SERVICES.length
         );
         var amnBlock = extrasBlock(
-            'Amenities for ' + esc(ITEM) + ' ' + (i + 1),
-            amnBoxes,
-            'No amenities listed for this ' + esc(ITEM.toLowerCase()) + '.'
+            'amenities', 'Amenities for ' + esc(ITEM) + ' ' + (i + 1),
+            'No amenities listed for this ' + esc(ITEM.toLowerCase()) + '.', AMENITIES.length
         );
 
         // Same shape as the Hotels information line, filled from this item.
@@ -829,8 +816,6 @@ if (!guestBox) { return; }
             if (guestModalOpen()) { syncFromDom(); }
             toggleItem(id);
             updateItemSelection(book, id);
-            // Restore the original booking flow by opening Guest Information
-            // for each newly selected item.
             if (!wasSelected && findIndex(id) !== -1) {
                 guestOpener = book;
                 openGuestModal(id);
@@ -909,6 +894,34 @@ if (!guestBox) { return; }
                 if (!SELECTED.length && guestModalOpen()) { closeGuestModal(); }
             }
         });
+        // toggle does not bubble, so capture it at the guest container. Option
+        // markup is cached after first expansion and remains form-associated.
+        guestBox.addEventListener('toggle', function (ev) {
+            var details = ev.target;
+            if (!details.matches || !details.matches('details[data-guest-extras]') ||
+                !details.open || details.getAttribute('data-loaded') === 'true') { return; }
+            var index = Number(details.getAttribute('data-guest-index'));
+            var kind = details.getAttribute('data-guest-extras');
+            var entry = SELECTED[index];
+            var target = details.querySelector('[data-extras-options]');
+            if (!entry || !target) { return; }
+            var rows = kind === 'services' ? SERVICES : AMENITIES;
+            var picked = kind === 'services' ? entry.services : entry.amenities;
+            target.innerHTML = rows.map(function (row) {
+                var checked = picked.indexOf(Number(row.id)) !== -1 ? ' checked' : '';
+                var isService = kind === 'services';
+                return '<label class="checkbox"><input type="checkbox" name="item_' + index + '_' + kind + '"' +
+                    (isService ? ' data-service' : ' data-amenity') +
+                    ' value="' + esc(row.id) + '"' + checked + '> ' + esc(row.name) +
+                    (isService ? ' (+' + fmt(row.rate) + ')' : '') + '</label>';
+            }).join('') || '<small class="meta">No options are available.</small>';
+            if (form && form.id) {
+                Array.prototype.forEach.call(target.querySelectorAll('input'), function (input) {
+                    input.setAttribute('form', form.id);
+                });
+            }
+            details.setAttribute('data-loaded', 'true');
+        }, true);
     }
 
     // Live date changes from the search bar, like the Hotels page.
