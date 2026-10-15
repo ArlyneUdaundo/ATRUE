@@ -26,22 +26,14 @@
     </div>
 
     <div class="bk-search">
-        <!-- Destination (hierarchical location picker) -->
-        <div class="bk-field bk-field-big atrue-loc-wrap" data-loc-picker>
+        <!-- Destination autocomplete; establishment add/edit forms keep their cascades. -->
+        <div class="bk-field bk-field-big atrue-location-autocomplete" data-location-autocomplete>
             <i class="fas {{ cfg.search_icon }}"></i>
-            <label>Destination</label>
-            <button type="button" class="atrue-loc-trigger" data-loc-toggle aria-label="Choose destination">
-                <span class="atrue-loc-value">
-                    <i class="fas fa-location-dot"></i>
-                    <span class="atrue-loc-text">{% if loc_display %}{{ loc_display }}{% endif %}</span>
-                </span>
-                <span class="atrue-loc-placeholder">Where are you going?</span>
-            </button>
-            <input type="hidden" name="loc_country" value="{{ loc_country }}">
-            <input type="hidden" name="loc_province" value="{{ loc_province }}">
-            <input type="hidden" name="loc_municipality" value="{{ loc_municipality }}">
-            <input type="hidden" name="loc_barangay" value="{{ loc_barangay }}">
-            <input type="hidden" name="q" value="{{ search_q }}">
+            <label for="bkDestination">Destination</label>
+            <input id="bkDestination" type="text" name="q" value="{{ search_q }}"
+                   placeholder="Where are you going?" autocomplete="off" aria-autocomplete="list"
+                   aria-expanded="false" aria-label="Search destination" data-location-input>
+            <div class="atrue-location-options" role="listbox" hidden></div>
         </div>
 
         {% if cfg.date_mode == 'range' %}
