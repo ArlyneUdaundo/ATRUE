@@ -61,9 +61,7 @@ def assigned_activity_ids(request):
         return None
     # Activity owners are account-level operators too; they may create the
     # first activity before an establishment assignment exists.
-    if (request.user.account_type == 'ACTIVITY_OWNER'
-            or request.user.simulation_roles.filter(
-                status='ACTIVE', role='ACTIVITY_OWNER').exists()):
+    if 'ACTIVITY_OWNER' in effective_role_keys(request.user):
         return None
     assignment = _active_assignment(request)
     roles = getattr(request, 'activity_authorized_roles', None)

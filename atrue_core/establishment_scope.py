@@ -55,9 +55,7 @@ def assigned_establishment_pks(request, establishment_type):
         'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
         'TRANSPORTATION': 'TRANSPORTATION_OWNER',
     }
-    if owner_codes.get(establishment_type) and user.simulation_roles.filter(
-            status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-            role=owner_codes[establishment_type]).exists():
+    if owner_codes.get(establishment_type) in effective_role_keys(user):
         return None
 
     return set(
@@ -152,8 +150,7 @@ class EstablishmentScope:
             'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
             'TRANSPORTATION': 'TRANSPORTATION_OWNER',
         }.get(self.establishment_type)
-        if owner_code and user.simulation_roles.filter(
-                status='ACTIVE', role=owner_code).exists():
+        if owner_code and owner_code in effective_role_keys(user):
             return None
         return set(
             self.active_assignments(user).values_list('establishment__entity_id', flat=True))
@@ -271,8 +268,7 @@ class EstablishmentScope:
                     'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
                     'TRANSPORTATION': 'TRANSPORTATION_OWNER',
                 }.get(self.establishment_type)
-                has_owner_role = bool(owner_code and user.simulation_roles.filter(
-                    status='ACTIVE', role=owner_code).exists())
+                has_owner_role = bool(owner_code and owner_code in effective_role_keys(user))
                 if view_name in self.platform_views and not has_owner_role:
                     raise PermissionDenied(
                         f'Only a platform administrator can add or remove '

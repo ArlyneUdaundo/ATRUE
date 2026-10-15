@@ -693,8 +693,7 @@ def flight_list(request):
         'destination': destination,
         'origin_airport': origin_airport,
         'destination_airport': destination_airport,
-        'airline_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
-            status='ACTIVE', role='AIRLINE_OWNER').exists(),
+        'airline_owner': request.user.is_authenticated and 'AIRLINE_OWNER' in effective_role_keys(request.user),
         'origin_airport_object': (
             Airport.objects.filter(pk=origin_airport).first()
             if origin_airport.isdigit() else None
@@ -1283,8 +1282,7 @@ def flights(request):
         'airlines': airlines,
         'q': q, 'airline': airline, 'status': status,
         'date_from': date_from, 'date_to': date_to,
-        'airline_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
-            status='ACTIVE', role='AIRLINE_OWNER').exists(),
+        'airline_owner': request.user.is_authenticated and 'AIRLINE_OWNER' in effective_role_keys(request.user),
     })
 
 
@@ -1292,7 +1290,7 @@ def _assigned_airline_ids_for_management(request):
     user = request.user
     if user.is_staff or set(effective_role_keys(user)).intersection(FULL_ACCESS_TYPES):
         return None
-    if user.simulation_roles.filter(status='ACTIVE', role='AIRLINE_OWNER').exists():
+    if 'AIRLINE_OWNER' in effective_role_keys(user):
         return None
 
     assignment = getattr(request, 'active_simulation_assignment', None)

@@ -22,6 +22,7 @@ from atrue_core.services import (
 from django.core.exceptions import PermissionDenied
 from django.db.models.deletion import ProtectedError
 from django.db.models import Sum
+from accounts.roles import effective_role_keys
 from django.shortcuts import get_object_or_404, redirect, render
 
 from atrue_core.search_catalog import render_search_page
@@ -101,11 +102,7 @@ def manage(request):
     return render(request, 'activities/manage.html', {
         'activities': activities,
         'can_delete': is_activity_platform_user(request.user),
-        'activity_owner': (
-            request.user.account_type == 'ACTIVITY_OWNER'
-            or request.user.simulation_roles.filter(
-                status='ACTIVE', role='ACTIVITY_OWNER').exists()
-        ),
+        'activity_owner': 'ACTIVITY_OWNER' in effective_role_keys(request.user),
     })
 
 

@@ -22,6 +22,7 @@ from atrue_core.services import (
     record_payment,
 )
 from django.core.exceptions import PermissionDenied
+from accounts.roles import effective_role_keys
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -129,10 +130,9 @@ def manage(request):
     return render(request, 'tour_package/manage.html', {
         'packages': packages,
         'can_create_package': is_platform_operator(request.user),
-        'package_owner': request.user.simulation_roles.filter(
-            status='ACTIVE', role__in={
+        'package_owner': bool(set(effective_role_keys(request.user)).intersection({
                 'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'
-            }).exists(),
+            })),
         'can_delete_package': is_platform_operator(request.user),
     })
 
@@ -214,10 +214,9 @@ def _save_package(request, instance=None):
 
 @manager_required
 def add_package(request):
-    package_owner = request.user.simulation_roles.filter(
-        status='ACTIVE', role__in={
+    package_owner = bool(set(effective_role_keys(request.user)).intersection({
             'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'
-        }).exists()
+        }))
     if not is_platform_operator(request.user) and not package_owner:
         raise PermissionDenied('Only a platform administrator or instructor can create tour packages.')
     if request.method == 'POST':

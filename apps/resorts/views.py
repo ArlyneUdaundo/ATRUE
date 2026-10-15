@@ -11,6 +11,7 @@ from django.db.models.deletion import ProtectedError
 from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.utils import timezone
+from accounts.roles import effective_role_keys
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
@@ -65,7 +66,7 @@ def _assigned_resort_ids(request):
     """
     if resort_scope.has_full_access(request.user):
         return None
-    if request.user.simulation_roles.filter(status='ACTIVE', role='RESORT_OWNER').exists():
+    if 'RESORT_OWNER' in effective_role_keys(request.user):
         return None
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:

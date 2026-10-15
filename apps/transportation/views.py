@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from atrue_core.decorators import manager_required, student_booking_required
+from accounts.roles import effective_role_keys
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
@@ -110,8 +111,7 @@ def transportation_list(request):
         'agencies': result,
         'schedule': schedule,
         'search_query': search_query,
-        'transportation_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
-            status='ACTIVE', role='TRANSPORTATION_OWNER').exists(),
+        'transportation_owner': request.user.is_authenticated and 'TRANSPORTATION_OWNER' in effective_role_keys(request.user),
     })
 
 
@@ -145,8 +145,7 @@ def manage(request):
     )
     return render(request, 'transportation/manage.html', {
         'agencies': agencies,
-        'transportation_owner': request.user.simulation_roles.filter(
-            status='ACTIVE', role='TRANSPORTATION_OWNER').exists(),
+        'transportation_owner': 'TRANSPORTATION_OWNER' in effective_role_keys(request.user),
     })
 
 

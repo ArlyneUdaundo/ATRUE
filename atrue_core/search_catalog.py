@@ -1088,12 +1088,13 @@ def build_search_context(request, category_key, items):
         "activity": {"ACTIVITY_OWNER"},
         "package": {"TOUR_PACKAGE_OWNER", "TOUR_OPERATOR_OWNER", "TRAVEL_AGENCY_OWNER"},
     }
+    from accounts.roles import effective_role_keys
     can_add_establishment = bool(
         request.user.is_authenticated
         and owner_roles_by_category.get(category_key)
-        and request.user.simulation_roles.filter(
-            status="ACTIVE", role__in=owner_roles_by_category[category_key]
-        ).exists()
+        and set(effective_role_keys(request.user)).intersection(
+            owner_roles_by_category[category_key]
+        )
     )
 
     context = {

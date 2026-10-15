@@ -30,9 +30,8 @@ def has_package_role(request, roles):
         return True
     if set(effective_role_keys(request.user)).intersection(roles):
         return True
-    if request.user.simulation_roles.filter(
-            status='ACTIVE', role__in={'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
-                                       'TRAVEL_AGENCY_OWNER'}).exists():
+    if set(effective_role_keys(request.user)).intersection(
+            {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'}):
         return True
     return bool(package_ids_for_roles(request, roles))
 
@@ -54,9 +53,8 @@ def package_ids_for_roles(request, roles):
         return set()
     from simulation.models import SimulationRoleAssignment
     from establishments.models import Establishment
-    if request.user.simulation_roles.filter(
-            status='ACTIVE', role__in={'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
-                                       'TRAVEL_AGENCY_OWNER'}).exists():
+    if set(effective_role_keys(request.user)).intersection(
+            {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'}):
         return None
     return set(Establishment.objects.filter(
         simulation_assignments__student=request.user,

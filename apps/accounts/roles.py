@@ -42,6 +42,17 @@ MANAGEMENT_ACCOUNT_TYPES = frozenset({
     'BILLING_OFFICER',
     'ACTIVITY_MANAGER',
     'TOUR_PACKAGE_MANAGER',
+    'HOTEL_OWNER',
+    'RESORT_OWNER',
+    'RESTAURANT_OWNER',
+    'STAYCATION_OWNER',
+    'LANDMARK_OWNER',
+    'AIRLINE_OWNER',
+    'TRAVEL_AGENCY_OWNER',
+    'TOUR_OPERATOR_OWNER',
+    'TOUR_PACKAGE_OWNER',
+    'ACTIVITY_OWNER',
+    'TRANSPORTATION_OWNER',
 })
 
 #: Account types that may manage user accounts (FR module 1 actors:

@@ -79,8 +79,7 @@ def assigned_hotel_ids(user):
     """
     if has_full_hotel_access(user):
         return None
-    if user.simulation_roles.filter(
-            status='ACTIVE', role='HOTEL_OWNER').exists():
+    if 'HOTEL_OWNER' in effective_role_keys(user):
         return None
     return set(active_hotel_assignments(user).values_list('hotel_id', flat=True))
 
@@ -198,8 +197,7 @@ def hotel_scoped(view_func):
         if view_name in _LIST_VIEWS:
             return view_func(request, *args, **kwargs)
         if (view_name in _PLATFORM_WIDE_VIEWS
-                and not user.simulation_roles.filter(
-                    status='ACTIVE', role='HOTEL_OWNER').exists()):
+                and 'HOTEL_OWNER' not in effective_role_keys(user)):
             raise PermissionDenied('Only a platform administrator can add or remove hotels.')
 
         hotel_ids = resolve_hotel_ids(view_name, kwargs) if kwargs else None

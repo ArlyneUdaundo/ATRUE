@@ -9,7 +9,7 @@
         <h2>Landmarks &amp; Tourist Spots</h2>
         <p>Destinations across the region · Buy entry tickets ahead of time</p>
     </div>
-    {% if request.user.is_account_manager %}
+    {% if request.user.is_platform_manager %}
     {% if can_add_establishment %}<a href="{% url 'landmarks:add_landmark' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Landmark</a>{% endif %}
     {% endif %}
 </div>
