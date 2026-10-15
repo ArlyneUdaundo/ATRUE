@@ -10,6 +10,11 @@
                 <i class="fas fa-sliders"></i> Manage Activities
             </a>
         {% endif %}
+        {% if category == 'hotel' and can_manage %}
+            <a href="{% url 'hotels:manage' %}" class="bk-btn bk-btn-outline bk-btn-sm">
+                <i class="fas fa-hotel"></i> Manage Hotels
+            </a>
+        {% endif %}
         {% if can_manage and manage_url %}
             <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
                 <i class="fas fa-plus"></i> Add new
