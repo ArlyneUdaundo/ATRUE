@@ -264,7 +264,7 @@ class UserAccountForm(forms.ModelForm):
     class Meta:
         model = User
         fields = (
-            'first_name', 'last_name', 'middle_name', 'middle_initial', 'suffix', 'email',
+            'first_name', 'last_name', 'middle_name', 'middle_initial', 'suffix', 'username', 'email',
             'date_of_birth', 'sex', 'nationality',
             'contact_number', 'residential_address',
             'emergency_contact_name', 'emergency_contact_number',
@@ -298,6 +298,9 @@ class UserAccountForm(forms.ModelForm):
         self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         self.fields['email'].widget.attrs.update({'type': 'email', 'autocomplete': 'email', 'maxlength': 254})
+        self.fields['username'].widget.attrs.update({
+            'autocomplete': 'username', 'maxlength': 150,
+        })
         _reorder_fields(self)
 
     def clean_date_of_birth(self):

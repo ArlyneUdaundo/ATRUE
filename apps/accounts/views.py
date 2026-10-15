@@ -823,7 +823,6 @@ def account_detail(request, pk):
             request.FILES if request.method == 'POST' and request.POST.get('profile_update') == '1' else None,
             instance=account,
             as_admin=is_account_update_manager(request.user),
-            allow_profile_picture=(account == request.user),
         )
         if request.method == 'POST' and request.POST.get('profile_update') == '1':
             if edit_form.is_valid():
@@ -926,7 +925,6 @@ def account_update(request, pk):
         request.FILES or None,
         instance=account,
         as_admin=is_manager,
-        allow_profile_picture=(account == request.user),
     )
     if request.method == 'POST' and form.is_valid():
         form.save()
