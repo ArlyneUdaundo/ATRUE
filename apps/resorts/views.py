@@ -120,6 +120,8 @@ def manage(request):
         'municipality': municipality,
         'barangay': barangay,
         'status_choices': Resort.Status.choices,
+        'unit_type_choices': RoomVilla.UnitType.choices,
+        'unit_status_choices': RoomVilla.Status.choices,
         'can_delete': not resort_scope.is_scoped(request.user),
     })
 
@@ -247,6 +249,8 @@ def add_unit(request, resort_id):
             messages.success(request, f"Unit {unit.unit_number} added (ID: {unit.unit_id}).")
             if request.POST.get('return_to_detail'):
                 return redirect('resorts:detail', resort.slug)
+            if request.POST.get('return_to_manage'):
+                return redirect('resorts:manage')
             return redirect('resorts:update_resort', resort.id)
     return render(request, 'resorts/unit_form.html', {
         'resort': resort, 'unit': None, 'error': error,
