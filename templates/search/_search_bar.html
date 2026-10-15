@@ -5,20 +5,28 @@
             <h1>{{ cfg.hero_title }}</h1>
             <p>{{ cfg.hero_sub }}</p>
         </div>
-        {% if can_manage and management_url %}
-            <a href="{{ management_url }}" class="bk-btn bk-btn-outline bk-btn-sm">
-                <i class="fas fa-sliders"></i> Manage Activities
-            </a>
-        {% endif %}
         {% if category == 'hotel' and can_manage %}
-            <a href="{% url 'hotels:manage' %}" class="bk-btn bk-btn-outline bk-btn-sm">
-                <i class="fas fa-hotel"></i> Manage Hotels
-            </a>
-        {% endif %}
-        {% if can_manage and manage_url %}
-            <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
-                <i class="fas fa-plus"></i> Add new
-            </a>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                {% if manage_url %}
+                    <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
+                        <i class="fas fa-plus"></i> Add new
+                    </a>
+                {% endif %}
+                <a href="{% url 'hotels:manage' %}" class="bk-btn bk-btn-outline bk-btn-sm">
+                    <i class="fas fa-hotel"></i> Manage Hotels
+                </a>
+            </div>
+        {% else %}
+            {% if can_manage and management_url %}
+                <a href="{{ management_url }}" class="bk-btn bk-btn-outline bk-btn-sm">
+                    <i class="fas fa-sliders"></i> Manage Activities
+                </a>
+            {% endif %}
+            {% if can_manage and manage_url %}
+                <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
+                    <i class="fas fa-plus"></i> Add new
+                </a>
+            {% endif %}
         {% endif %}
     </div>
 
