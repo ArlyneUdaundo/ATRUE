@@ -26,6 +26,8 @@
     .account-import-table th,.account-import-table td{padding:10px;border-bottom:1px solid var(--slate-200);text-align:left;vertical-align:top}
     .account-import-table th{white-space:nowrap;color:var(--slate-600)}
     .account-import-error{color:#b42318;max-width:340px}
+    .account-import-panel [hidden]{display:none!important}
+    .account-import-panel .btn:disabled{opacity:.48;cursor:not-allowed;box-shadow:none;filter:saturate(.45);transform:none}
     @media(max-width:640px){.account-create-tabs{padding:12px;flex-direction:column}.account-create-tab{text-align:left}.account-import-panel{padding:16px}.account-drop-zone{padding:20px}.account-import-table{min-width:760px}}
     </style>
     <div class="account-create-tabs" role="tablist" aria-label="Account creation method">
@@ -83,9 +85,10 @@
             <i class="fas fa-cloud-upload-alt" style="font-size:26px;color:var(--indigo)"></i>
             <p style="margin:10px 0 4px;font-weight:700">Drop your Excel or CSV file here</p>
             <p style="margin:0 0 12px;color:var(--slate-500);font-size:13px">.xlsx or .csv, up to 5 MB</p>
-            <button class="btn btn-outline" type="button" id="chooseImportFile"><i class="fas fa-folder-open"></i> Upload Excel File</button>
+            <button class="btn btn-outline" type="button" id="chooseImportFile"><i class="fas fa-folder-open"></i> Choose Excel/CSV File</button>
         </div>
         <div id="selectedImportFile" style="margin-top:10px;color:var(--slate-600);font-size:13px" aria-live="polite"></div>
+        <p id="importStepHint" style="margin:12px 0 0;color:var(--slate-500);font-size:13px">Step 1: Choose an Excel or CSV file. Then validate it before generating accounts.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
             <button type="button" class="btn btn-outline" id="validateImportButton" disabled><i class="fas fa-clipboard-check"></i> Validate Records</button>
             <button type="button" class="btn btn-brand" id="generateImportButton" disabled><i class="fas fa-user-plus"></i> Generate Accounts</button>
@@ -114,6 +117,7 @@
         const generateButton = document.getElementById('generateImportButton');
         const errorsButton = document.getElementById('downloadImportErrors');
         const summary = document.getElementById('importSummary');
+        const stepHint = document.getElementById('importStepHint');
         const previewWrap = document.getElementById('importPreviewWrap');
         const previewRows = document.getElementById('importPreviewRows');
         const progressWrap = document.getElementById('importProgressWrap');
@@ -132,6 +136,7 @@
             if (!file) return;
             fileInput.files = (() => { const data = new DataTransfer(); data.items.add(file); return data.files; })();
             selectedFile.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+            stepHint.textContent = 'File selected. Click Validate Records to check the rows before creating accounts.';
             validateButton.disabled = false; generateButton.disabled = true; validated = false;
             errorsButton.hidden = true; summary.hidden = true; previewWrap.hidden = true;
         };
@@ -189,8 +194,9 @@
                 renderRows(data.rows); validated = true;
                 summary.className = 'alert alert-info'; summary.textContent = `${data.total} records reviewed: ${data.valid} ready, ${data.invalid} need correction.`; summary.hidden = false;
                 generateButton.disabled = !data.can_generate; progress('Validation complete', 100);
+                stepHint.textContent = data.can_generate ? 'Validation complete. Review the preview, then click Generate Accounts.' : 'No valid records yet. Correct the rows and upload the updated file.';
                 errorsButton.hidden = data.invalid === 0;
-            } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; progress('Validation stopped', 0); }
+            } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; stepHint.textContent = 'Validation failed. Fix the file or check your connection, then try again.'; progress('Validation stopped', 0); }
             validateButton.disabled = false;
         });
         generateButton.addEventListener('click', async () => {
@@ -205,6 +211,7 @@
                 const hasIssues = data.rows.some(row => row.status !== 'Created');
                 summary.className = (skipped || failedSetup) ? 'alert alert-info' : 'alert alert-success';
                 summary.textContent = `Import complete: ${data.created} account(s) created, ${skipped} skipped, ${failedSetup} password setup email(s) failed.`;
+                stepHint.textContent = data.created ? 'Import complete. Generated accounts are now available in User Account Management.' : 'No accounts were created. Review the validation details and try again.';
                 summary.hidden = false; errorsButton.hidden = !hasIssues; progress('Import complete', 100);
                 validateButton.disabled = false;
             } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; generateButton.disabled = false; validateButton.disabled = false; progress('Import stopped', 0); }
