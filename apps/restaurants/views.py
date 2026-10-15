@@ -251,6 +251,8 @@ def manage(request):
         'location': location,
         'cuisine': cuisine,
         'status_choices': Restaurant.Status.choices,
+        'seating_area_choices': Table.SeatingArea.choices,
+        'table_status_choices': Table.Status.choices,
         'can_delete': restaurant_ids is None,
     })
 

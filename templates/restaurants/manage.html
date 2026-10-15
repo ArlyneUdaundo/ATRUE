@@ -50,7 +50,7 @@
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px">
         <h4 style="margin:0"><i class="fas fa-chair"></i> Tables</h4>
-        <a href="{% url 'restaurants:add_table' r.id %}?return_to_manage=1" class="btn btn-brand btn-sm"><i class="fas fa-chair"></i> Add Table</a>
+        <button type="button" class="btn btn-brand btn-sm" data-open-restaurant-table="add-table-{{ r.id }}"><i class="fas fa-chair"></i> Add Table</button>
     </div>
     <div class="table-wrap">
         <table class="table">
@@ -70,7 +70,26 @@
         </table>
     </div>
 </div>
+<dialog id="add-table-{{ r.id }}" class="restaurant-table-modal" aria-labelledby="add-table-title-{{ r.id }}">
+    <form method="post" action="{% url 'restaurants:add_table' r.id %}" class="card card-pad" data-submit-loading>
+        {% csrf_token %}<input type="hidden" name="return_to_manage" value="1">
+        <header class="restaurant-table-modal-head"><div><h2 id="add-table-title-{{ r.id }}">Add Table</h2><p>{{ r.name }}</p></div><button type="button" class="btn btn-ghost btn-sm" data-close-restaurant-table aria-label="Close">&times;</button></header>
+        <div class="restaurant-table-modal-body">
+            <div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" placeholder="e.g. 1, A2, Near Window" required></div>
+            <div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value,label in seating_area_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="2" min="1"></div>
+            <div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value,label in table_status_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <footer class="restaurant-table-modal-actions"><button type="button" class="btn btn-outline" data-close-restaurant-table>Cancel</button><button type="submit" class="btn btn-brand"><i class="fas fa-save"></i> Save Table</button></footer>
+    </form>
+</dialog>
 {% empty %}
 <div class="card"><div class="empty"><i class="fas fa-utensils"></i><h3>No restaurants found</h3><p>Adjust your filters or add your first restaurant to begin.</p></div></div>
 {% endfor %}
+<style>
+.restaurant-table-modal{position:fixed;inset:0;margin:auto;width:min(540px,calc(100% - 28px));max-height:calc(100dvh - 28px);padding:0;border:0;border-radius:18px;background:transparent;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.25)}.restaurant-table-modal::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}.restaurant-table-modal form{display:flex;flex-direction:column;max-height:calc(100dvh - 28px);margin:0}.restaurant-table-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #e7edf5;padding-bottom:14px}.restaurant-table-modal-head h2{margin:0;font-size:20px}.restaurant-table-modal-head p{margin:4px 0 0;color:#71819a}.restaurant-table-modal-body{overflow:auto;padding:16px 2px}.restaurant-table-modal-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e7edf5;padding-top:14px}
+</style>
+<script>
+document.addEventListener('click',function(event){const open=event.target.closest('[data-open-restaurant-table]');if(open){document.getElementById(open.dataset.openRestaurantTable)?.showModal();return;}if(event.target.closest('[data-close-restaurant-table]')){event.target.closest('dialog')?.close();return;}if(event.target.matches('.restaurant-table-modal'))event.target.close();});
+</script>
 {% endblock %}
