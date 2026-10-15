@@ -8,6 +8,7 @@ from django.core.validators import validate_email
 from django.contrib import messages
 from django.db.models import Q
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
@@ -792,6 +793,7 @@ def account_list(request):
         'role_choices': SimulationRoleAssignment.Role.choices,
         'sort_choices': SORT_CHOICES,
         'can_update': is_account_update_manager(request.user),
+        'can_delete': True,
     })
 
 
@@ -999,6 +1001,37 @@ def account_deactivate(request, pk):
             'message': f"{account.get_full_name() or account.username} updated.",
         })
     return redirect('accounts:account_detail', pk=pk)
+
+
+@login_required
+def account_delete(request, pk):
+    """Permanently delete an account that has no protected transaction history."""
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request.')
+        return redirect('accounts:account_list')
+    error = _require_account_manager(request.user)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
+    account = get_object_or_404(User, pk=pk)
+    if account == request.user:
+        messages.error(request, 'You cannot delete your own account.')
+        return redirect('accounts:account_list')
+    display_name = account.get_full_name() or account.username
+    try:
+        with transaction.atomic():
+            account.delete()
+    except ProtectedError:
+        messages.error(
+            request,
+            f'{display_name} cannot be deleted because this account has records or bookings. '
+            'Deactivate the account to preserve its history.',
+        )
+        return redirect('accounts:account_list')
+    log_activity(request.user, 'Deleted user account',
+                 f'Deleted {display_name} (ID: {pk}).')
+    messages.success(request, f'{display_name} account has been deleted.')
+    return redirect('accounts:account_list')
 
 
 @login_required

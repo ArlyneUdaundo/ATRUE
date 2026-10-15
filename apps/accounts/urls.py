@@ -17,6 +17,7 @@ urlpatterns = [
     path('accounts/<int:pk>/', views.account_detail, name='account_detail'),
     path('accounts/<int:pk>/update/', views.account_update, name='account_update'),
     path('accounts/<int:pk>/deactivate/', views.account_deactivate, name='account_deactivate'),
+    path('accounts/<int:pk>/delete/', views.account_delete, name='account_delete'),
     path('accounts/<int:pk>/deactivate-confirm/', views.account_deactivate_confirm, name='account_deactivate_confirm'),
     path('accounts/<int:pk>/photo/remove/', views.account_photo_remove, name='account_photo_remove'),
     path('accounts/<int:pk>/password/', views.account_change_password, name='account_change_password'),

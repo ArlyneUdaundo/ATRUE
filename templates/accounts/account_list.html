@@ -130,6 +130,12 @@
                         {% else %}
                         <button type="button" class="btn btn-outline btn-sm js-account-deactivate account-secondary-action" data-deactivate-url="{% url 'accounts:account_deactivate' u.id %}" data-account-name="{{ u.get_full_name|default:u.username }}" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-user-slash"></i> Deactivate</button>
                         {% endif %}
+                        {% if can_delete and u.id != request.user.id %}
+                        <form method="post" action="{% url 'accounts:account_delete' u.id %}" class="account-secondary-action" style="display:inline" onsubmit="return confirm('Permanently delete {{ u.get_full_name|default:u.username|escapejs }}? This cannot be undone. Accounts with booking or transaction history must be deactivated instead.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-trash"></i> Delete</button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
