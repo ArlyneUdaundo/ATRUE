@@ -706,13 +706,14 @@ def _require_account_manager(user):
 CREATOR_ACCOUNT_TYPES = frozenset({
     User.AccountType.ADMIN,
     User.AccountType.INSTRUCTOR,
+    User.AccountType.SYSTEM_ADMIN,
 })
 
 
 def _require_creator(user):
     if not user.is_authenticated:
         return 'Please sign in.'
-    if user.account_type not in CREATOR_ACCOUNT_TYPES:
+    if not user.is_staff and user.account_type not in CREATOR_ACCOUNT_TYPES:
         return 'Only the Administrator and Instructor/Trainer may create user accounts.'
     return None
 
