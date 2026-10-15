@@ -3363,6 +3363,7 @@ def booking_detail(request, booking_id):
         and bool(role_keys & AIRLINE_TICKETING_ROLE_KEYS)
         and not can_access_module(request.user, 'airlines')
     )
+    can_print_ticket = _can_print_airline_ticket(request.user, booking)
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
@@ -3509,6 +3510,7 @@ def booking_detail(request, booking_id):
         'can_manage': can_manage,
         'ticketing_restricted': ticketing_restricted,
         'reservation_agent_restricted': reservation_agent_restricted,
+        'can_print_ticket': can_print_ticket,
         'flight_capacity': booking.flight.capacity,
         'itinerary': itinerary,
         'itinerary_legs': legs,
@@ -3519,25 +3521,35 @@ def booking_detail(request, booking_id):
 
 
 def _get_ticket_booking(request, booking_id):
-    """Load an airline booking the current user is allowed to ticket."""
-    from accounts.roles import (
-        can_access_module, can_manage_booking, effective_role_keys)
+    """Load a passenger-owned ticket only for guest/passenger accounts."""
 
     booking = get_object_or_404(
         Booking.objects.select_related('passenger', 'flight__airline', 'flight__aircraft'),
         pk=booking_id)
-    can_manage = can_manage_booking(request.user, 'airlines')
-    if (
-        can_manage
-        and 'AIRLINE_RESERVATION_AGENT' in effective_role_keys(request.user)
-        and not can_access_module(request.user, 'airlines')
-    ):
-        can_manage = _reservation_agent_can_access_airline(
-            request.user, booking.flight.airline)
-    if booking.passenger_id != request.user.id and not can_manage:
-        messages.warning(request, "You cannot view this booking.")
+    if not _can_print_airline_ticket(request.user, booking):
+        messages.warning(request, 'Ticket printing is available to guests and passengers only.')
         return None
     return booking
+
+
+def _can_print_airline_ticket(user, booking):
+    """Only a booking's guest/passenger may access its printable ticket."""
+    from accounts.roles import (
+        AIRLINE_STAFF_ROLE_KEYS, can_access_module, effective_role_keys)
+
+    if not user or not user.is_authenticated or booking.passenger_id != user.pk:
+        return False
+    guest_passenger_roles = {
+        'STUDENT', 'PASSENGER_AIRLINE', 'GUEST_HOTEL', 'CUSTOMER_TOUR',
+        'RESORT_GUEST', 'RESTAURANT_GUEST', 'STAYCATION_GUEST',
+        'LANDMARK_GUEST', 'TOUR_GUEST', 'PASSENGER_TRANSPORT', 'ACTIVITY_GUEST',
+    }
+    role_keys = effective_role_keys(user)
+    return (
+        bool(role_keys & guest_passenger_roles)
+        and not bool(role_keys & AIRLINE_STAFF_ROLE_KEYS)
+        and not can_access_module(user, 'airlines')
+    )
 
 
 @login_required
