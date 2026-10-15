@@ -271,6 +271,10 @@ def manage(request):
 @manager_required
 def add_restaurant(request):
     if request.method == 'POST':
+        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
+        if cost_per_table is None:
+            messages.error(request, "Enter a valid cost per table (0 or more).")
+            return redirect('restaurants:add')
         restaurant = Restaurant.objects.create(
             name=request.POST.get('name'),
             location=_compose_location(request),
@@ -279,6 +283,7 @@ def add_restaurant(request):
             contact_number=request.POST.get('contact_number', ''),
             email=request.POST.get('email', ''),
             operating_hours=request.POST.get('operating_hours', ''),
+            cost_per_table=cost_per_table,
             status=request.POST.get('status', Restaurant.Status.ACTIVE),
         )
         restaurant.refresh_from_db()
@@ -299,11 +304,20 @@ def add_restaurant(request):
 def update_restaurant(request, restaurant_id):
     restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
     if request.method == 'POST':
+        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
+        if cost_per_table is None:
+            messages.error(request, "Enter a valid cost per table (0 or more).")
+            return render(request, 'restaurants/form.html', {
+                'restaurant': restaurant,
+                'status_choices': Restaurant.Status.choices,
+                'location_parts': _location_parts(restaurant.location),
+            })
         for field in ('name', 'cuisine_type', 'contact_number',
                       'email', 'operating_hours', 'status'):
             setattr(restaurant, field, request.POST.get(field) or getattr(restaurant, field))
         restaurant.location = _compose_location(request, restaurant.location)
         restaurant.country = request.POST.get('location_country') or restaurant.country
+        restaurant.cost_per_table = cost_per_table
         restaurant.save()
         photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
@@ -376,11 +390,8 @@ def add_table(request, restaurant_id):
     error = None
     if request.method == 'POST':
         table_number = (request.POST.get('table_number') or '').strip()
-        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
         if not table_number:
             error = "Table number is required."
-        elif cost_per_table is None:
-            error = "Enter a valid cost per table (0 or more)."
         elif Table.objects.filter(restaurant=restaurant, table_number=table_number).exists():
             error = f"Table {table_number} already exists in '{restaurant.name}'. Choose a different table number."
         else:
@@ -388,7 +399,6 @@ def add_table(request, restaurant_id):
                 restaurant=restaurant,
                 table_number=table_number,
                 capacity=_parse_int(request.POST.get('capacity'), 2),
-                cost_per_table=cost_per_table,
                 seating_area=request.POST.get('seating_area', Table.SeatingArea.INDOOR),
                 status=request.POST.get('status', Table.Status.AVAILABLE),
             )
@@ -420,16 +430,12 @@ def update_table(request, table_id):
     error = None
     if request.method == 'POST':
         table_number = (request.POST.get('table_number') or table.table_number).strip()
-        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
         duplicate = Table.objects.filter(restaurant=table.restaurant, table_number=table_number).exclude(pk=table.pk).exists()
-        if cost_per_table is None:
-            error = "Enter a valid cost per table (0 or more)."
-        elif duplicate:
+        if duplicate:
             error = f"Table {table_number} already exists in '{table.restaurant.name}'. Choose a different table number."
         else:
             table.table_number = table_number
             table.capacity = _parse_int(request.POST.get('capacity'), table.capacity)
-            table.cost_per_table = cost_per_table
             table.seating_area = request.POST.get('seating_area', table.seating_area)
             table.status = request.POST.get('status', table.status)
             table.save()

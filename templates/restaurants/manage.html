@@ -62,7 +62,7 @@
                     <td><b>Table {{ t.table_number }}</b></td>
                     <td>{{ t.get_seating_area_display }}</td>
                     <td>{{ t.capacity }}</td>
-                    <td>{% if t.cost_per_table != None %}₱ {{ t.cost_per_table|floatformat:2 }}{% else %}Not set{% endif %}</td>
+                    <td>{% if r.cost_per_table != None %}₱ {{ r.cost_per_table|floatformat:2 }}{% else %}Not set{% endif %}</td>
                     <td>{{ t.get_status_display }}</td>
                     <td><a href="{% url 'restaurants:table_detail' t.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'restaurants:update_table' t.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                 </tr>
@@ -79,7 +79,6 @@
             <div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" placeholder="e.g. 1, A2, Near Window" required></div>
             <div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value,label in seating_area_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
             <div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="2" min="1"></div>
-            <div class="form-group"><label>Cost per table (₱)</label><input type="number" name="cost_per_table" class="form-input" min="0" step="0.01" required></div>
             <div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value,label in table_status_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
         </div>
         <footer class="restaurant-table-modal-actions"><button type="button" class="btn btn-outline" data-close-restaurant-table>Cancel</button><button type="submit" class="btn btn-brand"><i class="fas fa-save"></i> Save Table</button></footer>

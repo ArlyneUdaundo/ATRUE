@@ -14,7 +14,7 @@
 <div class="card card-pad" style="text-align:center;padding:36px">
     <span class="scard-ico ico-orange" style="width:72px;height:72px;font-size:28px;margin:0 auto 14px"><i class="fas fa-chair"></i></span>
     <h3 style="margin:0">Table {{ table.table_number }}</h3>
-    <div class="meta">{{ table.restaurant.name }} · {{ table.get_seating_area_display }} · Seats up to {{ table.capacity }}</div>
+    <div class="meta">{{ table.restaurant.name }} · {{ table.get_seating_area_display }} · Seats up to {{ table.capacity }} · {% if table.restaurant.cost_per_table != None %}₱ {{ table.restaurant.cost_per_table|floatformat:2 }} / table{% else %}Cost not set{% endif %}</div>
     <div style="margin-top:12px">
         <span class="badge {% if table.status == 'AVAILABLE' %}badge-green{% elif table.status == 'OCCUPIED' %}badge-blue{% elif table.status == 'MAINTENANCE' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ table.get_status_display }}</span>
     </div>

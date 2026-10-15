@@ -323,9 +323,7 @@ def _stay_capacity_bucket(capacity):
 
 
 def _restaurant_price_class(item, idx):
-    costs = [table.cost_per_table for table in item.tables.all()
-             if table.cost_per_table is not None]
-    return _num(min(costs)) if costs else None
+    return _num(item.cost_per_table)
 
 
 # --- Index builders (filterable values per category) -----------------------
@@ -794,8 +792,7 @@ def _restaurant_card(item, request):
     score = guest_score(item)
     tables = list(item.tables.all())
     available = [t for t in tables if getattr(t, "status", "") == "AVAILABLE"]
-    costs = [t.cost_per_table for t in tables if t.cost_per_table is not None]
-    cost_per_table = min(costs) if costs else None
+    cost_per_table = item.cost_per_table
     price = f"{cost_per_table:,.2f}" if cost_per_table is not None else "Cost per table not set"
     price_kind = "amount" if cost_per_table is not None else "label"
     max_cap = max((t.capacity for t in tables), default=0)

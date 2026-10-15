@@ -23,6 +23,7 @@
         <input type="hidden" name="location" id="restaurant-location" value="{{ restaurant.location|default:'' }}">
     </div>
     <div class="form-group"><label>Cuisine Type</label><input type="text" name="cuisine_type" class="form-input" value="{{ restaurant.cuisine_type|default:'' }}" placeholder="e.g. Ilocano, Filipino, Seafood"></div>
+    <div class="form-group"><label>Cost per table (₱)</label><input type="number" name="cost_per_table" class="form-input" value="{{ restaurant.cost_per_table|default:'' }}" min="0" step="0.01" required></div>
     <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ restaurant.contact_number|default:'' }}"></div>
     <div class="form-group">
         <label>Email</label>
