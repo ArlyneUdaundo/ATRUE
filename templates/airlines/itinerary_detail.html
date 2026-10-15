@@ -10,7 +10,7 @@
            {{ timing.total_label }} door to door{% if itinerary.operating_days %} · {{ itinerary.operating_days }}{% endif %} (FR-017).</p>
     </div>
     <div style="display:flex;gap:10px">
-        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-ghost"><i class="fas fa-edit"></i> Edit Journey</a>
+        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-ghost" data-establishment-create><i class="fas fa-edit"></i> Edit Journey</a>
         <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
     </div>
 </div>

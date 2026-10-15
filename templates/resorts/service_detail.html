@@ -10,7 +10,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
-        <a href="{% url 'resorts:update_service' service.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'resorts:update_service' service.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'resorts:services' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Services</a>
         {% else %}
         <a href="{% url 'resorts:detail' service.resort.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resort</a>

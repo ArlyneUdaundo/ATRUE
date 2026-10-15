@@ -10,7 +10,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
-        <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'resorts:units' %}?resort={{ unit.resort.id }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Units</a>
         {% elif unit.status == 'AVAILABLE' %}
         <a href="{% url 'resorts:book' unit.id %}" class="btn btn-brand"><i class="fas fa-umbrella-beach"></i> Book This Unit</a>

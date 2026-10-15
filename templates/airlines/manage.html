@@ -32,7 +32,7 @@
         </div>
         <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
         <a href="{% url 'airlines:airline_detail' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
-        <a href="{% url 'airlines:update_airline' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'airlines:update_airline' a.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Edit</a>
         <a href="{% url 'airlines:add_aircraft' a.id %}" class="btn btn-brand btn-sm"><i class="fas fa-plane-arrival"></i> Aircraft</a>
         <a href="{% url 'airlines:add_service' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Service</a>
         <a href="{% url 'airlines:add_flight' a.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-fighter-jet"></i> Flight</a>
@@ -49,7 +49,7 @@
                         <tr>
                             <td class="mono">{{ ac.aircraft_id }}</td>
                             <td>{{ ac.model_name }}</td><td class="mono">{{ ac.tail_number }}</td><td>{{ ac.seating_capacity }}</td><td>{{ ac.get_status_display }}</td>
-                            <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_aircraft' ac.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                            <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_aircraft' ac.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                         </tr>
                         {% empty %}<tr><td colspan="6">No aircraft.</td></tr>{% endfor %}
                     </tbody>
@@ -66,7 +66,7 @@
                         <tr>
                             <td class="mono">{{ s.service_id }}</td>
                             <td>{{ s.name }}</td><td>₱ {{ s.rate }}</td><td>{{ s.get_status_display }}</td>
-                            <td><a href="{% url 'airlines:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_service' s.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                            <td><a href="{% url 'airlines:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_service' s.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                         </tr>
                         {% empty %}<tr><td colspan="5">No services.</td></tr>{% endfor %}
                     </tbody>
@@ -90,7 +90,7 @@
                     <td>₱ {{ f.economy_fare }}</td>
                     <td>₱ {{ f.first_class_fare }}</td>
                     <td>{{ f.get_status_display }}</td>
-                    <td><a href="{% url 'airlines:flight_detail' f.slug %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_flight' f.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                    <td><a href="{% url 'airlines:flight_detail' f.slug %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_flight' f.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                 </tr>
                 {% endfor %}
             </tbody>

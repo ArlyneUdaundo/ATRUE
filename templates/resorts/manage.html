@@ -39,7 +39,7 @@
         </div>
         <span class="badge {% if r.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ r.get_status_display }}</span>
         <a href="{% url 'resorts:detail' r.slug %}" class="btn btn-outline btn-sm"><i class="fas fa-eye"></i> View</a>
-        <a href="{% url 'resorts:update_resort' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        <a href="{% url 'resorts:update_resort' r.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Edit</a>
         <a href="{% url 'resorts:add_unit' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-bed"></i> Add Unit</a>
         <a href="{% url 'resorts:add_service' r.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-concierge-bell"></i> Service</a>
     </div>
@@ -57,7 +57,7 @@
                     <td class="mono">{{ s.service_id }}</td>
                     <td>{{ s.name }}</td><td>{{ s.capacity }}</td><td>₱ {{ s.rate }}</td>
                     <td>{{ s.get_status_display }}</td>
-                    <td><a href="{% url 'resorts:service_detail' s.id %}" class="btn btn-outline btn-sm">View</a> <a href="{% url 'resorts:update_service' s.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                    <td><a href="{% url 'resorts:service_detail' s.id %}" class="btn btn-outline btn-sm">View</a> <a href="{% url 'resorts:update_service' s.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                 </tr>
                 {% empty %}<tr><td colspan="6">No services.</td></tr>{% endfor %}
             </tbody>

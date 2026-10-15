@@ -12,7 +12,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
-        <a href="{% url 'resorts:update_resort' resort.id %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'resorts:update_resort' resort.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'resorts:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Resorts</a>
         {% else %}
         <a href="{% url 'resorts:flow_select' resort.id %}" class="btn btn-brand"><i class="fas fa-layer-group"></i> Book Villas</a>

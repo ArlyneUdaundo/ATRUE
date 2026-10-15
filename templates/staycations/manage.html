@@ -75,7 +75,7 @@
                 {% for svc in s.services.all %}
                 <tr>
                     <td>{{ svc.name }}</td><td>₱ {{ svc.rate }}</td><td>{{ svc.get_status_display }}</td>
-                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'staycations:update_service' svc.id %}" class="btn btn-ghost btn-sm">Edit</a></td>
+                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'staycations:update_service' svc.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                 </tr>
                 {% empty %}<tr><td colspan="4">No add-ons.</td></tr>{% endfor %}
             </tbody>
