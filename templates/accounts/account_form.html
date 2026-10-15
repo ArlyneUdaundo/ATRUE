@@ -75,7 +75,7 @@
     {% if is_create %}
     <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-labelledby="bulkAccountTab">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
-        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Leave username blank to generate one automatically; leave both password cells blank to create a secure password and email a one-time password setup link.</p></div>
+        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and secure passwords are generated automatically; each new user receives a one-time password setup link.</p></div>
             <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
         </div>
         <input type="file" id="accountImportFile" accept=".xlsx,.csv" hidden>
@@ -98,7 +98,7 @@
         <div id="importSummary" class="alert" hidden style="margin-top:16px" aria-live="polite"></div>
         <div id="importPreviewWrap" hidden style="margin-top:18px">
             <h4 style="margin:0 0 10px">Preview Imported Records</h4>
-            <div class="table-wrap"><table class="account-import-table"><thead><tr><th>Row</th><th>Name</th><th>Username</th><th>Email</th><th>Account Type</th><th>Result</th><th>Validation details</th></tr></thead><tbody id="importPreviewRows"></tbody></table></div>
+            <div class="table-wrap"><table class="account-import-table"><thead><tr><th>Row</th><th>Name</th><th>Generated Username</th><th>Email</th><th>Account Type</th><th>Result</th><th>Validation details</th></tr></thead><tbody id="importPreviewRows"></tbody></table></div>
         </div>
     </section>
     <script>
