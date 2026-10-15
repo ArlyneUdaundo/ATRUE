@@ -7,6 +7,7 @@
 <div class="page-head airline-booking-header">
     <div><h1>Booking {{ booking.booking_reference }}</h1><p>Flight booking details, billing and status.</p></div>
     <div class="airline-booking-actions">
+        {% if bill and bill.balance_due > 0 and booking.passenger_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" target="_top" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'COMPLETED' or booking.status == 'MODIFIED' %}
         <a href="{% url 'airlines:ticket' booking.id %}" target="_top" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -21,7 +22,7 @@
 {% if booking.status == 'PENDING' and can_print_ticket %}
 <div class="alert alert-info">
     <i class="fas fa-clock"></i>
-    <div>Your booking is <b>awaiting confirmation</b>. Once the airline reservation agent confirms it, a confirmation email will be sent to the email address on your account and the <b>Print E-Ticket</b> button will be unlocked.</div>
+    <div>Your booking and payment are pending Billing Officer verification. After that, the Airline Reservation Officer confirms your booking; then a confirmation email and <b>Print E-Ticket</b> will be available.</div>
 </div>
 {% endif %}
 
@@ -120,7 +121,7 @@
             Total: <b>₱ {{ bill.total_amount }}</b> ·
             Paid: ₱ {{ bill.amount_paid }} ·
             Balance: <b>₱ {{ bill.balance_due }}</b>
-            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+            <span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
         </div>
         {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
 
@@ -201,6 +202,28 @@
     {% endif %}
     {% endif %}
     {% endif %}
+{% endif %}
+
+{% if can_mark_travelled %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-plane-departure"></i> Front Desk</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}
+        {% if booking.status == 'CONFIRMED' %}
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Passenger</button>
+        {% elif booking.status == 'CHECKED_IN' %}
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-plane-departure"></i> Complete Travel</button>
+        {% else %}<span class="meta">Front Desk actions are available after Reservation Officer confirmation.</span>{% endif %}
+    </form>
+</div>
+{% endif %}
+
+{% if is_reservation_officer and booking.status == 'PENDING' and bill and bill.status == 'FULLY_PAID' and bill.verified_at %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-clipboard-check"></i> Review Reservation</h3>
+    <form method="post">{% csrf_token %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm Booking</button>
+    </form>
+</div>
 {% endif %}
 
 {% if can_manage %}

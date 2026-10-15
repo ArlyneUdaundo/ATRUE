@@ -342,10 +342,10 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
             bill=bill,
         )
         ticket.refresh_from_db()
-        ticket.amount_paid = total
-        ticket.balance_due = 0
+        ticket.amount_paid = bill.amount_paid
+        ticket.balance_due = bill.balance_due
         ticket.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Ticket purchased! Reference: {ticket.booking_reference}")
+        messages.success(request, f"Ticket request submitted: {ticket.booking_reference}. Payment is pending Billing Officer confirmation.")
         return redirect('landmarks:booking_detail', ticket.id)
     return render(request, 'landmarks/book.html', {
         'name': name, 'fee': fee, 'default_date': default_date,
@@ -436,8 +436,10 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending tickets.')
+        if can_checkin and action != 'use':
+            raise PermissionDenied('Landmark Front Desk may only check confirmed tickets in.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm payment-verified tickets.')
         if action == 'confirm':
             if not can_confirm:
                 messages.error(request, "Only the landmark reservation officer can confirm this ticket.")
@@ -486,7 +488,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_confirm': can_confirm,
         'can_checkin': can_checkin,

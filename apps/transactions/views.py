@@ -51,6 +51,104 @@ def payment_review(request):
 
     bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
     rows = []
+    pending_payments = Payment.objects.filter(status=Payment.Status.PENDING, bill__isnull=False)
+    for payment in pending_payments.select_related('bill', 'customer').prefetch_related('bill__payments'):
+        bill = payment.bill
+        booking = payment.booking or bill.booking
+        travel_order = getattr(bill, 'travel_order', None)
+        if booking is None and travel_order:
+            first_item = travel_order.items.select_related('content_type').first()
+            booking = first_item.booking if first_item else None
+        if booking is None:
+            continue
+        try:
+            from simulation.completion import establishment_for_booking
+            establishment = establishment_for_booking(booking)
+        except Exception:
+            continue
+        if (not is_admin and assignment is not None
+                and (establishment is None
+                     or establishment.pk != assignment.establishment_id)):
+            continue
+        if request.method == 'POST' and request.POST.get('payment_id') == str(payment.pk):
+            if request.POST.get('action') != 'confirm_payment' or payment.status != Payment.Status.PENDING:
+                messages.error(request, 'This payment is no longer pending confirmation.')
+                return redirect('transactions:payment_review')
+            if payment.amount <= 0 or payment.amount > bill.balance_due:
+                messages.error(request, 'This payment exceeds the current bill balance and cannot be confirmed.')
+                return redirect('transactions:payment_review')
+            bill.add_payment(payment.amount)
+            payment.status = Payment.Status.PAID
+            payment.paid_at = timezone.now()
+            payment.save(update_fields=['status', 'paid_at'])
+            Receipt.objects.create(
+                payment=payment, bill=bill, customer=payment.customer,
+                amount=payment.amount,
+                remark=f'Payment verified by Billing Officer for {bill.bill_reference}',
+            )
+            if bill.status == Bill.Status.FULLY_PAID:
+                bill.verified_by = request.user
+                bill.verified_at = timezone.now()
+                bill.save(update_fields=['verified_by', 'verified_at'])
+            bookings_to_notify = [booking]
+            if travel_order:
+                bookings_to_notify = [item.booking for item in travel_order.items.select_related('content_type')
+                                      if item.booking is not None]
+                travel_order.amount_paid = bill.amount_paid
+                travel_order.balance_due = bill.balance_due
+                if bill.verified_at:
+                    travel_order.status = travel_order.Status.CONFIRMED
+                travel_order.save(update_fields=['amount_paid', 'balance_due', 'status'])
+            if bill.verified_at and travel_order:
+                from atrue_core.services import bill_for_booking
+                for order_booking in bookings_to_notify:
+                    linked_bill = bill_for_booking(order_booking)
+                    if linked_bill:
+                        linked_bill.amount_paid = linked_bill.total_amount
+                        linked_bill.balance_due = 0
+                        linked_bill.status = Bill.Status.FULLY_PAID
+                        linked_bill.verified_by = request.user
+                        linked_bill.verified_at = timezone.now()
+                        linked_bill.save(update_fields=[
+                            'amount_paid', 'balance_due', 'status', 'verified_by', 'verified_at'])
+                    if hasattr(order_booking, 'amount_paid'):
+                        order_booking.amount_paid = linked_bill.total_amount if linked_bill else bill.amount_paid
+                        update_fields = ['amount_paid']
+                        if hasattr(order_booking, 'balance_due'):
+                            order_booking.balance_due = linked_bill.balance_due if linked_bill else 0
+                            update_fields.append('balance_due')
+                        order_booking.save(update_fields=update_fields)
+            elif hasattr(booking, 'amount_paid'):
+                booking.amount_paid = bill.amount_paid
+                update_fields = ['amount_paid']
+                if hasattr(booking, 'balance_due'):
+                    booking.balance_due = bill.balance_due
+                    update_fields.append('balance_due')
+                booking.save(update_fields=update_fields)
+            log_activity(
+                request.user, 'Payment verified', bill.bill_reference,
+                session=assignment.session if assignment else None,
+                establishment=establishment,
+            )
+            if bill.verified_at:
+                for confirmed_booking in bookings_to_notify:
+                    try:
+                        from simulation.completion import establishment_for_booking
+                        booking_establishment = establishment_for_booking(confirmed_booking)
+                    except Exception:
+                        booking_establishment = establishment
+                    _notify_reservation_officers(
+                        confirmed_booking, booking_establishment, assignment, bill)
+                messages.success(
+                    request,
+                    f'Payment confirmed for {bill.bill_reference}. The booking is now awaiting Reservation Officer confirmation.',
+                )
+            else:
+                messages.success(request, f'Partial payment confirmed for {bill.bill_reference}. Remaining balance is still due.')
+            return redirect('transactions:payment_review')
+        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment,
+                     'payment': payment, 'needs_recording': False})
+
     for bill in bills.select_related('customer').prefetch_related('payments'):
         booking = bill.booking
         if booking is None:
@@ -78,39 +176,52 @@ def payment_review(request):
                 session=assignment.session if assignment else None,
                 establishment=establishment,
             )
-            if booking._meta.app_label == 'resorts' and booking.status == 'PENDING':
-                from simulation.models import SimulationRoleAssignment
-                from notifications.models import Notification
-                from notifications.services import notify_many
-
-                officers = SimulationRoleAssignment.objects.filter(
-                    role=SimulationRoleAssignment.Role.RESORT_RESERVATION_OFFICER,
-                    status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-                    establishment=establishment,
-                ).select_related('student')
-                if assignment is not None:
-                    officers = officers.filter(session=assignment.session)
-                notify_many(
-                    [row.student for row in officers],
-                    Notification.Type.GENERAL,
-                    f'Payment verified for resort reservation {booking.booking_reference}. '
-                    'Review and confirm the reservation.',
-                    session=assignment.session if assignment else None,
-                    establishment=establishment,
-                )
+            if booking.status == 'PENDING':
+                _notify_reservation_officers(booking, establishment, assignment, bill)
                 messages.success(
                     request,
-                    f'Payment for {bill.bill_reference} verified. The resort reservation is now awaiting '
-                    'Resort Reservation Officer confirmation.',
+                    f'Payment for {bill.bill_reference} verified. The booking is awaiting Reservation Officer confirmation.',
                 )
             else:
                 messages.success(request, f'Payment for {bill.bill_reference} verified.')
             return redirect('transactions:payment_review')
-        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment})
+        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment,
+                     'needs_recording': False})
     return render(request, 'transactions/payment_review.html', {
         'rows': rows,
         'active_assignment': assignment,
     })
+
+
+def _notify_reservation_officers(booking, establishment, assignment, bill):
+    from simulation.models import SimulationRoleAssignment
+    from notifications.models import Notification
+    from notifications.services import notify_many
+
+    reservation_roles = (
+        'HOTEL_RESERVATION_OFFICER', 'RESORT_RESERVATION_OFFICER',
+        'RESTAURANT_RESERVATION_OFFICER', 'STAYCATION_RESERVATION_OFFICER',
+        'LANDMARK_RESERVATION_OFFICER', 'AIRLINE_RESERVATION_AGENT',
+        'TRANSPORT_RESERVATION_OFFICER', 'TRANSPORT_RESERVATION_AGENT',
+        'ACTIVITY_RESERVATION_OFFICER', 'TOUR_PACKAGE_RESERVATION_OFFICER',
+        'TOUR_RESERVATION_AGENT', 'TRAVEL_AGENCY_RESERVATION_OFFICER',
+        'TRAVEL_AGENCY_RESERVATION_AGENT',
+    )
+    officers = SimulationRoleAssignment.objects.filter(
+        role__in=reservation_roles,
+        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+        establishment=establishment,
+    ).select_related('student')
+    if assignment is not None:
+        officers = officers.filter(session=assignment.session)
+    notify_many(
+        [row.student for row in officers],
+        Notification.Type.GENERAL,
+        f'Payment verified for resort reservation {booking.booking_reference}. '
+        'Review and confirm the reservation.',
+        session=assignment.session if assignment else None,
+        establishment=establishment,
+    )
 
 
 def _money(value):
@@ -402,17 +513,23 @@ def bill_detail(request, bill_id):
             method = request.POST.get('payment_method', 'GCASH')
             if amount <= 0:
                 messages.error(request, "Enter a valid amount to pay.")
+            elif amount > bill.balance_due:
+                messages.error(request, "The amount cannot exceed the remaining balance.")
             else:
-                record_payment(
-                    customer=request.user,
-                    amount=amount,
-                    method=method,
-                    service=bill.service,
-                    description=f"Payment for {bill.bill_reference}",
-                    bill=bill,
-                    booking=booking,
-                )
-                messages.success(request, "Payment recorded and receipt issued.")
+                try:
+                    record_payment(
+                        customer=request.user,
+                        amount=amount,
+                        method=method,
+                        service=bill.service,
+                        description=f"Payment submission for {bill.bill_reference}",
+                        bill=bill,
+                        booking=booking,
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, "Payment submitted. It will remain pending until the Billing Officer confirms receipt.")
         elif action == 'refund':
             payment = get_object_or_404(Payment, pk=request.POST.get('payment_id'), customer=request.user)
             if payment.status == 'REFUNDED':
@@ -454,6 +571,7 @@ def bill_detail(request, bill_id):
         object_id=bill.object_id,
         customer=request.user,
     ).order_by('-created_at') if bill.content_type_id else AdditionalTransaction.objects.none()
+    pending_payments = bill.payments.filter(status=Payment.Status.PENDING)
 
     return render(request, 'transactions/bill.html', {
         'bill': bill,
@@ -462,6 +580,8 @@ def bill_detail(request, bill_id):
         'receipts': bill.receipts.all() if bill.pk else [],
         'additional_transactions': additional_transactions,
         'additional_types': AdditionalTransaction.TransactionType.choices,
+        'pending_payments': pending_payments,
+        'has_pending_payment': pending_payments.exists(),
     })
 
 
@@ -599,7 +719,10 @@ def order_detail(request, order_id):
                     and not _package_booking_accessible(
                         request, item.content_type.get_object_for_this_type(pk=item.object_id))):
                 raise PermissionDenied('This order contains an unassigned Tour Package booking.')
-    return render(request, 'transactions/order_detail.html', {'order': order})
+    return render(request, 'transactions/order_detail.html', {
+        'order': order,
+        'is_resort_order': order.items.filter(service='resort').exists(),
+    })
 
 @xframe_options_sameorigin
 @login_required
@@ -654,8 +777,6 @@ def establishment_booking(request):
             ct = ContentType.objects.get_for_model(booking)
             TravelOrderItem.objects.create(order=order, content_type=ct, object_id=booking.pk,
                                            service=service, description=desc, amount=amount)
-            from notifications.email_service import queue_booking_confirmation
-            queue_booking_confirmation(booking)
 
         bill = create_bill(service='bundle', customer=request.user, items=items)
         order.bill = bill
@@ -664,33 +785,10 @@ def establishment_booking(request):
         if not pay_later:
             record_payment(customer=request.user, amount=total, method=method,
                            service='bundle', description=f'ATrue establishment order {order.order_reference}', bill=bill)
-            order.status = TravelOrder.Status.CONFIRMED
-            order.amount_paid = total
-            order.balance_due = 0
-            order.save(update_fields=['status', 'amount_paid', 'balance_due'])
             # Bookings stay PENDING — each reservation officer confirms before
             # the customer holds a CONFIRMED booking.
-            for _, booking in resolved:
-                update_fields = []
-                if hasattr(booking, 'amount_paid'):
-                    booking.amount_paid = getattr(booking, 'total_bill', 0)
-                    update_fields.append('amount_paid')
-                if hasattr(booking, 'balance_due'):
-                    booking.balance_due = 0
-                    update_fields.append('balance_due')
-                if update_fields:
-                    booking.save(update_fields=update_fields)
-                individual = bill_for_booking(booking)
-                if individual:
-                    individual.amount_paid = individual.total_amount
-                    individual.balance_due = 0
-                    individual.status = 'FULLY_PAID'
-                    individual.save(update_fields=['amount_paid', 'balance_due', 'status'])
-
         else:
-            for _, booking in resolved:
-                booking.status = 'PENDING'
-                booking.save(update_fields=['status'])
+            pass
 
         log_activity(request.user, 'Created establishment booking order',
                      f'{order.order_reference}: {meta.get("establishment_name", "Establishment")} · {len(resolved)} item(s)')
@@ -701,7 +799,7 @@ def establishment_booking(request):
     if pay_later:
         messages.success(request, f'Booking order {order.order_reference} created. Payment is pending.')
     else:
-        messages.success(request, f'Booking order {order.order_reference} paid · items pending reservation officer confirmation.')
+        messages.success(request, f'Booking order {order.order_reference} submitted. Payment is pending Billing Officer confirmation.')
     return redirect('transactions:order_detail', order.id)
 
 

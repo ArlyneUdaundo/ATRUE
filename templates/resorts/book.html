@@ -142,20 +142,6 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Payment Method</label>
-                <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-            </div>
-            <label class="checkbox" style="margin-bottom:6px">
-                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
-            </label>
             <script>
                 function togglePayer() {
                     var same = document.getElementById('payer-same');
@@ -251,7 +237,6 @@
         <div class="ag-pb-actions">
             <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm Booking</button>
         
-        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Unit</button>
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
             <div class="ag-pb-note">*Total is computed by the system after applying dates, guests and add-ons.</div>
         </div>

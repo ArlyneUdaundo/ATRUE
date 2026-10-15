@@ -446,11 +446,15 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending reservations.')
+        if can_process_checkin and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Transport Front Desk may only process pickup and drop-off.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
+            if not reservation_officer:
+                raise PermissionDenied('Only the Transport Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
@@ -501,7 +505,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
     })

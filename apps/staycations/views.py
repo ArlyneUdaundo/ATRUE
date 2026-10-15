@@ -421,10 +421,10 @@ def book_staycation(request, staycation_id):
             bill=bill,
         )
         reservation.refresh_from_db()
-        reservation.amount_paid = total
-        reservation.balance_due = 0
+        reservation.amount_paid = bill.amount_paid
+        reservation.balance_due = bill.balance_due
         reservation.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Staycation booked! Reference: {reservation.booking_reference}")
+        messages.success(request, f"Staycation request submitted: {reservation.booking_reference}. Payment is pending Billing Officer confirmation.")
         return redirect('staycations:booking_detail', reservation.id)
     return render(request, 'staycations/book.html', {
         'staycation': staycation,
@@ -507,11 +507,15 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending reservations.')
+        if can_process_checkin and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Staycation Front Desk may only check guests in or out.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
+            if not reservation_officer:
+                raise PermissionDenied('Only the Staycation Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
@@ -562,7 +566,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
         'is_owner': request.user == booking.customer,

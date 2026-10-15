@@ -6,6 +6,7 @@
 <div class="page-head">
     <div><h1>Booking {{ booking.booking_reference }}</h1><p>Tour package booking details, billing and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'tour_package:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -20,7 +21,7 @@
 {% if booking.status == 'PENDING' and not can_manage and not can_review and not can_frontdesk %}
 <div class="alert alert-info">
     <i class="fas fa-clock"></i>
-    <div>Your booking is <b>awaiting front desk confirmation</b>. Once the front desk confirms, you'll get a notification and the <b>Print E-Ticket</b> button will be unlocked.</div>
+    <div>Your booking and payment must be confirmed by the Reservation Officer after Billing Officer verification. An email and the <b>Print E-Ticket</b> option will be available after confirmation.</div>
 </div>
 {% endif %}
 
@@ -61,7 +62,7 @@
             Total: <b>₱ {{ bill.total_amount }}</b> ·
             Paid: ₱ {{ bill.amount_paid }} ·
             Balance: <b>₱ {{ bill.balance_due }}</b>
-            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+            <span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
         </div>
         {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
 
@@ -152,7 +153,7 @@
 {% endif %}
 
 
-{% if is_reservation_officer and can_review and booking.status == 'PENDING' %}
+{% if is_reservation_officer and can_review and booking.status == 'PENDING' and bill and bill.status == 'FULLY_PAID' and bill.verified_at %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-clipboard-check"></i> Review Reservation</h3>
     <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}

@@ -6,8 +6,9 @@
 <div class="page-head">
     <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Resort reservation details, billing and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}
-        <a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Pay Bill</a>
+        <a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Submit Payment</a>
         {% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
@@ -25,12 +26,10 @@
     <i class="fas fa-clock"></i>
     <div>
         Your reservation is pending.
-        {% if bill and bill.balance_due > 0 %}
-        Please use <b>Pay Bill</b> above to submit payment. The Billing Officer will verify it before the reservation is confirmed.
-        {% elif bill and bill.verified_at %}
-        Payment is verified. Your reservation is waiting for the Resort Reservation Officer to confirm it.
+        {% if bill and bill.verified_at %}
+        Payment status: <b>Paid</b>. Your reservation is waiting for the Resort Reservation Officer to confirm it.
         {% else %}
-        After payment verification, the Resort Reservation Officer must confirm your reservation. Then a confirmation email will be sent and <b>Print E-Ticket</b> will be available.
+        Payment status: <b>Pending</b>. Submit payment using the button above. It remains pending until the Billing Officer confirms receipt. After full payment is verified, the Reservation Officer will confirm your reservation; then email and e-ticket access will be available.
         {% endif %}
     </div>
 </div>
@@ -80,7 +79,7 @@
             Total: <b>₱ {{ bill.total_amount }}</b> ·
             Paid: ₱ {{ bill.amount_paid }} ·
             Balance: <b>₱ {{ bill.balance_due }}</b>
-            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+            <span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
         </div>
         {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
 
@@ -103,20 +102,8 @@
     <h3><i class="fas fa-tasks"></i> Reservation Lifecycle</h3>
     <form method="post" class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap">
         {% csrf_token %}
-        {% if booking.status == 'PENDING' %}
-        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
-        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
-        {% endif %}
         {% if booking.status == 'CONFIRMED' %}
-        {% if can_process_checkin %}
-        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In</button>
-        {% endif %}
         <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this reservation and release the unit?"><i class="fas fa-ban"></i> Cancel</button>
-        {% endif %}
-        {% if booking.status == 'CHECKED_IN' %}
-        {% if can_process_checkin %}
-        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out</button>
-        {% endif %}
         {% endif %}
         <input type="text" name="remark" class="form-input" style="flex:1;min-width:220px" placeholder="Remarks (optional) - shown to guest">
     </form>
@@ -136,35 +123,30 @@
         <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
     </form>
 
-    <form method="post" class="card card-pad" style="margin-top:16px" data-submit-loading>
-        {% csrf_token %}
-        <input type="hidden" name="action" value="pay">
-        <h4>Record Payment</h4>
-        <div class="form-grid">
-            <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due|default:0 }}"></div>
-            <div class="form-group"><label>Method</label>
-                <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-            </div>
-        </div>
-        <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
-    </form>
 </div>
 {% endif %}
 
 
-{% if is_reservation_officer and booking.status == 'PENDING' %}
+{% if is_front_desk %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-concierge-bell"></i> Front Desk</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}
+        {% if booking.status == 'CONFIRMED' %}
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Guest</button>
+        {% elif booking.status == 'CHECKED_IN' %}
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Guest</button>
+        {% else %}
+        <span class="meta">Front Desk actions are available after the Reservation Officer confirms the reservation.</span>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
+{% if is_reservation_officer and booking.status == 'PENDING' and bill and bill.status == 'FULLY_PAID' and bill.verified_at %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-clipboard-check"></i> Review Reservation</h3>
     <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}
         <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
-        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
     </form>
 </div>
 {% endif %}

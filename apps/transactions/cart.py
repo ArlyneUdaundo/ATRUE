@@ -100,10 +100,10 @@ def create_single_booking_order(*, request, booking, service, amount, descriptio
             description=description,
             amount=amount,
         )
-        from notifications.email_service import queue_booking_confirmation
-        queue_booking_confirmation(booking)
-        combined_bill = create_bill(service='bundle', customer=request.user, items=bill_items)
-        order.bill = combined_bill
+        individual = bill_for_booking(booking)
+        if individual is None:
+            individual = create_bill(service=service, customer=request.user, items=bill_items, booking=booking)
+        order.bill = individual
         order.save(update_fields=['bill'])
 
         if pay_later:
@@ -116,38 +116,14 @@ def create_single_booking_order(*, request, booking, service, amount, descriptio
             customer=request.user,
             amount=amount,
             method=payment_method,
-            service='bundle',
+            service=service,
             description=f'ATrue order {order.order_reference}: {description}',
-            bill=combined_bill,
+            bill=individual,
+            booking=booking,
         )
-        order.status = TravelOrder.Status.CONFIRMED
-        order.amount_paid = amount
-        order.balance_due = 0
-        order.save(update_fields=['status', 'amount_paid', 'balance_due'])
 
-        # Booking stays PENDING — the module's own officer confirms it later,
-        # while the actual customer payment remains the ONE combined order bill.
-        update_fields = []
-        if hasattr(booking, 'amount_paid'):
-            booking.amount_paid = amount
-            update_fields.append('amount_paid')
-        if hasattr(booking, 'balance_due'):
-            booking.balance_due = 0
-            update_fields.append('balance_due')
-        if update_fields:
-            booking.save(update_fields=update_fields)
-
-        # Keep the module-specific bill synchronized for existing BR/FR screens,
-        # while the actual customer payment remains the ONE combined order bill.
-        individual = bill_for_booking(booking)
-        if individual:
-            individual.amount_paid = individual.total_amount
-            individual.balance_due = 0
-            individual.status = 'FULLY_PAID'
-            individual.save(update_fields=['amount_paid', 'balance_due', 'status'])
-
-        log_activity(request.user, f'Paid for {service} booking order',
-                     f'{order.order_reference}: {description} · pending officer confirmation')
+        log_activity(request.user, f'Submitted {service} booking payment',
+                     f'{order.order_reference}: {description} · pending Billing Officer confirmation')
         record_transaction('BOOKING', make_reference('ORD'), request.user,
                            f'One-order {service} booking {order.order_reference}')
         return order

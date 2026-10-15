@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Payment Review</h1>
-        <p>Verify fully paid booking bills for your simulation session before reservations are confirmed.</p>
+        <p>Confirm guest-submitted payments. Fully paid bookings then move to the Reservation Officer for confirmation.</p>
     </div>
 </div>
 
@@ -14,7 +14,7 @@
     {% if rows %}
     <div class="table-wrap">
         <table class="table">
-            <thead><tr><th>Bill</th><th>Booking</th><th>Customer</th><th>Establishment</th><th>Paid</th><th></th></tr></thead>
+            <thead><tr><th>Bill</th><th>Booking</th><th>Customer</th><th>Establishment</th><th>Payment / balance</th><th>Billing action</th></tr></thead>
             <tbody>
                 {% for row in rows %}
                 <tr>
@@ -22,12 +22,18 @@
                     <td>{{ row.booking.booking_reference|default:row.booking.pk }}</td>
                     <td>{{ row.bill.customer.get_full_name|default:row.bill.customer.username }}</td>
                     <td>{{ row.establishment|default:'—' }}</td>
-                    <td>₱{{ row.bill.amount_paid|floatformat:2 }}</td>
+                    <td>{% if row.payment %}₱{{ row.payment.amount|floatformat:2 }} · {{ row.payment.get_method_display }}<br><small>Payment {{ row.payment.get_status_display|lower }}</small>{% else %}₱{{ row.bill.amount_paid|floatformat:2 }} paid / ₱{{ row.bill.balance_due|floatformat:2 }} balance<br><small>Awaiting bill verification</small>{% endif %}</td>
                     <td>
                         <form method="post">
                             {% csrf_token %}
+                            {% if row.payment %}
+                            <input type="hidden" name="payment_id" value="{{ row.payment.pk }}">
+                            <input type="hidden" name="action" value="confirm_payment">
+                            <button type="submit" class="btn btn-brand btn-sm">Confirm received payment</button>
+                            {% else %}
                             <input type="hidden" name="bill_id" value="{{ row.bill.pk }}">
                             <button type="submit" class="btn btn-brand btn-sm">Confirm Payment</button>
+                            {% endif %}
                         </form>
                     </td>
                 </tr>
@@ -36,7 +42,7 @@
         </table>
     </div>
     {% else %}
-    <p style="margin:0;color:var(--muted)">There are no fully paid bookings waiting for payment review in this session.</p>
+    <p style="margin:0;color:var(--muted)">There are no guest payments or fully paid bills waiting for review in this session.</p>
     {% endif %}
 </div>
 {% endblock %}

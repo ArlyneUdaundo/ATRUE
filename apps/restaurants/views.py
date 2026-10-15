@@ -90,24 +90,15 @@ def _full_restaurant_access(user):
 
 
 def _can_confirm_reservation(request):
-    if _full_restaurant_access(request.user):
-        return True
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:
-        return assignment.role in {
-            SimulationRoleAssignment.Role.RESTAURANT_MANAGER,
-            'RESTAURANT_OWNER',
-            SimulationRoleAssignment.Role.RESTAURANT_RESERVATION_OFFICER,
-        }
-    if 'RESTAURANT_MANAGER' in effective_role_keys(request.user):
+        return assignment.role == SimulationRoleAssignment.Role.RESTAURANT_RESERVATION_OFFICER
+    if 'RESTAURANT_RESERVATION_OFFICER' in effective_role_keys(request.user):
         return True
     return SimulationRoleAssignment.objects.filter(
         student=request.user,
         status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-        role__in=(
-            SimulationRoleAssignment.Role.RESTAURANT_MANAGER,
-            SimulationRoleAssignment.Role.RESTAURANT_RESERVATION_OFFICER,
-        ),
+        role=SimulationRoleAssignment.Role.RESTAURANT_RESERVATION_OFFICER,
         establishment__type='RESTAURANT',
     ).exists()
 
@@ -601,8 +592,8 @@ def book_restaurant(request, table_id):
             bill=bill,
         )
         reservation.refresh_from_db()
-        reservation.amount_paid = deposit
-        reservation.balance_due = 0
+        reservation.amount_paid = bill.amount_paid
+        reservation.balance_due = bill.balance_due
         reservation.save(update_fields=['amount_paid', 'balance_due'])
         messages.success(
             request,
@@ -712,14 +703,16 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending reservations.')
+        if can_process_checkin and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Restaurant Front Desk may only check guests in or out.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         remark = (request.POST.get('remark') or '').strip()
         if action in {'confirm', 'decline'} and not can_confirm:
             raise PermissionDenied(
-                'Only a Restaurant Manager or Reservation Officer can confirm or reject reservations.')
+                'Only the Restaurant Reservation Officer can confirm or reject reservations.')
         if action == 'confirm':
             try:
                 confirm_restaurant_reservation(
@@ -818,7 +811,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
         'can_confirm': can_confirm,

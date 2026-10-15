@@ -137,11 +137,9 @@ def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
 
         establishment = _establishment_for_restaurant(table.restaurant_id)
         from transactions.models import Bill
-        from atrue_core.services import billing_officer_session_for_booking, bill_for_booking
+        from atrue_core.services import bill_for_booking
         bill = bill_for_booking(reservation)
-        review_session = billing_officer_session_for_booking(reservation, officer)
-        if review_session is not None and (
-                bill is None or bill.status != Bill.Status.FULLY_PAID or not bill.verified_at):
+        if bill is None or bill.status != Bill.Status.FULLY_PAID or not bill.verified_at:
             raise RestaurantReservationError(
                 'A Billing Officer must verify the fully paid deposit before this reservation can be confirmed.')
         reservation.status = Reservation.Status.CONFIRMED
@@ -184,6 +182,8 @@ def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
                 officer, establishment=establishment,
                 booking_reference=reservation.booking_reference,
             )
+        from notifications.email_service import queue_booking_confirmation
+        queue_booking_confirmation(reservation)
         return reservation
 
 

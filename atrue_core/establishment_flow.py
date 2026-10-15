@@ -1749,17 +1749,16 @@ def handle_flow(request, adapter_key, pk):
                        description=f'{adapter.singular} booking {booking.booking_reference}',
                        bill=bill, booking=booking)
         booking.status = booking.Status.PENDING
-        booking.amount_paid = total
-        booking.balance_due = Decimal('0.00')
+        booking.amount_paid = bill.amount_paid if bill else Decimal('0.00')
+        booking.balance_due = bill.balance_due if bill else total
         booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
-        log_activity(request.user, f'Paid for {adapter.label.lower().rstrip("s")} booking',
-                     f'{booking.booking_reference} - paid, pending officer confirmation')
+        log_activity(request.user, f'Submitted payment for {adapter.label.lower().rstrip("s")} booking',
+                     f'{booking.booking_reference} - pending Billing Officer confirmation')
         record_transaction('BOOKING', booking.booking_reference, request.user,
-                           f'{adapter.singular} booking {booking.booking_reference} paid')
+                           f'{adapter.singular} booking {booking.booking_reference} payment submitted')
         messages.success(
             request,
-            f'Booking {booking.booking_reference} paid. Status: Pending. Waiting for '
-            f'{adapter.singular} Reservations Officer confirmation.',
+            f'Payment for booking {booking.booking_reference} submitted. It remains pending until Billing Officer confirmation.',
         )
 
     return redirect(adapter.booking_detail_url(booking))

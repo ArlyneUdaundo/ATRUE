@@ -35,7 +35,7 @@
             <div class="ag-panel">
                 <div class="ag-panel-head">
                     <span class="ag-ph-ico"><i class="fas fa-file-invoice-dollar"></i></span>
-                    <div><h3>Your villas</h3><p>All items below are charged together as ONE transaction.</p></div>
+                    <div><h3>Your villas</h3><p>Your request is sent for payment review after submission.</p></div>
                 </div>
                 {% for line in lines %}
                 <div class="group-line">
@@ -58,24 +58,8 @@
             <div class="ag-panel">
                 <div class="ag-panel-head">
                     <span class="ag-ph-ico"><i class="fas fa-shield-alt"></i></span>
-                    <div><h3>Payment</h3><p>One payment covers every villa in this order.</p></div>
+                    <div><h3>Payment status</h3><p>Pending. The Billing Officer records and verifies payment for each villa.</p></div>
                 </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Payment Method</label>
-                        <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-                    </div>
-                </div>
-                <label class="checkbox" style="margin-bottom:6px">
-                    <input type="checkbox" name="pay_later"> Pay later (order stays pending)
-                </label>
             </div>
         </form>
     </div>
@@ -93,11 +77,11 @@
                 <div class="ag-pb-row"><span>Add-on services</span><b>₱ {{ services_subtotal }}</b></div>
             </div>
             <div class="ag-pb-divider"></div>
-            <div class="ag-pb-row"><span>Transaction</span><b>1 order / 1 payment</b></div>
+            <div class="ag-pb-row"><span>Payment review</span><b>Billing Officer</b></div>
             <div class="ag-pb-total"><span>Total</span><b>₱ {{ grand_total }}</b></div>
         </div>
         <div class="ag-pb-actions">
-            <button type="submit" name="action" value="confirm" form="review-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay — 1 Transaction</button>
+            <button type="submit" name="action" value="confirm" form="review-form" class="ag-btn ag-btn-block"><i class="fas fa-check"></i> Submit Booking Request — 1 Transaction</button>
             <button type="submit" name="action" value="edit" form="review-form" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Change Villas</button>
             <a href="{% url 'resorts:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-times"></i> Cancel</a>
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>

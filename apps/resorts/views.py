@@ -1,8 +1,6 @@
 ﻿from datetime import date, timedelta
 from decimal import Decimal
 
-from transactions.cart import add_booking_to_cart
-from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
@@ -19,11 +17,8 @@ from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
     cancel_booking,
-    checkout,
     compute_resort_bill,
     confirm_booking,
-    create_bill,
-    decline_booking,
     log_activity,
     overlapping_booking_exists,
     record_payment,
@@ -36,7 +31,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from atrue_core.search_catalog import render_search_page
 
-from transactions.models import TravelOrder, TravelOrderItem
+from transactions.models import Bill, TravelOrder, TravelOrderItem
 
 from .models import AdditionalGuest, Reservation, Resort, ResortPhoto, RoomVilla, Service, UnitPhoto
 from .scope import resort_scope
@@ -252,6 +247,8 @@ def add_unit(request, resort_id):
                 return redirect('resorts:detail', resort.slug)
             if request.POST.get('return_to_manage'):
                 return redirect('resorts:manage')
+            if request.POST.get('return_to_units'):
+                return redirect('resorts:units')
             return redirect('resorts:update_resort', resort.id)
     return render(request, 'resorts/unit_form.html', {
         'resort': resort, 'unit': None, 'error': error,
@@ -327,8 +324,10 @@ def units(request):
         'status': status,
         'capacity': capacity,
         'resorts': Resort.objects.all(),
+        'selected_resort': Resort.objects.filter(pk=resort_id).first() if resort_id else None,
         'unit_type_choices': RoomVilla.UnitType.choices,
         'status_choices': RoomVilla.Status.choices,
+        'unit_status_choices': RoomVilla.Status.choices,
     })
 
 
@@ -435,7 +434,7 @@ def service_detail(request, service_id):
 @student_booking_required
 def resort_group_start(request, resort_id):
     """Direct multi-villa resort booking. Each selected villa becomes its own
-    reservation, all paid under ONE TravelOrder / ONE payment transaction."""
+    pending reservation with a bill for Billing Officer review."""
     resort = get_object_or_404(
         Resort.objects.filter(status=Resort.Status.ACTIVE).prefetch_related('units__photos', 'services'),
         pk=resort_id,
@@ -504,7 +503,7 @@ def resort_group_start(request, resort_id):
 @login_required
 @student_booking_required
 def resort_group_review(request):
-    """Review + payment for the multi-villa booking (ONE transaction)."""
+    """Confirm the multi-villa request and send its bills for staff review."""
     data = request.session.get('resort_group_booking') or {}
     if not data.get('villas'):
         messages.error(request, 'Start a resort booking first.')
@@ -545,8 +544,6 @@ def resort_group_review(request):
     if request.method == 'POST':
         if request.POST.get('action') == 'edit':
             return redirect('resorts:group_start', resort.id)
-        method = request.POST.get('payment_method') or 'GCASH'
-        pay_later = request.POST.get('pay_later') == 'on'
         try:
             with db_transaction.atomic():
                 reservations = []
@@ -574,24 +571,28 @@ def resort_group_review(request):
                     reservation.services.set(line['services'])
                     reservations.append(reservation)
                     amounts.append(line['amount'])
-                    bill_items.append({
+                    reservation_bill_items = [{
                         'label': f'{unit.get_unit_type_display()} {unit.unit_number}',
                         'description': f'{nights} night(s) at {resort.name}',
                         'quantity': nights, 'rate': unit.rate, 'amount': unit.rate * nights,
-                    })
+                    }]
                     for service in line['services']:
-                        bill_items.append({
+                        service_item = {
                             'label': service.name,
                             'description': f'{unit.get_unit_type_display()} {unit.unit_number} service',
                             'quantity': 1, 'rate': service.rate, 'amount': service.rate,
-                        })
+                        }
+                        reservation_bill_items.append(service_item)
+                    bill_items.extend(reservation_bill_items)
+                    reservation_bill = Bill(service='resort', customer=request.user)
+                    reservation_bill.link_to_booking(reservation)
+                    reservation_bill.calculate(reservation_bill_items)
                 total = sum((Decimal(str(i['amount'])) for i in bill_items), Decimal('0'))
                 order = TravelOrder.objects.create(
                     customer=request.user,
                     status=TravelOrder.Status.PENDING,
                     total_amount=total,
                     balance_due=total,
-                    payment_method=method,
                 )
                 ct = ContentType.objects.get_for_model(Reservation)
                 for reservation, amount, line in zip(reservations, amounts, lines):
@@ -606,11 +607,6 @@ def resort_group_review(request):
                     reservation.total_bill = amount
                     reservation.balance_due = amount
                     reservation.save(update_fields=['total_bill', 'balance_due'])
-                    from notifications.email_service import queue_booking_confirmation
-                    queue_booking_confirmation(reservation)
-                combined_bill = create_bill(service='bundle', customer=request.user, items=bill_items)
-                order.bill = combined_bill
-                order.save(update_fields=['bill'])
 
                 from simulation.completion import complete_guest_booking
                 from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -622,34 +618,12 @@ def resort_group_review(request):
                 )
                 request.session.pop('resort_group_booking', None)
                 request.session.modified = True
-                if pay_later:
-                    log_activity(request.user, 'Placed resort group booking',
-                                 f'{order.order_reference} · {len(reservations)} villa(s) · pending payment')
-                    record_transaction('BOOKING', order.order_reference, request.user,
-                                       f'Resort group booking {order.order_reference}')
-                    messages.success(request, f'Resort booking order {order.order_reference} created. {len(reservations)} villa(s) · payment pending.')
-                    return redirect('transactions:order_detail', order.id)
-                record_payment(
-                    customer=request.user, amount=total, method=method,
-                    service='bundle',
-                    description=f'ATrue order {order.order_reference}: {len(reservations)} resort villa(s)',
-                    bill=combined_bill,
-                )
-                order.status = TravelOrder.Status.CONFIRMED
-                order.amount_paid = total
-                order.balance_due = 0
-                order.save(update_fields=['status', 'amount_paid', 'balance_due'])
-                for reservation, amount in zip(reservations, amounts):
-                    reservation.status = Reservation.Status.PENDING
-                    reservation.amount_paid = amount
-                    reservation.balance_due = 0
-                    reservation.save(update_fields=['status', 'amount_paid', 'balance_due'])
-                log_activity(request.user, 'Paid for resort group booking',
-                             f'{order.order_reference} · {len(reservations)} villa(s) · pending officer confirmation')
+                log_activity(request.user, 'Placed resort group booking',
+                             f'{order.order_reference} · {len(reservations)} villa(s) · payment pending')
                 record_transaction('BOOKING', order.order_reference, request.user,
-                                   f'Resort group booking {order.order_reference} paid')
-                messages.success(request, f'Resort booking order {order.order_reference} paid. '
-                                          f'{len(reservations)} villa(s) · pending officer confirmation.')
+                                   f'Resort group booking {order.order_reference}')
+                messages.success(request, f'Resort booking order {order.order_reference} created. '
+                                          f'{len(reservations)} villa(s) · payment pending Billing Officer review.')
                 return redirect('transactions:order_detail', order.id)
         except ValueError as exc:
             messages.error(request, str(exc))
@@ -734,9 +708,13 @@ def book_resort(request, unit_id):
             ] if unit.additional_guest_charge else None,
         )
         total = sum(float(i['amount']) for i in items)
-        bill = create_bill(service='resort', customer=request.user, items=items, booking=reservation)
+        bill = Bill(service='resort', customer=request.user)
+        bill.link_to_booking(reservation)
+        bill.calculate(items)
         reservation.total_bill = total
-        reservation.save(update_fields=['total_bill'])
+        reservation.amount_paid = 0
+        reservation.balance_due = total
+        reservation.save(update_fields=['total_bill', 'amount_paid', 'balance_due'])
 
         from simulation.completion import complete_guest_booking
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -747,46 +725,11 @@ def book_resort(request, unit_id):
             booking_reference=reservation.booking_reference,
         )
 
-        if request.POST.get('book_and_add') == '1':
-            try:
-                add_establishment_booking(request, reservation)
-            except ValueError as exc:
-                messages.error(request, str(exc))
-                return redirect('resorts:booking_detail', reservation.id)
-            messages.success(request, f'Added to this establishment booking: {reservation.booking_reference}')
-            return redirect('transactions:establishment_booking')
-
-        if request.POST.get('add_to_cart') == '1':
-
-
-            add_booking_to_cart(request, reservation)
-
-
-            messages.success(request, f"Added to your Trip Cart: {reservation.booking_reference}")
-
-
-            return redirect('transactions:cart')
-
-
-
-        if request.POST.get('pay_later') == 'on':
-            messages.success(request, f"Reservation saved! Reference: {reservation.booking_reference} (pending payment)")
-            return redirect('resorts:booking_detail', reservation.id)
-        checkout(
-            user=request.user,
-            service='resort',
-            booking=reservation,
-            amount=total,
-            payment_method=request.POST.get('payment_method', 'GCASH'),
-            description=f"Resort booking {reservation.booking_reference}",
-            items=items,
-            bill=bill,
+        messages.success(
+            request,
+            f'Reservation request {reservation.booking_reference} submitted. '
+            'Payment is pending Billing Officer review.',
         )
-        reservation.refresh_from_db()
-        reservation.amount_paid = total
-        reservation.balance_due = 0
-        reservation.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Resort booked! Reference: {reservation.booking_reference}")
         return redirect('resorts:booking_detail', reservation.id)
     return render(request, 'resorts/book.html', {
         'unit': unit,
@@ -880,24 +823,30 @@ def booking_detail(request, booking_id):
     ):
         raise PermissionDenied('You are not assigned to this resort.')
 
-    from accounts.roles import can_process_booking_checkin
-    can_process_checkin = can_process_booking_checkin(request.user, 'resorts')
-
-    from accounts.roles import is_reservation_officer
-    reservation_officer = is_reservation_officer(request.user, 'resorts')
+    role_keys = effective_role_keys(request.user)
+    reservation_officer = 'RESORT_RESERVATION_OFFICER' in role_keys
+    front_desk = 'RESORT_FRONT_DESK' in role_keys
+    can_process_checkin = front_desk
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending reservations.')
-        if action in {'checkin', 'checkout'} and not can_process_checkin:
-            raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm fully paid reservations.')
+        if front_desk and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Front Desk may only check guests in or out.')
+        if not reservation_officer and not front_desk and action not in {'modify', 'cancel'}:
+            raise PermissionDenied('Only the assigned role may perform this reservation action.')
+        if action == 'confirm' and not reservation_officer:
+            raise PermissionDenied('Only the Resort Reservation Officer may confirm a reservation.')
+        if action in {'checkin', 'checkout'} and not front_desk:
+            raise PermissionDenied('Only Resort Front Desk may check guests in or out.')
         remark = (request.POST.get('remark') or '').strip()
         if action == 'confirm':
-            if not bill or bill.status != 'FULLY_PAID' or not bill.verified_at:
+            if (booking.status != Reservation.Status.PENDING or not bill
+                    or bill.status != 'FULLY_PAID' or not bill.verified_at):
                 messages.warning(
                     request,
-                    'The Billing Officer must verify full payment before this reservation can be confirmed.',
+                    'Only a pending reservation with full payment verified by the Billing Officer can be confirmed.',
                 )
                 return redirect('resorts:booking_detail', booking.id)
             booking.manager_remarks = remark or booking.manager_remarks
@@ -909,15 +858,10 @@ def booking_detail(request, booking_id):
             else:
                 log_activity(booking.customer, "Resort reservation confirmed",
                              f"{booking.booking_reference} for {booking.unit.resort.name}")
-        elif action == 'decline':
-            booking.manager_remarks = remark or booking.manager_remarks
-            booking.save(update_fields=['manager_remarks'])
-            decline_booking(booking, request.user)
-            booking.unit.status = 'AVAILABLE'
-            booking.unit.save(update_fields=['status'])
-            log_activity(booking.customer, "Resort reservation declined",
-                         f"{booking.booking_reference} - {remark or 'no remark'}")
         elif action == 'checkin':
+            if booking.status != Reservation.Status.CONFIRMED:
+                messages.error(request, 'Only confirmed reservations can be checked in.')
+                return redirect('resorts:booking_detail', booking.id)
             booking.status = Reservation.Status.CHECKED_IN
             booking.checked_in_at = timezone.now()
             booking.save(update_fields=['status', 'checked_in_at'])
@@ -925,6 +869,9 @@ def booking_detail(request, booking_id):
             booking.unit.save(update_fields=['status'])
             log_activity(request.user, "Guest checked in", str(booking.pk))
         elif action == 'checkout':
+            if booking.status != Reservation.Status.CHECKED_IN:
+                messages.error(request, 'Only checked-in guests can be checked out.')
+                return redirect('resorts:booking_detail', booking.id)
             booking.status = Reservation.Status.CHECKED_OUT
             booking.checked_out_at = timezone.now()
             booking.save(update_fields=['status', 'checked_out_at'])
@@ -992,18 +939,6 @@ def booking_detail(request, booking_id):
             booking.unit.save(update_fields=['status'])
             log_activity(booking.customer, "Resort reservation cancelled",
                          f"{booking.booking_reference} for {booking.unit.resort.name}")
-        elif action == 'pay':
-            record_payment(
-                customer=request.user if request.user == booking.customer else booking.customer,
-                amount=request.POST.get('amount') or 0,
-                method=request.POST.get('payment_method', 'GCASH'),
-                service='resort',
-                bill=bill,
-            )
-            booking.refresh_from_db()
-            booking.amount_paid = bill.amount_paid if bill else 0
-            booking.balance_due = bill.balance_due if bill else 0
-            booking.save(update_fields=['amount_paid', 'balance_due'])
         messages.success(request, "Action completed.")
         return redirect('resorts:booking_detail', booking.id)
 
@@ -1013,7 +948,8 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'is_front_desk': front_desk,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not front_desk,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
     })

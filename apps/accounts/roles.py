@@ -358,12 +358,10 @@ def is_airline_booking_restricted(user):
 #: ``can_manage_booking`` alone cannot tell them apart - these helpers do.
 LANDMARK_RESERVATION_ROLE_KEYS = frozenset({
     'LANDMARK_RESERVATION_OFFICER',
-    'LANDMARK_MANAGER',
 })
 
 LANDMARK_CHECKIN_ROLE_KEYS = frozenset({
     'LANDMARK_FRONT_DESK',
-    'LANDMARK_MANAGER',
 })
 
 
@@ -371,8 +369,6 @@ def can_confirm_landmark_booking(user):
     """True when ``user`` may confirm/decline a landmark ticket request."""
     if not user or not user.is_authenticated:
         return False
-    if is_platform_user(user):
-        return True
     return bool(effective_role_keys(user) & LANDMARK_RESERVATION_ROLE_KEYS)
 
 
@@ -380,8 +376,6 @@ def can_checkin_landmark_booking(user):
     """True when ``user`` may check a confirmed landmark ticket in."""
     if not user or not user.is_authenticated:
         return False
-    if is_platform_user(user):
-        return True
     return bool(effective_role_keys(user) & LANDMARK_CHECKIN_ROLE_KEYS)
 
 
@@ -533,14 +527,21 @@ def is_reservation_officer(user, module):
 
 
 def can_process_booking_checkin(user, module):
-    """Reservation-only roles can manage requests but cannot process arrival/departure."""
+    """Only the assigned front-desk role may process arrival/departure."""
     if not user or not user.is_authenticated:
         return False
-    if is_platform_user(user):
-        return True
-    if is_reservation_officer(user, module):
-        return False
-    return can_manage_booking(user, module)
+    front_desk_roles = {
+        'hotels': {'HOTEL_FRONT_DESK', 'FRONT_DESK', 'RECEPTIONIST'},
+        'resorts': {'RESORT_FRONT_DESK'},
+        'restaurants': {'RESTAURANT_FRONT_DESK'},
+        'staycations': {'STAYCATION_FRONT_DESK'},
+        'transportation': {'TRANSPORT_FRONT_DESK'},
+        'airlines': {'AIRLINE_FRONT_DESK'},
+        'activities': {'ACTIVITY_FRONT_DESK_OFFICER', 'ACTIVITY_OPERATOR'},
+        'landmarks': {'LANDMARK_FRONT_DESK'},
+        'tour_package': {'TOUR_FRONT_DESK', 'TOUR_PACKAGE_FRONT_DESK_OFFICER', 'TOUR_PACKAGE_OPERATOR'},
+    }
+    return bool(set(effective_role_keys(user)) & front_desk_roles.get(module, set()))
 
 
 def is_platform_user(user):

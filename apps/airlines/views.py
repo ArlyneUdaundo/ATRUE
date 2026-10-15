@@ -3363,8 +3363,7 @@ def booking_detail(request, booking_id):
         and bool(role_keys & AIRLINE_TICKETING_ROLE_KEYS)
         and not can_access_module(request.user, 'airlines')
     )
-    # Completing a checked-in booking is a Front Desk task. Full-access roles
-    # (including instructors) and the retired ticketing role must not receive it.
+    # Passenger check-in and travel completion belong only to Airline Front Desk.
     can_mark_travelled = (
         can_manage
         and 'AIRLINE_FRONT_DESK' in role_keys
@@ -3374,14 +3373,18 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
+        if can_mark_travelled and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Airline Front Desk may only process passenger travel operations.')
         if reservation_agent_restricted and (
-            action not in {'confirm', 'decline'}
+            action != 'confirm'
             or booking.passenger_id == request.user.id
         ):
             raise PermissionDenied(
-                'Airline Reservation Agents may only confirm or decline another passenger’s booking for their assigned airline.')
-        if action == 'checkout' and not can_mark_travelled:
-            raise PermissionDenied('Only Airline Front Desk staff may mark a booking as travelled.')
+                'Airline Reservation Agents may only confirm payment-verified bookings for their assigned airline.')
+        if action in {'checkin', 'checkout'} and not can_mark_travelled:
+            raise PermissionDenied('Only Airline Front Desk staff may check passengers in or complete travel.')
+        if action == 'confirm' and not reservation_agent_restricted:
+            raise PermissionDenied('Only the Airline Reservation Officer may confirm a payment-verified booking.')
         if ticketing_restricted:
             allowed_actions = {'modify', 'cancel'}
             if can_mark_travelled:
@@ -3417,12 +3420,16 @@ def booking_detail(request, booking_id):
                          f"{booking.flight.flight_number}"
                          + (f" | Remarks: {remark}" if remark else ""))
         elif action == 'checkin':
+            if booking.status != Booking.Status.CONFIRMED:
+                raise PermissionDenied('Only confirmed bookings may be checked in.')
             booking.status = Booking.Status.CHECKED_IN
             booking.checked_in_at = timezone.now()
             booking.save(update_fields=['status', 'checked_in_at'])
             log_activity(request.user, "Passenger checked in", booking.booking_reference)
             log_activity(booking.passenger, f"Check-in {booking.booking_reference}", booking.flight.flight_number)
         elif action == 'checkout':
+            if booking.status != Booking.Status.CHECKED_IN:
+                raise PermissionDenied('Only checked-in passengers may be marked as travelled.')
             booking.status = Booking.Status.CHECKED_OUT
             booking.checked_out_at = timezone.now()
             booking.save(update_fields=['status', 'checked_out_at'])
@@ -3524,6 +3531,7 @@ def booking_detail(request, booking_id):
         'ticketing_restricted': ticketing_restricted,
         'reservation_agent_restricted': reservation_agent_restricted,
         'can_mark_travelled': can_mark_travelled,
+        'is_reservation_officer': reservation_agent_restricted,
         'can_print_ticket': can_print_ticket,
         'flight_capacity': booking.flight.capacity,
         'itinerary': itinerary,

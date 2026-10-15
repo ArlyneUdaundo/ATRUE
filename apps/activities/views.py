@@ -303,10 +303,10 @@ def book_activity(request, activity_id):
             bill=bill,
         )
         booking.refresh_from_db()
-        booking.amount_paid = total
-        booking.balance_due = 0
+        booking.amount_paid = bill.amount_paid
+        booking.balance_due = bill.balance_due
         booking.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Activity booked! Reference: {booking.booking_reference}")
+        messages.success(request, f"Activity request submitted: {booking.booking_reference}. Payment is pending Billing Officer confirmation.")
         return redirect('activities:booking_detail', booking.id)
     return render(request, 'activities/book.html', {
         'activity': activity, 'default_date': default_date, 'remaining': remaining,
@@ -361,7 +361,7 @@ def booking_detail(request, booking_id):
         action = request.POST.get('action')
         allowed_actions = set()
         if can_reserve:
-            allowed_actions.update({'confirm', 'decline'} if reservation_officer else {'confirm', 'decline', 'modify', 'cancel'})
+            allowed_actions.update({'confirm'} if reservation_officer else {'confirm', 'decline', 'modify', 'cancel'})
         if can_frontdesk:
             allowed_actions.add('attend')
         if can_operator:
@@ -369,6 +369,8 @@ def booking_detail(request, booking_id):
         if action not in allowed_actions:
             raise PermissionDenied('This booking action is not allowed for your activity role.')
         if action == 'confirm':
+            if not reservation_officer:
+                raise PermissionDenied('Only the Activity Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
@@ -422,7 +424,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_frontdesk,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
     })
 

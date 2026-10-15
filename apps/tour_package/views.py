@@ -386,10 +386,10 @@ def book_package(request, package_id):
             bill=bill,
         )
         booking.refresh_from_db()
-        booking.amount_paid = total
-        booking.balance_due = 0
+        booking.amount_paid = bill.amount_paid
+        booking.balance_due = bill.balance_due
         booking.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Package booked! Reference: {booking.booking_reference}")
+        messages.success(request, f"Package request submitted: {booking.booking_reference}. Payment is pending Billing Officer confirmation.")
         return redirect('tour_package:booking_detail', booking.id)
     return render(request, 'tour_package/book.html', {'package': package, 'today': date.today()})
 
@@ -436,8 +436,8 @@ def booking_detail(request, booking_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         allowed_actions = (
-            {'confirm', 'decline', 'attend', 'complete', 'cancel', 'modify', 'pay'} if is_platform else
-            {'confirm', 'decline'} if is_reservation else
+            {'attend', 'complete', 'cancel', 'modify', 'pay'} if is_platform else
+            {'confirm'} if is_reservation else
             {'attend', 'complete'} if is_frontdesk else set()
         )
         if action not in allowed_actions:

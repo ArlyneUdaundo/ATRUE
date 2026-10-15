@@ -6,6 +6,7 @@
 <div class="page-head">
     <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Table reservation details, billing, remarks and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'restaurants:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -69,7 +70,7 @@
             Total: <b>₱ {{ bill.total_amount }}</b> ·
             Paid: ₱ {{ bill.amount_paid }} ·
             Balance: <b>₱ {{ bill.balance_due }}</b>
-            <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}">{{ bill.get_status_display }}</span>
+            <span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
         </div>
         {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
 
@@ -163,7 +164,7 @@
 {% endif %}
 
 
-{% if is_reservation_officer and booking.status == 'PENDING' and can_confirm %}
+{% if is_reservation_officer and booking.status == 'PENDING' and can_confirm and bill and bill.status == 'FULLY_PAID' and bill.verified_at %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-clipboard-check"></i> Review Reservation</h3>
     <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}

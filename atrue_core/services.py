@@ -69,12 +69,13 @@ def bill_for_booking(booking):
 
 
 def record_payment(*, customer, amount, method, service="", description="",
-                   bill=None, require_paid=True, booking=None):
+                   bill=None, require_paid=False, booking=None):
     """Create a Payment for a booking and update the linked bill (BR-089).
 
     When the payment is completed a receipt is issued automatically (BR-092).
     Returns the payment instance.
     """
+    from decimal import Decimal
     from transactions.models import Bill, Payment, Receipt
     from atrue_core.payment_methods import validate_payment_method
 
@@ -84,7 +85,16 @@ def record_payment(*, customer, amount, method, service="", description="",
         bill = bill_for_booking(booking)
     if bill is None:
         bill = Bill.objects.filter(customer=customer, service=service).order_by('-created_at').first()
-    if bill:
+    amount = Decimal(amount)
+    if amount <= 0:
+        raise ValueError('Payment amount must be greater than zero.')
+    if bill and not require_paid:
+        from django.db.models import Sum
+        pending_amount = bill.payments.filter(status=Payment.Status.PENDING).aggregate(
+            total=Sum('amount'))['total'] or Decimal(0)
+        if amount + pending_amount > Decimal(bill.balance_due):
+            raise ValueError('Pending payments cannot exceed the remaining bill balance.')
+    if bill and require_paid:
         bill.add_payment(amount)
 
     payment = Payment.objects.create(
@@ -99,7 +109,8 @@ def record_payment(*, customer, amount, method, service="", description="",
         payment.link_to_booking(bill.booking)
         payment.save(update_fields=['content_type', 'object_id'])
 
-    log_activity(customer, f"Payment recorded for {service or 'booking'}",
+    log_activity(customer,
+                 f"Payment {'confirmed' if require_paid else 'submitted for confirmation'} for {service or 'booking'}",
                  f"Payment {payment.payment_reference} - {amount} via {method}")
     record_transaction(TransactionRecord.RecordType.PAYMENT, make_reference("PAY"), customer,
                        f"{description or f'Payment of {amount} via {method}'}")
@@ -155,10 +166,6 @@ def create_bill(*, service, customer, items, booking=None):
     if booking is not None:
         bill.link_to_booking(booking)
     bill.calculate(items)
-    if booking is not None:
-        # Queue alongside the persisted booking and dispatch after commit.
-        from notifications.email_service import queue_booking_confirmation
-        queue_booking_confirmation(booking)
     return bill
 
 
@@ -343,25 +350,11 @@ def confirm_booking(booking, user, notify=True, session=None, establishment=None
             return booking
 
         bill = bill_for_booking(booking)
-        review_session = billing_officer_session_for_booking(
-            booking, user, session=session)
-        if review_session is not None and (
-                bill is None or bill.status != 'FULLY_PAID' or not bill.verified_at):
+        if bill is None or bill.status != 'FULLY_PAID' or not bill.verified_at:
             booking.payment_review_pending = True
             booking.payment_review_waiting_payment = bool(
                 bill is None or bill.status != 'FULLY_PAID')
             return booking
-        if bill is not None:
-            total = Decimal(bill.total_amount or 0)
-            paid = Decimal(bill.amount_paid or 0)
-            if paid < total:
-                booking.status = 'RETURNED'
-                booking.declined_reason = 'Payment incomplete. Amount paid less than total.'
-                booking.declined_at = timezone.now()
-                booking.save(update_fields=['status', 'declined_reason', 'declined_at'])
-                record_transaction(TransactionRecord.RecordType.BOOKING, make_reference("BOOK"), user,
-                                   f"Booking returned (payment incomplete) - {getattr(booking, 'pk', '')}")
-                return booking
 
         booking.status = 'CONFIRMED'
         booking.confirmed_by = user

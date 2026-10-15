@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Bill {{ bill.bill_reference }}</h1><p>{{ bill.service|title }} billing and payment records.</p></div>
-    <span class="badge {% if bill.status == 'FULLY_PAID' %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:14px">{{ bill.get_status_display }}</span>
+    <span class="badge {% if bill.verified_at %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:14px">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
 </div>
 
 <div class="grid-2">
@@ -87,8 +87,10 @@
 
 <div class="grid-2" style="margin-top:18px">
     <div class="card card-pad">
-        <h3><i class="fas fa-credit-card"></i> Record Payment</h3>
-        {% if bill.balance_due > 0 %}
+        <h3><i class="fas fa-credit-card"></i> Submit Payment</h3>
+        {% if has_pending_payment %}
+        <p class="meta">Your payment submission is pending Billing Officer confirmation. It will not count as paid until confirmed.</p>
+        {% elif bill.balance_due > 0 %}
         <form method="post" data-submit-loading>
             {% csrf_token %}
             <input type="hidden" name="action" value="pay">
@@ -105,7 +107,7 @@
                     <option value="QR_PH">QR Ph</option></select>
                 </div>
             </div>
-            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-cash-register"></i> Pay &amp; Issue Receipt</button>
+            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-paper-plane"></i> Submit Payment for Confirmation</button>
         </form>
         {% else %}
         <div class="empty"><h3>Bill is fully settled</h3><p>No balance due.</p></div>

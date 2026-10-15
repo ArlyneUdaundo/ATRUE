@@ -1075,10 +1075,11 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                 record_payment(customer=user, amount=total, method=method, service='hotel',
                                description=f'Hotel group booking {booking.booking_reference}', bill=bill, booking=booking)
                 booking.status = Booking.Status.PENDING
-                booking.amount_paid = total
-                booking.save(update_fields=['status', 'amount_paid'])
-                log_activity(user, 'Paid for hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending officer confirmation')
-                record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference} paid')
+                booking.amount_paid = bill.amount_paid
+                booking.balance_due = bill.balance_due
+                booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+                log_activity(user, 'Submitted payment for hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending Billing Officer confirmation')
+                record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference} payment submitted')
             return booking, None
     except ValueError as exc:
         return None, str(exc)
@@ -1446,11 +1447,15 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if reservation_officer and action not in {'confirm', 'decline'}:
-            raise PermissionDenied('Reservation Officers may only review pending reservations.')
+        if can_process_checkin and action not in {'checkin', 'checkout'}:
+            raise PermissionDenied('Hotel Front Desk may only check guests in or out.')
+        if reservation_officer and action != 'confirm':
+            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
+            if not reservation_officer:
+                raise PermissionDenied('Only the Hotel Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
@@ -1531,7 +1536,7 @@ def booking_detail(request, booking_id):
         'payments': payments,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
-        'can_manage_lifecycle': can_manage and not reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
     })
