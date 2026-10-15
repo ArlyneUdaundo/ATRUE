@@ -29,7 +29,7 @@
 </div>
 
 
-<form method="post" action="{% url 'hotels:group_select_rooms' hotel.id %}" id="bookingForm" novalidate>
+<form method="post" action="{% url 'hotels:group_select_rooms' hotel.id %}" id="bookingForm" data-service-count="{{ services|length }}" data-amenity-count="{{ amenities|length }}" novalidate>
 {% csrf_token %}
 <input type="hidden" name="check_in" id="bkCheckIn" value="{{ check_in|date:'Y-m-d' }}">
 <input type="hidden" name="check_out" id="bkCheckOut" value="{{ check_out|date:'Y-m-d' }}">
@@ -332,6 +332,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/rooms.js' %}?v=20261015-student-select-responsive"></script>
+<script src="{% static 'js/rooms.js' %}?v=20261015-lazy-room-data"></script>
 {% endblock %}
 

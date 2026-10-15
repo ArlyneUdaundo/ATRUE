@@ -19,11 +19,30 @@
 
     var RATE = readJson('roomRates', {});
     var META = readJson('roomsMeta', {});
-    var SERVICES = readJson('servicesData', {});
-    var AMENITIES = readJson('amenitiesData', {});
     var PRESELECTED = readJson('preselected', []);
     var PRIMARY_GUEST = readJson('primaryGuest', {});
-    var DETAILS = readJson('roomDetails', {});
+    // Large optional datasets are parsed only when the guest opens the
+    // corresponding extras or room details. Parsing every room photo/details
+    // payload during startup made the selection page unresponsive on slower
+    // devices even when the guest only wanted to choose a room.
+    var SERVICES = null;
+    var AMENITIES = null;
+    var DETAILS = null;
+
+    function servicesData() {
+        if (SERVICES === null) SERVICES = readJson('servicesData', {});
+        return SERVICES;
+    }
+
+    function amenitiesData() {
+        if (AMENITIES === null) AMENITIES = readJson('amenitiesData', {});
+        return AMENITIES;
+    }
+
+    function roomDetailsData() {
+        if (DETAILS === null) DETAILS = readJson('roomDetails', {});
+        return DETAILS;
+    }
 
     var form = document.getElementById('bookingForm');
     if (!form) return;
@@ -218,11 +237,15 @@
         if (window.requestIdleCallback) {
             selectionComputeIdle = window.requestIdleCallback(function () {
                 selectionComputeIdle = null;
+                // Keep the guest form responsive; refresh totals when it
+                // closes if this callback fires while the modal is open.
+                if (guestModalOpen()) return;
                 computeAll();
             }, { timeout: 1000 });
         } else {
             selectionComputeTimer = window.setTimeout(function () {
                 selectionComputeTimer = null;
+                if (guestModalOpen()) return;
                 computeAll();
             }, 0);
         }
@@ -365,6 +388,7 @@
         syncFromDom();
         guestModal.classList.remove('open');
         if (!modal || !modal.classList.contains('open')) document.body.style.overflow = '';
+        computeAll();
         // preventScroll: returning focus must not move the page.
         if (guestOpener && guestOpener.focus) {
             try { guestOpener.focus({ preventScroll: true }); }
@@ -387,8 +411,8 @@
                 '<div data-extras-options><small class="meta">Open to load options.</small></div></details>' +
                 '<div data-room-selected="' + kind + '">' + selectedInputs + '</div>';
         }
-        var svcBlock = extrasBlock('services', 'Optional services for Room ' + (i + 1), Object.keys(SERVICES).length);
-        var amnBlock = extrasBlock('amenities', 'Amenities for Room ' + (i + 1), Object.keys(AMENITIES).length);
+        var svcBlock = extrasBlock('services', 'Optional services for Room ' + (i + 1), Number(form.getAttribute('data-service-count') || 0));
+        var amnBlock = extrasBlock('amenities', 'Amenities for Room ' + (i + 1), Number(form.getAttribute('data-amenity-count') || 0));
         return '' +
         '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
             '<div class="bk-guest-head">' +
@@ -425,7 +449,7 @@
                 var kind = details.getAttribute('data-room-extras');
                 var target = details.querySelector('[data-extras-options]');
                 if (!selected || !target) return;
-                var data = kind === 'services' ? SERVICES : AMENITIES;
+                var data = kind === 'services' ? servicesData() : amenitiesData();
                 var name = kind === 'services' ? 'services' : 'amenities';
                 target.innerHTML = Object.keys(data).map(function (id) {
                     var item = data[id];
@@ -512,12 +536,13 @@
             var extra = Math.max(0, guests - s.capacity);
             var roomTotal = s.rate * nights;
             var extraTotal = s.additional_charge * extra * nights;
+            var serviceData = s.services.length ? servicesData() : {};
             var svcTotal = s.services.reduce(function (a, id) {
-                var svc = SERVICES[String(id)];
+                var svc = serviceData[String(id)];
                 return a + (svc ? Number(svc.rate) : 0);
             }, 0);
             var svcNames = s.services.map(function (id) {
-                var svc = SERVICES[String(id)];
+                var svc = serviceData[String(id)];
                 return svc ? svc.name : '';
             }).filter(Boolean);
             return {
@@ -741,7 +766,7 @@
     }
 
     function openDetails(roomId) {
-        var d = DETAILS[String(roomId)];
+        var d = roomDetailsData()[String(roomId)];
         if (!d || !modal) return;
         modalTitle.textContent = d.name + ' · Room ' + d.room_number;
         modalSub.textContent = d.hotel_name + ' · ' + d.hotel_location + ' · ' + d.status;
