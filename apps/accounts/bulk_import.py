@@ -179,7 +179,7 @@ def validate_upload(upload, creator):
             reserved_usernames.add(username.casefold())
         if password_generated:
             password_alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-            generated_password = ''.join(secrets.choice(password_alphabet) for _ in range(32))
+            generated_password = ''.join(secrets.choice(password_alphabet) for _ in range(8))
             data['password1'] = generated_password
             data['password2'] = generated_password
         username = data['username'].casefold()

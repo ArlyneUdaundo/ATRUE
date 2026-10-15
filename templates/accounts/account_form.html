@@ -70,7 +70,7 @@
     {% if is_create %}
     <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-label="Bulk account import">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
-        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and unique temporary passwords are generated automatically. After creation, download the credentials to distribute them; passwords are shown only in this result.</p></div>
+        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and unique 8-character temporary passwords are generated automatically. After creation, download the credentials to distribute them; passwords are shown only in this result.</p></div>
             <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
         </div>
         <input type="file" id="accountImportFile" accept=".xlsx,.csv" hidden>
