@@ -430,10 +430,14 @@ def booking_detail(request, booking_id):
     payments = bill.payments.all() if bill else Payment.objects.none()
     can_manage = bool(can_manage_booking(request.user, 'landmarks'))
     can_confirm = bool(can_confirm_landmark_booking(request.user))
+    from accounts.roles import is_reservation_officer
+    reservation_officer = is_reservation_officer(request.user, 'landmarks')
     can_checkin = bool(can_checkin_landmark_booking(request.user))
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
+        if reservation_officer and action not in {'confirm', 'decline'}:
+            raise PermissionDenied('Reservation Officers may only review pending tickets.')
         if action == 'confirm':
             if not can_confirm:
                 messages.error(request, "Only the landmark reservation officer can confirm this ticket.")
@@ -481,6 +485,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'is_reservation_officer': reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_confirm': can_confirm,
         'can_checkin': can_checkin,

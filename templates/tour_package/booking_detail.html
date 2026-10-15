@@ -79,7 +79,7 @@
     </div>
 </div>
 
-{% if can_manage or can_review or can_frontdesk %}
+{% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-tasks"></i> Lifecycle</h3>
     <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">
@@ -148,6 +148,17 @@
         <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Record Payment</button>
     </form>
     {% endif %}
+</div>
+{% endif %}
+
+
+{% if is_reservation_officer and can_review and booking.status == 'PENDING' %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-clipboard-check"></i> Review Reservation</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}
+        <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
+        <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
+    </form>
 </div>
 {% endif %}
 

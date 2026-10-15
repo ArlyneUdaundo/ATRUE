@@ -441,8 +441,13 @@ def booking_detail(request, booking_id):
     from accounts.roles import can_process_booking_checkin
     can_process_checkin = can_process_booking_checkin(request.user, 'transportation')
 
+    from accounts.roles import is_reservation_officer
+    reservation_officer = is_reservation_officer(request.user, 'transportation')
+
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
+        if reservation_officer and action not in {'confirm', 'decline'}:
+            raise PermissionDenied('Reservation Officers may only review pending reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
@@ -495,6 +500,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'is_reservation_officer': reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
     })

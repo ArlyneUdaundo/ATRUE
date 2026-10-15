@@ -354,12 +354,14 @@ def booking_detail(request, booking_id):
     bill = bill_for_booking(booking)
     payments = bill.payments.all() if bill else Payment.objects.none()
     can_manage = can_reserve or can_frontdesk
+    from accounts.roles import is_reservation_officer
+    reservation_officer = is_reservation_officer(request.user, 'activities')
 
     if request.method == 'POST':
         action = request.POST.get('action')
         allowed_actions = set()
         if can_reserve:
-            allowed_actions.update({'confirm', 'decline', 'modify', 'cancel'})
+            allowed_actions.update({'confirm', 'decline'} if reservation_officer else {'confirm', 'decline', 'modify', 'cancel'})
         if can_frontdesk:
             allowed_actions.add('attend')
         if can_operator:
@@ -419,6 +421,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'is_reservation_officer': reservation_officer,
+        'can_manage_lifecycle': can_manage and not reservation_officer,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
     })
 

@@ -498,6 +498,7 @@ def can_manage_booking(user, module):
 
 
 _RESERVATION_ONLY_ROLE_KEYS = {
+    'airlines': {'AIRLINE_RESERVATION_AGENT', 'AIRLINE_RESERVATION_OFFICER'},
     'hotels': {'HOTEL_RESERVATION_OFFICER'},
     'resorts': {'RESORT_RESERVATION_OFFICER'},
     'restaurants': {'RESTAURANT_RESERVATION_OFFICER'},
@@ -509,14 +510,35 @@ _RESERVATION_ONLY_ROLE_KEYS = {
 }
 
 
+def is_reservation_officer(user, module):
+    """True for a reservation-only role that must not access lifecycle controls."""
+    if not user or not user.is_authenticated or is_platform_user(user):
+        return False
+    keys = effective_role_keys(user)
+    reservation_roles = _RESERVATION_ONLY_ROLE_KEYS.get(module, set())
+    if not keys & reservation_roles:
+        return False
+    lifecycle_roles = {
+        'airlines': {'AIRLINE_MANAGER', 'AIRLINE_FRONT_DESK', 'AIRLINE_TICKETING_OFFICER'},
+        'hotels': {'HOTEL_MANAGER', 'HOTEL_OWNER', 'HOTEL_FRONT_DESK', 'RECEPTIONIST', 'FRONT_DESK'},
+        'resorts': {'RESORT_MANAGER', 'RESORT_OWNER', 'RESORT_FRONT_DESK'},
+        'restaurants': {'RESTAURANT_MANAGER', 'RESTAURANT_OWNER', 'RESTAURANT_FRONT_DESK'},
+        'staycations': {'STAYCATION_MANAGER', 'STAYCATION_OWNER', 'STAYCATION_FRONT_DESK'},
+        'transportation': {'TRANSPORT_MANAGER', 'TRANSPORTATION_OWNER', 'TRANSPORT_FRONT_DESK'},
+        'activities': {'ACTIVITY_MANAGER', 'ACTIVITY_OWNER', 'ACTIVITY_FRONT_DESK_OFFICER', 'ACTIVITY_OPERATOR'},
+        'landmarks': {'LANDMARK_MANAGER', 'LANDMARK_OWNER', 'LANDMARK_FRONT_DESK'},
+        'tour_package': {'TOUR_PACKAGE_MANAGER', 'TOUR_PACKAGE_OWNER', 'TOUR_FRONT_DESK', 'TOUR_PACKAGE_FRONT_DESK_OFFICER', 'TOUR_PACKAGE_OPERATOR'},
+    }.get(module, set())
+    return not bool(keys & lifecycle_roles)
+
+
 def can_process_booking_checkin(user, module):
     """Reservation-only roles can manage requests but cannot process arrival/departure."""
     if not user or not user.is_authenticated:
         return False
     if is_platform_user(user):
         return True
-    keys = effective_role_keys(user)
-    if keys & _RESERVATION_ONLY_ROLE_KEYS.get(module, set()):
+    if is_reservation_officer(user, module):
         return False
     return can_manage_booking(user, module)
 

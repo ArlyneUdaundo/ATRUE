@@ -430,6 +430,8 @@ def booking_detail(request, booking_id):
     bill = bill_for_booking(booking)
     payments = bill.payments.all() if bill else Bill.objects.none()
     can_manage = is_platform
+    from accounts.roles import is_reservation_officer
+    reservation_officer = is_reservation_officer(request.user, 'tour_package')
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -492,6 +494,8 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'is_reservation_officer': reservation_officer,
+        'can_manage_lifecycle': (can_manage or is_reservation or is_frontdesk) and not reservation_officer,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_review': is_reservation,
         'can_frontdesk': is_frontdesk,
