@@ -44,6 +44,29 @@
     transition: all .2s;
 }
 .ag-field select:focus, .ag-field input:focus { border-color: var(--indigo); box-shadow: 0 0 0 4px rgba(37,99,235,.12); background: #fff; }
+.flight-passenger-picker { position: relative; min-width: 0; }
+.flight-passenger-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--slate-500); }
+.flight-passenger-label i { color: var(--indigo); font-size: 12px; }
+.flight-passenger-trigger { display: flex; width: 100%; min-height: 72px; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; border: 1.5px solid var(--slate-200); border-radius: 12px; background: #fff; color: var(--slate-900); cursor: pointer; text-align: left; }
+.flight-passenger-trigger:hover,.flight-passenger-trigger[aria-expanded="true"] { border-color: #315bff; box-shadow: 0 0 0 2px rgba(49,91,255,.08); }
+.flight-passenger-trigger > i { color: #94a3b8; font-size: 12px; }
+.flight-passenger-summary { display: grid; width: 100%; grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
+.flight-passenger-summary strong { overflow: hidden; color: #182033; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.flight-passenger-popover { z-index: 10020; padding: 14px 18px 17px; overflow: auto; border: 1px solid #dce3ee; border-radius: 12px; background: #fff; box-shadow: 0 14px 36px rgba(15,23,42,.2); }
+.flight-passenger-popover[hidden] { display: none !important; }
+.flight-passenger-counts { padding: 0 4px; }
+.flight-passenger-row { min-height: 60px; display: grid; grid-template-columns: 36px 40px minmax(0,1fr) 36px; align-items: center; gap: 8px; border-bottom: 1px solid #d8dee8; }
+.flight-passenger-row > span:nth-child(2) { color: #528df4; font-size: 23px; text-align: center; }
+.flight-passenger-type { display: flex; align-items: baseline; gap: 7px; color: #8b93a1; }
+.flight-passenger-type strong { color: #737d8d; font-size: 14px; font-weight: 500; }
+.flight-passenger-type small { font-size: 13px; }
+.flight-passenger-row > button { border: 0; background: transparent; color: #528df4; font-size: 21px; cursor: pointer; }
+.flight-passenger-row > button:disabled { color: #d5d9df; cursor: default; }
+.flight-fare-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; padding-top: 18px; }
+.flight-fare-options button { min-height: 48px; border: 1px solid #315bff; border-radius: 7px; background: #fff; color: #528df4; font: inherit; font-size: 14px; cursor: pointer; box-shadow: 0 2px 5px rgba(15,23,42,.12); }
+.flight-fare-options button:hover,.flight-fare-options button.is-selected { background: #528df4; color: #fff; }
+.flight-fare-options .flight-fare-any { grid-column: 1 / -1; min-height: 38px; border-color: #d8dee8; color: #64748b; font-size: 13px; box-shadow: none; }
+.flight-fare-options .flight-fare-any:hover,.flight-fare-options .flight-fare-any.is-selected { border-color: #315bff; background: #eff6ff; color: #315bff; }
 .ag-search-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     height: 44px; padding: 0 22px;

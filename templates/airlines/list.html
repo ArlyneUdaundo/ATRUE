@@ -54,23 +54,49 @@
             <input type="date" name="return_date" id="return-date" value="{{ return_date }}" min="{{ departure_date|default:search_today }}" data-flight-return {% if trip_type != 'ROUND_TRIP' %}disabled{% else %}required{% endif %}>
         </div>
         <div class="ag-field">
-            <label><i class="fas fa-user-group"></i> Passengers</label>
-            <select name="passengers" aria-label="Passengers">
-                {% for count in "123456789" %}
-                <option value="{{ forloop.counter }}" {% if passengers == forloop.counter %}selected{% endif %}>
-                    {{ forloop.counter }} passenger{% if forloop.counter != 1 %}s{% endif %}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="ag-field">
-            <label><i class="fas fa-chair"></i> Fare Class</label>
-            <select name="fare_class">
-                <option value="" {% if not fare_class %}selected{% endif %}>Any cabin</option>
-                {% for value, label in fare_class_choices %}
-                <option value="{{ value }}" {% if fare_class == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+            <div class="flight-passenger-picker" data-flight-passenger-picker>
+                <label class="flight-passenger-label"><i class="fas fa-user-group"></i> Passengers &amp; Class</label>
+                <button type="button" class="flight-passenger-trigger" data-flight-passenger-trigger
+                        aria-haspopup="dialog" aria-expanded="false" aria-label="Choose passengers and class">
+                    <span class="flight-passenger-summary">
+                        <strong data-passenger-summary>{{ passengers }} Adult{% if passengers != 1 %}s{% endif %}</strong>
+                        <strong data-fare-summary>{% if fare_class %}{% for value, label in fare_class_choices %}{% if fare_class == value %}{% if value == 'PREMIUM_ECONOMY' %}Premium economy{% elif value == 'BUSINESS' %}Business{% elif value == 'FIRST_CLASS' %}First{% else %}Economy{% endif %}{% endif %}{% endfor %}{% else %}Any cabin{% endif %}</strong>
+                    </span>
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <input type="hidden" name="passengers" value="{{ passengers }}" data-passenger-value>
+                <input type="hidden" name="fare_class" value="{{ fare_class }}" data-fare-value>
+                <div class="flight-passenger-popover" data-flight-passenger-popover role="dialog"
+                     aria-label="Passengers and class" hidden>
+                    <div class="flight-passenger-counts">
+                        <div class="flight-passenger-row">
+                            <button type="button" data-passenger-change="adults" data-delta="-1" aria-label="Remove adult">−</button>
+                            <span data-passenger-count="adults">{{ passengers }}</span>
+                            <span class="flight-passenger-type"><strong>Adults</strong><small>12 yrs and above</small></span>
+                            <button type="button" data-passenger-change="adults" data-delta="1" aria-label="Add adult">+</button>
+                        </div>
+                        <div class="flight-passenger-row">
+                            <button type="button" data-passenger-change="children" data-delta="-1" aria-label="Remove child" disabled>−</button>
+                            <span data-passenger-count="children">0</span>
+                            <span class="flight-passenger-type"><strong>Children</strong><small>2-11 yrs</small></span>
+                            <button type="button" data-passenger-change="children" data-delta="1" aria-label="Add child">+</button>
+                        </div>
+                        <div class="flight-passenger-row">
+                            <button type="button" data-passenger-change="infants" data-delta="-1" aria-label="Remove infant" disabled>−</button>
+                            <span data-passenger-count="infants">0</span>
+                            <span class="flight-passenger-type"><strong>Infants</strong><small>Below 2 yrs</small></span>
+                            <button type="button" data-passenger-change="infants" data-delta="1" aria-label="Add infant">+</button>
+                        </div>
+                    </div>
+                    <div class="flight-fare-options" aria-label="Fare class">
+                        <button type="button" data-flight-fare="ECONOMY">Economy</button>
+                        <button type="button" data-flight-fare="PREMIUM_ECONOMY">Premium economy</button>
+                        <button type="button" data-flight-fare="BUSINESS">Business</button>
+                        <button type="button" data-flight-fare="FIRST_CLASS">First</button>
+                        <button type="button" class="flight-fare-any" data-flight-fare="">Any cabin</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </form>
@@ -118,6 +144,94 @@
 
 <script>
 (function () {
+    var passengerPicker = document.querySelector('[data-flight-passenger-picker]');
+    if (passengerPicker) {
+        var passengerTrigger = passengerPicker.querySelector('[data-flight-passenger-trigger]');
+        var passengerPopover = passengerPicker.querySelector('[data-flight-passenger-popover]');
+        var passengerValue = passengerPicker.querySelector('[data-passenger-value]');
+        var fareValue = passengerPicker.querySelector('[data-fare-value]');
+        var passengerSummary = passengerPicker.querySelector('[data-passenger-summary]');
+        var fareSummary = passengerPicker.querySelector('[data-fare-summary]');
+        var passengerCounts = {adults: Number(passengerValue.value) || 1, children: 0, infants: 0};
+        var fareNames = {ECONOMY: 'Economy', PREMIUM_ECONOMY: 'Premium economy', BUSINESS: 'Business', FIRST_CLASS: 'First', '': 'Any cabin'};
+
+        function syncPassengerPicker() {
+            var total = passengerCounts.adults + passengerCounts.children + passengerCounts.infants;
+            passengerPicker.querySelectorAll('[data-passenger-count]').forEach(function (item) {
+                item.textContent = passengerCounts[item.dataset.passengerCount];
+            });
+            passengerValue.value = String(total);
+            var summary = [
+                passengerCounts.adults + ' ' + (passengerCounts.adults === 1 ? 'Adult' : 'Adults'),
+                passengerCounts.children ? passengerCounts.children + ' ' + (passengerCounts.children === 1 ? 'Child' : 'Children') : '',
+                passengerCounts.infants ? passengerCounts.infants + ' ' + (passengerCounts.infants === 1 ? 'Infant' : 'Infants') : ''
+            ].filter(Boolean).join(', ');
+            passengerSummary.textContent = summary;
+            fareSummary.textContent = fareNames[fareValue.value] || 'Any cabin';
+            passengerPicker.querySelectorAll('[data-passenger-change]').forEach(function (button) {
+                var key = button.dataset.passengerChange;
+                var next = passengerCounts[key] + Number(button.dataset.delta);
+                button.disabled = button.dataset.delta === '-1' ? next < (key === 'adults' ? 1 : 0) : total >= 9;
+            });
+            passengerPicker.querySelectorAll('[data-flight-fare]').forEach(function (button) {
+                button.classList.toggle('is-selected', button.dataset.flightFare === fareValue.value);
+            });
+        }
+
+        function positionPassengerPopover() {
+            if (passengerPopover.hidden) return;
+            var rect = passengerTrigger.getBoundingClientRect();
+            var width = Math.min(500, window.innerWidth - 24);
+            var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+            passengerPopover.style.position = 'fixed';
+            passengerPopover.style.left = left + 'px';
+            passengerPopover.style.width = width + 'px';
+            passengerPopover.style.maxHeight = Math.min(window.innerHeight * .72, 520) + 'px';
+            var height = Math.min(passengerPopover.scrollHeight, Math.min(window.innerHeight * .72, 520));
+            var below = window.innerHeight - rect.bottom - 12;
+            passengerPopover.style.top = (below >= height + 8 ? rect.bottom + 8 : Math.max(12, rect.top - height - 8)) + 'px';
+        }
+
+        function closePassengerPicker(returnFocus) {
+            passengerPopover.hidden = true;
+            passengerTrigger.setAttribute('aria-expanded', 'false');
+            if (returnFocus) passengerTrigger.focus();
+        }
+
+        passengerTrigger.addEventListener('click', function () {
+            var open = passengerPopover.hidden;
+            passengerPopover.hidden = !open;
+            passengerTrigger.setAttribute('aria-expanded', String(open));
+            if (open) positionPassengerPopover();
+        });
+        passengerPicker.querySelectorAll('[data-passenger-change]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var key = button.dataset.passengerChange;
+                var next = passengerCounts[key] + Number(button.dataset.delta);
+                var total = passengerCounts.adults + passengerCounts.children + passengerCounts.infants;
+                if (next >= (key === 'adults' ? 1 : 0) && (Number(button.dataset.delta) < 0 || total < 9)) {
+                    passengerCounts[key] = next;
+                    syncPassengerPicker();
+                }
+            });
+        });
+        passengerPicker.querySelectorAll('[data-flight-fare]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                fareValue.value = button.dataset.flightFare;
+                syncPassengerPicker();
+            });
+        });
+        document.addEventListener('click', function (event) {
+            if (!passengerPicker.contains(event.target) && !passengerPopover.contains(event.target)) closePassengerPicker(false);
+        });
+        document.addEventListener('keydown', function (event) {
+            if (!passengerPopover.hidden && event.key === 'Escape') closePassengerPicker(true);
+        });
+        window.addEventListener('resize', positionPassengerPopover);
+        window.addEventListener('scroll', positionPassengerPopover, true);
+        syncPassengerPicker();
+    }
+
     var cards = document.querySelectorAll('.fcard');
     cards.forEach(function (card) {
         var toggle = card.querySelector('.fcard-summary-toggle, .fcard-head');
