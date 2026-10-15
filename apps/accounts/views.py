@@ -12,6 +12,7 @@ from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from urllib.parse import urlparse
 import hashlib
@@ -65,8 +66,8 @@ def forgot_password_view(request):
                         'notifications.email_service', fromlist=['deliver_password_reset']).deliver_password_reset(pk, token))
         if request.headers.get('X-ATRUE-RESET-MODAL') == '1':
             return JsonResponse({'ok': True, 'message': generic})
-        return render(request, 'accounts/forgot_password.html', {'generic_message': generic}, status=200)
-    return render(request, 'accounts/forgot_password.html')
+        return redirect(f"{reverse('home')}?reset=1&reset_sent=1")
+    return redirect(f"{reverse('home')}?reset=1")
 
 
 def reset_password_view(request, user_id):
@@ -76,6 +77,15 @@ def reset_password_view(request, user_id):
     response_status = 200
     success = False
     raw = ''
+    if request.method == 'POST' and request.POST.get('action') == 'verify':
+        raw = (request.POST.get('token') or '')[:128]
+        token_hash = hashlib.sha256(raw.encode()).hexdigest()
+        valid = bool(raw) and PasswordResetToken.objects.filter(
+            user_id=user_id, token_hash=token_hash, used_at__isnull=True,
+            expires_at__gt=timezone.now()).exists()
+        return JsonResponse({'ok': valid}, status=200 if valid else 400, headers={
+            'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
+        })
     if request.method == 'POST':
         raw = (request.POST.get('token') or '')[:128]
         token_hash = hashlib.sha256(raw.encode()).hexdigest()

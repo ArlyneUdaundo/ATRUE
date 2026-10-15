@@ -4,11 +4,25 @@
     var form = document.getElementById('passwordResetForm');
     if (!modal || !form) return;
     var message = document.getElementById('passwordResetMessage');
+    var success = document.getElementById('passwordResetSuccess');
     var submit = document.getElementById('passwordResetSubmit');
     var prior = null;
     var previousModal = null;
+    var submitting = false;
+
+    function resetState() {
+        submitting = false;
+        form.hidden = false;
+        success.hidden = true;
+        message.hidden = true;
+        message.textContent = '';
+        form.reset();
+        submit.disabled = false;
+        submit.textContent = 'Send reset instructions';
+    }
     function open(event) {
         if (event) event.preventDefault();
+        resetState();
         prior = document.activeElement;
         previousModal = document.getElementById('landingSignInModal');
         if (previousModal && !previousModal.hidden) previousModal.hidden = true;
@@ -16,24 +30,31 @@
         document.body.style.overflow = 'hidden';
         window.setTimeout(function () { document.getElementById('passwordResetEmail').focus(); }, 20);
     }
-    function close() {
+    function close(restoreFocus) {
         modal.hidden = true;
         document.body.style.overflow = '';
+        resetState();
         if (previousModal && previousModal.hidden) previousModal.hidden = false;
-        if (prior && prior.focus) prior.focus();
+        if (restoreFocus !== false && prior && prior.focus) prior.focus();
     }
     document.addEventListener('click', function (event) {
-        var trigger = event.target.closest('[data-password-reset-open]');
+        var target = event.target;
+        if (!(target instanceof Element)) return;
+        var trigger = target.closest('[data-password-reset-open]');
         if (trigger) open(event);
-        if (event.target.closest('[data-password-reset-close]')) close();
-        if (event.target === modal) close();
+        if (target.closest('[data-password-reset-close]')) close();
+        if (target.closest('[data-password-reset-back]')) close();
+        if (target === modal) close();
     });
     document.addEventListener('keydown', function (event) {
         if (!modal.hidden && event.key === 'Escape') close();
     });
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
+        if (submitting) return;
+        submitting = true;
         submit.disabled = true;
+        submit.textContent = 'Sending…';
         message.hidden = true;
         try {
             var response = await fetch(form.action, {
@@ -41,19 +62,29 @@
                 headers: {'X-ATRUE-RESET-MODAL': '1'}
             });
             var result = await response.json();
-            if (!response.ok || !result.ok) throw new Error('Could not submit the reset request. Try again.');
-            message.classList.remove('hm-signin-error');
-            message.classList.add('alert', 'alert-success');
-            message.textContent = result.message;
-            message.hidden = false;
-            form.reset();
+            if (!response.ok || !result.ok) throw new Error('We could not process your request. Please try again.');
+            form.hidden = true;
+            success.hidden = false;
+            success.querySelector('p').textContent = result.message;
+            success.querySelector('[data-password-reset-back]').focus();
         } catch (error) {
-            message.classList.remove('alert', 'alert-success');
-            message.classList.add('hm-signin-error');
-            message.textContent = error.message || 'Could not submit the reset request. Try again.';
+            message.textContent = error.message || 'We could not process your request. Please try again.';
             message.hidden = false;
-        } finally {
+            submitting = false;
             submit.disabled = false;
+            submit.textContent = 'Try again';
+            message.focus();
         }
     });
+
+    var query = new URLSearchParams(window.location.search);
+    if (query.get('reset') === '1') {
+        open();
+        if (query.get('reset_sent') === '1') {
+            form.hidden = true;
+            success.hidden = false;
+            success.querySelector('p').textContent = 'If an account matches that email, password reset instructions will be sent shortly.';
+            success.querySelector('[data-password-reset-back]').focus();
+        }
+    }
 })();

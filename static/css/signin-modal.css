@@ -111,6 +111,13 @@
 .hm-signin-foot { margin: 18px 0 0; color: #6366f1; text-align: center; font-size: 14px; font-weight: 700; }
 .hm-signin-foot button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .hm-signin-foot button:hover { color: #4338ca; }
+.password-reset-message { margin: 0 0 16px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 12px; background: #fef2f2; color: #991b1b; font-size: 13px; line-height: 1.5; }
+.password-reset-success { text-align: center; }
+.password-reset-success[hidden] { display: none !important; }
+.password-reset-success-icon { display: grid; width: 62px; height: 62px; margin: 0 auto 16px; place-items: center; border-radius: 20px; background: #eff6ff; color: #2563eb; font-size: 25px; }
+.password-reset-success h3 { margin: 0 0 8px; color: #111827; font-size: 22px; font-weight: 800; }
+.password-reset-success p { margin: 0 0 22px; color: #64748b; font-size: 14px; line-height: 1.6; }
+.password-reset-success .btn { cursor: pointer; }
 @keyframes hm-signin-enter {
     from { opacity: 0; transform: translateY(8px) scale(.98); }
     to { opacity: 1; transform: none; }

@@ -59,19 +59,26 @@ class BrevoEmailTests(TestCase):
     @patch('notifications.email_service._brevo_send', return_value='reset-message')
     def test_forgot_password_response_is_generic_and_password_reset_is_single_use(self, send):
         with self.captureOnCommitCallbacks(execute=True):
-            known = self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email})
-        unknown = self.client.post(reverse('accounts:forgot_password'), {'email': 'missing@example.test'})
-        self.assertContains(known, 'If an account matches', status_code=200)
-        self.assertContains(unknown, 'If an account matches', status_code=200)
+            known = self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                                     HTTP_X_ATRUE_RESET_MODAL='1')
+        unknown = self.client.post(reverse('accounts:forgot_password'), {'email': 'missing@example.test'},
+                                   HTTP_X_ATRUE_RESET_MODAL='1')
+        self.assertEqual(known.json(), unknown.json())
+        self.assertIn('If an account matches', known.json()['message'])
         reset = PasswordResetToken.objects.get(user=self.user)
         html = send.call_args.kwargs['html']
         raw = re.search(r'reset-password/\d+/#([^"&]+)', html).group(1)
         self.assertEqual(reset.token_hash, hashlib.sha256(raw.encode()).hexdigest())
+        verify = self.client.post(reverse('accounts:reset_password', args=[self.user.pk]), {
+            'action': 'verify', 'token': raw,
+        })
+        self.assertEqual(verify.status_code, 200)
+        self.assertTrue(verify.json()['ok'])
         response = self.client.post(reverse('accounts:reset_password', args=[self.user.pk]), {
             'token': raw, 'new_password1': 'BetterPassword!4682',
             'new_password2': 'BetterPassword!4682',
         })
-        self.assertContains(response, 'Your password was changed')
+        self.assertContains(response, 'Your password has been changed successfully')
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('BetterPassword!4682'))
         reused = self.client.post(reverse('accounts:reset_password', args=[self.user.pk]), {
@@ -79,6 +86,10 @@ class BrevoEmailTests(TestCase):
             'new_password2': 'AgainPassword!4682',
         })
         self.assertContains(reused, 'invalid, expired, or already used', status_code=400)
+
+    def test_forgot_password_direct_route_redirects_to_shared_modal(self):
+        response = self.client.get(reverse('accounts:forgot_password'))
+        self.assertRedirects(response, '/?reset=1')
 
     def test_expired_and_invalid_reset_tokens_are_rejected(self):
         expired = PasswordResetToken.objects.create(
@@ -90,6 +101,11 @@ class BrevoEmailTests(TestCase):
         })
         self.assertContains(response, 'invalid, expired, or already used', status_code=400)
         self.assertIsNone(expired.used_at)
+        verify = self.client.post(reverse('accounts:reset_password', args=[self.user.pk]), {
+            'action': 'verify', 'token': 'old',
+        })
+        self.assertEqual(verify.status_code, 400)
+        self.assertFalse(verify.json()['ok'])
 
     @patch('notifications.email_service.urllib.request.urlopen')
     def test_brevo_request_uses_server_key_and_idempotency_uuid(self, urlopen):

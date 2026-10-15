@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=20261014-full-logo-fit-1">
     <link rel="stylesheet" href="{% static 'css/payment-methods.css' %}?v=20261013-payment-methods-4">
-    <link rel="stylesheet" href="{% static 'css/signin-modal.css' %}?v=20261013-field-icons-1">
+    <link rel="stylesheet" href="{% static 'css/signin-modal.css' %}?v=20261016-password-recovery-1">
     <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
     <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
     <link rel="stylesheet" href="{% static 'css/location-autocomplete.css' %}?v=20261015-location-autocomplete-1">
@@ -210,7 +210,7 @@
                 <h2 id="passwordResetTitle">Reset your password</h2>
                 <p class="hm-signin-sub">Enter your account email to receive secure reset instructions.</p>
             </div>
-            <div id="passwordResetMessage" class="hm-signin-error" role="status" hidden></div>
+            <div id="passwordResetMessage" class="password-reset-message" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
             <form id="passwordResetForm" method="post" action="{% url 'accounts:forgot_password' %}">
                 {% csrf_token %}
                 <div class="form-group"><label for="passwordResetEmail">Email address</label>
@@ -218,6 +218,12 @@
                 </div>
                 <button type="submit" class="btn btn-brand btn-full" id="passwordResetSubmit">Send reset instructions</button>
             </form>
+            <div id="passwordResetSuccess" class="password-reset-success" role="status" aria-live="polite" hidden>
+                <span class="password-reset-success-icon" aria-hidden="true"><i class="fas fa-envelope-circle-check"></i></span>
+                <h3>Check your email</h3>
+                <p>If an account matches that email, password reset instructions will be sent shortly.</p>
+                <button type="button" class="btn btn-brand btn-full" data-password-reset-back>Back to Log In</button>
+            </div>
             <p class="hm-signin-foot"><button type="button" data-password-reset-close>Close</button></p>
         </section>
     </div>
@@ -227,7 +233,7 @@
 <script src="{% static 'js/main.js' %}?v=20261012-preloader-3s"></script>
 <script src="{% static 'js/phone-validation.js' %}?v=20261014-11-digit"></script>
 <script src="{% static 'js/signin-modal.js' %}?v=20261015-direct-signin"></script>
-<script src="{% static 'js/password-reset-modal.js' %}?v=20261014-reset-popup"></script>
+<script src="{% static 'js/password-reset-modal.js' %}?v=20261016-recovery-states-1"></script>
 <script src="{% static 'js/money-format.js' %}?v=20261014-money-format-2"></script>
     <script src="{% static 'js/location-data.js' %}?v=20260922"></script>
     <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
