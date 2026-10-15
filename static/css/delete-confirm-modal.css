@@ -59,6 +59,14 @@
 .delete-confirm-modal__actions .delete-confirm-modal__confirm:hover { border-color: #b91c1c; background: #b91c1c; }
 .delete-confirm-modal__actions .delete-confirm-modal__cancel:hover { background: #f8fafc; }
 body.delete-confirm-open { overflow: hidden; }
+.delete-confirm-pending-status {
+    margin: 8px 0 12px;
+    color: #9a3412;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.delete-confirm-pending-status[hidden] { display: none; }
 @media (max-width: 480px) {
     .delete-confirm-modal { padding: 12px; }
     .delete-confirm-modal__panel { padding: 24px 18px; border-radius: 16px; }

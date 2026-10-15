@@ -113,6 +113,32 @@
         return inputs.some(function (input) { return /photo|image|logo/i.test(input.name || ''); });
     }
 
+    function updatePendingRemovalStatus(form) {
+        if (!(form instanceof HTMLFormElement)) return;
+        var status = form.querySelector('[data-delete-pending-status]');
+        if (!status) {
+            status = document.createElement('p');
+            status.className = 'delete-confirm-pending-status';
+            status.setAttribute('data-delete-pending-status', '');
+            status.setAttribute('role', 'status');
+            status.hidden = true;
+            var firstRemoval = form.querySelector('input[type="checkbox"][name*="delete" i], input[type="checkbox"][name*="remove" i]');
+            var section = firstRemoval && (firstRemoval.closest('.form-group') || firstRemoval.closest('.form-section'));
+            if (section) section.appendChild(status);
+            else {
+                var submit = form.querySelector('button[type="submit"], input[type="submit"]');
+                if (submit && submit.parentNode) submit.parentNode.insertBefore(status, submit);
+                else form.appendChild(status);
+            }
+        }
+        var selected = selectedRemovalInputs(form);
+        status.hidden = selected.length === 0;
+        if (selected.length) {
+            var noun = isPhotoRemoval(selected) ? (selected.length === 1 ? 'photo' : 'photos') : (selected.length === 1 ? 'item' : 'items');
+            status.textContent = selected.length + ' ' + noun + ' marked for removal. Save or update the form, then confirm to remove ' + (selected.length === 1 ? 'it' : 'them') + '.';
+        }
+    }
+
     function isDeleteConfirmation(element, submitter) {
         if (!element) return false;
         if (element.dataset && element.dataset.confirm) return true;
@@ -190,8 +216,16 @@
             confirmLabel: confirmLabel,
             onCancel: pendingRemovals.length ? function () {
                 pendingRemovals.forEach(function (input) { input.checked = false; });
+                updatePendingRemovalStatus(form);
             } : null
         });
+    }, true);
+
+    document.addEventListener('change', function (event) {
+        var input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== 'checkbox' ||
+                !/delete|remove/i.test(input.name || '') || !input.form) return;
+        updatePendingRemovalStatus(input.form);
     }, true);
 
     document.addEventListener('click', function (event) {
