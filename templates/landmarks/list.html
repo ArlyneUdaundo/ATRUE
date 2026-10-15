@@ -32,7 +32,7 @@
             {% if request.user.is_platform_manager %}
             <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
             {% else %}
-            <a href="{% url 'landmarks:book_spot' t.id %}" class="btn btn-brand btn-sm"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
+            <a href="{% url 'landmarks:flow_select' t.id %}" class="btn btn-brand btn-sm"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
             {% endif %}
         </div>
     </div>
@@ -59,7 +59,7 @@
             {% if request.user.is_platform_manager %}
             <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
             {% else %}
-            <a href="{% url 'landmarks:book_landmark' l.id %}" class="btn btn-brand btn-sm"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
+            <a href="{% url 'landmarks:flow_select' l.id %}" class="btn btn-brand btn-sm"><i class="fas fa-ticket-alt"></i> Buy Ticket</a>
             {% endif %}
         </div>
     </div>

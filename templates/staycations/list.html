@@ -38,7 +38,7 @@
             {% if request.user.is_platform_manager %}
             <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
             {% else %}
-            <a href="{% url 'staycations:book' s.id %}" class="btn btn-brand btn-sm"><i class="fas fa-calendar-check"></i> Reserve</a>
+            <a href="{% url 'staycations:flow_select' s.id %}" class="btn btn-brand btn-sm"><i class="fas fa-calendar-check"></i> Reserve</a>
             {% endif %}
         </div>
     </div>

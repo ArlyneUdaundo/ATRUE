@@ -44,7 +44,7 @@
             {% if request.user.is_platform_manager %}
             <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Manage only</span>
             {% else %}
-            <a href="{% url 'tour_package:book_package' p.id %}" class="btn btn-brand btn-sm"><i class="fas fa-shopping-cart"></i> Book Package</a>
+            <a href="{% url 'tour_package:flow_select' p.id %}" class="btn btn-brand btn-sm"><i class="fas fa-shopping-cart"></i> Book Package</a>
             {% endif %}
         </div>
     </div>

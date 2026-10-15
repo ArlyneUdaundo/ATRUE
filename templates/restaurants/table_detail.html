@@ -20,7 +20,7 @@
     </div>
     {% if not is_manager %}
         {% if table.status != 'MAINTENANCE' %}
-        <a href="{% url 'restaurants:book' table.id %}" class="btn btn-brand" style="margin-top:20px;padding:12px 26px"><i class="fas fa-lock"></i> Reserve this Table</a>
+        <a href="{% url 'restaurants:flow_select' table.restaurant_id %}" class="btn btn-brand" style="margin-top:20px;padding:12px 26px"><i class="fas fa-lock"></i> Reserve this Table</a>
         {% else %}
         <p class="meta" style="margin-top:16px"><i class="fas fa-info-circle"></i> This table is under maintenance and cannot be reserved.</p>
         {% endif %}

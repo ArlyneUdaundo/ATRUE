@@ -13,7 +13,7 @@
         <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'resorts:units' %}?resort={{ unit.resort.id }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Units</a>
         {% elif unit.status == 'AVAILABLE' %}
-        <a href="{% url 'resorts:book' unit.id %}" class="btn btn-brand"><i class="fas fa-umbrella-beach"></i> Book This Unit</a>
+        <a href="{% url 'resorts:flow_select' unit.resort_id %}" class="btn btn-brand"><i class="fas fa-umbrella-beach"></i> Book This Unit</a>
         <a href="{% url 'resorts:detail' unit.resort.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resort</a>
         {% else %}
         <a href="{% url 'resorts:detail' unit.resort.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Resort</a>
