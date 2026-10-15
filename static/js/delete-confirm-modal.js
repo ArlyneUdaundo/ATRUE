@@ -256,7 +256,10 @@
 
     document.addEventListener('click', function (event) {
         var target = event.target instanceof Element ? event.target.closest('a, button, input[type="submit"], input[type="button"]') : null;
-        if (!target || target.dataset.deleteConfirmed === '1') return;
+        // Do not treat the confirmation modal's own "Yes, Remove/Delete"
+        // button as a new destructive action. Intercepting it here prevents
+        // its dedicated click handler from closing the modal and submitting.
+        if (!target || target.closest('.delete-confirm-modal') || target.dataset.deleteConfirmed === '1') return;
         if (target.matches('[data-count-change], [data-gd-minus], [data-rstep-minus], [data-remove-segment], [data-remove-room], [data-remove-item], .guest-remove, .bk-remove') ||
                 (target.type === 'button' && target.hasAttribute('onclick') && /\.remove\(\)/.test(target.getAttribute('onclick')))) return;
         if (!isDeleteConfirmation(target)) return;
