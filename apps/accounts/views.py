@@ -800,7 +800,7 @@ def account_import_template(request):
     notes = workbook.create_sheet('Instructions')
     notes.append(['Use one row per user. Required fields follow the Create User Account form.'])
     notes.append(['Account Type, Sex, and Nationality accept the dropdown codes or their displayed labels (for example, Female, Filipino, Instructor).'])
-    notes.append(['Username and secure password are generated automatically; the user receives a one-time password setup link by email.'])
+    notes.append(['Username and a unique temporary password are generated automatically. After creation, download the credentials; passwords are shown only in that result.'])
     notes.append(['Email Address must be unique. Account Type choices are limited by your existing permissions.'])
     notes.append(['Enter Philippine mobile numbers as 11 digits. If Excel removes the first zero, the importer restores it for 10-digit numbers beginning with 9.'])
     notes.column_dimensions['A'].width = 110
@@ -844,13 +844,17 @@ def account_import_generate(request):
             request.FILES.get('file'), request.user)
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
-    return JsonResponse({
+    response = JsonResponse({
         'rows': rows,
         'total': len(rows),
         'created': created,
         'invalid': sum(not row['valid'] for row in rows),
         'setup_email_failed': setup_email_failed,
     })
+    response['Cache-Control'] = 'private, no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @login_required

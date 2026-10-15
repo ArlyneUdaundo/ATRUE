@@ -77,7 +77,7 @@
     {% if is_create %}
     <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-labelledby="bulkAccountTab">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
-        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and secure passwords are generated automatically; each new user receives a one-time password setup link.</p></div>
+        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Usernames and unique temporary passwords are generated automatically. After creation, download the credentials to distribute them; passwords are shown only in this result.</p></div>
             <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
         </div>
         <input type="file" id="accountImportFile" accept=".xlsx,.csv" hidden>
@@ -101,8 +101,9 @@
         <div id="importSummary" class="alert" hidden style="margin-top:16px" aria-live="polite"></div>
         <div id="importPreviewWrap" hidden style="margin-top:18px">
             <h4 style="margin:0 0 10px">Preview Imported Records</h4>
-            <div class="table-wrap"><table class="account-import-table"><thead><tr><th>Row</th><th>Name</th><th>Generated Username</th><th>Email</th><th>Account Type</th><th>Result</th><th>Validation details</th></tr></thead><tbody id="importPreviewRows"></tbody></table></div>
+            <div class="table-wrap"><table class="account-import-table"><thead><tr><th>Row</th><th>Name</th><th>Generated Username</th><th>Temporary Password</th><th>Email</th><th>Account Type</th><th>Result</th><th>Validation details</th></tr></thead><tbody id="importPreviewRows"></tbody></table></div>
         </div>
+        <button type="button" class="btn btn-brand" id="downloadGeneratedCredentials" hidden style="margin-top:14px"><i class="fas fa-download"></i> Download Credentials</button>
     </section>
     <script>
     (() => {
@@ -116,6 +117,7 @@
         const validateButton = document.getElementById('validateImportButton');
         const generateButton = document.getElementById('generateImportButton');
         const errorsButton = document.getElementById('downloadImportErrors');
+        const credentialsButton = document.getElementById('downloadGeneratedCredentials');
         const summary = document.getElementById('importSummary');
         const stepHint = document.getElementById('importStepHint');
         const previewWrap = document.getElementById('importPreviewWrap');
@@ -138,7 +140,8 @@
             selectedFile.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
             stepHint.textContent = 'File selected. Click Validate Records to check the rows before creating accounts.';
             validateButton.disabled = false; generateButton.disabled = true; validated = false;
-            errorsButton.hidden = true; summary.hidden = true; previewWrap.hidden = true;
+            currentRows = []; previewRows.replaceChildren();
+            errorsButton.hidden = true; credentialsButton.hidden = true; summary.hidden = true; previewWrap.hidden = true;
         };
         document.getElementById('chooseImportFile').addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('click', (event) => { if (event.target.id !== 'chooseImportFile') fileInput.click(); });
@@ -158,10 +161,10 @@
             previewRows.replaceChildren();
             rows.forEach(row => {
                 const tr = document.createElement('tr');
-                [row.row, `${row.first_name} ${row.last_name}`.trim(), row.username, row.email, row.account_type, row.status, row.errors.join(' ')].forEach((value, index) => {
+                [row.row, `${row.first_name} ${row.last_name}`.trim(), row.username, row.generated_password, row.email, row.account_type, row.status, row.errors.join(' ')].forEach((value, index) => {
                     const td = document.createElement('td'); td.textContent = value || '—';
-                    if (index === 5 && (row.username_generated || row.password_setup_required) && row.status === 'Ready') td.textContent = `Ready · ${row.username_generated ? 'username' : ''}${row.username_generated && row.password_setup_required ? ' and ' : ''}${row.password_setup_required ? 'secure password + setup email' : ''} generated`;
-                    if ((index === 6 && row.errors.length) || (index === 5 && row.status !== 'Ready' && row.status !== 'Created')) td.className = 'account-import-error';
+                    if (index === 6 && row.status === 'Ready' && (row.username_generated || row.password_generated)) td.textContent = 'Ready · credentials generated after creation';
+                    if ((index === 7 && row.errors.length) || (index === 6 && row.status !== 'Ready' && row.status !== 'Created')) td.className = 'account-import-error';
                     tr.appendChild(td);
                 });
                 previewRows.appendChild(tr);
@@ -207,12 +210,12 @@
                 const data = await postFile('{% url "accounts:account_import_generate" %}', 'Creating accounts');
                 renderRows(data.rows); validated = true;
                 const skipped = data.total - data.created;
-                const failedSetup = data.setup_email_failed || 0;
                 const hasIssues = data.rows.some(row => row.status !== 'Created');
-                summary.className = (skipped || failedSetup) ? 'alert alert-info' : 'alert alert-success';
-                summary.textContent = `Import complete: ${data.created} account(s) created, ${skipped} skipped, ${failedSetup} password setup email(s) failed.`;
+                summary.className = skipped ? 'alert alert-info' : 'alert alert-success';
+                summary.textContent = `Import complete: ${data.created} account(s) created, ${skipped} skipped. Download the generated credentials now; passwords will not be shown again after leaving this page.`;
                 stepHint.textContent = data.created ? 'Import complete. Generated accounts are now available in User Account Management.' : 'No accounts were created. Review the validation details and try again.';
                 summary.hidden = false; errorsButton.hidden = !hasIssues; progress('Import complete', 100);
+                credentialsButton.hidden = !data.rows.some(row => row.generated_password);
                 validateButton.disabled = false;
             } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; generateButton.disabled = false; validateButton.disabled = false; progress('Import stopped', 0); }
         });
@@ -225,6 +228,17 @@
             const lines = [['Row','First Name','Last Name','Username','Email Address','Account Type','Result','Errors'], ...currentRows.filter(row => row.status !== 'Created' && (row.errors.length || row.status !== 'Ready')).map(row => [row.row,row.first_name,row.last_name,row.username,row.email,row.account_type,row.status,row.errors.join('; ')])];
             const blob = new Blob([lines.map(line => line.map(quote).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'});
             const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'atrue_account_import_errors.csv'; link.click(); URL.revokeObjectURL(link.href);
+        });
+        credentialsButton.addEventListener('click', () => {
+            const quote = value => {
+                let text = String(value ?? '');
+                if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+                return `"${text.replaceAll('"','""')}"`;
+            };
+            const generated = currentRows.filter(row => row.status === 'Created' && row.generated_password);
+            const lines = [['Name','Username','Temporary Password','Email Address','Account Type'], ...generated.map(row => [`${row.first_name} ${row.last_name}`.trim(),row.username,row.generated_password,row.email,row.account_type])];
+            const blob = new Blob([lines.map(line => line.map(quote).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'atrue_generated_account_credentials.csv'; link.click(); URL.revokeObjectURL(link.href);
         });
     })();
     </script>

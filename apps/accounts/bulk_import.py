@@ -1,17 +1,14 @@
 """Spreadsheet parsing and validation for administrator account imports."""
 
 import csv
-import hashlib
 import io
 import re
 import secrets
-from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils.dateparse import parse_date
-from django.utils import timezone
 
 from .forms import AccountCreateForm
 from .models import ACCOUNT_TYPE_CHOICES, User
@@ -181,7 +178,8 @@ def validate_upload(upload, creator):
             data['username'] = username
             reserved_usernames.add(username.casefold())
         if password_generated:
-            generated_password = secrets.token_urlsafe(24)
+            password_alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+            generated_password = ''.join(secrets.choice(password_alphabet) for _ in range(32))
             data['password1'] = generated_password
             data['password2'] = generated_password
         username = data['username'].casefold()
@@ -218,7 +216,7 @@ def validate_upload(upload, creator):
             'email': data['email'],
             'account_type': data['account_type'],
             'username_generated': username_generated,
-            'password_setup_required': password_generated,
+            'password_generated': password_generated,
             'valid': not errors,
             'errors': errors,
             'status': 'Ready' if not errors else 'Needs correction',
@@ -235,47 +233,20 @@ def create_valid_accounts(upload, creator):
         result = by_row[row_number]
         if not result['valid']:
             continue
-        setup_token_id = None
         try:
             with transaction.atomic():
                 user = form.save()
-                if result['password_setup_required']:
-                    setup_token_id = _queue_password_setup(user)
         except (IntegrityError, ValidationError):
             result['valid'] = False
             result['status'] = 'Needs correction'
             result['errors'].append('Username or email is already in use.')
             continue
-        setup_email_sent = True
-        if setup_token_id:
-            from notifications.models import PasswordResetToken
-            setup_email_sent = PasswordResetToken.objects.filter(
-                pk=setup_token_id, email_status='SENT').exists()
-            if not setup_email_sent:
-                result['status'] = 'Created; setup email failed'
-                result['errors'].append(
-                    'Password setup email could not be sent; check outbound email configuration.')
-                setup_email_failed += 1
-        result['status'] = 'Created' if setup_email_sent else 'Created; setup email failed'
+        # Reveal the generated credential only in this successful response.
+        # AccountCreateForm hashes it before saving; plaintext is never stored.
+        result['generated_password'] = form.cleaned_data['password1']
+        result['status'] = 'Created'
         created += 1
     return results, created, setup_email_failed
-
-
-def _queue_password_setup(user):
-    """Queue the existing one-use password reset link for a generated password."""
-    from notifications.models import PasswordResetToken
-
-    raw = secrets.token_urlsafe(32)
-    now = timezone.now()
-    PasswordResetToken.objects.filter(user=user, used_at__isnull=True).update(used_at=now)
-    reset = PasswordResetToken.objects.create(
-        user=user,
-        token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-        expires_at=now + timedelta(minutes=30),
-    )
-    from notifications.email_service import deliver_password_reset
-    transaction.on_commit(lambda pk=reset.pk, token=raw: deliver_password_reset(pk, token))
-    return reset.pk
 
 
 def template_headers():
