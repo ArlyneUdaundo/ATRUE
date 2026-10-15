@@ -44,6 +44,7 @@
         <div class="restaurant-admin-modal__head"><h2>Add Table</h2><button type="button" class="btn btn-ghost btn-sm" data-modal-close aria-label="Close">×</button></div>
         <div class="form-grid"><div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" placeholder="e.g. T5" required></div><div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value, label in seating_area_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div></div>
         <div class="form-grid"><div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="2" min="1" required></div><div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value, label in table_status_choices %}<option value="{{ value }}" {% if value == 'AVAILABLE' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="form-group"><label>Cost per table (₱)</label><input type="number" name="cost_per_table" class="form-input" min="0" step="0.01" required></div>
         <div class="restaurant-admin-modal__actions"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-brand">Save Table</button></div>
     </form>
 </dialog>
@@ -112,6 +113,7 @@
                     <div class="restaurant-table-meta">
                         <span><i class="fas fa-users"></i> {{ t.capacity }} seats</span>
                         <span><i class="fas fa-map-marker-alt"></i> {{ t.get_seating_area_display }}</span>
+                        <span><i class="fas fa-tag"></i> {% if t.cost_per_table != None %}₱ {{ t.cost_per_table|floatformat:2 }} / table{% else %}Cost not set{% endif %}</span>
                     </div>
                     <span class="badge restaurant-table-status {% if t.status == 'AVAILABLE' %}badge-green{% elif t.status == 'OCCUPIED' %}badge-blue{% elif t.status == 'RESERVED' %}badge-yellow{% else %}badge-gray{% endif %}">{{ t.get_status_display }}</span>
                 </div>
@@ -139,6 +141,7 @@
         <div class="restaurant-admin-modal__head"><h2>Edit Table {{ t.table_number }}</h2><button type="button" class="btn btn-ghost btn-sm" data-modal-close aria-label="Close">×</button></div>
         <div class="form-grid"><div class="form-group"><label>Table Number</label><input type="text" name="table_number" class="form-input" value="{{ t.table_number }}" required></div><div class="form-group"><label>Seating Area</label><select name="seating_area" class="form-input">{% for value, label in seating_area_choices %}<option value="{{ value }}" {% if t.seating_area == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
         <div class="form-grid"><div class="form-group"><label>Capacity</label><input type="number" name="capacity" class="form-input" value="{{ t.capacity }}" min="1" required></div><div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value, label in table_status_choices %}<option value="{{ value }}" {% if t.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+        <div class="form-group"><label>Cost per table (₱)</label><input type="number" name="cost_per_table" class="form-input" value="{{ t.cost_per_table|default:'' }}" min="0" step="0.01" required></div>
         <div class="restaurant-admin-modal__actions"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-brand">Save Table</button></div>
     </form>
 </dialog>

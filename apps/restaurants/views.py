@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
@@ -210,6 +211,16 @@ def _parse_int(value, fallback):
         return fallback
 
 
+def _parse_table_cost(value):
+    try:
+        cost = Decimal((value or '').strip())
+        if not cost.is_finite() or cost < 0:
+            return None
+        return cost.quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
 def restaurant_list(request):
     restaurants = Restaurant.objects.prefetch_related('tables', 'photos').filter(status=Restaurant.Status.ACTIVE)
     assignment = _active_task_assignment(request)
@@ -365,8 +376,11 @@ def add_table(request, restaurant_id):
     error = None
     if request.method == 'POST':
         table_number = (request.POST.get('table_number') or '').strip()
+        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
         if not table_number:
             error = "Table number is required."
+        elif cost_per_table is None:
+            error = "Enter a valid cost per table (0 or more)."
         elif Table.objects.filter(restaurant=restaurant, table_number=table_number).exists():
             error = f"Table {table_number} already exists in '{restaurant.name}'. Choose a different table number."
         else:
@@ -374,6 +388,7 @@ def add_table(request, restaurant_id):
                 restaurant=restaurant,
                 table_number=table_number,
                 capacity=_parse_int(request.POST.get('capacity'), 2),
+                cost_per_table=cost_per_table,
                 seating_area=request.POST.get('seating_area', Table.SeatingArea.INDOOR),
                 status=request.POST.get('status', Table.Status.AVAILABLE),
             )
@@ -405,12 +420,16 @@ def update_table(request, table_id):
     error = None
     if request.method == 'POST':
         table_number = (request.POST.get('table_number') or table.table_number).strip()
+        cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
         duplicate = Table.objects.filter(restaurant=table.restaurant, table_number=table_number).exclude(pk=table.pk).exists()
-        if duplicate:
+        if cost_per_table is None:
+            error = "Enter a valid cost per table (0 or more)."
+        elif duplicate:
             error = f"Table {table_number} already exists in '{table.restaurant.name}'. Choose a different table number."
         else:
             table.table_number = table_number
             table.capacity = _parse_int(request.POST.get('capacity'), table.capacity)
+            table.cost_per_table = cost_per_table
             table.seating_area = request.POST.get('seating_area', table.seating_area)
             table.status = request.POST.get('status', table.status)
             table.save()

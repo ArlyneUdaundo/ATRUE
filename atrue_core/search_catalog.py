@@ -323,7 +323,9 @@ def _stay_capacity_bucket(capacity):
 
 
 def _restaurant_price_class(item, idx):
-    return ["₱", "₱₱", "₱₱₱"][_seed(item, "price") % 3]
+    costs = [table.cost_per_table for table in item.tables.all()
+             if table.cost_per_table is not None]
+    return _num(min(costs)) if costs else None
 
 
 # --- Index builders (filterable values per category) -----------------------
@@ -792,6 +794,10 @@ def _restaurant_card(item, request):
     score = guest_score(item)
     tables = list(item.tables.all())
     available = [t for t in tables if getattr(t, "status", "") == "AVAILABLE"]
+    costs = [t.cost_per_table for t in tables if t.cost_per_table is not None]
+    cost_per_table = min(costs) if costs else None
+    price = f"{cost_per_table:,.2f}" if cost_per_table is not None else "Cost per table not set"
+    price_kind = "amount" if cost_per_table is not None else "label"
     max_cap = max((t.capacity for t in tables), default=0)
     images = _photo_urls(item.photos.all())
     if not images:
@@ -812,8 +818,9 @@ def _restaurant_card(item, request):
         ],
         "tags": [item.cuisine_type] if item.cuisine_type else [],
         "desc": "%s dining · reserve a table ahead with no booking fee." % (item.cuisine_type or "Local"),
-        "price": "Cost per table",
-        "price_kind": "label",
+        "price": price,
+        "price_kind": price_kind,
+        "price_label": "/table",
         "imgs": images,
         "icon": "fa-utensils",
         **_flow_cta(request, "restaurant", item.pk, reverse("restaurants:detail", args=[item.slug]),

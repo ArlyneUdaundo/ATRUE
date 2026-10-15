@@ -131,6 +131,7 @@ class Table(models.Model):
                                 verbose_name="Table ID")
     table_number = models.CharField(max_length=20)
     capacity = models.PositiveIntegerField(default=2)
+    cost_per_table = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     seating_area = models.CharField(max_length=10, choices=SEATING_AREA_CHOICES, default='INDOOR')
     status = models.CharField(max_length=15, choices=TABLE_STATUS_CHOICES, default='AVAILABLE')
 
