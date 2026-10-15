@@ -66,8 +66,9 @@
 
     function renderFormPage(html, url) {
         var parsed = new DOMParser().parseFromString(html, 'text/html');
-        var sourceForm = parsed.querySelector('form.establishment-form-card');
-        var content = sourceForm && sourceForm.closest('.content');
+        var sourceForm = parsed.querySelector('form.establishment-form-card') ||
+            parsed.querySelector('.content form[method="post"]');
+        var content = sourceForm && (sourceForm.closest('.content') || parsed.querySelector('main') || parsed.body);
         if (!sourceForm) return false;
 
         body.replaceChildren();
@@ -266,7 +267,10 @@
             var html = await response.text();
             if (response.redirected) {
                 closeModal();
-                window.location.assign(response.url);
+                // Keep the user on the page where Update/Edit was opened.
+                // The redirect target is often a module list page, which would
+                // defeat the modal flow after a successful save.
+                window.location.reload();
                 return;
             }
             if (response.ok && renderFormPage(html, new URL(form.action, window.location.href))) return;
@@ -284,6 +288,16 @@
     document.addEventListener('click', async function (event) {
         var target = event.target instanceof Element ? event.target : event.target.parentElement;
         var link = target && target.closest('[data-establishment-create]');
+        if (!link && target) {
+            var candidate = target.closest('a[href]');
+            if (candidate) {
+                var label = (candidate.textContent || '').trim();
+                var path = new URL(candidate.href, window.location.href).pathname;
+                if (/\b(update|edit|manage)\b/i.test(label) && /\/(update|edit)(\/|$)/i.test(path)) {
+                    link = candidate;
+                }
+            }
+        }
         if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         ensureModal();
