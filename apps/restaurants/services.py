@@ -136,6 +136,14 @@ def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
                 'This table is no longer available for the selected date and time.')
 
         establishment = _establishment_for_restaurant(table.restaurant_id)
+        from transactions.models import Bill
+        from atrue_core.services import billing_officer_session_for_booking, bill_for_booking
+        bill = bill_for_booking(reservation)
+        review_session = billing_officer_session_for_booking(reservation, officer)
+        if review_session is not None and (
+                bill is None or bill.status != Bill.Status.FULLY_PAID or not bill.verified_at):
+            raise RestaurantReservationError(
+                'A Billing Officer must verify the fully paid deposit before this reservation can be confirmed.')
         reservation.status = Reservation.Status.CONFIRMED
         reservation.confirmed_at = timezone.now()
         reservation.confirmed_by = officer

@@ -437,8 +437,11 @@ def booking_detail(request, booking_id):
         action = request.POST.get('action')
         if action == 'confirm':
             confirm_booking(booking, request.user)
-            booking.vehicle.status = 'IN_USE'
-            booking.vehicle.save(update_fields=['status'])
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
+            else:
+                booking.vehicle.status = 'IN_USE'
+                booking.vehicle.save(update_fields=['status'])
         elif action == 'decline':
             decline_booking(booking, request.user)
         elif action == 'checkin':

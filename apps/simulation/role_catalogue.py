@@ -190,6 +190,32 @@ ROLE_CATALOGUE = [
      Role.Category.LANDMARK, Role.EstablishmentType.LANDMARK,
      Role.OperationCategory.FRONT_DESK, 690),
 
+    # -- Billing and establishment owners ----------------------------------
+    ('BILLING_OFFICER', 'Billing Officer', Role.Category.ADMIN, None,
+     Role.OperationCategory.BILLING, 800),
+    ('HOTEL_OWNER', 'Hotel Owner', Role.Category.HOTEL,
+     Role.EstablishmentType.HOTEL, Role.OperationCategory.MANAGER, 810),
+    ('RESORT_OWNER', 'Resort Owner', Role.Category.RESORT,
+     Role.EstablishmentType.RESORT, Role.OperationCategory.MANAGER, 820),
+    ('RESTAURANT_OWNER', 'Restaurant Owner', Role.Category.RESTAURANT,
+     Role.EstablishmentType.RESTAURANT, Role.OperationCategory.MANAGER, 830),
+    ('STAYCATION_OWNER', 'Staycation Owner', Role.Category.STAYCATION,
+     Role.EstablishmentType.STAYCATION, Role.OperationCategory.MANAGER, 840),
+    ('LANDMARK_OWNER', 'Landmark Owner', Role.Category.LANDMARK,
+     Role.EstablishmentType.LANDMARK, Role.OperationCategory.MANAGER, 850),
+    ('AIRLINE_OWNER', 'Airline Owner', Role.Category.AIRLINE,
+     Role.EstablishmentType.AIRLINE, Role.OperationCategory.MANAGER, 860),
+    ('TRAVEL_AGENCY_OWNER', 'Travel Agency Owner', Role.Category.TRAVEL_AGENCY,
+     Role.EstablishmentType.TRAVEL_AGENCY, Role.OperationCategory.MANAGER, 870),
+    ('TOUR_OPERATOR_OWNER', 'Tour Operator Owner', Role.Category.TOUR,
+     Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.MANAGER, 880),
+    ('TOUR_PACKAGE_OWNER', 'Tour Package Owner', Role.Category.TOUR,
+     Role.EstablishmentType.TOUR_PACKAGE, Role.OperationCategory.MANAGER, 890),
+    ('ACTIVITY_OWNER', 'Activity Owner', Role.Category.ACTIVITY,
+     Role.EstablishmentType.ACTIVITY, Role.OperationCategory.MANAGER, 900),
+    ('TRANSPORTATION_OWNER', 'Transportation Owner', Role.Category.TRANSPORTATION,
+     Role.EstablishmentType.TRANSPORTATION, Role.OperationCategory.MANAGER, 910),
+
     # -- Administrative ------------------------------------------------------
     ('INSTRUCTOR', 'Instructor', Role.Category.ADMIN, None, '', 900),
     ('SYSTEM_ADMINISTRATOR', 'System Administrator', Role.Category.ADMIN, None, '',
@@ -215,8 +241,6 @@ RETIRED_ROLES = [
      Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.FRONT_DESK, 1050),
     ('TOUR_OPERATOR', 'Tour Operator (retired)', Role.Category.TOUR,
      Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.FRONT_DESK, 1060),
-    ('BILLING_OFFICER', 'Billing Officer (retired)', Role.Category.ADMIN, None,
-     Role.OperationCategory.MANAGER, 1070),
     ('HOTEL_BILLING_OFFICER', 'Hotel Billing Officer (retired)', Role.Category.HOTEL,
      Role.EstablishmentType.HOTEL, Role.OperationCategory.MANAGER, 1080),
     ('AIRLINE_BILLING_OFFICER', 'Airline Billing Officer (retired)',
@@ -350,6 +374,10 @@ def _permissions_for_category(category):
         Role.OperationCategory.MANAGER: manager,
         Role.OperationCategory.RESERVATION: reservation,
         Role.OperationCategory.FRONT_DESK: front_desk,
+        Role.OperationCategory.BILLING: [
+            'Review paid bookings in the assigned simulation session',
+            'Verify payment records before reservation confirmation',
+        ],
         Role.OperationCategory.CUSTOMER: customer,
         '': admin,
     }.get(category, [])
@@ -414,7 +442,7 @@ def active_entries():
     and refused by the assign view.
     """
     return [entry for entry in ROLE_CATALOGUE
-            if entry[2] != Role.Category.ADMIN]
+            if entry[2] != Role.Category.ADMIN or entry[0] == 'BILLING_OFFICER']
 
 
 def missing_active_codes():
@@ -443,7 +471,8 @@ def retired_codes():
 def operational_codes_for(establishment_type):
     """The (manager, reservation, front desk) codes of one establishment type."""
     return [entry[0] for entry in active_entries()
-            if entry[3] == establishment_type and entry[4] in OPERATIONAL_CATEGORIES]
+            if entry[3] == establishment_type and entry[4] in OPERATIONAL_CATEGORIES
+            and not entry[0].endswith('_OWNER')]
 
 
 def sync_roles():

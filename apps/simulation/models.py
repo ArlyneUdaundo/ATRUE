@@ -126,6 +126,18 @@ class SimulationRoleAssignment(models.Model):
         LANDMARK_MANAGER = 'LANDMARK_MANAGER', 'Landmark Manager'
         LANDMARK_RESERVATION_OFFICER = 'LANDMARK_RESERVATION_OFFICER', 'Landmark Reservation Officer'
         LANDMARK_FRONT_DESK = 'LANDMARK_FRONT_DESK', 'Landmark Front Desk / Operations'
+        HOTEL_OWNER = 'HOTEL_OWNER', 'Hotel Owner'
+        RESORT_OWNER = 'RESORT_OWNER', 'Resort Owner'
+        RESTAURANT_OWNER = 'RESTAURANT_OWNER', 'Restaurant Owner'
+        STAYCATION_OWNER = 'STAYCATION_OWNER', 'Staycation Owner'
+        LANDMARK_OWNER = 'LANDMARK_OWNER', 'Landmark Owner'
+        AIRLINE_OWNER = 'AIRLINE_OWNER', 'Airline Owner'
+        TRAVEL_AGENCY_OWNER = 'TRAVEL_AGENCY_OWNER', 'Travel Agency Owner'
+        TOUR_OPERATOR_OWNER = 'TOUR_OPERATOR_OWNER', 'Tour Operator Owner'
+        TOUR_PACKAGE_OWNER = 'TOUR_PACKAGE_OWNER', 'Tour Package Owner'
+        ACTIVITY_OWNER = 'ACTIVITY_OWNER', 'Activity Owner'
+        TRANSPORTATION_OWNER = 'TRANSPORTATION_OWNER', 'Transportation Owner'
+        BILLING_OFFICER = 'BILLING_OFFICER', 'Billing Officer'
         # -- Section 6.3 roles retained for existing data --------------------
         # These are no longer offered: every establishment role is one of the
         # three above. The members stay so assignments and screens that still
@@ -133,7 +145,6 @@ class SimulationRoleAssignment(models.Model):
         # them from the catalogue.
         TOUR_MANAGER = 'TOUR_MANAGER', 'Tour Manager (legacy)'
         TOUR_COORDINATOR = 'TOUR_COORDINATOR', 'Tour Coordinator (legacy)'
-        BILLING_OFFICER = 'BILLING_OFFICER', 'Billing Officer (legacy)'
         HOTEL_BILLING_OFFICER = 'HOTEL_BILLING_OFFICER', 'Hotel Billing Officer (legacy)'
         HOUSEKEEPING_OFFICER = 'HOUSEKEEPING_OFFICER', 'Housekeeping Officer (legacy)'
         AIRLINE_TICKETING_OFFICER = 'AIRLINE_TICKETING_OFFICER', 'Airline Ticketing Officer (legacy)'
@@ -900,6 +911,7 @@ class Role(models.Model):
         MANAGER = 'MANAGER', 'Manager'
         RESERVATION = 'RESERVATION', 'Reservation Agent / Officer'
         FRONT_DESK = 'FRONT_DESK', 'Front Desk / Operations Officer'
+        BILLING = 'BILLING', 'Billing Officer'
         CUSTOMER = 'CUSTOMER', 'Customer'
 
     #: The three operational categories, in the order an instructor meets them.
@@ -942,6 +954,7 @@ class Role(models.Model):
         OperationCategory.MANAGER: WorkflowStage.OVERSIGHT,
         OperationCategory.RESERVATION: WorkflowStage.INTAKE,
         OperationCategory.FRONT_DESK: WorkflowStage.FULFILLMENT,
+        OperationCategory.BILLING: WorkflowStage.BILLING,
         OperationCategory.CUSTOMER: WorkflowStage.INTAKE,
     }
 
@@ -1010,7 +1023,8 @@ class Role(models.Model):
         # administrative one never does. Deriving it here (rather than trusting
         # the caller) is what keeps the column honest for rows created by the
         # catalogue seeder, by a data migration and by hand.
-        self.requires_establishment = bool(self.establishment_type)
+        self.requires_establishment = bool(
+            self.establishment_type and not self.code.endswith('_OWNER'))
         return super().save(*args, **kwargs)
 
     def clean(self):
@@ -1033,7 +1047,8 @@ class Role(models.Model):
                     f'"{self.operation_category}" is not an operational role. Every '
                     'establishment has exactly three: '
                     f'{", ".join(self.OPERATIONAL_CATEGORIES)}.')
-        elif self.operation_category and self.operation_category != self.OperationCategory.CUSTOMER:
+        elif self.operation_category and self.operation_category not in (
+                self.OperationCategory.CUSTOMER, self.OperationCategory.BILLING):
             errors['operation_category'] = (
                 f'"{self.operation_category}" is performed inside an establishment, so '
                 'it cannot name one here.')

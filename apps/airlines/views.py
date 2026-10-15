@@ -1288,6 +1288,8 @@ def _assigned_airline_ids_for_management(request):
     user = request.user
     if user.is_staff or set(effective_role_keys(user)).intersection(FULL_ACCESS_TYPES):
         return None
+    if user.simulation_roles.filter(status='ACTIVE', role='AIRLINE_OWNER').exists():
+        return None
 
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:
@@ -3375,13 +3377,17 @@ def booking_detail(request, booking_id):
         if action == 'confirm':
             was_pending = booking.status == Booking.Status.PENDING
             confirm_booking(booking, request.user)
-            if remark:
+            payment_review_pending = getattr(booking, 'payment_review_pending', False)
+            if payment_review_pending:
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
+            elif remark:
                 booking.manager_remarks = remark
                 booking.save(update_fields=['manager_remarks'])
-            log_activity(booking.passenger, f"Flight {booking.booking_reference} confirmed",
-                         f"{booking.flight.flight_number} {booking.flight.origin}-{booking.flight.destination}"
-                         + (f" | Remarks: {remark}" if remark else ""))
-            if was_pending:
+            if not payment_review_pending:
+                log_activity(booking.passenger, f"Flight {booking.booking_reference} confirmed",
+                             f"{booking.flight.flight_number} {booking.flight.origin}-{booking.flight.destination}"
+                             + (f" | Remarks: {remark}" if remark else ""))
+            if was_pending and not payment_review_pending:
                 # Booking creation already queues this notification centrally.
                 # The shared outbox makes retries idempotent across modules.
                 from notifications.email_service import queue_booking_confirmation

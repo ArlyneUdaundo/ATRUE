@@ -5,6 +5,7 @@ from . import views
 app_name = 'transactions'
 
 urlpatterns = [
+    path('payment-review/', views.payment_review, name='payment_review'),
     path('', views.transaction_list, name='list'),
     path('admin/', views.admin_list, name='admin_list'),
     path('bills/<int:bill_id>/', views.bill_detail, name='bill_detail'),

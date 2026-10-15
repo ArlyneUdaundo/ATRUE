@@ -304,6 +304,28 @@ def validate_stay_dates(check_in, check_out):
 
 # -- Booking lifecycle helpers (BR-015, BR-016, BR-021, BR-022) ---------------
 
+def billing_officer_session_for_booking(booking, user, session=None):
+    """Return the booking's session when it has an active assigned biller."""
+    from simulation.models import SimulationRoleAssignment
+
+    review_session = session
+    if review_session is None:
+        from simulation.completion import establishment_for_booking
+        booking_establishment = establishment_for_booking(booking)
+        if booking_establishment is not None:
+            reservation_assignment = SimulationRoleAssignment.objects.filter(
+                student=user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                establishment=booking_establishment,
+            ).select_related('session').first()
+            review_session = reservation_assignment.session if reservation_assignment else None
+    if review_session and SimulationRoleAssignment.objects.filter(
+            session=review_session,
+            status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            role='BILLING_OFFICER').exists():
+        return review_session
+    return None
+
 def confirm_booking(booking, user, notify=True, session=None, establishment=None):
     """Set a booking to CONFIRMED with payment gate and audit."""
     from decimal import Decimal
@@ -320,6 +342,14 @@ def confirm_booking(booking, user, notify=True, session=None, establishment=None
             return booking
 
         bill = bill_for_booking(booking)
+        review_session = billing_officer_session_for_booking(
+            booking, user, session=session)
+        if review_session is not None and (
+                bill is None or bill.status != 'FULLY_PAID' or not bill.verified_at):
+            booking.payment_review_pending = True
+            booking.payment_review_waiting_payment = bool(
+                bill is None or bill.status != 'FULLY_PAID')
+            return booking
         if bill is not None:
             total = Decimal(bill.total_amount or 0)
             paid = Decimal(bill.amount_paid or 0)

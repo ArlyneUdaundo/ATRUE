@@ -59,12 +59,16 @@ def assigned_activity_ids(request):
         return set()
     if is_activity_platform_user(request.user):
         return None
+    if request.user.simulation_roles.filter(status='ACTIVE', role='ACTIVITY_OWNER').exists():
+        return None
     assignment = _active_assignment(request)
     roles = getattr(request, 'activity_authorized_roles', None)
     if roles is None:
         from accounts.roles import effective_role_keys
         roles = effective_role_keys(request.user)
     if assignment is not None:
+        if assignment.role == 'ACTIVITY_OWNER':
+            return None
         if (assignment.role not in roles or not assignment.establishment_id
                 or assignment.establishment.type != ESTABLISHMENT_TYPE):
             return set()
@@ -102,7 +106,9 @@ def activity_roles_for_request(request):
     roles = effective_role_keys(user)
     assignment = _active_assignment(request)
     if assignment is not None:
-        roles = {assignment.role, user.account_type}
+        from accounts.roles import ROLE_KEY_ALIASES
+        roles = {assignment.role, ROLE_KEY_ALIASES.get(assignment.role, assignment.role),
+                 user.account_type}
     return roles
 
 

@@ -132,6 +132,10 @@ class Bill(models.Model):
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     balance_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=BILL_STATUS_CHOICES, default='UNPAID')
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='verified_bills')
+    verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

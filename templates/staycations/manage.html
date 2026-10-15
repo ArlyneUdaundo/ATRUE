@@ -20,7 +20,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a href="{% url 'staycations:services' %}" class="btn btn-ghost"><i class="fas fa-concierge-bell"></i> Services</a>
         <a href="{% url 'staycations:bookings' %}" class="btn btn-ghost"><i class="fas fa-calendar-check"></i> Bookings</a>
-        {% if not scoped_user %}<a href="{% url 'staycations:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Staycation</a>{% endif %}
+        {% if not scoped_user or owner_role %}<a href="{% url 'staycations:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Staycation</a>{% endif %}
     </div>
 </div>
 

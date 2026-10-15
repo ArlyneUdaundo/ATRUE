@@ -191,6 +191,8 @@ def manage(request):
         'status_choices': Hotel.Status.choices,
         'active_assignment': request.assigned_hotel_assignment,
         'hotel_scoped_user': is_hotel_scoped(request.user),
+        'hotel_owner': request.user.simulation_roles.filter(
+            status='ACTIVE', role='HOTEL_OWNER').exists(),
     })
 
 @manager_required
@@ -1439,7 +1441,10 @@ def booking_detail(request, booking_id):
         action = request.POST.get('action')
         if action == 'confirm':
             confirm_booking(booking, request.user)
-            messages.success(request, "Booking confirmed.")
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
+            else:
+                messages.success(request, "Booking confirmed.")
         elif action == 'decline':
             decline_booking(booking, request.user)
             messages.success(request, "Booking declined.")

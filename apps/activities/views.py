@@ -366,6 +366,8 @@ def booking_detail(request, booking_id):
             raise PermissionDenied('This booking action is not allowed for your activity role.')
         if action == 'confirm':
             confirm_booking(booking, request.user)
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             decline_booking(booking, request.user)
         elif action == 'attend':

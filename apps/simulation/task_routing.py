@@ -657,9 +657,51 @@ def _guest_operation(role_code):
     return operation
 
 
+_OWNER_OPERATIONS = {
+    'HOTEL_OWNER': ('HOTEL', 'HOTEL_MANAGER', 'hotels:add', 'Add Hotel'),
+    'RESORT_OWNER': ('RESORT', 'RESORT_MANAGER', 'resorts:add', 'Add Resort'),
+    'RESTAURANT_OWNER': ('RESTAURANT', 'RESTAURANT_MANAGER', 'restaurants:add', 'Add Restaurant'),
+    'STAYCATION_OWNER': ('STAYCATION', 'STAYCATION_MANAGER', 'staycations:add', 'Add Staycation'),
+    'LANDMARK_OWNER': ('LANDMARK', 'LANDMARK_MANAGER', 'landmarks:add_landmark', 'Add Landmark'),
+    'AIRLINE_OWNER': ('AIRLINE', 'AIRLINE_MANAGER', 'airlines:add_flight_schedule', 'Add Flight'),
+    'TRAVEL_AGENCY_OWNER': ('TRAVEL_AGENCY', 'TRAVEL_AGENCY_MANAGER', 'tour_package:add_package', 'Add Package'),
+    'TOUR_OPERATOR_OWNER': ('TOUR_OPERATOR', 'TOUR_OPERATOR_MANAGER', 'tour_package:add_package', 'Add Package'),
+    'TOUR_PACKAGE_OWNER': ('TOUR_PACKAGE', 'TOUR_PACKAGE_MANAGER', 'tour_package:add_package', 'Add Package'),
+    'ACTIVITY_OWNER': ('ACTIVITY', 'ACTIVITY_MANAGER', 'activities:add_activity', 'Add Activity'),
+    'TRANSPORTATION_OWNER': ('TRANSPORTATION', 'TRANSPORT_MANAGER', 'transportation:add_agency', 'Add Agency'),
+}
+
+
+def _owner_operation(role_code):
+    establishment_type, manager_code, add_route, add_label = _OWNER_OPERATIONS[role_code]
+    base = _OPERATIONS.get(establishment_type, {}).get(manager_code)
+    if base is None:
+        return None
+    result = dict(base)
+    result['allowed_routes'] = frozenset(set(base['allowed_routes']) | {add_route})
+    result['tasks'] = ({'label': add_label, 'route': add_route, 'icon': 'fa-plus'},) + base['tasks']
+    return result
+
+
+for _owner_code, (_owner_type, *_owner_rest) in _OWNER_OPERATIONS.items():
+    _OPERATIONS.setdefault(_owner_type, {})[_owner_code] = _owner_operation(_owner_code)
+del _owner_code, _owner_type, _owner_rest
+
+
+_BILLING_OPERATION = _operation(
+    'Billing Officer', 'transactions:payment_review', 'transactions',
+    {'payment_review'}, 'fa-file-invoice-dollar',
+    tasks=(('Review and confirm payments', 'transactions:payment_review', 'fa-file-invoice-dollar'),),
+)
+
+
 def task_operation_for(assignment):
     """Return the operations and task routes allowed for this assignment."""
     role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
+    if role_code == 'BILLING_OFFICER':
+        return _BILLING_OPERATION
+    if role_code.endswith('_OWNER') and role_code in _OWNER_OPERATIONS:
+        return _owner_operation(role_code)
     if role_code == 'PASSENGER_AIRLINE':
         return _operation(
             'Airline Passenger Operations', 'airlines:list', 'airlines',
@@ -702,7 +744,8 @@ def task_operation_for(assignment):
 
     if not establishment_type:
         return None
-    if establishment_type == 'HOTEL' and not assignment.hotel_id:
+    if (establishment_type == 'HOTEL' and not assignment.hotel_id
+            and assignment.role_ref_id and assignment.role_ref.requires_establishment):
         return None
     if assignment.role_ref_id and assignment.role_ref.requires_establishment:
         if establishment_type != assignment.role_ref.establishment_category:

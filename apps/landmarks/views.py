@@ -437,6 +437,8 @@ def booking_detail(request, booking_id):
                 messages.error(request, "Only the landmark reservation officer can confirm this ticket.")
                 return redirect('landmarks:booking_detail', booking.id)
             confirm_booking(booking, request.user)
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             if not can_confirm:
                 messages.error(request, "Only the landmark reservation officer can decline this ticket.")

@@ -65,6 +65,8 @@ def _assigned_resort_ids(request):
     """
     if resort_scope.has_full_access(request.user):
         return None
+    if request.user.simulation_roles.filter(status='ACTIVE', role='RESORT_OWNER').exists():
+        return None
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:
         establishment = assignment.establishment
@@ -879,8 +881,11 @@ def booking_detail(request, booking_id):
             if remark:
                 booking.save(update_fields=['manager_remarks'])
             confirm_booking(booking, request.user)
-            log_activity(booking.customer, "Resort reservation confirmed",
-                         f"{booking.booking_reference} for {booking.unit.resort.name}")
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
+            else:
+                log_activity(booking.customer, "Resort reservation confirmed",
+                             f"{booking.booking_reference} for {booking.unit.resort.name}")
         elif action == 'decline':
             booking.manager_remarks = remark or booking.manager_remarks
             booking.save(update_fields=['manager_remarks'])

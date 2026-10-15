@@ -22,6 +22,65 @@ from atrue_core.services import (
 from .models import AdditionalTransaction, Bill, Payment, Receipt
 
 
+@login_required
+def payment_review(request):
+    """Billing Officer queue for verifying payments before reservation confirmation."""
+    from simulation.models import SimulationRoleAssignment
+
+    assignment_id = request.session.get('active_simulation_task_assignment')
+    assignment = (SimulationRoleAssignment.objects.filter(
+        pk=assignment_id, student=request.user, role='BILLING_OFFICER', status='ACTIVE'
+    ).select_related('session').first() if assignment_id else None)
+    if assignment is None:
+        assignment = SimulationRoleAssignment.objects.filter(
+            student=request.user, role='BILLING_OFFICER', status='ACTIVE',
+            session__isnull=False,
+        ).select_related('session').first()
+    is_admin = request.user.is_staff or request.user.is_superuser
+    if not is_admin and assignment is None:
+        raise PermissionDenied('Only an assigned Billing Officer can review payments.')
+
+    bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
+    rows = []
+    for bill in bills.select_related('customer').prefetch_related('payments'):
+        booking = bill.booking
+        if booking is None:
+            continue
+        establishment = None
+        try:
+            from simulation.completion import establishment_for_booking
+            establishment = establishment_for_booking(booking)
+        except Exception:
+            continue
+        if assignment and assignment.session_id:
+            session_establishments = set(assignment.session.assignments.filter(
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                establishment__isnull=False,
+            ).values_list('establishment_id', flat=True))
+            if not establishment or establishment.pk not in session_establishments:
+                continue
+        if request.method == 'POST' and request.POST.get('bill_id') == str(bill.pk):
+            if bill.status != Bill.Status.FULLY_PAID:
+                messages.error(request, 'Only fully paid bills can be verified.')
+                return redirect('transactions:payment_review')
+            bill.verified_by = request.user
+            bill.verified_at = timezone.now()
+            bill.save(update_fields=['verified_by', 'verified_at'])
+            from atrue_core.services import log_activity
+            log_activity(
+                request.user, 'Payment verified', bill.bill_reference,
+                session=assignment.session if assignment else None,
+                establishment=establishment,
+            )
+            messages.success(request, f'Payment for {bill.bill_reference} verified.')
+            return redirect('transactions:payment_review')
+        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment})
+    return render(request, 'transactions/payment_review.html', {
+        'rows': rows,
+        'active_assignment': assignment,
+    })
+
+
 def _money(value):
     try:
         return Decimal(value)

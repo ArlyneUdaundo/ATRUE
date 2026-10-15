@@ -8,7 +8,8 @@ from accounts.roles import FULL_ACCESS_TYPES, effective_role_keys
 ESTABLISHMENT_TYPE = 'TOUR_PACKAGE'
 
 PACKAGE_MANAGER_ROLES = frozenset({
-    'TOUR_PACKAGE_MANAGER',
+    'TOUR_PACKAGE_MANAGER', 'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
+    'TRAVEL_AGENCY_OWNER',
 })
 RESERVATION_ROLES = frozenset({
     'TOUR_PACKAGE_RESERVATION_OFFICER',
@@ -27,6 +28,12 @@ def is_platform_operator(user):
 def has_package_role(request, roles):
     if is_platform_operator(request.user):
         return True
+    if set(effective_role_keys(request.user)).intersection(roles):
+        return True
+    if request.user.simulation_roles.filter(
+            status='ACTIVE', role__in={'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
+                                       'TRAVEL_AGENCY_OWNER'}).exists():
+        return True
     return bool(package_ids_for_roles(request, roles))
 
 
@@ -37,6 +44,9 @@ def package_ids_for_roles(request, roles):
         return None
     active = getattr(request, 'active_simulation_assignment', None)
     if active is not None:
+        if active.role in {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
+                           'TRAVEL_AGENCY_OWNER'}:
+            return None
         establishment = active.establishment
         if (establishment and establishment.type == ESTABLISHMENT_TYPE
                 and active.role in roles):
@@ -44,6 +54,10 @@ def package_ids_for_roles(request, roles):
         return set()
     from simulation.models import SimulationRoleAssignment
     from establishments.models import Establishment
+    if request.user.simulation_roles.filter(
+            status='ACTIVE', role__in={'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
+                                       'TRAVEL_AGENCY_OWNER'}).exists():
+        return None
     return set(Establishment.objects.filter(
         simulation_assignments__student=request.user,
         simulation_assignments__status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,

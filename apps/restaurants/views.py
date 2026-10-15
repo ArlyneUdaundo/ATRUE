@@ -95,6 +95,7 @@ def _can_confirm_reservation(request):
     if assignment is not None:
         return assignment.role in {
             SimulationRoleAssignment.Role.RESTAURANT_MANAGER,
+            'RESTAURANT_OWNER',
             SimulationRoleAssignment.Role.RESTAURANT_RESERVATION_OFFICER,
         }
     if 'RESTAURANT_MANAGER' in effective_role_keys(request.user):
@@ -112,6 +113,8 @@ def _can_confirm_reservation(request):
 
 def _assigned_restaurant_ids(request):
     if _full_restaurant_access(request.user):
+        return None
+    if request.user.simulation_roles.filter(status='ACTIVE', role='RESTAURANT_OWNER').exists():
         return None
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:

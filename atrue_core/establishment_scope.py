@@ -36,12 +36,29 @@ def assigned_establishment_pks(request, establishment_type):
 
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:
+        if (assignment.role_ref_id
+                and assignment.role_ref.code.endswith('_OWNER')
+                and assignment.role_ref.establishment_category == establishment_type):
+            return None
         establishment = assignment.establishment
         if establishment and establishment.type == establishment_type:
             return {establishment.pk}
         return set()
 
     from simulation.models import SimulationRoleAssignment
+
+    owner_codes = {
+        'HOTEL': 'HOTEL_OWNER', 'RESORT': 'RESORT_OWNER',
+        'RESTAURANT': 'RESTAURANT_OWNER', 'STAYCATION': 'STAYCATION_OWNER',
+        'LANDMARK': 'LANDMARK_OWNER', 'AIRLINE': 'AIRLINE_OWNER',
+        'TRAVEL_AGENCY': 'TRAVEL_AGENCY_OWNER', 'TOUR_OPERATOR': 'TOUR_OPERATOR_OWNER',
+        'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
+        'TRANSPORTATION': 'TRANSPORTATION_OWNER',
+    }
+    if owner_codes.get(establishment_type) and user.simulation_roles.filter(
+            status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            role=owner_codes[establishment_type]).exists():
+        return None
 
     return set(
         SimulationRoleAssignment.objects.filter(
@@ -125,6 +142,18 @@ class EstablishmentScope:
         is a real answer - "no assignment" means "no establishments".
         """
         if self.has_full_access(user):
+            return None
+        owner_code = {
+            'HOTEL': 'HOTEL_OWNER', 'RESORT': 'RESORT_OWNER',
+            'RESTAURANT': 'RESTAURANT_OWNER', 'STAYCATION': 'STAYCATION_OWNER',
+            'LANDMARK': 'LANDMARK_OWNER', 'AIRLINE': 'AIRLINE_OWNER',
+            'TRAVEL_AGENCY': 'TRAVEL_AGENCY_OWNER',
+            'TOUR_OPERATOR': 'TOUR_OPERATOR_OWNER',
+            'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
+            'TRANSPORTATION': 'TRANSPORTATION_OWNER',
+        }.get(self.establishment_type)
+        if owner_code and user.simulation_roles.filter(
+                status='ACTIVE', role=owner_code).exists():
             return None
         return set(
             self.active_assignments(user).values_list('establishment__entity_id', flat=True))
@@ -233,13 +262,24 @@ class EstablishmentScope:
                     getattr(request.resolver_match, 'func', None), '__name__', '')
                 if view_name in self.list_views:
                     return view_func(request, *args, **kwargs)
-                if view_name in self.platform_views:
+                owner_code = {
+                    'HOTEL': 'HOTEL_OWNER', 'RESORT': 'RESORT_OWNER',
+                    'RESTAURANT': 'RESTAURANT_OWNER', 'STAYCATION': 'STAYCATION_OWNER',
+                    'LANDMARK': 'LANDMARK_OWNER', 'AIRLINE': 'AIRLINE_OWNER',
+                    'TRAVEL_AGENCY': 'TRAVEL_AGENCY_OWNER',
+                    'TOUR_OPERATOR': 'TOUR_OPERATOR_OWNER',
+                    'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
+                    'TRANSPORTATION': 'TRANSPORTATION_OWNER',
+                }.get(self.establishment_type)
+                has_owner_role = bool(owner_code and user.simulation_roles.filter(
+                    status='ACTIVE', role=owner_code).exists())
+                if view_name in self.platform_views and not has_owner_role:
                     raise PermissionDenied(
                         f'Only a platform administrator can add or remove '
                         f'{self.entity_label} establishments.')
 
                 ids = self.resolve_ids(kwargs) if kwargs else None
-                if ids is not None and not ids <= allowed:
+                if ids is not None and allowed is not None and not ids <= allowed:
                     raise PermissionDenied(
                         f'You are not assigned to this {self.entity_label}. Ask your '
                         f'instructor to assign you to it before managing its records.'

@@ -32,7 +32,7 @@
         <a href="{% url 'hotels:services' %}" class="btn btn-ghost"><i class="fas fa-concierge-bell"></i> Services</a>
         <a href="{% url 'hotels:amenities' %}" class="btn btn-ghost"><i class="fas fa-swimming-pool"></i> Amenities</a>
         <a href="{% url 'hotels:bookings' %}" class="btn btn-ghost"><i class="fas fa-calendar-check"></i> Bookings</a>
-        {% if not hotel_scoped_user %}<a href="{% url 'hotels:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Hotel</a>{% endif %}
+        {% if not hotel_scoped_user or hotel_owner %}<a href="{% url 'hotels:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Hotel</a>{% endif %}
     </div>
 </div>
 

@@ -420,7 +420,7 @@ def _assignable_roles(offered=None):
         (
             code,
             offered[code].name if code in offered else label,
-            Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type),
+            (None if code.endswith('_OWNER') else Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type)),
         )
         for code, label, _category, establishment_type, _operation, _order
         in active_entries()
@@ -662,7 +662,7 @@ def assign_role(request):
         # The establishment the role belongs to. Resolving it *through* the
         # role's own type is what makes "Hotel Manager + Cebu Pacific" impossible
         # rather than merely discouraged.
-        if role_row.establishment_type:
+        if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
             if not establishment_id:
                 return again(
                     f"{role_row.name} is performed inside an establishment, so select "
@@ -935,7 +935,7 @@ def session_assignment(request, session_id):
 
     # Role + establishment agreement, mirrored from ``assign_role`` so both doors
     # into the assignment table resolve the posted id instead of trusting it.
-    if role_row.establishment_type:
+    if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
         if not establishment_id:
             return fail([
                 f"{role_row.name} is performed inside an establishment, so select "
@@ -1159,7 +1159,7 @@ def role_update(request, assignment_id):
     # the place they work. Switching *type* has to supply a new one, because the
     # old establishment is then of the wrong type.
     establishment = None
-    if role_row.establishment_type:
+    if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
         wanted_type = role_row.establishment_category
         current = assignment.establishment
         if not establishment_id and current is not None and current.type == wanted_type:

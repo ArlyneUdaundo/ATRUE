@@ -79,6 +79,9 @@ def assigned_hotel_ids(user):
     """
     if has_full_hotel_access(user):
         return None
+    if user.simulation_roles.filter(
+            status='ACTIVE', role='HOTEL_OWNER').exists():
+        return None
     return set(active_hotel_assignments(user).values_list('hotel_id', flat=True))
 
 
@@ -183,7 +186,7 @@ def hotel_scoped(view_func):
             request.assigned_hotel_assignment = task_assignment
 
         requested = (request.GET.get('hotel') or '').strip()
-        if requested.isdigit():
+        if requested.isdigit() and allowed is not None:
             requested = int(requested)
             if requested not in allowed:
                 # The deep link may only point at a hotel this student holds.
@@ -194,11 +197,13 @@ def hotel_scoped(view_func):
         view_name = getattr(getattr(request.resolver_match, 'func', None), '__name__', '')
         if view_name in _LIST_VIEWS:
             return view_func(request, *args, **kwargs)
-        if view_name in _PLATFORM_WIDE_VIEWS:
+        if (view_name in _PLATFORM_WIDE_VIEWS
+                and not user.simulation_roles.filter(
+                    status='ACTIVE', role='HOTEL_OWNER').exists()):
             raise PermissionDenied('Only a platform administrator can add or remove hotels.')
 
         hotel_ids = resolve_hotel_ids(view_name, kwargs) if kwargs else None
-        if hotel_ids is not None and not hotel_ids <= allowed:
+        if hotel_ids is not None and allowed is not None and not hotel_ids <= allowed:
             raise PermissionDenied(
                 'You are not assigned to this hotel. Ask your instructor to '
                 'assign you to it before managing its records.'

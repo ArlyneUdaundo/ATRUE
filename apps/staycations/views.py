@@ -80,6 +80,8 @@ def manage(request):
         'status_choices': Staycation.Status.choices,
         'active_assignment': request.assigned_staycation_assignment,
         'scoped_user': staycation_scope.is_scoped(request.user),
+        'owner_role': request.user.simulation_roles.filter(
+            status='ACTIVE', role='STAYCATION_OWNER').exists(),
     })
 
 
@@ -500,6 +502,8 @@ def booking_detail(request, booking_id):
         action = request.POST.get('action')
         if action == 'confirm':
             confirm_booking(booking, request.user)
+            if getattr(booking, 'payment_review_pending', False):
+                messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             decline_booking(booking, request.user)
         elif action == 'checkin' or action == 'self_checkin':

@@ -17,6 +17,17 @@ from simulation.models import ROLE_PERMISSIONS, SimulationRoleAssignment
 ROLE_KEY_ALIASES = {
     'SYSTEM_ADMINISTRATOR': 'SYSTEM_ADMIN',
     'ADMINISTRATOR': 'ADMIN',
+    'HOTEL_OWNER': 'HOTEL_MANAGER',
+    'RESORT_OWNER': 'RESORT_MANAGER',
+    'RESTAURANT_OWNER': 'RESTAURANT_MANAGER',
+    'STAYCATION_OWNER': 'STAYCATION_MANAGER',
+    'LANDMARK_OWNER': 'LANDMARK_MANAGER',
+    'AIRLINE_OWNER': 'AIRLINE_MANAGER',
+    'TRAVEL_AGENCY_OWNER': 'TRAVEL_AGENCY_MANAGER',
+    'TOUR_OPERATOR_OWNER': 'TOUR_MANAGER',
+    'TOUR_PACKAGE_OWNER': 'TOUR_PACKAGE_MANAGER',
+    'ACTIVITY_OWNER': 'ACTIVITY_MANAGER',
+    'TRANSPORTATION_OWNER': 'TRANSPORT_MANAGER',
 }
 
 MANAGEMENT_ACCOUNT_TYPES = frozenset({
@@ -80,7 +91,8 @@ MANAGEMENT_MODULE_ACCESS = {
     'TRAVEL_AGENCY_MANAGER': frozenset({'airlines', 'hotels', 'tour_package', 'transactions'}),
     'TRAVEL_CONSULTANT': frozenset({'transactions'}),
     'TOUR_COORDINATOR': frozenset({'tour_package', 'activities', 'landmarks', 'transactions'}),
-    'BILLING_OFFICER': frozenset({'transactions', 'records'}),
+    'AIRLINE_MANAGER': frozenset({'airlines'}),
+    'TRANSPORT_MANAGER': frozenset({'transportation'}),
     'RESORT_MANAGER': frozenset({'resorts', 'staycations', 'transactions'}),
     'RESTAURANT_MANAGER': frozenset({'restaurants', 'transactions'}),
     'STAYCATION_MANAGER': frozenset({'staycations', 'transactions'}),
@@ -148,6 +160,20 @@ MANAGEMENT_MODULE_ACCESS.update({
     for code, retired in _OPERATIONAL_MODULE_ACCESS.items()
 })
 
+MANAGEMENT_MODULE_ACCESS.update({
+    'HOTEL_OWNER': frozenset({'hotels'}),
+    'RESORT_OWNER': frozenset({'resorts'}),
+    'RESTAURANT_OWNER': frozenset({'restaurants'}),
+    'STAYCATION_OWNER': frozenset({'staycations'}),
+    'LANDMARK_OWNER': frozenset({'landmarks'}),
+    'AIRLINE_OWNER': frozenset({'airlines'}),
+    'TRAVEL_AGENCY_OWNER': frozenset({'tour_package'}),
+    'TOUR_OPERATOR_OWNER': frozenset({'tour_package'}),
+    'TOUR_PACKAGE_OWNER': frozenset({'tour_package'}),
+    'ACTIVITY_OWNER': frozenset({'activities'}),
+    'TRANSPORTATION_OWNER': frozenset({'transportation'}),
+})
+
 # Operational staff roles are allowlisted rather than given the whole module,
 # keeping reservation and front-desk roles out of manager-only routes.
 _OPERATIONAL_STAFF_ROLES = {
@@ -206,6 +232,10 @@ def _route_grants_from_operations():
 
 
 ROLE_MODULE_ROUTE_ACCESS.update(_route_grants_from_operations())
+
+ROLE_MODULE_ROUTE_ACCESS['BILLING_OFFICER'] = {
+    'transactions': frozenset({'payment_review'}),
+}
 
 
 def _normalize_role_key(key):

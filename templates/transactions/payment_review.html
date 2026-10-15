@@ -1,0 +1,42 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Payment Review{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Payment Review</h1>
+        <p>Verify fully paid booking bills for your simulation session before reservations are confirmed.</p>
+    </div>
+</div>
+
+<div class="card card-pad">
+    {% if rows %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Bill</th><th>Booking</th><th>Customer</th><th>Establishment</th><th>Paid</th><th></th></tr></thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.bill.bill_reference }}</td>
+                    <td>{{ row.booking.booking_reference|default:row.booking.pk }}</td>
+                    <td>{{ row.bill.customer.get_full_name|default:row.bill.customer.username }}</td>
+                    <td>{{ row.establishment|default:'—' }}</td>
+                    <td>₱{{ row.bill.amount_paid|floatformat:2 }}</td>
+                    <td>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="bill_id" value="{{ row.bill.pk }}">
+                            <button type="submit" class="btn btn-brand btn-sm">Confirm Payment</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="margin:0;color:var(--muted)">There are no fully paid bookings waiting for payment review in this session.</p>
+    {% endif %}
+</div>
+{% endblock %}
