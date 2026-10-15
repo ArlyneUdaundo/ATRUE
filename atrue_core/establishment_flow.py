@@ -486,7 +486,7 @@ class ResortAdapter(BaseAdapter):
         return reverse('resorts:detail', args=[est.slug])
 
     def select_url(self, est):
-        return reverse('resorts:group_start', args=[est.pk])
+        return reverse('resorts:flow_select', args=[est.pk])
 
     def booking_detail_url(self, booking):
         return reverse('resorts:booking_detail', args=[booking.pk])
