@@ -248,7 +248,15 @@
                     break;
                 }
             }
-            if (currencyContext) node.nodeValue = original.replace(trimmed, groupNumber(trimmed));
+            if (currencyContext) {
+                var grouped = groupNumber(trimmed);
+                // MutationObserver watches characterData too. Writing the same
+                // value still queues another observer callback in some
+                // browsers, so leave already-formatted numbers untouched.
+                if (grouped !== trimmed) {
+                    node.nodeValue = original.replace(trimmed, grouped);
+                }
+            }
         });
     }
 
