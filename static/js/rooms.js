@@ -361,17 +361,20 @@
 
     function buildSection(s, i) {
         var g = s.guest;
-        var svcBoxes = Object.keys(SERVICES).map(function (id) {
-            var svc = SERVICES[id];
-            var checked = s.services.indexOf(Number(id)) !== -1 ? ' checked' : '';
-            return '<label class="checkbox"><input type="checkbox" name="room_' + i + '_services" value="' + id + '"' + checked + '> ' + esc(svc.name) + ' (+₱ ' + esc(svc.rate) + ')</label>';
-        }).join('');
-        var amnBoxes = Object.keys(AMENITIES).map(function (id) {
-            var checked = s.amenities.indexOf(Number(id)) !== -1 ? ' checked' : '';
-            return '<label class="checkbox"><input type="checkbox" name="room_' + i + '_amenities" value="' + id + '"' + checked + '> ' + esc(AMENITIES[id].name) + '</label>';
-        }).join('');
-        var svcBlock = svcBoxes ? '<div class="bk-guest-extras"><div><b>Optional services for Room ' + (i + 1) + '</b></div>' + svcBoxes + '</div>' : '';
-        var amnBlock = amnBoxes ? '<div class="bk-guest-extras"><div><b>Amenities for Room ' + (i + 1) + '</b></div>' + amnBoxes + '</div>' : '';
+        function extrasBlock(kind, title, count) {
+            if (!count) return '';
+            var selected = kind === 'services' ? s.services : s.amenities;
+            var name = kind === 'services' ? 'services' : 'amenities';
+            var selectedInputs = (selected || []).map(function (id) {
+                return '<input type="hidden" name="room_' + i + '_' + name + '" value="' + Number(id) + '">';
+            }).join('');
+            return '<details class="bk-guest-extras" data-room-extras="' + kind + '" data-room-index="' + i + '">' +
+                '<summary><b>' + title + '</b> <small class="meta">(' + count + ')</small></summary>' +
+                '<div data-extras-options><small class="meta">Open to load options.</small></div></details>' +
+                '<div data-room-selected="' + kind + '">' + selectedInputs + '</div>';
+        }
+        var svcBlock = extrasBlock('services', 'Optional services for Room ' + (i + 1), Object.keys(SERVICES).length);
+        var amnBlock = extrasBlock('amenities', 'Amenities for Room ' + (i + 1), Object.keys(AMENITIES).length);
         return '' +
         '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
             '<div class="bk-guest-head">' +
@@ -399,6 +402,38 @@
 
     function renderSections() {
         wrap.innerHTML = tabsMarkup() + (SELECTED.length ? buildSection(SELECTED[ACTIVE], ACTIVE) : '');
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-room-extras]'), function (details) {
+            function loadOptions() {
+                if (details.dataset.loaded === 'true') return;
+                details.dataset.loaded = 'true';
+                var index = Number(details.getAttribute('data-room-index'));
+                var selected = SELECTED[index];
+                var kind = details.getAttribute('data-room-extras');
+                var target = details.querySelector('[data-extras-options]');
+                if (!selected || !target) return;
+                var data = kind === 'services' ? SERVICES : AMENITIES;
+                var name = kind === 'services' ? 'services' : 'amenities';
+                target.innerHTML = Object.keys(data).map(function (id) {
+                    var item = data[id];
+                    var checked = selected[name].indexOf(Number(id)) !== -1 ? ' checked' : '';
+                    var label = kind === 'services'
+                        ? esc(item.name) + ' (+₱ ' + esc(item.rate) + ')'
+                        : esc(item.name);
+                    return '<label class="checkbox"><input type="checkbox" name="room_' + index + '_' + name + '" value="' + id + '"' + checked + '> ' + label + '</label>';
+                }).join('');
+                var selectedInputs = details.parentElement.querySelector('[data-room-selected="' + kind + '"]');
+                if (selectedInputs) selectedInputs.remove();
+                if (form && form.id) {
+                    Array.prototype.forEach.call(target.querySelectorAll('input'), function (input) {
+                        input.setAttribute('form', form.id);
+                    });
+                }
+            }
+            details.addEventListener('toggle', function () {
+                if (details.open) loadOptions();
+            });
+            if (details.open) loadOptions();
+        });
         // The guest modal lives outside <form>, so the per-room fields are tied
         // back to the booking form with the HTML form="" attribute. Same inputs,
         // same names, same submit.
@@ -447,8 +482,10 @@
             s.guest.special_request = inVal('special_request');
             s.guest.adults = Math.max(0, parseInt(inVal('adults'), 10) || 0);
             s.guest.children = Math.max(0, parseInt(inVal('children'), 10) || 0);
-            s.services = checked('services');
-            s.amenities = checked('amenities');
+            var servicesBlock = sec.querySelector('[data-room-extras="services"]');
+            var amenitiesBlock = sec.querySelector('[data-room-extras="amenities"]');
+            if (!servicesBlock || servicesBlock.dataset.loaded === 'true') s.services = checked('services');
+            if (!amenitiesBlock || amenitiesBlock.dataset.loaded === 'true') s.amenities = checked('amenities');
         });
     }
 
