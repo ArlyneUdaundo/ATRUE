@@ -40,7 +40,7 @@
         errorBox.hidden = true;
         errorBox.textContent = '';
         submit.disabled = true;
-        submit.textContent = 'Signing in?';
+        submit.textContent = 'Signing in…';
         fetch(form.action, {
             method: 'POST',
             body: new FormData(form),
