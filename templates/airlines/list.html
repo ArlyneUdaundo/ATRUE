@@ -55,7 +55,13 @@
         </div>
         <div class="ag-field">
             <label><i class="fas fa-user-group"></i> Passengers</label>
-            <input type="number" name="passengers" min="1" max="9" value="{{ passengers }}">
+            <select name="passengers" aria-label="Passengers">
+                {% for count in "123456789" %}
+                <option value="{{ forloop.counter }}" {% if passengers == forloop.counter %}selected{% endif %}>
+                    {{ forloop.counter }} passenger{% if forloop.counter != 1 %}s{% endif %}
+                </option>
+                {% endfor %}
+            </select>
         </div>
         <div class="ag-field">
             <label><i class="fas fa-chair"></i> Fare Class</label>
