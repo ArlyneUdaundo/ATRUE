@@ -78,7 +78,26 @@ def payment_review(request):
                 session=assignment.session if assignment else None,
                 establishment=establishment,
             )
-            messages.success(request, f'Payment for {bill.bill_reference} verified.')
+            if booking._meta.app_label == 'resorts' and booking.status == 'PENDING':
+                from atrue_core.services import confirm_booking
+                confirm_booking(
+                    booking, request.user,
+                    session=assignment.session if assignment else None,
+                    establishment=establishment,
+                )
+                if booking.status == 'CONFIRMED':
+                    messages.success(
+                        request,
+                        f'Payment verified and resort reservation {booking.booking_reference} confirmed. '
+                        'The guest confirmation email was queued automatically.',
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f'Payment for {bill.bill_reference} verified; the resort reservation is awaiting confirmation.',
+                    )
+            else:
+                messages.success(request, f'Payment for {bill.bill_reference} verified.')
             return redirect('transactions:payment_review')
         rows.append({'bill': bill, 'booking': booking, 'establishment': establishment})
     return render(request, 'transactions/payment_review.html', {

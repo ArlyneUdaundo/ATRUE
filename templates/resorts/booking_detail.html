@@ -6,6 +6,9 @@
 <div class="page-head">
     <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Resort reservation details, billing and status.</p></div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}
+        <a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Pay Bill</a>
+        {% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'resorts:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -20,7 +23,16 @@
 {% if booking.status == 'PENDING' and not can_manage %}
 <div class="alert alert-info">
     <i class="fas fa-clock"></i>
-    <div>Your booking is <b>awaiting front desk confirmation</b>. Once the front desk confirms, you'll get a notification and the <b>Print E-Ticket</b> button will be unlocked.</div>
+    <div>
+        Your reservation is pending.
+        {% if bill and bill.balance_due > 0 %}
+        Please use <b>Pay Bill</b> above to submit payment. The Billing Officer will verify it before the reservation is confirmed.
+        {% elif bill and bill.verified_at %}
+        Payment has been verified. Your reservation is being finalized.
+        {% else %}
+        Once payment is verified and the reservation is confirmed, a confirmation email and the <b>Print E-Ticket</b> option will be available.
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 

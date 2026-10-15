@@ -1725,13 +1725,20 @@ def handle_flow(request, adapter_key, pk):
             'Reservation submitted. Status: Pending. Waiting for Restaurant '
             'Reservation Officer confirmation.',
         )
-    elif ctx['pay_later']:
+    elif ctx['pay_later'] or adapter.key == 'resort':
         booking.status = booking.Status.PENDING
         booking.save(update_fields=['status'])
         log_activity(request.user, f'Placed {adapter.label.lower().rstrip("s")} booking',
                      f'{booking.booking_reference} - pending payment')
         record_transaction('BOOKING', booking.booking_reference, request.user,
                            f'{adapter.label} booking {booking.booking_reference}')
+        if adapter.key == 'resort':
+            messages.success(
+                request,
+                f'Reservation {booking.booking_reference} saved. Pay the bill from your booking details; '
+                'the Billing Officer will verify payment and confirm the reservation.',
+            )
+            return redirect(adapter.booking_detail_url(booking))
         messages.success(
             request,
             f'{adapter.singular} booking {booking.booking_reference} created. Payment is pending.',

@@ -300,7 +300,7 @@ same markup, and any block with no real data behind it is simply not rendered.
             <div class="ag-pb-divider" id="pbDivider" style="display:none"></div>
             <div class="ag-pb-total"><span id="pbTotalLabel">Estimated total</span><b id="pbTotal">&#8369; 0</b></div>
 
-            {% if category != 'restaurant' %}
+            {% if category != 'restaurant' and category != 'resort' %}
             <div class="ag-pb-divider"></div>
             <div class="form-group" style="margin:0">
                 <label>Payment Method</label>
@@ -311,6 +311,9 @@ same markup, and any block with no real data behind it is simply not rendered.
                 </select>
             </div>
             <label class="checkbox" style="margin-top:12px"><input type="checkbox" name="pay_later" {% if pay_later %}checked{% endif %}> Pay later (booking stays pending)</label>
+            {% elif category == 'resort' %}
+            <div class="ag-pb-divider"></div>
+            <div class="meta">Your reservation will be saved first. Pay from the booking details; the Billing Officer will verify payment to confirm the booking.</div>
             {% else %}
             <div class="ag-pb-divider"></div>
             <div class="meta">Submitting this request does not confirm the reservation. A Restaurant Reservation Officer must review and confirm it.</div>
@@ -318,7 +321,7 @@ same markup, and any block with no real data behind it is simply not rendered.
         </div>
         <div class="ag-pb-actions">
             <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas {{ adapter.icon }}"></i> {% if category == 'restaurant' %}Submit Reservation{% else %}Confirm Booking{% endif %}</button>
-            {% if category != 'restaurant' %}<div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Pay on-site or online &middot; no prepayment required</div>{% endif %}
+            {% if category != 'restaurant' and category != 'resort' %}<div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Pay on-site or online &middot; no prepayment required</div>{% endif %}
             <div class="ag-pb-note"><a href="{{ list_url }}">Back to all {{ category_label|lower }}</a></div>
         </div>
     </aside>
