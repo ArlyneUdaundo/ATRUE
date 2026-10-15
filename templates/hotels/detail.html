@@ -3,6 +3,10 @@
 {% load hotel_photos %}
 
 {% block title %}{{ hotel.name }} | Hotel{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hotel-detail.css' %}?v=20261015-room-services-refresh">
+{% endblock %}
+
 
 {% block content %}
 <div class="page-head">
@@ -34,96 +38,76 @@
 {% endif %}
 {% endwith %}
 
-<div class="card card-pad" style="margin-bottom:18px">
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
-        <span class="scard-ico ico-blue" style="width:56px;height:56px;font-size:22px;border-radius:14px"><i class="fas fa-hotel"></i></span>
-        <div style="flex:1;min-width:220px">
-            <div class="meta"><i class="fas fa-fingerprint"></i> Establishment ID: <b>{{ hotel.establishment_id }}</b></div>
-            <div class="meta" style="margin:4px 0"><i class="fas fa-map-marker-alt"></i> {{ hotel.location }}</div>
-            <div class="meta"><i class="fas fa-clock"></i> {{ hotel.operating_schedule|default:"Open daily" }}</div>
-        </div>
-        <div>
-            <div class="meta"><i class="fas fa-phone"></i> {{ hotel.contact_number|default:"—" }}</div>
-            <div class="meta" style="margin-top:4px"><i class="fas fa-envelope"></i> {{ hotel.email|default:"—" }}</div>
-        </div>
+<div class="hotel-overview-card">
+    <span class="hotel-overview-icon"><i class="fas fa-hotel" aria-hidden="true"></i></span>
+    <div class="hotel-overview-main">
+        {% if hotel.establishment_id %}<div class="hotel-overview-detail"><i class="fas fa-fingerprint" aria-hidden="true"></i><span><small>Establishment ID</small><b>{{ hotel.establishment_id }}</b></span></div>{% endif %}
+        {% if hotel.country or hotel.province or hotel.municipality or hotel.barangay %}<div class="hotel-overview-detail"><i class="fas fa-map-marker-alt" aria-hidden="true"></i><span><small>Location</small><b>{{ hotel.location }}</b></span></div>{% endif %}
+        {% if hotel.operating_schedule %}<div class="hotel-overview-detail"><i class="fas fa-clock" aria-hidden="true"></i><span><small>Operating hours</small><b>{{ hotel.operating_schedule }}</b></span></div>{% endif %}
     </div>
+    {% if hotel.contact_number or hotel.email %}<div class="hotel-overview-contact">
+        {% if hotel.contact_number %}<a class="hotel-contact-link" href="tel:{{ hotel.contact_number }}"><i class="fas fa-phone" aria-hidden="true"></i><span><small>Contact</small>{{ hotel.contact_number }}</span></a>{% endif %}
+        {% if hotel.email %}<a class="hotel-contact-link" href="mailto:{{ hotel.email }}"><i class="fas fa-envelope" aria-hidden="true"></i><span><small>Email</small>{{ hotel.email }}</span></a>{% endif %}
+    </div>{% endif %}
 </div>
 
-<h3 style="margin-bottom:10px"><i class="fas fa-bed"></i> Rooms</h3>
-{% if not is_manager %}
-<div class="card card-pad" style="margin-bottom:14px">
-    <form method="get" class="ag-search mb" style="max-width:none;margin:0">
-        <div class="ag-search-fields filter-grid" style="grid-template-columns:1fr 1fr auto">
-            <div class="ag-field">
-                <label><i class="fas fa-sign-in-alt"></i> Check-in</label>
-                <input type="date" name="check_in" value="{{ check_in|date:'Y-m-d' }}" required>
+<section class="hotel-detail-section" aria-labelledby="hotel-rooms-title">
+    <div class="hotel-section-heading">
+        <div class="hotel-section-icon"><i class="fas fa-bed" aria-hidden="true"></i></div>
+        <div><h2 id="hotel-rooms-title">Rooms</h2><p>Explore room options and check availability for your stay.</p></div>
+    </div>
+    {% if not is_manager %}
+    <div class="card card-pad hotel-availability-card">
+        <form method="get" class="ag-search mb">
+            <div class="ag-search-fields filter-grid">
+                <div class="ag-field"><label><i class="fas fa-sign-in-alt"></i> Check-in</label><input type="date" name="check_in" value="{{ check_in|date:'Y-m-d' }}" required></div>
+                <div class="ag-field"><label><i class="fas fa-sign-out-alt"></i> Check-out</label><input type="date" name="check_out" value="{{ check_out|date:'Y-m-d' }}" required></div>
+                <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
             </div>
-            <div class="ag-field">
-                <label><i class="fas fa-sign-out-alt"></i> Check-out</label>
-                <input type="date" name="check_out" value="{{ check_out|date:'Y-m-d' }}" required>
-            </div>
-            <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
-        </div>
-    </form>
-    <div class="meta"><i class="fas fa-info-circle"></i> Availability is shown for {{ check_in|date:'M d, Y' }} to {{ check_out|date:'M d, Y' }} ({{ nights }} night{{ nights|pluralize }}). Change the dates above to update.</div>
-</div>
-{% endif %}
-<div class="ag-list">
-    {% for room in hotel.rooms.all %}
-    <article class="ag-card">
-        {% with photo=room.photos.all|first %}
-        {% if photo %}<img src="{{ photo.image.url }}" alt="Room {{ room.room_number }}" style="width:240px;height:180px;object-fit:cover;border-radius:12px 0 0 12px;flex:none">{% endif %}
-        {% endwith %}
-        <div class="ag-card-body">
-            <div class="ag-card-top">
-                <div>
-                    <h3 style="margin:0"><a href="{% url 'hotels:room_detail' room.id %}?check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" style="color:inherit;text-decoration:none">Room {{ room.room_number }} <i class="fas fa-external-link-alt" style="font-size:11px;color:var(--slate-400)"></i></a></h3>
-                    <div class="ag-loc">{{ room.get_room_type_display }} · {{ room.capacity_adults }}A / {{ room.capacity_children }}C</div>
-                    {% if room.features %}<div class="ag-loc"><i class="fas fa-bed"></i> {{ room.features }}</div>{% endif %}
+        </form>
+        <div class="meta"><i class="fas fa-info-circle"></i> Availability is shown for {{ check_in|date:'M d, Y' }} to {{ check_out|date:'M d, Y' }} ({{ nights }} night{{ nights|pluralize }}). Change the dates above to update.</div>
+    </div>
+    {% endif %}
+    <div class="hotel-room-list">
+        {% for room in hotel.rooms.all %}
+        <article class="hotel-room-card">
+            {% with photo=room.photos.all|first %}{% if photo %}<img class="hotel-room-image" src="{{ photo.image.url }}" alt="Room {{ room.room_number }}" loading="lazy" decoding="async">{% else %}<div class="hotel-room-image-placeholder" aria-hidden="true"><i class="fas fa-bed"></i></div>{% endif %}{% endwith %}
+            <div class="hotel-room-content">
+                <div class="hotel-room-info">
+                    <span class="hotel-room-kicker">{{ room.get_room_type_display }} room</span>
+                    <h3><a href="{% url 'hotels:room_detail' room.id %}?check_in={{ check_in|date:'Y-m-d' }}&amp;check_out={{ check_out|date:'Y-m-d' }}">Room {{ room.room_number }} <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a></h3>
+                    <div class="hotel-room-facts"><span><i class="fas fa-user-group" aria-hidden="true"></i> {{ room.capacity_adults }} adult{{ room.capacity_adults|pluralize }}{% if room.capacity_children %}, {{ room.capacity_children }} child{{ room.capacity_children|pluralize }}{% endif %}</span>{% if room.features %}<span><i class="fas fa-list-check" aria-hidden="true"></i> {{ room.features }}</span>{% endif %}</div>
                 </div>
-                <span class="ag-rate">{{ room.get_status_display }}</span>
+                <div class="hotel-room-offer">
+                    <span class="hotel-room-status{% if room.id in available_room_ids %} is-available{% endif %}"><i class="fas {% if room.id in available_room_ids %}fa-circle-check{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i> {% if room.id in available_room_ids %}Available for selected dates{% elif room.status == 'AVAILABLE' and not is_manager %}Unavailable for selected dates{% else %}{{ room.get_status_display }}{% endif %}</span>
+                    <div class="hotel-room-price"><b>&#8369; {{ room.rate|floatformat:2 }}</b><span>/ night</span></div>
+                    {% if room.additional_guest_charge %}<small class="hotel-room-extra">+ &#8369; {{ room.additional_guest_charge|floatformat:2 }} per extra guest / night</small>{% endif %}
+                    {% if is_manager %}<a href="{% url 'hotels:update_room' room.id %}" class="ag-btn ag-btn-muted btn-sm" data-establishment-create><i class="fas fa-edit"></i> Manage</a>{% elif room.id in available_room_ids %}<a href="{% url 'hotels:group_start' room.hotel_id %}?rooms=1&amp;check_in={{ check_in|date:'Y-m-d' }}&amp;check_out={{ check_out|date:'Y-m-d' }}" class="ag-btn btn-sm"><i class="fas fa-bed"></i> Book</a>{% else %}<span class="badge badge-gray">Unavailable for selected dates</span>{% endif %}
+                </div>
             </div>
-            <div class="ag-card-foot">
-                <div class="ag-price"><b>₱ {{ room.rate }}</b><span class="ag-per">/night</span></div>
-                {% if is_manager %}
-                <a href="{% url 'hotels:update_room' room.id %}" class="ag-btn ag-btn-muted btn-sm" data-establishment-create><i class="fas fa-edit"></i> Manage</a>
-                {% elif room.id in available_room_ids %}
-                <a href="{% url 'hotels:group_start' room.hotel_id %}?rooms=1&check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="ag-btn btn-sm"><i class="fas fa-bed"></i> Book</a>
-                {% else %}
-                <span class="badge badge-gray">Unavailable for selected dates</span>
-                {% endif %}
-            </div>
-        </div>
-    </article>
-    {% empty %}
-    <div class="ag-card"><div class="ag-card-body"><div class="empty"><i class="fas fa-bed"></i><h3>No rooms yet</h3><p>Rooms will be added by the administrator.</p></div></div></div>
-    {% endfor %}
-</div>
+        </article>
+        {% empty %}
+        <div class="hotel-empty-state"><span class="hotel-empty-icon"><i class="fas fa-bed" aria-hidden="true"></i></span><div><h3>No rooms available yet</h3><p>Room options will appear here once they are added by the administrator.</p></div></div>
+        {% endfor %}
+    </div>
+</section>
 
-<div class="form-grid">
-    <div>
-        <h3 style="margin-bottom:10px"><i class="fas fa-concierge-bell"></i> Services</h3>
+<section class="hotel-feature-grid" aria-label="Hotel services and amenities">
+    <article class="hotel-feature-panel">
+        <div class="hotel-feature-heading"><span><i class="fas fa-concierge-bell" aria-hidden="true"></i></span><div><h2>Services</h2><p>Services available at this property</p></div></div>
         {% if hotel.services.all %}
-        <div class="ag-chips">
+        <div class="hotel-feature-list">
             {% for s in hotel.services.all %}
-            <a href="{% url 'hotels:service_detail' s.id %}" class="ag-chip" style="text-decoration:none"><i class="fas fa-check"></i> {{ s.name }}{% if s.rate %} · ₱ {{ s.rate }}{% endif %}</a>
+            <a href="{% url 'hotels:service_detail' s.id %}" class="hotel-feature-item"><i class="fas fa-check" aria-hidden="true"></i><span>{{ s.name }}</span>{% if s.rate %}<small class="is-paid">Paid &middot; &#8369; {{ s.rate|floatformat:2 }}</small>{% else %}<small class="is-complimentary">Complimentary</small>{% endif %}</a>
             {% endfor %}
         </div>
         {% else %}
-        <div class="meta">No services listed.</div>
+        <p class="hotel-feature-empty">No services have been listed yet.</p>
         {% endif %}
-    </div>
-    <div>
-        <h3 style="margin-bottom:10px"><i class="fas fa-swimming-pool"></i> Amenities</h3>
-        {% if hotel.amenities.all %}
-        <div class="ag-chips">
-            {% for a in hotel.amenities.all %}
-            <a href="{% url 'hotels:amenity_detail' a.id %}" class="ag-chip" style="text-decoration:none"><i class="fas fa-check"></i> {{ a.name }}</a>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="meta">No amenities listed.</div>
-        {% endif %}
-    </div>
-</div>
+    </article>
+    <article class="hotel-feature-panel">
+        <div class="hotel-feature-heading"><span><i class="fas fa-swimming-pool" aria-hidden="true"></i></span><div><h2>Amenities &amp; Facilities</h2><p>Features and facilities at this property</p></div></div>
+        {% if hotel.amenities.all %}<div class="hotel-feature-list">{% for a in hotel.amenities.all %}<a href="{% url 'hotels:amenity_detail' a.id %}" class="hotel-feature-item"><i class="fas fa-check" aria-hidden="true"></i><span>{{ a.name }}</span></a>{% endfor %}</div>{% else %}<p class="hotel-feature-empty">No amenities have been listed yet.</p>{% endif %}
+    </article>
+</section>
 {% endblock %}

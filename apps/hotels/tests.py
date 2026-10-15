@@ -10,6 +10,88 @@ from locations.models import CityMunicipality, Country, Province, Region
 from hotels.models import Amenity, Booking, Hotel, Room, Service
 
 
+class HotelDetailPresentationTests(TestCase):
+    def setUp(self):
+        self.hotel = Hotel.objects.create(
+            name='Detail Page Hotel', status=Hotel.Status.ACTIVE,
+        )
+        self.url = reverse('hotels:detail', args=[self.hotel.pk])
+
+    def test_empty_rooms_services_and_amenities_use_compact_empty_states(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No rooms available yet')
+        self.assertContains(
+            response,
+            'Room options will appear here once they are added by the administrator.',
+        )
+        self.assertContains(response, 'No services have been listed yet.')
+        self.assertContains(response, 'No amenities have been listed yet.')
+        self.assertContains(response, 'hotel-empty-state')
+        self.assertNotContains(response, 'class="empty"')
+
+    def test_real_room_service_and_amenity_data_and_booking_action_render(self):
+        room = Room.objects.create(
+            hotel=self.hotel, room_number='201', room_type=Room.RoomType.DOUBLE,
+            capacity_adults=2, capacity_children=1, rate='4200.00',
+            additional_guest_charge='350.00',
+            features='Two beds, private balcony',
+        )
+        self.hotel.contact_number = '09171234567'
+        self.hotel.email = 'stay@example.com'
+        self.hotel.operating_schedule = 'Open daily, 8 AM–10 PM'
+        self.hotel.save()
+        Service.objects.create(
+            hotel=self.hotel, name='Airport transfer', rate='750.00',
+        )
+        Service.objects.create(hotel=self.hotel, name='Daily housekeeping', rate='0.00')
+        Amenity.objects.create(hotel=self.hotel, name='Swimming pool')
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'Room {room.room_number}')
+        self.assertContains(response, 'Double room')
+        self.assertContains(response, 'Two beds, private balcony')
+        self.assertContains(response, '4200.00')
+        self.assertContains(response, '350.00 per extra guest / night')
+        self.assertContains(response, '<h2>Services</h2>', html=True)
+        self.assertContains(response, 'Airport transfer')
+        self.assertContains(response, 'Paid')
+        self.assertContains(response, 'Complimentary')
+        self.assertContains(response, 'Swimming pool')
+        self.assertContains(response, '09171234567')
+        self.assertContains(response, 'stay@example.com')
+        self.assertContains(response, 'Open daily, 8 AM–10 PM')
+        self.assertContains(response, 'Book')
+        self.assertNotContains(response, 'No rooms available yet')
+        self.assertNotContains(response, 'No services have been listed yet.')
+        self.assertNotContains(response, 'No amenities have been listed yet.')
+
+    def test_multiple_room_cards_keep_long_room_details_inside_the_listing(self):
+        Room.objects.create(
+            hotel=self.hotel, room_number='PENTHOUSE-202-LONG',
+            room_type=Room.RoomType.SUITE, capacity_adults=4,
+            capacity_children=2, rate='9800.00',
+            features='King bed, lounge area, ocean-facing balcony, air conditioning',
+        )
+        Room.objects.create(
+            hotel=self.hotel, room_number='FAMILY-203',
+            room_type=Room.RoomType.FAMILY, capacity_adults=3,
+            capacity_children=3, rate='6200.00',
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.count(b'class="hotel-room-card"'), 2)
+        self.assertContains(response, 'Room PENTHOUSE-202-LONG')
+        self.assertContains(response, 'ocean-facing balcony')
+        self.assertContains(response, 'Room FAMILY-203')
+        self.assertEqual(response.content.count(b'class="ag-btn btn-sm"'), 2)
+
+
 class HotelCountryTests(TestCase):
     """Worldwide Country -> Province -> City cascade on the hotel forms."""
 
