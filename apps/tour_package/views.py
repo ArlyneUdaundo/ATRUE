@@ -21,6 +21,7 @@ from atrue_core.services import (
     record_payment,
 )
 from django.core.exceptions import PermissionDenied
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from atrue_core.search_catalog import render_search_page
@@ -127,6 +128,7 @@ def manage(request):
     return render(request, 'tour_package/manage.html', {
         'packages': packages,
         'can_create_package': is_platform_operator(request.user),
+        'can_delete_package': is_platform_operator(request.user),
     })
 
 
@@ -233,6 +235,29 @@ def update_package(request, package_id):
     if request.GET.get('modal') == '1':
         return render(request, 'tour_package/_edit_modal.html', _component_context(package))
     return render(request, 'tour_package/form.html', _component_context(package))
+
+
+@manager_required
+def delete_package(request, package_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('tour_package:manage')
+    package = get_object_or_404(
+        scope_packages(request, TourPackage.objects.all(), PACKAGE_MANAGER_ROLES), pk=package_id)
+    if not may_manage_package(request, package.pk):
+        raise PermissionDenied('Only an assigned Tour Package Manager may delete this package.')
+    name = package.name
+    if Booking.objects.filter(package=package).exists():
+        messages.error(request, f"Tour package '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('tour_package:manage')
+    try:
+        package.delete()
+    except ProtectedError:
+        messages.error(request, f"Tour package '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('tour_package:manage')
+    log_activity(request.user, 'Deleted tour package', name)
+    messages.success(request, f"Tour package '{name}' deleted.")
+    return redirect('tour_package:manage')
 
 
 def _component_context(package=None):

@@ -4,6 +4,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
@@ -155,6 +156,28 @@ def update_staycation(request, staycation_id):
         messages.success(request, "Staycation updated.")
         return redirect('staycations:manage')
     return render(request, 'staycations/form.html', {'staycation': staycation})
+
+
+@manager_required
+@staycation_scope.decorator()
+def delete_staycation(request, staycation_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('staycations:manage')
+    staycation = get_object_or_404(
+        staycation_scope.scope_queryset(request, Staycation.objects.all()), pk=staycation_id)
+    name = staycation.name
+    if Reservation.objects.filter(staycation=staycation).exists():
+        messages.error(request, f"Staycation '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('staycations:manage')
+    try:
+        staycation.delete()
+    except ProtectedError:
+        messages.error(request, f"Staycation '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('staycations:manage')
+    log_activity(request.user, 'Deleted staycation', name)
+    messages.success(request, f"Staycation '{name}' deleted.")
+    return redirect('staycations:manage')
 
 
 def staycation_detail(request, staycation_id):

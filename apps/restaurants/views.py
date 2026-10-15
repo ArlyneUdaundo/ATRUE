@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -246,6 +247,7 @@ def manage(request):
         'location': location,
         'cuisine': cuisine,
         'status_choices': Restaurant.Status.choices,
+        'can_delete': restaurant_ids is None,
     })
 
 
@@ -305,6 +307,30 @@ def update_restaurant(request, restaurant_id):
         'status_choices': Restaurant.Status.choices,
         'location_parts': _location_parts(restaurant.location),
     })
+
+
+@manager_required
+def delete_restaurant(request, restaurant_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('restaurants:manage')
+    restaurant_ids = _assigned_restaurant_ids(request)
+    qs = Restaurant.objects.all()
+    if restaurant_ids is not None:
+        qs = qs.filter(pk__in=restaurant_ids)
+    restaurant = get_object_or_404(qs, pk=restaurant_id)
+    name = restaurant.name
+    if Reservation.objects.filter(table__restaurant=restaurant).exists():
+        messages.error(request, f"Restaurant '{name}' has reservation history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('restaurants:manage')
+    try:
+        restaurant.delete()
+    except ProtectedError:
+        messages.error(request, f"Restaurant '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('restaurants:manage')
+    log_activity(request.user, 'Deleted restaurant', name)
+    messages.success(request, f"Restaurant '{name}' deleted.")
+    return redirect('restaurants:manage')
 
 
 def restaurant_detail(request, restaurant_id):

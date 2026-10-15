@@ -29,6 +29,11 @@
                 <div style="display:flex;gap:8px">
                     <a href="{% url 'activities:update_activity' a.id %}" data-establishment-create class="btn btn-ghost btn-sm" style="flex:1"><i class="fas fa-edit"></i> Edit</a>
                     <a href="{% url 'activities:bookings' %}" class="btn btn-ghost btn-sm"><i class="fas fa-list"></i> Bookings</a>
+                    {% if can_delete %}
+                    <form method="post" action="{% url 'activities:delete_activity' a.id %}" data-confirm="Delete activity '{{ a.name }}'? Activities with booking history cannot be deleted." style="display:inline">
+                        {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}

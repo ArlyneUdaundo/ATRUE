@@ -10,6 +10,7 @@ urlpatterns = [
     path('operate/', views.operate, name='operate'),
     path('add/', views.add_package, name='add_package'),
     path('<int:package_id>/update/', views.update_package, name='update_package'),
+    path('<int:package_id>/delete/', views.delete_package, name='delete_package'),
     path('book/<int:package_id>/', views.book_package, name='book_package'),
     path('book/flow/<int:package_id>/', views.package_flow_select, name='flow_select'),
     path('bookings/', views.bookings, name='bookings'),

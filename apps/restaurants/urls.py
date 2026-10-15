@@ -11,6 +11,7 @@ urlpatterns = [
     path('manage/', views.manage, name='manage'),
     path('add/', views.add_restaurant, name='add'),
     path('<int:restaurant_id>/update/', views.update_restaurant, name='update_restaurant'),
+    path('<int:restaurant_id>/delete/', views.delete_restaurant, name='delete_restaurant'),
     path('<int:restaurant_id>/table/add/', views.add_table, name='add_table'),
     path('table/<int:table_id>/update/', views.update_table, name='update_table'),
     path('book/<int:table_id>/', views.book_restaurant, name='book'),

@@ -19,6 +19,7 @@ from atrue_core.services import (
     resource_is_bookable,
 )
 from django.core.exceptions import PermissionDenied
+from django.db.models.deletion import ProtectedError
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -96,7 +97,10 @@ def manage(request):
         request,
         Activity.objects.select_related('provider').prefetch_related('photos').all(),
     )
-    return render(request, 'activities/manage.html', {'activities': activities})
+    return render(request, 'activities/manage.html', {
+        'activities': activities,
+        'can_delete': is_activity_platform_user(request.user),
+    })
 
 
 def _save_activity(request, provider, instance=None):
@@ -188,6 +192,27 @@ def update_activity(request, activity_id):
         messages.success(request, "Activity updated.")
         return redirect('activities:manage')
     return render(request, 'activities/activity_form.html', {'activity': activity})
+
+
+@manager_required
+@activity_role_required('ACTIVITY_MANAGER')
+def delete_activity(request, activity_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('activities:manage')
+    activity = get_object_or_404(scope_activities(request, Activity.objects.all()), pk=activity_id)
+    name = activity.name
+    if Booking.objects.filter(activity=activity).exists():
+        messages.error(request, f"Activity '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('activities:manage')
+    try:
+        activity.delete()
+    except ProtectedError:
+        messages.error(request, f"Activity '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('activities:manage')
+    log_activity(request.user, 'Deleted activity', name)
+    messages.success(request, f"Activity '{name}' deleted.")
+    return redirect('activities:manage')
 
 
 @login_required

@@ -9,6 +9,7 @@ urlpatterns = [
     path('manage/', views.manage, name='manage'),
     path('add/', views.add_staycation, name='add'),
     path('<int:staycation_id>/update/', views.update_staycation, name='update_staycation'),
+    path('<int:staycation_id>/delete/', views.delete_staycation, name='delete'),
     path('<int:staycation_id>/service/add/', views.add_service, name='add_service'),
     path('services/', views.services, name='services'),
     path('services/<int:service_id>/', views.service_detail, name='service_detail'),

@@ -64,6 +64,11 @@
         <span data-staycation-status class="badge {% if s.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ s.get_status_display }}</span>
         <a href="{% url 'staycations:detail' s.slug %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
         <button type="button" class="btn btn-ghost btn-sm" data-open-staycation-modal="edit-staycation-{{ s.id }}"><i class="fas fa-edit"></i> Edit</button>
+        {% if not scoped_user %}
+        <form method="post" action="{% url 'staycations:delete' s.id %}" data-confirm="Delete staycation '{{ s.name }}' and its add-ons? Staycations with booking history cannot be deleted." style="display:inline">
+            {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+        {% endif %}
         <button type="button" class="btn btn-ghost btn-sm" data-open-staycation-modal="add-service-{{ s.id }}"><i class="fas fa-concierge-bell"></i> Add-on</button>
     </div>
 

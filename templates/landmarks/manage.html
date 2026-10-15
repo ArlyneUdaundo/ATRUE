@@ -39,6 +39,11 @@
         </div>
         <span data-attraction-status class="badge {% if l.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ l.get_status_display }}</span>
         <a href="{% url 'landmarks:update_landmark' l.id %}" data-establishment-create class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</a>
+        {% if can_delete %}
+        <form method="post" action="{% url 'landmarks:delete_landmark' l.id %}" data-confirm="Delete landmark '{{ l.name }}'? Landmarks with ticket history cannot be deleted." style="display:inline">
+            {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 {% empty %}

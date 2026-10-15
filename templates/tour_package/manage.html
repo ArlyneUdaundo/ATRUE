@@ -38,6 +38,11 @@
             </div>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" data-tour-package-edit="{% url 'tour_package:update_package' p.id %}"><i class="fas fa-edit"></i> Edit</button>
+        {% if can_delete_package %}
+        <form method="post" action="{% url 'tour_package:delete_package' p.id %}" data-confirm="Delete tour package '{{ p.name }}'? Packages with booking history cannot be deleted." style="display:inline">
+            {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 {% empty %}

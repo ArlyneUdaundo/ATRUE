@@ -10,6 +10,7 @@ urlpatterns = [
     path('operate/', views.operate, name='operate'),
     path('add/', views.add_activity, name='add_activity'),
     path('<int:activity_id>/update/', views.update_activity, name='update_activity'),
+    path('<int:activity_id>/delete/', views.delete_activity, name='delete_activity'),
     path('book/<int:activity_id>/', views.book_activity, name='book_activity'),
     path('flow/<int:pk>/', views.activity_flow_select, name='flow_select'),
     path('flow/<int:pk>/detail/', views.activity_detail, name='detail'),

@@ -11,6 +11,7 @@ urlpatterns = [
     path('spot/<int:spot_id>/update/', views.update_spot, name='update_spot'),
     path('landmark/add/', views.add_landmark, name='add_landmark'),
     path('landmark/<int:landmark_id>/update/', views.update_landmark, name='update_landmark'),
+    path('landmark/<int:landmark_id>/delete/', views.delete_landmark, name='delete_landmark'),
     path('book-spot/<int:spot_id>/', views.book_spot, name='book_spot'),
     path('book-landmark/<int:landmark_id>/', views.book_landmark, name='book_landmark'),
     path('flow/<int:pk>/', views.landmark_flow_select, name='flow_select'),

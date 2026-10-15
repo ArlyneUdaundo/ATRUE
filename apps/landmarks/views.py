@@ -4,6 +4,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
@@ -84,6 +85,7 @@ def manage(request):
         'query': query,
         'selected_status': status,
         'status_choices': Landmark.Status.choices,
+        'can_delete': not landmark_scope.is_scoped(request.user),
     })
 
 
@@ -222,6 +224,31 @@ def update_landmark(request, landmark_id):
                 'image_url': photo.image.url if photo and photo.image else ''})
         return redirect('landmarks:manage')
     return render(request, 'landmarks/landmark_form.html', {'landmark': landmark, 'title': 'Landmark'})
+
+
+@manager_required
+@landmark_scope.decorator()
+def delete_landmark(request, landmark_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('landmarks:manage')
+    landmark = get_object_or_404(
+        landmark_scope.scope_queryset(request, Landmark.objects.all()),
+        pk=landmark_id,
+        category=Landmark.Category.LANDMARK,
+    )
+    name = landmark.name
+    if Ticket.objects.filter(destination=landmark).exists():
+        messages.error(request, f"Landmark '{name}' has ticket history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('landmarks:manage')
+    try:
+        landmark.delete()
+    except ProtectedError:
+        messages.error(request, f"Landmark '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('landmarks:manage')
+    log_activity(request.user, 'Deleted landmark', name)
+    messages.success(request, f"Landmark '{name}' deleted.")
+    return redirect('landmarks:manage')
 
 
 def _render_ticket_page(request, *, destination_type, destination, name, fee, cancel_url,

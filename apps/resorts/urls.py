@@ -9,6 +9,7 @@ urlpatterns = [
     path('manage/', views.manage, name='manage'),
     path('add/', views.add_resort, name='add'),
     path('<int:resort_id>/update/', views.update_resort, name='update_resort'),
+    path('<int:resort_id>/delete/', views.delete_resort, name='delete_resort'),
     path('units/', views.units, name='units'),
     path('unit/<int:unit_id>/', views.unit_detail, name='unit_detail'),
     path('<int:resort_id>/unit/add/', views.add_unit, name='add_unit'),

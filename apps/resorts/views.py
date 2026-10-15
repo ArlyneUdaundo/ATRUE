@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
+from django.db.models.deletion import ProtectedError
 from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -116,6 +117,7 @@ def manage(request):
         'municipality': municipality,
         'barangay': barangay,
         'status_choices': Resort.Status.choices,
+        'can_delete': not resort_scope.is_scoped(request.user),
     })
 
 
@@ -169,6 +171,28 @@ def update_resort(request, resort_id):
         'resort': resort,
         'status_choices': Resort.Status.choices,
     })
+
+
+@manager_required
+@resort_scope.decorator()
+def delete_resort(request, resort_id):
+    if request.method != 'POST':
+        messages.warning(request, 'Invalid request.')
+        return redirect('resorts:manage')
+    resort = get_object_or_404(
+        resort_scope.scope_queryset(request, Resort.objects.all()), pk=resort_id)
+    name = resort.name
+    if Reservation.objects.filter(unit__resort=resort).exists():
+        messages.error(request, f"Resort '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('resorts:manage')
+    try:
+        resort.delete()
+    except ProtectedError:
+        messages.error(request, f"Resort '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
+        return redirect('resorts:manage')
+    log_activity(request.user, 'Deleted resort', name)
+    messages.success(request, f"Resort '{name}' deleted.")
+    return redirect('resorts:manage')
 
 
 def resort_detail(request, resort_id):
