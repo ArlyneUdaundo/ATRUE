@@ -231,9 +231,9 @@
             }
 
             const options = establishmentData[type] || [];
-            const label = type === 'ANY' ? 'establishment' : (establishmentTypeLabels.filter(function (t) {
+            const label = (establishmentTypeLabels.filter(function (t) {
                 return t.value === type;
-            })[0] || {}).label || type);
+            })[0] || {}).label || type;
 
             let html = '<option value="">' + (optional ? 'No specific place' : 'Select ' + label.toLowerCase()) + '</option>';
             options.forEach(function (establishment) {

@@ -190,9 +190,38 @@ ROLE_CATALOGUE = [
      Role.Category.LANDMARK, Role.EstablishmentType.LANDMARK,
      Role.OperationCategory.FRONT_DESK, 690),
 
+    # -- Billing: separately assigned at one establishment ------------------
+    ('HOTEL_BILLING_OFFICER', 'Hotel Billing Officer', Role.Category.HOTEL,
+     Role.EstablishmentType.HOTEL, Role.OperationCategory.BILLING, 780),
+    ('RESORT_BILLING_OFFICER', 'Resort Billing Officer', Role.Category.RESORT,
+     Role.EstablishmentType.RESORT, Role.OperationCategory.BILLING, 781),
+    ('RESTAURANT_BILLING_OFFICER', 'Restaurant Billing Officer',
+     Role.Category.RESTAURANT, Role.EstablishmentType.RESTAURANT,
+     Role.OperationCategory.BILLING, 782),
+    ('STAYCATION_BILLING_OFFICER', 'Staycation Billing Officer',
+     Role.Category.STAYCATION, Role.EstablishmentType.STAYCATION,
+     Role.OperationCategory.BILLING, 783),
+    ('LANDMARK_BILLING_OFFICER', 'Landmark Billing Officer',
+     Role.Category.LANDMARK, Role.EstablishmentType.LANDMARK,
+     Role.OperationCategory.BILLING, 784),
+    ('AIRLINE_BILLING_OFFICER', 'Airline Billing Officer', Role.Category.AIRLINE,
+     Role.EstablishmentType.AIRLINE, Role.OperationCategory.BILLING, 785),
+    ('TRAVEL_AGENCY_BILLING_OFFICER', 'Travel Agency Billing Officer',
+     Role.Category.TRAVEL_AGENCY, Role.EstablishmentType.TRAVEL_AGENCY,
+     Role.OperationCategory.BILLING, 786),
+    ('TOUR_OPERATOR_BILLING_OFFICER', 'Tour Operator Billing Officer',
+     Role.Category.TOUR, Role.EstablishmentType.TOUR_OPERATOR,
+     Role.OperationCategory.BILLING, 787),
+    ('TOUR_PACKAGE_BILLING_OFFICER', 'Tour Package Billing Officer',
+     Role.Category.TOUR, Role.EstablishmentType.TOUR_PACKAGE,
+     Role.OperationCategory.BILLING, 788),
+    ('ACTIVITY_BILLING_OFFICER', 'Activity Billing Officer', Role.Category.ACTIVITY,
+     Role.EstablishmentType.ACTIVITY, Role.OperationCategory.BILLING, 789),
+    ('TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer',
+     Role.Category.TRANSPORTATION, Role.EstablishmentType.TRANSPORTATION,
+     Role.OperationCategory.BILLING, 790),
+
     # -- Billing and establishment owners ----------------------------------
-    ('BILLING_OFFICER', 'Billing Officer', Role.Category.ADMIN, None,
-     Role.OperationCategory.BILLING, 800),
     ('HOTEL_OWNER', 'Hotel Owner', Role.Category.HOTEL,
      Role.EstablishmentType.HOTEL, Role.OperationCategory.MANAGER, 810),
     ('RESORT_OWNER', 'Resort Owner', Role.Category.RESORT,
@@ -222,6 +251,11 @@ ROLE_CATALOGUE = [
      910),
 ]
 
+BILLING_OFFICER_ROLE_CODES = tuple(
+    entry[0] for entry in ROLE_CATALOGUE
+    if entry[0].endswith('_BILLING_OFFICER')
+)
+
 #: Roles that have been folded into one of the three operational roles above.
 #:
 #: Same six-wide shape, but these rows are created ``is_active=False`` and are
@@ -241,19 +275,10 @@ RETIRED_ROLES = [
      Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.FRONT_DESK, 1050),
     ('TOUR_OPERATOR', 'Tour Operator (retired)', Role.Category.TOUR,
      Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.FRONT_DESK, 1060),
-    ('HOTEL_BILLING_OFFICER', 'Hotel Billing Officer (retired)', Role.Category.HOTEL,
-     Role.EstablishmentType.HOTEL, Role.OperationCategory.MANAGER, 1080),
-    ('AIRLINE_BILLING_OFFICER', 'Airline Billing Officer (retired)',
-     Role.Category.AIRLINE, Role.EstablishmentType.AIRLINE,
-     Role.OperationCategory.MANAGER, 1090),
-    ('TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer (retired)',
-     Role.Category.TRANSPORTATION, Role.EstablishmentType.TRANSPORTATION,
-     Role.OperationCategory.MANAGER, 1100),
+    ('BILLING_OFFICER', 'Billing Officer (legacy)', Role.Category.ADMIN, None,
+     Role.OperationCategory.BILLING, 1075),
     ('TOUR_BILLING_OFFICER', 'Tour Billing Officer (retired)', Role.Category.TOUR,
      Role.EstablishmentType.TOUR_OPERATOR, Role.OperationCategory.MANAGER, 1110),
-    ('TRAVEL_AGENCY_BILLING_OFFICER', 'Travel Agency Billing Officer (retired)',
-     Role.Category.TRAVEL_AGENCY, Role.EstablishmentType.TRAVEL_AGENCY,
-     Role.OperationCategory.MANAGER, 1120),
     ('HOUSEKEEPING_OFFICER', 'Housekeeping Officer (retired)', Role.Category.HOTEL,
      Role.EstablishmentType.HOTEL, Role.OperationCategory.FRONT_DESK, 1130),
     ('RECEPTIONIST', 'Receptionist (retired)', Role.Category.HOTEL,
@@ -442,7 +467,7 @@ def active_entries():
     and refused by the assign view.
     """
     return [entry for entry in ROLE_CATALOGUE
-            if entry[2] != Role.Category.ADMIN or entry[0] == 'BILLING_OFFICER']
+            if entry[2] != Role.Category.ADMIN]
 
 
 def missing_active_codes():
@@ -493,7 +518,7 @@ def sync_roles():
             'category': category,
             'establishment_type': establishment_type,
             'operation_category': operation_category,
-            'requires_establishment': establishment_type is not None or code == 'BILLING_OFFICER',
+            'requires_establishment': establishment_type is not None,
             'workflow_stage': Role.STAGE_FOR_OPERATION_CATEGORY.get(
                 operation_category, Role.WorkflowStage.INTAKE),
             'sort_order': order,
@@ -531,7 +556,7 @@ def sync_activity_roles():
             'category': category,
             'establishment_type': establishment_type,
             'operation_category': operation_category,
-            'requires_establishment': establishment_type is not None or code == 'BILLING_OFFICER',
+            'requires_establishment': establishment_type is not None,
             'workflow_stage': Role.STAGE_FOR_OPERATION_CATEGORY.get(
                 operation_category, Role.WorkflowStage.INTAKE),
             'sort_order': order,

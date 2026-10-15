@@ -6,6 +6,19 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 
+BILLING_OFFICER_ROLE_CODES = (
+    'HOTEL_BILLING_OFFICER', 'RESORT_BILLING_OFFICER',
+    'RESTAURANT_BILLING_OFFICER', 'STAYCATION_BILLING_OFFICER',
+    'LANDMARK_BILLING_OFFICER', 'AIRLINE_BILLING_OFFICER',
+    'TRAVEL_AGENCY_BILLING_OFFICER', 'TOUR_OPERATOR_BILLING_OFFICER',
+    'TOUR_PACKAGE_BILLING_OFFICER', 'ACTIVITY_BILLING_OFFICER',
+    'TRANSPORT_BILLING_OFFICER',
+    # Kept scoped for pre-migration assignments; new assignments use the
+    # explicitly named TOUR_OPERATOR_BILLING_OFFICER role.
+    'TOUR_BILLING_OFFICER',
+)
+
+
 #: Legacy role code -> its operation category, for assignments that predate
 #: ``Role.operation_category``. Without this an old row would route nowhere.
 #: Written as plain strings on purpose: this table sits above both model classes,
@@ -137,7 +150,7 @@ class SimulationRoleAssignment(models.Model):
         TOUR_PACKAGE_OWNER = 'TOUR_PACKAGE_OWNER', 'Tour Package Owner'
         ACTIVITY_OWNER = 'ACTIVITY_OWNER', 'Activity Owner'
         TRANSPORTATION_OWNER = 'TRANSPORTATION_OWNER', 'Transportation Owner'
-        BILLING_OFFICER = 'BILLING_OFFICER', 'Billing Officer'
+        BILLING_OFFICER = 'BILLING_OFFICER', 'Billing Officer (legacy)'
         # -- Section 6.3 roles retained for existing data --------------------
         # These are no longer offered: every establishment role is one of the
         # three above. The members stay so assignments and screens that still
@@ -145,19 +158,26 @@ class SimulationRoleAssignment(models.Model):
         # them from the catalogue.
         TOUR_MANAGER = 'TOUR_MANAGER', 'Tour Manager (legacy)'
         TOUR_COORDINATOR = 'TOUR_COORDINATOR', 'Tour Coordinator (legacy)'
-        HOTEL_BILLING_OFFICER = 'HOTEL_BILLING_OFFICER', 'Hotel Billing Officer (legacy)'
+        HOTEL_BILLING_OFFICER = 'HOTEL_BILLING_OFFICER', 'Hotel Billing Officer'
         HOUSEKEEPING_OFFICER = 'HOUSEKEEPING_OFFICER', 'Housekeeping Officer (legacy)'
         AIRLINE_TICKETING_OFFICER = 'AIRLINE_TICKETING_OFFICER', 'Airline Ticketing Officer (legacy)'
         AIRLINE_CUSTOMER_SERVICE = 'AIRLINE_CUSTOMER_SERVICE', 'Airline Customer Service Officer (legacy)'
         AIRLINE_SUPERVISOR = 'AIRLINE_SUPERVISOR', 'Airline Supervisor (legacy)'
-        AIRLINE_BILLING_OFFICER = 'AIRLINE_BILLING_OFFICER', 'Airline Billing Officer (legacy)'
+        AIRLINE_BILLING_OFFICER = 'AIRLINE_BILLING_OFFICER', 'Airline Billing Officer'
         TRAVEL_AGENCY_RESERVATION_OFFICER = 'TRAVEL_AGENCY_RESERVATION_OFFICER', 'Travel Agency Reservation Officer (legacy)'
-        TRAVEL_AGENCY_BILLING_OFFICER = 'TRAVEL_AGENCY_BILLING_OFFICER', 'Travel Agency Billing Officer (legacy)'
+        TRAVEL_AGENCY_BILLING_OFFICER = 'TRAVEL_AGENCY_BILLING_OFFICER', 'Travel Agency Billing Officer'
         TOUR_OPERATOR = 'TOUR_OPERATOR', 'Tour Operator (legacy)'
         TOUR_BILLING_OFFICER = 'TOUR_BILLING_OFFICER', 'Tour Billing Officer (legacy)'
         TRANSPORT_RESERVATION_OFFICER = 'TRANSPORT_RESERVATION_OFFICER', 'Transportation Reservation Officer (legacy)'
         TRANSPORT_DISPATCHER = 'TRANSPORT_DISPATCHER', 'Transportation Dispatcher (legacy)'
-        TRANSPORT_BILLING_OFFICER = 'TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer (legacy)'
+        TRANSPORT_BILLING_OFFICER = 'TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer'
+        RESORT_BILLING_OFFICER = 'RESORT_BILLING_OFFICER', 'Resort Billing Officer'
+        RESTAURANT_BILLING_OFFICER = 'RESTAURANT_BILLING_OFFICER', 'Restaurant Billing Officer'
+        STAYCATION_BILLING_OFFICER = 'STAYCATION_BILLING_OFFICER', 'Staycation Billing Officer'
+        LANDMARK_BILLING_OFFICER = 'LANDMARK_BILLING_OFFICER', 'Landmark Billing Officer'
+        TOUR_OPERATOR_BILLING_OFFICER = 'TOUR_OPERATOR_BILLING_OFFICER', 'Tour Operator Billing Officer'
+        TOUR_PACKAGE_BILLING_OFFICER = 'TOUR_PACKAGE_BILLING_OFFICER', 'Tour Package Billing Officer'
+        ACTIVITY_BILLING_OFFICER = 'ACTIVITY_BILLING_OFFICER', 'Activity Billing Officer'
         TRAVEL_CONSULTANT = 'TRAVEL_CONSULTANT', 'Travel Consultant (legacy)'
         # Administrative
         INSTRUCTOR = 'INSTRUCTOR', 'Instructor'
@@ -407,8 +427,7 @@ class SimulationRoleAssignment(models.Model):
                     f'{role.name} is performed inside an establishment, so one must be '
                     'selected. A role is only an assignment together with the '
                     'establishment it applies to.')
-            elif (role.code != 'BILLING_OFFICER'
-                  and self.establishment.type != role.establishment_category):
+            elif self.establishment.type != role.establishment_category:
                 errors['establishment'] = (
                     f'{role.name} cannot be assigned to a '
                     f'{self.establishment.get_type_display()}. Choose a '
@@ -875,10 +894,9 @@ class Role(models.Model):
     ``operation_category`` is the one field the whole platform routes on, so
     "which role is this?" never has to be answered by a per-module ``if``.
     ``workflow_stage`` is derived from it (:data:`STAGE_FOR_OPERATION_CATEGORY`)
-    and drives the transaction engine, which is why removing the extra roles
-    (billing officer, supervisor, ticketing officer, ...) needed no engine
-    change at all: supervision moved onto the Manager and simulated billing is
-    an oversight action.
+    and drives the transaction engine. The three operational roles handle the
+    core booking workflow; establishment-specific Billing Officers handle the
+    separate payment verification stage.
 
     A row here is also the single source of truth for the other two questions
     that used to be answered by scattered ``if`` statements:
@@ -995,9 +1013,9 @@ class Role(models.Model):
     workflow_stage = models.CharField(
         max_length=15, choices=WorkflowStage.choices, default=WorkflowStage.INTAKE,
         db_index=True)
-    #: True for exactly the operational roles. Stored rather than derived from
-    #: ``establishment_type`` so the database itself can refuse an assignment
-    #: that names an operational role with no establishment
+    #: True for establishment-scoped operational and billing roles. Stored
+    #: rather than derived from ``establishment_type`` so the database itself
+    #: can refuse an assignment that names such a role with no establishment
     #: (``SimulationRoleAssignment``'s check constraint reads this column).
     requires_establishment = models.BooleanField(default=False, db_index=True)
     permissions = models.JSONField(default=list, blank=True)
@@ -1020,13 +1038,10 @@ class Role(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        # An operational role belongs to an establishment; a customer or
-        # administrative one never does. Deriving it here (rather than trusting
-        # the caller) is what keeps the column honest for rows created by the
-        # catalogue seeder, by a data migration and by hand.
+        # Operational and typed billing roles belong to an establishment;
+        # customers, generic administrative roles and owners do not.
         self.requires_establishment = bool(
-            (self.establishment_type and not self.code.endswith('_OWNER'))
-            or self.code == 'BILLING_OFFICER')
+            self.establishment_type and not self.code.endswith('_OWNER'))
         return super().save(*args, **kwargs)
 
     def clean(self):
@@ -1044,11 +1059,11 @@ class Role(models.Model):
                 errors['operation_category'] = (
                     f'An establishment role must be one of '
                     f'{", ".join(self.OPERATIONAL_CATEGORIES)}.')
-            elif self.operation_category not in self.OPERATIONAL_CATEGORIES:
+            elif (self.operation_category not in self.OPERATIONAL_CATEGORIES
+                  and not (self.operation_category == self.OperationCategory.BILLING
+                           and self.code in BILLING_OFFICER_ROLE_CODES)):
                 errors['operation_category'] = (
-                    f'"{self.operation_category}" is not an operational role. Every '
-                    'establishment has exactly three: '
-                    f'{", ".join(self.OPERATIONAL_CATEGORIES)}.')
+                    f'"{self.operation_category}" is not a valid establishment role.')
         elif self.operation_category and self.operation_category not in (
                 self.OperationCategory.CUSTOMER, self.OperationCategory.BILLING):
             errors['operation_category'] = (

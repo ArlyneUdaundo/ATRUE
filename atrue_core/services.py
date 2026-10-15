@@ -306,7 +306,7 @@ def validate_stay_dates(check_in, check_out):
 
 def billing_officer_session_for_booking(booking, user, session=None):
     """Return the booking's session when it has an active assigned biller."""
-    from simulation.models import SimulationRoleAssignment
+    from simulation.models import BILLING_OFFICER_ROLE_CODES, SimulationRoleAssignment
 
     from simulation.completion import establishment_for_booking
     booking_establishment = establishment_for_booking(booking)
@@ -323,7 +323,7 @@ def billing_officer_session_for_booking(booking, user, session=None):
             session=review_session,
             establishment=booking_establishment,
             status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-            role='BILLING_OFFICER').exists():
+            role__in=BILLING_OFFICER_ROLE_CODES).exists():
         return review_session
     return None
 

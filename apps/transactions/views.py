@@ -19,6 +19,8 @@ from atrue_core.services import (
     refund_payment,
 )
 
+from simulation.models import BILLING_OFFICER_ROLE_CODES
+
 from .models import AdditionalTransaction, Bill, Payment, Receipt
 
 
@@ -29,10 +31,11 @@ def payment_review(request):
 
     assignment_id = request.session.get('active_simulation_task_assignment')
     assignment = (SimulationRoleAssignment.objects.filter(
-        pk=assignment_id, student=request.user, role='BILLING_OFFICER', status='ACTIVE'
+        pk=assignment_id, student=request.user, role__in=BILLING_OFFICER_ROLE_CODES,
+        status='ACTIVE'
     ).select_related('session').first() if assignment_id else None)
     eligible_assignments = SimulationRoleAssignment.objects.filter(
-        student=request.user, role='BILLING_OFFICER', status='ACTIVE',
+        student=request.user, role__in=BILLING_OFFICER_ROLE_CODES, status='ACTIVE',
         session__isnull=False, establishment__isnull=False,
     ).select_related('session', 'establishment')
     if assignment is None:
