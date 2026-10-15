@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 
 from .forms import AccountCreateForm
-from .models import User
+from .models import ACCOUNT_TYPE_CHOICES, User
 
 MAX_IMPORT_BYTES = 5 * 1024 * 1024
 MAX_IMPORT_ROWS = 500
@@ -54,7 +54,12 @@ def account_import_form(data, creator):
     form = AccountCreateForm(data=data, creator=creator)
     from accounts.roles import can_create_any_account
     if not can_create_any_account(creator):
-        form.fields['account_type'].choices = [(User.AccountType.STUDENT, 'Student')]
+        # Match the non-privileged choices exposed by the existing create form,
+        # while keeping admin roles unavailable through spreadsheet input.
+        form.fields['account_type'].choices = [
+            (User.AccountType.STUDENT, 'Student'),
+            (User.AccountType.INSTRUCTOR, 'Instructor/Trainer'),
+        ]
     return form
 
 
@@ -102,6 +107,18 @@ def _read_rows(upload):
     return rows
 
 
+def _choice_code(value, choices):
+    """Accept either a stored choice code or the label shown in the UI/template."""
+    normalized = re.sub(r'[^a-z0-9]', '', str(value or '').casefold())
+    for code, label in choices:
+        if normalized in {
+            re.sub(r'[^a-z0-9]', '', str(code).casefold()),
+            re.sub(r'[^a-z0-9]', '', str(label).casefold()),
+        }:
+            return code
+    return value
+
+
 def _form_values(values):
     data = {}
     for name in FIELDS:
@@ -118,6 +135,18 @@ def _form_values(values):
                     value = parsed.isoformat()
         else:
             value = str(value).strip()
+        if name == 'sex' and value:
+            value = _choice_code(value, User._meta.get_field('sex').choices)
+        elif name == 'nationality' and value:
+            value = _choice_code(value, User._meta.get_field('nationality').choices)
+        elif name == 'account_type' and value:
+            value = _choice_code(value, ACCOUNT_TYPE_CHOICES)
+        elif name in {'contact_number', 'emergency_contact_number'}:
+            # Excel treats phone numbers as numeric cells and drops the leading
+            # zero from Philippine mobile numbers. Restore it before validation.
+            digits = re.sub(r'\D', '', value)
+            if len(digits) == 10 and digits.startswith('9'):
+                value = '0' + digits
         data[name] = value
     return data
 
