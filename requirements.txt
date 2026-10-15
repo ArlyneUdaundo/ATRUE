@@ -2,6 +2,7 @@
 # Dependencies used by the Django project, PDF/QR output, and PostgreSQL setup.
 
 Django==6.0.7
+openpyxl==3.1.5
 
 # PostgreSQL driver (psycopg 3). `psycopg[binary]` ships prebuilt wheels so no
 # local libpq build step is required on Windows or on Render.

@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -741,6 +741,114 @@ def account_create(request):
         'form_sections': tuple(section for section in FORM_SECTIONS if section[0] != 'Profile Picture'),
         'page_title': 'Create User Account',
         'page_subtitle': 'Register a new account (FR-001).',
+    })
+
+
+def _bulk_import_denied(request):
+    return _require_creator(request.user) is not None
+
+
+@login_required
+def account_import_template(request):
+    if _bulk_import_denied(request):
+        return HttpResponse('Only an authorized administrator can import accounts.', status=403)
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.workbook.defined_name import DefinedName
+    from .bulk_import import account_import_form, FIELDS, MAX_IMPORT_ROWS, template_headers
+
+    form = account_import_form(data=None, creator=request.user)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Accounts'
+    sheet.append(template_headers())
+    sheet.freeze_panes = 'A2'
+    sheet.auto_filter.ref = f'A1:{sheet.cell(row=1, column=len(FIELDS)).coordinate}1'
+    sheet.row_dimensions[1].height = 28
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill('solid', fgColor='2546D2')
+    for column_cells in sheet.columns:
+        letter = column_cells[0].column_letter
+        sheet.column_dimensions[letter].width = min(
+            max(18, max(len(str(cell.value or '')) for cell in column_cells) + 2), 38)
+    options = workbook.create_sheet('_Options')
+    options.sheet_state = 'hidden'
+    for option_column, (field_name, column) in enumerate((
+            ('sex', FIELDS.index('sex') + 1),
+            ('nationality', FIELDS.index('nationality') + 1),
+            ('account_type', FIELDS.index('account_type') + 1)), start=1):
+        choices = [str(value) for value, _ in form.fields[field_name].choices if value]
+        if choices:
+            for row_number, choice in enumerate(choices, start=1):
+                options.cell(row=row_number, column=option_column, value=choice)
+            range_name = f'{field_name.title().replace("_", "")}Choices'
+            workbook.defined_names.add(DefinedName(
+                range_name,
+                attr_text=f"'_Options'!${options.cell(row=1, column=option_column).column_letter}$1:"
+                          f"${options.cell(row=1, column=option_column).column_letter}${len(choices)}",
+            ))
+            validation = DataValidation(type='list', formula1=f'={range_name}',
+                                        allow_blank=field_name != 'account_type')
+            sheet.add_data_validation(validation)
+            validation.add(f'{sheet.cell(row=2, column=column).coordinate}:'
+                           f'{sheet.cell(row=MAX_IMPORT_ROWS + 1, column=column).coordinate}')
+    notes = workbook.create_sheet('Instructions')
+    notes.append(['Use one row per user. Required fields follow the Create User Account form.'])
+    notes.append(['Account Type, Sex, and Nationality must use the exact codes shown in their dropdowns.'])
+    notes.append(['Leave Username blank to generate a unique username from the email address.'])
+    notes.append(['Leave both password columns blank to generate a unique secure password and email the user a one-time setup link.'])
+    notes.append(['If you provide a password, enter the same value in both password columns.'])
+    notes.append(['Username and Email Address must be unique. Account Type choices are limited by your existing permissions.'])
+    notes.column_dimensions['A'].width = 110
+    output = BytesIO()
+    workbook.save(output)
+    response = HttpResponse(output.getvalue(),
+                            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="atrue_account_import_template.xlsx"'
+    return response
+
+
+@login_required
+def account_import_validate(request):
+    if _bulk_import_denied(request):
+        return JsonResponse({'error': 'Only an authorized administrator can import accounts.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST is required.'}, status=405)
+    from .bulk_import import validate_upload
+    try:
+        rows, _ = validate_upload(request.FILES.get('file'), request.user)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    return JsonResponse({
+        'rows': rows,
+        'total': len(rows),
+        'valid': sum(row['valid'] for row in rows),
+        'invalid': sum(not row['valid'] for row in rows),
+        'can_generate': any(row['valid'] for row in rows),
+    })
+
+
+@login_required
+def account_import_generate(request):
+    if _bulk_import_denied(request):
+        return JsonResponse({'error': 'Only an authorized administrator can import accounts.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST is required.'}, status=405)
+    from .bulk_import import create_valid_accounts
+    try:
+        rows, created, setup_email_failed = create_valid_accounts(
+            request.FILES.get('file'), request.user)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    return JsonResponse({
+        'rows': rows,
+        'total': len(rows),
+        'created': created,
+        'invalid': sum(not row['valid'] for row in rows),
+        'setup_email_failed': setup_email_failed,
     })
 
 

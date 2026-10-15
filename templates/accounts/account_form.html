@@ -14,6 +14,25 @@
 </div>
 
 <div class="card" style="max-width:1000px;margin:0 auto;border-radius:18px;overflow:hidden">
+    {% if is_create %}
+    <style>
+    .account-create-tabs{display:flex;gap:8px;padding:16px 24px;background:var(--slate-50);border-bottom:1px solid var(--slate-200)}
+    .account-create-tab{border:1px solid var(--slate-200);background:#fff;color:var(--slate-700);border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}
+    .account-create-tab.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
+    .account-import-panel{padding:22px 26px 26px}
+    .account-drop-zone{border:2px dashed var(--slate-300);border-radius:14px;padding:28px;text-align:center;background:var(--slate-50);cursor:pointer;transition:.15s}
+    .account-drop-zone.dragging{border-color:var(--indigo);background:#eef2ff}
+    .account-import-table{width:100%;border-collapse:collapse;font-size:13px}
+    .account-import-table th,.account-import-table td{padding:10px;border-bottom:1px solid var(--slate-200);text-align:left;vertical-align:top}
+    .account-import-table th{white-space:nowrap;color:var(--slate-600)}
+    .account-import-error{color:#b42318;max-width:340px}
+    @media(max-width:640px){.account-create-tabs{padding:12px;flex-direction:column}.account-create-tab{text-align:left}.account-import-panel{padding:16px}.account-drop-zone{padding:20px}.account-import-table{min-width:760px}}
+    </style>
+    <div class="account-create-tabs" role="tablist" aria-label="Account creation method">
+        <button class="account-create-tab active" id="singleAccountTab" type="button" role="tab" aria-selected="true"><i class="fas fa-user"></i> Create Single Account</button>
+        <button class="account-create-tab" id="bulkAccountTab" type="button" role="tab" aria-selected="false"><i class="fas fa-file-excel"></i> Import from Excel</button>
+    </div>
+    {% endif %}
     <div style="padding:18px 26px;border-bottom:1px solid var(--slate-200);background:linear-gradient(135deg,var(--slate-50),var(--white))">
         <h3 style="margin:0;font-size:16.5px"><i class="fas fa-clipboard-list" style="color:var(--indigo)"></i> Account Details</h3>
         <p style="margin:4px 0 0;color:var(--slate-500);font-size:13px">Fields are grouped so the form stays compact and easy to read.</p>
@@ -23,7 +42,7 @@
     <div style="padding:14px 26px 0"><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ form.non_field_errors.0 }}</div></div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="establishment-form-card" style="padding:22px 26px 26px" {% if is_create %}data-account-create-form{% endif %}>
+    <form method="post" enctype="multipart/form-data" class="establishment-form-card" style="padding:22px 26px 26px" {% if is_create %}data-account-create-form id="singleAccountPanel"{% endif %}>
         {% csrf_token %}
         {% for heading, icon, names in form_sections %}
         <div style="margin-bottom:20px">
@@ -53,5 +72,154 @@
             <a href="{% if is_create %}{% url 'accounts:account_list' %}{% else %}{% url 'accounts:account_detail' account.id %}{% endif %}" class="btn btn-outline"><i class="fas fa-times"></i> Cancel</a>
         </div>
     </form>
+    {% if is_create %}
+    <section class="account-import-panel" id="bulkAccountPanel" hidden aria-labelledby="bulkAccountTab">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
+        <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Leave username blank to generate one automatically; leave both password cells blank to create a secure password and email a one-time password setup link.</p></div>
+            <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
+        </div>
+        <input type="file" id="accountImportFile" accept=".xlsx,.csv" hidden>
+        <div class="account-drop-zone" id="accountDropZone" role="button" tabindex="0" aria-label="Choose or drop an Excel or CSV file">
+            <i class="fas fa-cloud-upload-alt" style="font-size:26px;color:var(--indigo)"></i>
+            <p style="margin:10px 0 4px;font-weight:700">Drop your Excel or CSV file here</p>
+            <p style="margin:0 0 12px;color:var(--slate-500);font-size:13px">.xlsx or .csv, up to 5 MB</p>
+            <button class="btn btn-outline" type="button" id="chooseImportFile"><i class="fas fa-folder-open"></i> Upload Excel File</button>
+        </div>
+        <div id="selectedImportFile" style="margin-top:10px;color:var(--slate-600);font-size:13px" aria-live="polite"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+            <button type="button" class="btn btn-outline" id="validateImportButton" disabled><i class="fas fa-clipboard-check"></i> Validate Records</button>
+            <button type="button" class="btn btn-brand" id="generateImportButton" disabled><i class="fas fa-user-plus"></i> Generate Accounts</button>
+            <button type="button" class="btn btn-outline" id="downloadImportErrors" hidden><i class="fas fa-file-download"></i> Download Error Report</button>
+        </div>
+        <div id="importProgressWrap" hidden style="margin-top:16px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span id="importProgressLabel">Preparing import…</span><span id="importProgressPercent">0%</span></div>
+            <div style="height:8px;background:var(--slate-100);border-radius:99px;overflow:hidden"><div id="importProgressBar" style="height:100%;width:0;background:var(--indigo);transition:width .2s"></div></div>
+        </div>
+        <div id="importSummary" class="alert" hidden style="margin-top:16px" aria-live="polite"></div>
+        <div id="importPreviewWrap" hidden style="margin-top:18px">
+            <h4 style="margin:0 0 10px">Preview Imported Records</h4>
+            <div class="table-wrap"><table class="account-import-table"><thead><tr><th>Row</th><th>Name</th><th>Username</th><th>Email</th><th>Account Type</th><th>Result</th><th>Validation details</th></tr></thead><tbody id="importPreviewRows"></tbody></table></div>
+        </div>
+    </section>
+    <script>
+    (() => {
+        const singleTab = document.getElementById('singleAccountTab');
+        const bulkTab = document.getElementById('bulkAccountTab');
+        const singlePanel = document.getElementById('singleAccountPanel');
+        const bulkPanel = document.getElementById('bulkAccountPanel');
+        const fileInput = document.getElementById('accountImportFile');
+        const dropZone = document.getElementById('accountDropZone');
+        const selectedFile = document.getElementById('selectedImportFile');
+        const validateButton = document.getElementById('validateImportButton');
+        const generateButton = document.getElementById('generateImportButton');
+        const errorsButton = document.getElementById('downloadImportErrors');
+        const summary = document.getElementById('importSummary');
+        const previewWrap = document.getElementById('importPreviewWrap');
+        const previewRows = document.getElementById('importPreviewRows');
+        const progressWrap = document.getElementById('importProgressWrap');
+        let currentRows = [];
+        let validated = false;
+        const csrf = singlePanel.querySelector('[name=csrfmiddlewaretoken]').value;
+        const showTab = (bulk) => {
+            singleTab.classList.toggle('active', !bulk); bulkTab.classList.toggle('active', bulk);
+            singleTab.setAttribute('aria-selected', String(!bulk)); bulkTab.setAttribute('aria-selected', String(bulk));
+            singlePanel.hidden = bulk; bulkPanel.hidden = !bulk;
+        };
+        singleTab.addEventListener('click', () => showTab(false));
+        bulkTab.addEventListener('click', () => showTab(true));
+        const setFile = (file) => {
+            if (!file) return;
+            fileInput.files = (() => { const data = new DataTransfer(); data.items.add(file); return data.files; })();
+            selectedFile.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+            validateButton.disabled = false; generateButton.disabled = true; validated = false;
+            errorsButton.hidden = true; summary.hidden = true; previewWrap.hidden = true;
+        };
+        document.getElementById('chooseImportFile').addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', (event) => { if (event.target.id !== 'chooseImportFile') fileInput.click(); });
+        dropZone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') fileInput.click(); });
+        fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+        ['dragenter','dragover'].forEach(name => dropZone.addEventListener(name, event => { event.preventDefault(); dropZone.classList.add('dragging'); }));
+        ['dragleave','drop'].forEach(name => dropZone.addEventListener(name, event => { event.preventDefault(); dropZone.classList.remove('dragging'); }));
+        dropZone.addEventListener('drop', event => setFile(event.dataTransfer.files[0]));
+        function progress(label, percent) {
+            progressWrap.hidden = false;
+            document.getElementById('importProgressLabel').textContent = label;
+            document.getElementById('importProgressPercent').textContent = `${percent}%`;
+            document.getElementById('importProgressBar').style.width = `${percent}%`;
+        }
+        function renderRows(rows) {
+            currentRows = rows;
+            previewRows.replaceChildren();
+            rows.forEach(row => {
+                const tr = document.createElement('tr');
+                [row.row, `${row.first_name} ${row.last_name}`.trim(), row.username, row.email, row.account_type, row.status, row.errors.join(' ')].forEach((value, index) => {
+                    const td = document.createElement('td'); td.textContent = value || '—';
+                    if (index === 5 && (row.username_generated || row.password_setup_required) && row.status === 'Ready') td.textContent = `Ready · ${row.username_generated ? 'username' : ''}${row.username_generated && row.password_setup_required ? ' and ' : ''}${row.password_setup_required ? 'secure password + setup email' : ''} generated`;
+                    if ((index === 6 && row.errors.length) || (index === 5 && row.status !== 'Ready' && row.status !== 'Created')) td.className = 'account-import-error';
+                    tr.appendChild(td);
+                });
+                previewRows.appendChild(tr);
+            });
+            previewWrap.hidden = false;
+        }
+        function postFile(url, operation) {
+            const body = new FormData(); body.append('file', fileInput.files[0]);
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', url); xhr.setRequestHeader('X-CSRFToken', csrf);
+                xhr.upload.addEventListener('progress', event => {
+                    if (event.lengthComputable) progress(`Uploading and ${operation.toLowerCase()}…`, Math.min(75, Math.round(8 + event.loaded / event.total * 67)));
+                });
+                xhr.addEventListener('load', () => {
+                    let data;
+                    try { data = JSON.parse(xhr.responseText); } catch (_) { reject(new Error('The import response could not be read.')); return; }
+                    if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(data.error || 'The import could not be processed.')); return; }
+                    progress(`${operation}…`, 90); resolve(data);
+                });
+                xhr.addEventListener('error', () => reject(new Error('Network error while processing the import.')));
+                xhr.send(body);
+            });
+        }
+        validateButton.addEventListener('click', async () => {
+            validateButton.disabled = true; generateButton.disabled = true; summary.hidden = true;
+            progress('Preparing import…', 2);
+            try {
+                const data = await postFile('{% url "accounts:account_import_validate" %}', 'Validating records');
+                renderRows(data.rows); validated = true;
+                summary.className = 'alert alert-info'; summary.textContent = `${data.total} records reviewed: ${data.valid} ready, ${data.invalid} need correction.`; summary.hidden = false;
+                generateButton.disabled = !data.can_generate; progress('Validation complete', 100);
+                errorsButton.hidden = data.invalid === 0;
+            } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; progress('Validation stopped', 0); }
+            validateButton.disabled = false;
+        });
+        generateButton.addEventListener('click', async () => {
+            if (!validated || !fileInput.files[0] || !window.confirm('Create accounts for all valid rows? Invalid rows will be skipped.')) return;
+            generateButton.disabled = true; validateButton.disabled = true;
+            progress('Preparing account generation…', 2);
+            try {
+                const data = await postFile('{% url "accounts:account_import_generate" %}', 'Creating accounts');
+                renderRows(data.rows); validated = true;
+                const skipped = data.total - data.created;
+                const failedSetup = data.setup_email_failed || 0;
+                const hasIssues = data.rows.some(row => row.status !== 'Created');
+                summary.className = (skipped || failedSetup) ? 'alert alert-info' : 'alert alert-success';
+                summary.textContent = `Import complete: ${data.created} account(s) created, ${skipped} skipped, ${failedSetup} password setup email(s) failed.`;
+                summary.hidden = false; errorsButton.hidden = !hasIssues; progress('Import complete', 100);
+                validateButton.disabled = false;
+            } catch (error) { summary.className = 'alert alert-error'; summary.textContent = error.message; summary.hidden = false; generateButton.disabled = false; validateButton.disabled = false; progress('Import stopped', 0); }
+        });
+        errorsButton.addEventListener('click', () => {
+            const quote = value => {
+                let text = String(value ?? '');
+                if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+                return `"${text.replaceAll('"','""')}"`;
+            };
+            const lines = [['Row','First Name','Last Name','Username','Email Address','Account Type','Result','Errors'], ...currentRows.filter(row => row.status !== 'Created' && (row.errors.length || row.status !== 'Ready')).map(row => [row.row,row.first_name,row.last_name,row.username,row.email,row.account_type,row.status,row.errors.join('; ')])];
+            const blob = new Blob([lines.map(line => line.map(quote).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'atrue_account_import_errors.csv'; link.click(); URL.revokeObjectURL(link.href);
+        });
+    })();
+    </script>
+    {% endif %}
 </div>
 {% endblock %}
