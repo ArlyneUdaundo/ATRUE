@@ -7,7 +7,7 @@
     <div><h1>Attractions Management</h1><p>Create, update and manage tourist spots and landmarks (BR-059 to BR-063).</p></div>
     {% if request.user.is_account_manager %}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="{% url 'landmarks:add_landmark' %}" class="btn btn-brand"><i class="fas fa-plus"></i> Add Landmark</a>
+        <a href="{% url 'landmarks:add_landmark' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Landmark</a>
         <a href="{% url 'landmarks:add_spot' %}" class="btn btn-outline"><i class="fas fa-plus"></i> Add Tourist Spot</a>
     </div>
     {% endif %}
