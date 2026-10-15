@@ -17,13 +17,54 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
+BREVO_ACCOUNT_URL = 'https://api.brevo.com/v3/account'
+
+
+def _brevo_config():
+    """Return normalized Brevo settings without exposing them in diagnostics."""
+    return {
+        'api_key': str(getattr(settings, 'BREVO_API_KEY', '') or '').strip(),
+        'sender_email': str(getattr(settings, 'BREVO_SENDER_EMAIL', '') or '').strip(),
+        'sender_name': str(getattr(settings, 'BREVO_SENDER_NAME', '') or '').strip(),
+    }
+
+
+def check_brevo_connection():
+    """Validate configured Brevo credentials without sending an email."""
+    config = _brevo_config()
+    if not all(config.values()):
+        raise RuntimeError('EMAIL_CONFIGURATION_MISSING')
+    req = urllib.request.Request(
+        BREVO_ACCOUNT_URL, method='GET',
+        headers={'api-key': config['api_key'], 'accept': 'application/json'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status != 200:
+                raise RuntimeError(f'BREVO_HTTP_{response.status}')
+            json.loads(response.read().decode() or '{}')
+    except urllib.error.HTTPError as exc:
+        provider_code = ''
+        try:
+            error_body = json.loads(exc.read().decode() or '{}')
+            provider_code = re.sub(
+                r'[^A-Za-z0-9_-]', '', str(error_body.get('code', ''))
+            )[:40].upper()
+        except (ValueError, AttributeError, UnicodeDecodeError):
+            pass
+        suffix = f'_{provider_code}' if provider_code else ''
+        raise RuntimeError(f'BREVO_HTTP_{exc.code}{suffix}') from exc
+    except (TimeoutError, urllib.error.URLError) as exc:
+        raise RuntimeError('BREVO_CONNECTION_FAILED') from exc
+    return True
 
 
 def _email_error_code(exc):
     """Return a safe, compact diagnostic code without storing provider messages."""
     message = str(exc)
     if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE',
-                   'ETICKET_GENERATION_FAILED', 'BOOKING_NOT_CONFIRMED'}:
+                   'ETICKET_GENERATION_FAILED', 'BOOKING_NOT_CONFIRMED',
+                   'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED'}:
         return message
     if re.fullmatch(r'BREVO_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
         return message
@@ -32,13 +73,11 @@ def _email_error_code(exc):
 
 def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
                 attachments=None):
-    api_key = getattr(settings, 'BREVO_API_KEY', '')
-    sender_email = getattr(settings, 'BREVO_SENDER_EMAIL', '')
-    sender_name = getattr(settings, 'BREVO_SENDER_NAME', '')
-    if not api_key or not sender_email or not sender_name:
+    config = _brevo_config()
+    if not all(config.values()):
         raise RuntimeError('EMAIL_CONFIGURATION_MISSING')
     body = {
-        'sender': {'email': sender_email, 'name': sender_name},
+        'sender': {'email': config['sender_email'], 'name': config['sender_name']},
         'to': [{'email': to_email, **({'name': to_name} if to_name else {})}],
         'subject': subject,
         'htmlContent': html,
@@ -52,12 +91,14 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
     req = urllib.request.Request(
         BREVO_URL, data=json.dumps(body).encode(), method='POST',
         headers={
-            'api-key': api_key, 'accept': 'application/json',
+            'api-key': config['api_key'], 'accept': 'application/json',
             'content-type': 'application/json',
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
+        # Booking confirmation carries a base64 PDF attachment, unlike the
+        # small password-reset message. Give Brevo enough time to accept it.
+        with urllib.request.urlopen(req, timeout=30) as response:
             result = json.loads(response.read().decode() or '{}')
     except urllib.error.HTTPError as exc:
         provider_code = ''
@@ -71,6 +112,12 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
         if provider_code:
             safe_code += f'_{provider_code}'
         raise RuntimeError(safe_code) from exc
+    except TimeoutError as exc:
+        raise RuntimeError('BREVO_TIMEOUT') from exc
+    except urllib.error.URLError as exc:
+        if isinstance(getattr(exc, 'reason', None), TimeoutError):
+            raise RuntimeError('BREVO_TIMEOUT') from exc
+        raise RuntimeError('BREVO_CONNECTION_FAILED') from exc
     return result.get('messageId', '')
 
 
