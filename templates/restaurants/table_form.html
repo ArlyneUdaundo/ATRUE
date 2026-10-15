@@ -11,6 +11,7 @@
 
 <form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" data-submit-loading>
     {% csrf_token %}
+    {% if return_to_manage %}<input type="hidden" name="return_to_manage" value="1">{% endif %}
     {% if table %}
     <div class="form-group" style="margin-bottom:22px">
         <label>Table ID</label>

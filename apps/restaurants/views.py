@@ -378,14 +378,20 @@ def add_table(request, restaurant_id):
             log_activity(request.user, "Added restaurant table",
                          f"{table.table_id} (Table {table.table_number}) in {restaurant.name}")
             messages.success(request, f"Table {table.table_number} added (ID: {table.table_id}).")
+            if request.POST.get('return_to_manage') or request.GET.get('return_to_manage'):
+                return redirect('restaurants:manage')
             if request.POST.get('return_to_detail'):
                 return redirect('restaurants:detail', restaurant.slug)
             return redirect('restaurants:update_restaurant', restaurant.id)
+    if error and request.POST.get('return_to_manage'):
+        messages.error(request, error)
+        return redirect('restaurants:manage')
     if error and request.POST.get('return_to_detail'):
         messages.error(request, error)
         return redirect('restaurants:detail', restaurant.slug)
     return render(request, 'restaurants/table_form.html', {
         'restaurant': restaurant, 'table': None, 'error': error,
+        'return_to_manage': request.GET.get('return_to_manage') == '1' or request.POST.get('return_to_manage') == '1',
         'seating_area_choices': Table.SeatingArea.choices,
         'status_choices': Table.Status.choices,
     })

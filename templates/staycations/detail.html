@@ -59,7 +59,7 @@
 <div class="card card-pad" style="margin-bottom:18px">
     <h3 style="margin:0 0 12px"><i class="fas fa-concierge-bell"></i> Services</h3>
     {% if is_manager %}
-    <button type="button" class="btn btn-brand btn-sm" data-open-staycation-service style="margin-bottom:12px"><i class="fas fa-plus"></i> Add Service</button>
+    <div style="display:flex;justify-content:center;margin-bottom:12px"><button type="button" class="btn btn-brand btn-sm" data-open-staycation-service><i class="fas fa-plus"></i> Add Service</button></div>
     {% endif %}
     <div class="table-wrap">
         <table class="table">
@@ -72,7 +72,7 @@
                     <td>{{ svc.operating_hours|default:"Anytime" }}</td>
                     <td>&#8369; {{ svc.rate }}</td>
                     <td>{{ svc.get_status_display }}</td>
-                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                    <td><button type="button" class="btn btn-ghost btn-sm" data-open-staycation-service-view="staycation-service-view-{{ svc.id }}">View</button></td>
                 </tr>
                 {% empty %}<tr><td colspan="6">No services added.</td></tr>{% endfor %}
             </tbody>
@@ -104,6 +104,29 @@
 })();
 </script>
 {% endif %}
+{% for svc in staycation.services.all %}
+<dialog id="staycation-service-view-{{ svc.id }}" class="staycation-service-view-dialog" aria-labelledby="staycation-service-title-{{ svc.id }}">
+    <div class="card card-pad">
+        <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><h2 id="staycation-service-title-{{ svc.id }}" style="margin:0">{{ svc.name }}</h2><p class="meta">{{ svc.service_id }}</p></div><button type="button" class="btn btn-ghost btn-sm" data-close-staycation-service-view aria-label="Close">&times;</button></header>
+        <p>{{ svc.description|default:"No description provided." }}</p>
+        <div class="meta">Operating hours: {{ svc.operating_hours|default:"Anytime" }}</div>
+        <div class="meta">Rate: &#8369; {{ svc.rate }}</div>
+        <div class="meta">Status: {{ svc.get_status_display }}</div>
+    </div>
+</dialog>
+{% endfor %}
+<style>
+.staycation-service-view-dialog{width:min(520px,calc(100% - 28px));max-height:calc(100dvh - 28px);padding:0;border:0;border-radius:16px;background:transparent;box-shadow:0 24px 70px rgba(15,23,42,.25)}
+.staycation-service-view-dialog::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}
+</style>
+<script>
+document.addEventListener('click',function(event){
+    const opener=event.target.closest('[data-open-staycation-service-view]');
+    if(opener){document.getElementById(opener.dataset.openStaycationServiceView)?.showModal();return;}
+    if(event.target.closest('[data-close-staycation-service-view]')){event.target.closest('dialog')?.close();return;}
+    if(event.target.matches('.staycation-service-view-dialog'))event.target.close();
+});
+</script>
 <div class="card card-pad" style="margin-bottom:18px">
     <h3 style="margin:0 0 12px"><i class="fas fa-calendar-times"></i> Block-Out Dates</h3>
     <div class="table-wrap">

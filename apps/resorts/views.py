@@ -245,6 +245,8 @@ def add_unit(request, resort_id):
             log_activity(request.user, "Added resort unit",
                          f"{unit.unit_id} ({unit.unit_number}) in {resort.name}")
             messages.success(request, f"Unit {unit.unit_number} added (ID: {unit.unit_id}).")
+            if request.POST.get('return_to_detail'):
+                return redirect('resorts:detail', resort.slug)
             return redirect('resorts:update_resort', resort.id)
     return render(request, 'resorts/unit_form.html', {
         'resort': resort, 'unit': None, 'error': error,

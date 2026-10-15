@@ -80,7 +80,7 @@
                 {% for svc in s.services.all %}
                 <tr>
                     <td>{{ svc.name }}</td><td>₱ {{ svc.rate }}</td><td>{{ svc.get_status_display }}</td>
-                    <td><a href="{% url 'staycations:service_detail' svc.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'staycations:update_service' svc.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
+                    <td><button type="button" class="btn btn-ghost btn-sm" data-open-staycation-service-view="manage-service-view-{{ svc.id }}">View</button> <a href="{% url 'staycations:update_service' svc.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
                 </tr>
                 {% empty %}<tr><td colspan="4">No add-ons.</td></tr>{% endfor %}
             </tbody>
@@ -108,6 +108,11 @@
         </table>
     </div>
 </div>
+{% for svc in s.services.all %}
+<dialog id="manage-service-view-{{ svc.id }}" class="staycation-service-view-dialog" aria-labelledby="manage-service-title-{{ svc.id }}">
+    <div class="card card-pad"><header style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><h2 id="manage-service-title-{{ svc.id }}" style="margin:0">{{ svc.name }}</h2><p class="meta">{{ svc.service_id }}</p></div><button type="button" class="btn btn-ghost btn-sm" data-close-staycation-service-view aria-label="Close">&times;</button></header><p>{{ svc.description|default:"No description provided." }}</p><div class="meta">Operating hours: {{ svc.operating_hours|default:"Anytime" }}</div><div class="meta">Rate: &#8369; {{ svc.rate }}</div><div class="meta">Status: {{ svc.get_status_display }}</div></div>
+</dialog>
+{% endfor %}
 <dialog class="staycation-manage-modal" id="edit-staycation-{{ s.id }}" aria-labelledby="edit-staycation-title-{{ s.id }}">
     <form method="post" enctype="multipart/form-data" action="{% url 'staycations:update_staycation' s.id %}" class="card card-pad" data-staycation-edit-form="{{ s.id }}">
         {% csrf_token %}
@@ -149,6 +154,7 @@
 {% endfor %}
 <style>
 .staycation-manage-modal{position:fixed;inset:0;margin:auto;width:min(720px,calc(100vw - 28px));height:fit-content;max-height:min(88vh,900px);padding:0;border:0;border-radius:18px;background:transparent;overflow:visible}
+.staycation-service-view-dialog{position:fixed;inset:0;margin:auto;width:min(520px,calc(100% - 28px));max-height:calc(100dvh - 28px);padding:0;border:0;border-radius:16px;background:transparent;box-shadow:0 24px 70px rgba(15,23,42,.25)}.staycation-service-view-dialog::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}
 .staycation-manage-modal::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}
 .staycation-manage-modal>form{margin:0;max-height:min(88vh,900px);overflow:hidden;display:flex;flex-direction:column;border:1px solid #dbe5f2;box-shadow:0 24px 70px rgba(17,38,74,.22)}
 .staycation-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #e7edf5}
@@ -163,6 +169,10 @@
 </style>
 <script>
 document.addEventListener('click',function(event){
+    const serviceOpener=event.target.closest('[data-open-staycation-service-view]');
+    if(serviceOpener){document.getElementById(serviceOpener.dataset.openStaycationServiceView)?.showModal();return;}
+    if(event.target.closest('[data-close-staycation-service-view]')){event.target.closest('dialog')?.close();return;}
+    if(event.target.matches('.staycation-service-view-dialog')){event.target.close();return;}
     const opener=event.target.closest('[data-open-staycation-modal]');
     if(opener){document.getElementById(opener.dataset.openStaycationModal)?.showModal();return;}
     if(event.target.closest('[data-close-staycation-modal]')){event.target.closest('dialog')?.close();return;}

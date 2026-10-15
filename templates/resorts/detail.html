@@ -78,7 +78,7 @@
 <div class="card card-pad">
     <h3 style="margin:0 0 12px"><i class="fas fa-bed"></i> Rooms &amp; Villas</h3>
     {% if is_manager %}
-    <a href="{% url 'resorts:add_unit' resort.id %}" class="btn btn-brand btn-sm" style="margin-bottom:12px"><i class="fas fa-plus"></i> Add Unit</a>
+    <div style="display:flex;justify-content:center;margin-bottom:12px"><button type="button" class="btn btn-brand btn-sm" data-open-resort-unit><i class="fas fa-plus"></i> Add Unit</button></div>
     {% endif %}
     <div class="resort-unit-list">
         {% for unit in resort.units.all %}
@@ -115,4 +115,26 @@
         <div class="empty"><i class="fas fa-bed"></i><h3>No units yet</h3></div>
         {% endfor %}
     </div></div>
+{% if is_manager %}
+<dialog id="resortAddUnitDialog" class="resort-add-unit-dialog" aria-labelledby="resortAddUnitTitle">
+    <form method="post" enctype="multipart/form-data" action="{% url 'resorts:add_unit' resort.id %}" class="card card-pad" data-submit-loading>
+        {% csrf_token %}<input type="hidden" name="return_to_detail" value="1">
+        <header class="resort-unit-modal-head"><div><h2 id="resortAddUnitTitle">Add Unit</h2><p>{{ resort.name }}</p></div><button type="button" class="btn btn-ghost btn-sm" data-close-resort-unit aria-label="Close">&times;</button></header>
+        <div class="resort-unit-modal-body">
+            <div class="form-grid"><div class="form-group"><label>Unit Number</label><input type="text" name="unit_number" class="form-input" placeholder="e.g. Villa 1, Cabana B" maxlength="100" required></div><div class="form-group"><label>Unit Type</label><select name="unit_type" class="form-input">{% for choice,label in unit_type_choices %}<option value="{{ choice }}">{{ label }}</option>{% endfor %}</select></div></div>
+            <div class="form-grid"><div class="form-group"><label>Capacity — Adults</label><input type="number" name="capacity_adults" class="form-input" value="2" min="1"></div><div class="form-group"><label>Capacity — Children</label><input type="number" name="capacity_children" class="form-input" value="0" min="0"></div></div>
+            <div class="form-grid"><div class="form-group"><label>Rate per Night (₱)</label><input type="number" name="rate" step="0.01" class="form-input" required></div><div class="form-group"><label>Additional Guest Charge (₱)</label><input type="number" name="additional_guest_charge" step="0.01" class="form-input" value="0"></div></div>
+            <div class="form-group"><label>Description</label><textarea name="description" class="form-input" rows="2"></textarea></div><div class="form-group"><label>Features</label><textarea name="features" class="form-input" rows="2" placeholder="Private pool, ocean view, aircon"></textarea></div>
+            <div class="form-group"><label>Photos</label><input type="file" name="photos" class="form-input" accept="image/*" multiple></div><div class="form-group"><label>Status</label><select name="status" class="form-input">{% for choice,label in status_choices %}<option value="{{ choice }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <footer class="resort-unit-modal-actions"><button type="button" class="btn btn-outline" data-close-resort-unit>Cancel</button><button type="submit" class="btn btn-brand"><i class="fas fa-save"></i> Save Unit</button></footer>
+    </form>
+</dialog>
+<style>
+.resort-add-unit-dialog{position:fixed;inset:0;margin:auto;width:min(680px,calc(100% - 28px));max-height:calc(100dvh - 28px);padding:0;border:0;border-radius:18px;background:transparent;overflow:hidden;box-shadow:0 24px 70px rgba(15,23,42,.25)}.resort-add-unit-dialog::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}.resort-add-unit-dialog form{display:flex;flex-direction:column;max-height:calc(100dvh - 28px);margin:0}.resort-unit-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #e7edf5;padding-bottom:14px}.resort-unit-modal-head h2{margin:0;font-size:20px}.resort-unit-modal-head p{margin:4px 0 0;color:#71819a}.resort-unit-modal-body{overflow:auto;padding:16px 2px}.resort-unit-modal-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e7edf5;padding-top:14px}@media(max-width:600px){.resort-add-unit-dialog .form-grid{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){const dialog=document.getElementById('resortAddUnitDialog');if(!dialog)return;document.querySelector('[data-open-resort-unit]')?.addEventListener('click',()=>dialog.showModal());dialog.addEventListener('click',event=>{if(event.target.matches('[data-close-resort-unit]')||event.target===dialog)dialog.close();});})();
+</script>
+{% endif %}
 {% endblock %}
