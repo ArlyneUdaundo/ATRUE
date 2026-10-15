@@ -3363,6 +3363,13 @@ def booking_detail(request, booking_id):
         and bool(role_keys & AIRLINE_TICKETING_ROLE_KEYS)
         and not can_access_module(request.user, 'airlines')
     )
+    # Completing a checked-in booking is a Front Desk task. Full-access roles
+    # (including instructors) and the retired ticketing role must not receive it.
+    can_mark_travelled = (
+        can_manage
+        and 'AIRLINE_FRONT_DESK' in role_keys
+        and not can_access_module(request.user, 'airlines')
+    )
     can_print_ticket = _can_print_airline_ticket(request.user, booking)
 
     if request.method == 'POST' and can_manage:
@@ -3373,9 +3380,15 @@ def booking_detail(request, booking_id):
         ):
             raise PermissionDenied(
                 'Airline Reservation Agents may only confirm or decline another passenger’s booking for their assigned airline.')
-        if ticketing_restricted and action not in {'modify', 'cancel'}:
-            raise PermissionDenied(
-                'Airline Ticketing Officers may only process ticket changes and cancellations.')
+        if action == 'checkout' and not can_mark_travelled:
+            raise PermissionDenied('Only Airline Front Desk staff may mark a booking as travelled.')
+        if ticketing_restricted:
+            allowed_actions = {'modify', 'cancel'}
+            if can_mark_travelled:
+                allowed_actions.add('checkout')
+            if action not in allowed_actions:
+                raise PermissionDenied(
+                    'Airline Ticketing Officers may only process ticket changes, cancellations, and Front Desk travel completion.')
         remark = request.POST.get('manager_remarks', '').strip()
         if action == 'confirm':
             was_pending = booking.status == Booking.Status.PENDING
@@ -3510,6 +3523,7 @@ def booking_detail(request, booking_id):
         'can_manage': can_manage,
         'ticketing_restricted': ticketing_restricted,
         'reservation_agent_restricted': reservation_agent_restricted,
+        'can_mark_travelled': can_mark_travelled,
         'can_print_ticket': can_print_ticket,
         'flight_capacity': booking.flight.capacity,
         'itinerary': itinerary,

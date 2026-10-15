@@ -166,7 +166,7 @@
         <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this flight booking?"><i class="fas fa-ban"></i> Cancel</button>
     </form>
     {% endif %}
-    {% if booking.status == 'CHECKED_IN' and not ticketing_restricted and not reservation_agent_restricted %}
+    {% if booking.status == 'CHECKED_IN' and can_mark_travelled %}
     <form method="post" class="flow-actions" style="margin-top:10px">
         {% csrf_token %}
         <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-plane-departure"></i> Mark Travelled</button>
