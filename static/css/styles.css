@@ -969,7 +969,16 @@ input, select, textarea { font-family: inherit; }
     gap: 48px;
     padding-bottom: 56px;
 }
-.footer-brand .brand-mark { margin-bottom: 18px; }
+.footer-brand .brand-mark {
+    width: 84px;
+    height: 84px;
+    margin-bottom: 18px;
+    padding: 7px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.98);
+    border: 1px solid rgba(255,255,255,0.82);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+}
 .footer-brand h3 { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: 0.05em; margin-bottom: 14px; }
 .footer-brand p { font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.55); }
 
