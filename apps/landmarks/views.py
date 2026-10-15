@@ -65,9 +65,7 @@ def landmark_list(request):
 @manager_required
 @landmark_scope.decorator()
 def manage(request):
-    spots = Landmark.objects.prefetch_related('photos').filter(category=Landmark.Category.TOURIST_SPOT)
     landmarks = Landmark.objects.prefetch_related('photos').filter(category=Landmark.Category.LANDMARK)
-    spots = landmark_scope.scope_queryset(request, spots)
     landmarks = landmark_scope.scope_queryset(request, landmarks)
     query = (request.GET.get('q') or '').strip()
     status = (request.GET.get('status') or '').strip()
@@ -78,13 +76,10 @@ def manage(request):
             | Q(province__icontains=query) | Q(municipality__icontains=query)
             | Q(barangay__icontains=query)
         )
-        spots = spots.filter(search)
         landmarks = landmarks.filter(search)
     if status in dict(Landmark.Status.choices):
-        spots = spots.filter(status=status)
         landmarks = landmarks.filter(status=status)
     return render(request, 'landmarks/manage.html', {
-        'spots': spots,
         'landmarks': landmarks,
         'query': query,
         'selected_status': status,
