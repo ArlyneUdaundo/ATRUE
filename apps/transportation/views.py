@@ -178,13 +178,9 @@ def update_agency(request, agency_id):
     agency = get_object_or_404(
         scope_agencies(request, Agency.objects.prefetch_related('photos')), pk=agency_id)
     if request.method == 'POST':
-        for field in ('name', 'contact_number', 'email', 'address',
+        for field in ('name', 'contact_number', 'email', 'address', 'country', 'barangay', 'municipality', 'province',
                       'operating_hours', 'status'):
-            setattr(agency, field, request.POST.get(field, getattr(agency, field)))
-        agency.country = ''
-        agency.province = ''
-        agency.municipality = (request.POST.get('municipality') or '').strip()
-        agency.barangay = ''
+            setattr(agency, field, request.POST.get(field) or getattr(agency, field))
         agency.save()
         photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         if photos:

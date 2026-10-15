@@ -67,7 +67,9 @@
     function renderFormPage(html, url) {
         var parsed = new DOMParser().parseFromString(html, 'text/html');
         var sourceForm = parsed.querySelector('form.establishment-form-card') ||
-            parsed.querySelector('.content form[method="post"]');
+            parsed.querySelector('.content form[method="post"]') ||
+            parsed.querySelector('main form[method="post"]') ||
+            parsed.querySelector('form[method="post"]');
         var content = sourceForm && (sourceForm.closest('.content') || parsed.querySelector('main') || parsed.body);
         if (!sourceForm) return false;
 
@@ -103,6 +105,7 @@
         }
         prepareForm(form, url);
         if (window.AirportPicker) window.AirportPicker.init();
+        if (window.ATRUELocationAutocomplete) window.ATRUELocationAutocomplete.init();
         parsed.querySelectorAll('script[data-establishment-modal-init]').forEach(function (source) {
             var initializer = document.createElement('script');
             initializer.textContent = source.textContent;
@@ -310,10 +313,10 @@
             var response = await fetch(url.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             var html = await response.text();
             if (!response.ok || !renderFormPage(html, url)) {
-                body.innerHTML = '<div class="alert alert-error">Hindi na-load ang form sa modal. Pakisubukan ulit.</div>';
+                body.innerHTML = '<div class="alert alert-error">Hindi maipakita sa modal ang form (HTTP ' + response.status + '). <a href="' + url.href + '">Buksan ang form</a>.</div>';
             }
         } catch (error) {
-            body.innerHTML = '<div class="alert alert-error">Hindi na-load ang form sa modal. Pakisubukan ulit.</div>';
+            body.innerHTML = '<div class="alert alert-error">Hindi makuha ang form sa modal. <a href="' + url.href + '">Buksan ang form</a>.</div>';
         }
     }, true);
 

@@ -37,6 +37,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from atrue_core.search_catalog import render_search_page
+from atrue_core.location_hierarchy import location_errors
 from atrue_core.slugs import get_object_by_slug_or_404
 
 from . import pricing, room_offers
@@ -96,6 +97,17 @@ def _room_available_for_dates(room, check_in, check_out):
     return (room.status == Room.RoomStatus.AVAILABLE
             and not _room_date_conflict(room, check_in, check_out)
             and not _room_turnover_conflict(room, check_in))
+
+
+def _location_errors(province, municipality, barangay="", country=""):
+    """Server-side check against the canonical (worldwide) location hierarchy.
+
+    Province + Municipality/City are always required; Barangay is required
+    only when the chosen city/municipality has barangays on file. A free-text
+    Barangay is accepted, but Province/Municipality must form a real pair in
+    the selected country's tree.
+    """
+    return location_errors(country, province, municipality, barangay)
 
 
 # -- Establishment CRUD ---------------------------------------------------------
@@ -165,8 +177,7 @@ def manage(request):
     if province:
         qs = qs.filter(province__icontains=province)
     if municipality:
-        qs = qs.filter(Q(country__icontains=municipality) | Q(province__icontains=municipality)
-                       | Q(municipality__icontains=municipality) | Q(barangay__icontains=municipality))
+        qs = qs.filter(municipality__icontains=municipality)
     if barangay:
         qs = qs.filter(barangay__icontains=barangay)
     return render(request, 'hotels/manage.html', {
@@ -204,6 +215,7 @@ def add_hotel(request):
         errors = []
         if not name:
             errors.append("Hotel name is required.")
+        errors.extend(_location_errors(province, municipality, barangay, country))
         if errors:
             return render(request, 'hotels/form.html', {
                 'hotel': None,
@@ -253,6 +265,7 @@ def update_hotel(request, hotel_id):
         errors = []
         if not name:
             errors.append("Hotel name is required.")
+        errors.extend(_location_errors(province, municipality, barangay, country))
         if errors:
             return render(request, 'hotels/form.html', {
                 'hotel': hotel,

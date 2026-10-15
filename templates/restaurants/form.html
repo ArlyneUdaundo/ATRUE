@@ -19,7 +19,8 @@
     </div>
     <div class="form-group">
         <label>Location / Address</label>
-        {% include 'search/_loc_cascade_field.html' with location_name='location' location_value=restaurant.location required=True %}
+        {% include 'search/_loc_cascade_field.html' with country_name='location_country' country_value=location_parts.country province_name='location_province' province_value=location_parts.province municipality_name='location_municipality' municipality_value=location_parts.municipality barangay_name='location_barangay' barangay_value=location_parts.barangay required=True %}
+        <input type="hidden" name="location" id="restaurant-location" value="{{ restaurant.location|default:'' }}">
     </div>
     <div class="form-group"><label>Cuisine Type</label><input type="text" name="cuisine_type" class="form-input" value="{{ restaurant.cuisine_type|default:'' }}" placeholder="e.g. Ilocano, Filipino, Seafood"></div>
     <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ restaurant.contact_number|default:'' }}"></div>
@@ -65,7 +66,19 @@
 {{ block.super }}
 <script>
 (function(){
-  function init(){ if (window.ATRUELocationAutocomplete) window.ATRUELocationAutocomplete.init(); }
+  function init(){
+    document.querySelectorAll('form').forEach(function(form){
+      if(form.dataset.locationCombined) return;
+      var hidden=form.querySelector('#restaurant-location');
+      if(!hidden) return;
+      form.dataset.locationCombined='1';
+      var p=form.querySelector('[data-cascade="province"]'), m=form.querySelector('[data-cascade="municipality"]'), b=form.querySelector('[data-cascade="barangay"]'), bt=form.querySelector('[data-cascade="barangay-text"]');
+      form.addEventListener('submit',function(){
+        var barangay=(b && !b.disabled ? b.value : (bt && !bt.disabled ? bt.value : '')) || '';
+        hidden.value=[barangay,m&&m.value,p&&p.value].filter(Boolean).join(', ');
+      });
+    });
+  }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 </script>

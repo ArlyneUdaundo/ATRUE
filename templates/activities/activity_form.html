@@ -45,7 +45,7 @@
         <div class="form-group"><label>Meeting Point</label><input type="text" name="meeting_point" class="form-input" value="{{ activity.meeting_point|default:'' }}"></div>
     </div>
     <div style="margin-top:12px">
-        {% include 'search/_loc_cascade_field.html' with location_name='location' location_value=activity.location %}
+        {% include 'search/_loc_cascade_field.html' with country_name='location_country' country_value=activity.location_country province_name='location_province' province_value=activity.location_province municipality_name='location_municipality' municipality_value=activity.location_municipality barangay_name='location_barangay' barangay_value=activity.location_barangay %}
     </div>
     <div class="form-grid">
         <div class="form-group"><label>Schedule Date</label><input type="date" name="schedule_date" class="form-input" value="{{ activity.schedule_date|date:'Y-m-d' }}"></div>

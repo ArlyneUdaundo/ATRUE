@@ -1,11 +1,79 @@
-{% comment %}Single free-text location field with live GeoNames suggestions. Existing storage column names are retained; country/province/region are optional metadata fields if provided by a caller.{% endcomment %}
-{% with field=location_name|default:municipality_name|default:'location' value=location_value|default:municipality_value|default:'' %}
-<div class="form-group atrue-location-autocomplete" data-location-autocomplete>
-    <label for="{{ field }}-location">{{ location_label|default:'Location' }}{% if required %} *{% endif %}</label>
-    <input id="{{ field }}-location" type="text" class="form-input" name="{{ field }}"
-           value="{{ value }}" placeholder="{{ location_placeholder|default:'Type a city, province, or address' }}"
-           autocomplete="off" aria-autocomplete="list" aria-expanded="false"
-           {% if required %}required{% endif %}>
-    <div class="atrue-location-options" role="listbox" hidden></div>
+{% comment %}
+Reusable inline cascading Country → Region → Province → Municipality/City → Barangay
+dropdown group.
+
+Powered by static/js/location-cascade.js (window.ATRUE_LOC_DATA / /locations/api/).
+
+Region narrows the province list. It only submits where a model actually
+stores a region (pass `region_name`); otherwise it carries no `name`, needs no
+column on any model, and a province belongs to exactly one region anyway, so
+the saved province already determines it.
+
+Barangay is Philippine only. GeoNames has no barangay level outside the
+Philippines, so for every other country the JS hides the whole Barangay group and
+clears its value, ending the cascade at Municipality/City. Only one Barangay
+control is ever active (pick-list or free-text fallback) so a single `name`
+always submits.
+
+Country is a select whose value is the Country NAME (persisted to the
+model's country column); the JS resolves it and can reload the whole tree
+for any foreign country on demand. Pass `include_country=False` to omit it.
+
+Usage (tags must stay on ONE line — Django 6 lexer does not span newlines):
+  {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=hotel.country province_name='province' province_value=hotel.province municipality_name='municipality' municipality_value=hotel.municipality barangay_name='barangay' barangay_value=hotel.barangay required=True %}
+{% endcomment %}
+
+{% with country_field=country_name|default:'country' province_field=province_name|default:'province' municipality_field=municipality_name|default:'municipality' barangay_field=barangay_name|default:'barangay' %}
+<div class="loc-cascade" data-loc-cascade
+     data-country="{{ country_field }}"
+     data-province="{{ province_field }}"
+     data-municipality="{{ municipality_field }}"
+     data-barangay="{{ barangay_field }}"
+     data-init-country="{{ country_value|default:'' }}"
+     data-init-province="{{ province_value|default:'' }}"
+     data-init-municipality="{{ municipality_value|default:'' }}"
+     data-init-region="{{ region_value|default:'' }}"
+     data-init-barangay="{{ barangay_value|default:'' }}"
+     {% if required %}data-required="1"{% endif %}>
+    {% if include_country != False %}
+    <div class="form-group">
+        <label for="{{ country_field }}-cascade">Country{% if required %} *{% endif %}</label>
+        <select id="{{ country_field }}-cascade" class="form-input" name="{{ country_field }}"
+                data-cascade="country" {% if required %}required{% endif %} disabled>
+            <option value="">Select Country</option>
+        </select>
+    </div>
+    {% endif %}
+    <div class="form-group" data-cascade-group="region">
+        <label for="region-cascade">Region / State</label>
+        {% if region_name %}<select id="region-cascade" class="form-input" name="{{ region_name }}" data-cascade="region" disabled>{% else %}<select id="region-cascade" class="form-input" data-cascade="region" disabled>{% endif %}
+            <option value="">All Regions</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="{{ province_field }}-cascade">Province{% if required %} *{% endif %}</label>
+        <select id="{{ province_field }}-cascade" class="form-input" name="{{ province_field }}"
+                data-cascade="province" {% if required %}required{% endif %} disabled>
+            <option value="">Select Province</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="{{ municipality_field }}-cascade">Municipality / City{% if required %} *{% endif %}</label>
+        <select id="{{ municipality_field }}-cascade" class="form-input" name="{{ municipality_field }}"
+                data-cascade="municipality" {% if required %}required{% endif %} disabled>
+            <option value="">Select Municipality/City</option>
+        </select>
+    </div>
+    <div class="form-group" data-cascade-group="barangay">
+        <label for="{{ barangay_field }}-cascade">Barangay</label>
+        <select id="{{ barangay_field }}-cascade" class="form-input" name="{{ barangay_field }}"
+                data-cascade="barangay" disabled>
+            <option value="">Select Barangay</option>
+        </select>
+        <input type="text" class="form-input" name="{{ barangay_field }}"
+               data-cascade="barangay-text"
+               value="{{ barangay_value|default:'' }}"
+               placeholder="Barangay (or street)" disabled hidden>
+    </div>
 </div>
 {% endwith %}
