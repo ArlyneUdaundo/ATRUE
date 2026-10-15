@@ -28,9 +28,9 @@
         {% if bill and bill.balance_due > 0 %}
         Please use <b>Pay Bill</b> above to submit payment. The Billing Officer will verify it before the reservation is confirmed.
         {% elif bill and bill.verified_at %}
-        Payment has been verified. Your reservation is being finalized.
+        Payment is verified. Your reservation is waiting for the Resort Reservation Officer to confirm it.
         {% else %}
-        Once payment is verified and the reservation is confirmed, a confirmation email and the <b>Print E-Ticket</b> option will be available.
+        After payment verification, the Resort Reservation Officer must confirm your reservation. Then a confirmation email will be sent and <b>Print E-Ticket</b> will be available.
         {% endif %}
     </div>
 </div>

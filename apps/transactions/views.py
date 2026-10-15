@@ -79,23 +79,30 @@ def payment_review(request):
                 establishment=establishment,
             )
             if booking._meta.app_label == 'resorts' and booking.status == 'PENDING':
-                from atrue_core.services import confirm_booking
-                confirm_booking(
-                    booking, request.user,
+                from simulation.models import SimulationRoleAssignment
+                from notifications.models import Notification
+                from notifications.services import notify_many
+
+                officers = SimulationRoleAssignment.objects.filter(
+                    role=SimulationRoleAssignment.Role.RESORT_RESERVATION_OFFICER,
+                    status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                    establishment=establishment,
+                ).select_related('student')
+                if assignment is not None:
+                    officers = officers.filter(session=assignment.session)
+                notify_many(
+                    [row.student for row in officers],
+                    Notification.Type.GENERAL,
+                    f'Payment verified for resort reservation {booking.booking_reference}. '
+                    'Review and confirm the reservation.',
                     session=assignment.session if assignment else None,
                     establishment=establishment,
                 )
-                if booking.status == 'CONFIRMED':
-                    messages.success(
-                        request,
-                        f'Payment verified and resort reservation {booking.booking_reference} confirmed. '
-                        'The guest confirmation email was queued automatically.',
-                    )
-                else:
-                    messages.success(
-                        request,
-                        f'Payment for {bill.bill_reference} verified; the resort reservation is awaiting confirmation.',
-                    )
+                messages.success(
+                    request,
+                    f'Payment for {bill.bill_reference} verified. The resort reservation is now awaiting '
+                    'Resort Reservation Officer confirmation.',
+                )
             else:
                 messages.success(request, f'Payment for {bill.bill_reference} verified.')
             return redirect('transactions:payment_review')
