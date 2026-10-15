@@ -22,25 +22,33 @@ def student_booking_required(view_func):
             return redirect('accounts:login')
         if is_admin_user(user):
             resolver = getattr(request, 'resolver_match', None)
-            passenger_task_booking = False
+            task_guest_booking = False
             if (
                 not user.is_staff
                 and user.account_type not in MANAGEMENT_ACCOUNT_TYPES
-                and getattr(resolver, 'namespace', None) == 'airlines'
-                and getattr(resolver, 'url_name', None) in {'book', 'book_itinerary'}
             ):
-                from simulation.models import SimulationRoleAssignment
+                namespace = getattr(resolver, 'namespace', None)
+                url_name = getattr(resolver, 'url_name', None)
+                role_by_booking_route = {
+                    ('airlines', 'book'): 'PASSENGER_AIRLINE',
+                    ('airlines', 'book_itinerary'): 'PASSENGER_AIRLINE',
+                    ('activities', 'book_activity'): 'ACTIVITY_GUEST',
+                    ('activities', 'flow_select'): 'ACTIVITY_GUEST',
+                }
+                task_role = role_by_booking_route.get((namespace, url_name))
+                if task_role:
+                    from simulation.models import SimulationRoleAssignment
 
-                passenger_task_booking = SimulationRoleAssignment.objects.filter(
-                    pk=request.session.get('active_simulation_task_assignment'),
-                    student=user,
-                    role=SimulationRoleAssignment.Role.PASSENGER_AIRLINE,
-                    status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-                ).exists()
-            if not passenger_task_booking:
+                    task_guest_booking = SimulationRoleAssignment.objects.filter(
+                        pk=request.session.get('active_simulation_task_assignment'),
+                        student=user,
+                        role=task_role,
+                        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                    ).exists()
+            if not task_guest_booking:
                 messages.warning(
                     request,
-                    'Booking is for student accounts only. Admins and instructors manage the platform.')
+                    'Booking is available to student and assigned guest accounts. Admins and instructors manage the platform.')
                 return redirect('dashboard')
         if not user.is_bookable:
             messages.warning(request, 'Your account is deactivated. Contact the administrator.')
