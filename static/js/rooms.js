@@ -78,7 +78,6 @@
     var guestModalSub = document.getElementById('guestModalSub');
     var guestSave = document.getElementById('guestModalSave');
     var guestOpener = null;
-    var guestRenderToken = 0;
 
     var SELECTED = [];      // one entry per booked room, in selection order
     var ACTIVE = 0;         // index into SELECTED whose guest card is visible
@@ -353,8 +352,6 @@
         var idx = (roomId === undefined || roomId === null) ? ACTIVE : findIndex(roomId);
         if (idx === -1) return;
         // Save edits for the currently visible guest before switching rooms.
-        // Open the lightweight modal shell first so form rendering cannot hold
-        // up the browser's first paint of Guest Information.
         syncFromDom();
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, idx));
         var s = SELECTED[ACTIVE];
@@ -363,39 +360,27 @@
                 ' · ' + s.room_type + ' · Room ' + s.room_number +
                 '. Please provide the guest details below.';
         }
-        var renderToken = ++guestRenderToken;
-        if (wrap) {
-            wrap.setAttribute('aria-busy', 'true');
-            wrap.innerHTML = '<p role="status">Loading guest information…</p>';
-        }
+        // Show the modal immediately as part of the Select click. Only the
+        // active room's guest fields are rendered, so larger multi-room
+        // bookings do not build every guest form at once.
         guestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
-        function renderGuestForm() {
-            if (renderToken !== guestRenderToken || !guestModalOpen()) return;
-            renderSections();
-            if (wrap) wrap.setAttribute('aria-busy', 'false');
-            var card = wrap && wrap.querySelector('.bk-guest-card:not([hidden])');
-            var target = card && card.querySelector(
-                'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
-            );
-            if (!target) return;
-            try { target.focus({ preventScroll: true }); }
-            catch (err) { target.focus(); }
-        }
-        // A second animation frame gives the opened overlay a paint before
-        // building guest fields. Keep a timer fallback for older browsers.
-        if (window.requestAnimationFrame) {
+        renderSections();
+        var card = wrap && wrap.querySelector('.bk-guest-card:not([hidden])');
+        var target = card && card.querySelector(
+            'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (target) {
             window.requestAnimationFrame(function () {
-                window.requestAnimationFrame(renderGuestForm);
+                if (!guestModalOpen() || !target.isConnected) return;
+                try { target.focus({ preventScroll: true }); }
+                catch (err) { target.focus(); }
             });
-        } else {
-            window.setTimeout(renderGuestForm, 0);
         }
     }
 
     function closeGuestModal() {
         if (!guestModal || !guestModalOpen()) return;
-        guestRenderToken += 1;
         syncFromDom();
         guestModal.classList.remove('open');
         if (!modal || !modal.classList.contains('open')) document.body.style.overflow = '';
