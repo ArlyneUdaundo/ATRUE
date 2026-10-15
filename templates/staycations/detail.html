@@ -82,10 +82,10 @@
 {% endif %}
 
 {% if is_manager %}
-<dialog id="staycationServiceDialog" style="width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
+<dialog id="staycationServiceDialog" class="staycation-add-service-dialog" aria-labelledby="staycationAddServiceTitle">
 <form method="post" action="{% url 'staycations:add_service' staycation.id %}" style="padding:24px">
 {% csrf_token %}
-<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px"><h2 style="margin:0;font-size:20px">Add Service</h2><button type="button" class="btn btn-ghost btn-sm" data-close-staycation-service aria-label="Close dialog"><i class="fas fa-times"></i></button></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px"><h2 id="staycationAddServiceTitle" style="margin:0;font-size:20px">Add Service</h2><button type="button" class="btn btn-ghost btn-sm" data-close-staycation-service aria-label="Close dialog"><i class="fas fa-times"></i></button></div>
 <div class="form-group"><label for="staycationServiceName">Service Name</label><input id="staycationServiceName" type="text" name="name" class="form-input" placeholder="e.g. Housekeeping" required></div>
 <div class="form-group"><label for="staycationServiceDescription">Description</label><textarea id="staycationServiceDescription" name="description" class="form-input" rows="2"></textarea></div>
 <div class="form-grid"><div class="form-group"><label for="staycationServiceRate">Rate (&#8369;)</label><input id="staycationServiceRate" type="number" name="rate" step="0.01" min="0" class="form-input" value="0"></div><div class="form-group"><label for="staycationServiceHours">Operating Hours</label><input id="staycationServiceHours" type="text" name="operating_hours" class="form-input" placeholder="8:00 AM - 8:00 PM"></div></div>
@@ -93,6 +93,10 @@
 <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px"><button type="button" class="btn btn-ghost" data-close-staycation-service>Cancel</button><button type="submit" name="return_to_detail" value="1" class="btn btn-brand"><i class="fas fa-save"></i> Save Service</button></div>
 </form>
 </dialog>
+<style>
+.staycation-add-service-dialog{position:fixed;inset:0;margin:auto;width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:0;border-radius:16px;padding:0;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.25)}
+.staycation-add-service-dialog::backdrop{background:rgba(15,27,48,.55);backdrop-filter:blur(4px)}
+</style>
 <script>
 (function () {
     var dialog = document.getElementById('staycationServiceDialog');
