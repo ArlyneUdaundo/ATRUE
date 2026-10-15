@@ -9,7 +9,7 @@
         <p>{{ activities|length }} activit{% if activities|length == 1 %}y{% else %}ies{% endif %} available · Book slots with verified providers</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'activities:add_activity' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Activity</a>
+    {% if can_add_establishment %}<a href="{% url 'activities:add_activity' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Activity</a>{% endif %}
     {% endif %}
 </div>
 

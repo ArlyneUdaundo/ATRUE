@@ -10,7 +10,7 @@
 <div class="card">
         <div class="card-pad" style="border-bottom:1px solid var(--slate-200);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
             <h3 style="margin:0"><i class="fas fa-hiking"></i> Activities</h3>
-            <a href="{% url 'activities:add_activity' %}" data-establishment-create class="btn btn-brand btn-sm"><i class="fas fa-plus"></i> Add Activity</a>
+            {% if activity_owner %}<a href="{% url 'activities:add_activity' %}" data-establishment-create class="btn btn-brand btn-sm"><i class="fas fa-plus"></i> Add Activity</a>{% endif %}
         </div>
         <div class="card-pad activity-management-grid">
             {% for a in activities %}

@@ -10,7 +10,7 @@
         <h1>Available Hotels</h1>
         <p>Browse partnered hotels, rooms, services and amenities.</p>
     </div>
-    {% if request.user.is_authenticated and request.user.can_manage_hotels %}
+    {% if can_add_establishment %}
     <a href="{% url 'hotels:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Hotel</a>
     {% endif %}
 </div>

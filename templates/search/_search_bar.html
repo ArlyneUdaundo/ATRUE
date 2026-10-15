@@ -5,9 +5,9 @@
             <h1>{{ cfg.hero_title }}</h1>
             <p>{{ cfg.hero_sub }}</p>
         </div>
-        {% if can_manage and manage_url %}
+        {% if can_manage and management_url or can_add_establishment and manage_url %}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                {% if manage_url %}
+                {% if can_add_establishment and manage_url %}
                     <a href="{{ manage_url }}" class="bk-btn bk-btn-outline bk-btn-sm" data-establishment-create>
                         <i class="fas fa-plus"></i> Add new
                     </a>

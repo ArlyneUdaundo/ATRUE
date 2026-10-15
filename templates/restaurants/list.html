@@ -9,7 +9,7 @@
         <p>{{ restaurants|length }} restaurant{% if restaurants|length != 1 %}s{% endif %} found · Find a restaurant, inspect its tables and reserve ahead</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'restaurants:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Restaurant</a>
+    {% if can_add_establishment %}<a href="{% url 'restaurants:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Restaurant</a>{% endif %}
     {% endif %}
 </div>
 

@@ -1079,6 +1079,23 @@ def build_search_context(request, category_key, items):
             if v != "—" and v not in dest_suggestions:
                 dest_suggestions.append(v)
 
+    owner_roles_by_category = {
+        "hotel": {"HOTEL_OWNER"},
+        "resort": {"RESORT_OWNER"},
+        "staycation": {"STAYCATION_OWNER"},
+        "restaurant": {"RESTAURANT_OWNER"},
+        "landmark": {"LANDMARK_OWNER"},
+        "activity": {"ACTIVITY_OWNER"},
+        "package": {"TOUR_PACKAGE_OWNER", "TOUR_OPERATOR_OWNER", "TRAVEL_AGENCY_OWNER"},
+    }
+    can_add_establishment = bool(
+        request.user.is_authenticated
+        and owner_roles_by_category.get(category_key)
+        and request.user.simulation_roles.filter(
+            status="ACTIVE", role__in=owner_roles_by_category[category_key]
+        ).exists()
+    )
+
     context = {
         "category": category_key,
         "cfg": cfg,
@@ -1108,6 +1125,7 @@ def build_search_context(request, category_key, items):
         "tables_count": tables_count,
         "dest_suggestions": dest_suggestions,
         "can_manage": bool(getattr(request.user, "is_platform_manager", False)),
+        "can_add_establishment": can_add_establishment,
         "manage_url": reverse(cfg["manage_url_name"]) if cfg.get("manage_url_name") else None,
         "management_url": reverse(cfg["management_url_name"]) if cfg.get("management_url_name") else None,
         "result_kicker": cfg["result_kicker"],

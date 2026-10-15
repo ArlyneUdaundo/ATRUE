@@ -693,6 +693,8 @@ def flight_list(request):
         'destination': destination,
         'origin_airport': origin_airport,
         'destination_airport': destination_airport,
+        'airline_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
+            status='ACTIVE', role='AIRLINE_OWNER').exists(),
         'origin_airport_object': (
             Airport.objects.filter(pk=origin_airport).first()
             if origin_airport.isdigit() else None
@@ -1281,6 +1283,8 @@ def flights(request):
         'airlines': airlines,
         'q': q, 'airline': airline, 'status': status,
         'date_from': date_from, 'date_to': date_to,
+        'airline_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
+            status='ACTIVE', role='AIRLINE_OWNER').exists(),
     })
 
 

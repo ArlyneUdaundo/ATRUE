@@ -87,6 +87,8 @@ def manage(request):
         'selected_status': status,
         'status_choices': Landmark.Status.choices,
         'can_delete': not landmark_scope.is_scoped(request.user),
+        'landmark_owner': request.user.simulation_roles.filter(
+            status='ACTIVE', role='LANDMARK_OWNER').exists(),
     })
 
 

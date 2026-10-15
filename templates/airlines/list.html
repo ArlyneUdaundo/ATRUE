@@ -10,7 +10,7 @@
         <p>{{ flights|length }} flight{% if flights|length != 1 %}s{% endif %} found · {% if request.user.is_airline_booking_restricted %}Review flight information and remaining seats{% else %}See remaining seats and book your trip{% endif %}</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>
+    {% if airline_owner %}<a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>{% endif %}
     {% endif %}
 </div>
 

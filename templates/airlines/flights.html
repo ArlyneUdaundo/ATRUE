@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Flight Schedule</h1><p>All managed flights across airlines (FR-017).</p></div>
-    <a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>
+    {% if airline_owner %}<a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>{% endif %}
 </div>
 
 <form method="get" class="card card-pad flight-schedule-filters" style="margin-bottom:18px">

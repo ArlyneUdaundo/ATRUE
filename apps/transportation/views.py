@@ -110,6 +110,8 @@ def transportation_list(request):
         'agencies': result,
         'schedule': schedule,
         'search_query': search_query,
+        'transportation_owner': request.user.is_authenticated and request.user.simulation_roles.filter(
+            status='ACTIVE', role='TRANSPORTATION_OWNER').exists(),
     })
 
 
@@ -141,7 +143,11 @@ def manage(request):
         request,
         Agency.objects.prefetch_related('photos', 'vehicles', 'drivers').all(),
     )
-    return render(request, 'transportation/manage.html', {'agencies': agencies})
+    return render(request, 'transportation/manage.html', {
+        'agencies': agencies,
+        'transportation_owner': request.user.simulation_roles.filter(
+            status='ACTIVE', role='TRANSPORTATION_OWNER').exists(),
+    })
 
 
 @manager_required

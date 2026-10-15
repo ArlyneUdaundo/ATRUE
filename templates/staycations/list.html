@@ -9,7 +9,7 @@
         <p>{{ staycations|length }} staycation{% if staycations|length != 1 %}s{% endif %} found · Homes, add-ons and schedules</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'staycations:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Staycation</a>
+    {% if can_add_establishment %}<a href="{% url 'staycations:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Staycation</a>{% endif %}
     {% endif %}
 </div>
 

@@ -52,13 +52,6 @@ def payment_review(request):
             establishment = establishment_for_booking(booking)
         except Exception:
             continue
-        if assignment and assignment.session_id:
-            session_establishments = set(assignment.session.assignments.filter(
-                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-                establishment__isnull=False,
-            ).values_list('establishment_id', flat=True))
-            if not establishment or establishment.pk not in session_establishments:
-                continue
         if request.method == 'POST' and request.POST.get('bill_id') == str(bill.pk):
             if bill.status != Bill.Status.FULLY_PAID:
                 messages.error(request, 'Only fully paid bills can be verified.')

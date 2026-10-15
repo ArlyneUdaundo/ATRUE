@@ -7,7 +7,7 @@
 <div class="page-head">
     <div><h1>Tour Package Management</h1><p>Manage assigned package details, pricing, inclusions, and availability.</p></div>
     <div style="display:flex;gap:10px">
-        {% if can_create_package %}
+        {% if package_owner %}
         <a href="{% url 'tour_package:add_package' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>
         {% endif %}
     </div>

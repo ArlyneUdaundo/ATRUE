@@ -10,7 +10,7 @@
         <p>{{ packages|length }} package{% if packages|length != 1 %}s{% endif %} available · All-in bundles with headcount billing</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'tour_package:add_package' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>
+    {% if can_add_establishment %}<a href="{% url 'tour_package:add_package' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Package</a>{% endif %}
     {% endif %}
 </div>
 
