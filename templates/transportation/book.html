@@ -37,13 +37,15 @@
                 <div><h3>Your trip details</h3><p>Route, schedule and passengers — one vehicle booking can carry multiple passengers in ONE transaction</p></div>
             </div>
             <div class="form-grid">
-                <div class="form-group">
+                <div class="form-group atrue-location-autocomplete" data-location-autocomplete>
                     <label>Pickup Location</label>
-                    <input type="text" name="pickup_location" class="form-input" placeholder="e.g. Tuguegarao City" required>
+                    <input type="text" name="pickup_location" class="form-input" placeholder="e.g. Tuguegarao City" autocomplete="off" required>
+                    <div class="atrue-location-options" role="listbox" hidden></div>
                 </div>
-                <div class="form-group">
+                <div class="form-group atrue-location-autocomplete" data-location-autocomplete>
                     <label>Drop-off Location</label>
-                    <input type="text" name="drop_off_location" class="form-input" placeholder="e.g. Palaui Island" required>
+                    <input type="text" name="drop_off_location" class="form-input" placeholder="e.g. Palaui Island" autocomplete="off" required>
+                    <div class="atrue-location-options" role="listbox" hidden></div>
                 </div>
             </div>
             <div class="form-grid">

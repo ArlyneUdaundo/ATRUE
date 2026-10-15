@@ -2067,6 +2067,35 @@
     destinationInput.addEventListener('input', () => {
         destinationInput.dataset.geonameId = '';
         filterDestinationOptions(destinationInput.value);
+        const needle = destinationInput.value.trim();
+        destinationSuggestions.querySelectorAll('.hm-geoname-option').forEach(node => node.remove());
+        if (needle.length >= 2) {
+            fetch('/locations/api/search/?q=' + encodeURIComponent(needle))
+                .then(response => response.ok ? response.json() : {results: []})
+                .then(data => {
+                    if (destinationInput.value.trim() !== needle) return;
+                    (data.results || []).forEach(place => {
+                        const option = document.createElement('button');
+                        option.type = 'button'; option.className = 'hm-destination-option hm-geoname-option';
+                        option.setAttribute('role', 'option');
+                        const label = [place.name, place.municipality, place.province, place.country].filter(Boolean).join(', ');
+                        option.textContent = label;
+                        option.addEventListener('click', () => {
+                            destinationInput.value = place.name || label; destinationInput.dataset.geonameId = place.geoname_id || '';
+                            closePlaceSuggestions();
+                        });
+                        destinationSuggestions.appendChild(option);
+                    });
+                    if ((data.results || []).length) {
+                        destinationSuggestions.hidden = false;
+                        destinationInput.setAttribute('aria-expanded', 'true');
+                    } else if (!destinationOptions.some(option => !option.hidden)) {
+                        const empty = document.createElement('div'); empty.className = 'hm-destination-option hm-geoname-option';
+                        empty.textContent = 'No locations found'; destinationSuggestions.appendChild(empty);
+                        destinationSuggestions.hidden = false; destinationInput.setAttribute('aria-expanded', 'true');
+                    }
+                }).catch(() => {});
+        }
     });
     destinationInput.addEventListener('focus', () => {
         if (destinationInput.value.trim()) filterDestinationOptions(destinationInput.value);
@@ -2079,7 +2108,19 @@
         });
     });
     destinationInput.addEventListener('keydown', event => {
-        if (event.key === 'Escape') closePlaceSuggestions();
+        if (event.key === 'Escape') { closePlaceSuggestions(); return; }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            const options = Array.from(destinationSuggestions.querySelectorAll('button:not([hidden])'));
+            if (!options.length) return;
+            event.preventDefault();
+            let active = options.findIndex(option => option.getAttribute('aria-selected') === 'true');
+            active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+            options.forEach((option, index) => option.setAttribute('aria-selected', String(index === active)));
+            options[active].scrollIntoView({block: 'nearest'});
+        } else if (event.key === 'Enter' && !destinationSuggestions.hidden) {
+            const active = destinationSuggestions.querySelector('button[aria-selected="true"]');
+            if (active) { event.preventDefault(); active.click(); }
+        }
     });
     document.addEventListener('click', event => {
         if (destinationSuggestions && !destinationSuggestions.contains(event.target) && event.target !== destinationInput) {

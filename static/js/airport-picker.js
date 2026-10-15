@@ -80,6 +80,7 @@
             }
             var timer = null;
             var searchRequest = null;
+            var activeOption = -1;
 
             function renderValue() {
                 if (hidden && hidden.value) {
@@ -187,6 +188,7 @@
 
             function render(results, errorMessage) {
                 list.innerHTML = '';
+                activeOption = -1;
                 if (!results.length) {
                     empty.hidden = false;
                     empty.textContent = errorMessage || 'No airports found. Try the IATA code or a city / country.';
@@ -200,7 +202,7 @@
                     var btn = el('button', 'atrue-airport-item' + (selected ? ' is-selected' : ''));
                     btn.setAttribute('role', 'option');
                     btn.setAttribute('aria-selected', String(!!selected));
-                    var sub = [r.city, r.country].filter(Boolean).join(', ');
+                    var sub = [r.city, r.address, r.region, r.country].filter(Boolean).join(', ');
                     btn.innerHTML =
                         '<span class="atrue-airport-item-ico"><i class="fas fa-plane-departure"></i></span>' +
                         '<span class="atrue-airport-item-txt">' +
@@ -258,7 +260,20 @@
 
             input.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') { close(); e.preventDefault(); }
-                if (e.key === 'Enter') { e.preventDefault(); return; }
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    var items = Array.prototype.slice.call(list.querySelectorAll('[role="option"]'));
+                    if (!items.length) return;
+                    e.preventDefault(); activeOption = (activeOption + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+                    items.forEach(function (item, index) {
+                        item.setAttribute('aria-selected', String(index === activeOption));
+                        if (index === activeOption) item.scrollIntoView({ block: 'nearest' });
+                    });
+                }
+                if (e.key === 'Enter') {
+                    var active = list.querySelector('[role="option"][aria-selected="true"]');
+                    if (active) { e.preventDefault(); active.click(); }
+                    else e.preventDefault();
+                }
             });
 
             if (clearBtn) {

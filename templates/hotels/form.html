@@ -30,7 +30,7 @@
     </div>
     <div class="form-group">
         <label>Location / Address <span class="meta">(worldwide)</span></label>
-        {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=fd.country province_name='province' province_value=fd.province municipality_name='municipality' municipality_value=fd.municipality barangay_name='barangay' barangay_value=fd.barangay required=True %}
+        {% include 'search/_loc_cascade_field.html' with municipality_name='municipality' municipality_value=hotel.location|default:fd.municipality required=True %}
     </div>
     <div class="form-group">
         <label>Hotel Photos <span class="meta" style="font-weight:400">(multiple)</span></label>

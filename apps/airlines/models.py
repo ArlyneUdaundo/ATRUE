@@ -620,6 +620,9 @@ class Airport(models.Model):
                                     help_text="ISO 3166-1 alpha-2 country code.")
     region = models.CharField(max_length=120, blank=True, default='',
                               verbose_name="Region / province / state")
+    address = models.CharField(max_length=255, blank=True, default='',
+                               verbose_name="Street address",
+                               help_text="Optional verified airport street address, if available.")
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     timezone = models.CharField(

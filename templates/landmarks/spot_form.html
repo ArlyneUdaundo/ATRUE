@@ -36,7 +36,7 @@
     <div class="form-group">
         <label>Country / Region of Location</label>
         {# The cascade owns Country and Region. A second free-text control with the same name used to submit alongside the cascade's select, and Django kept only the last one, so the visible Country box was silently discarded. #}
-        {% include 'search/_loc_cascade_field.html' with country_name='country' country_value=spot.country region_name='region' region_value=spot.region province_name='province' province_value=spot.province municipality_name='municipality' municipality_value=spot.municipality barangay_name='barangay' barangay_value=spot.barangay %}
+        {% include 'search/_loc_cascade_field.html' with municipality_name='municipality' municipality_value=spot.location %}
     </div>
     <div class="form-grid" style="margin-top:10px">
         <div class="form-group"><label>Contact Number</label><input type="text" name="contact_number" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g,'');" value="{{ spot.contact_number|default:'' }}"></div>

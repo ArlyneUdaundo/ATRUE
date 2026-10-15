@@ -331,7 +331,7 @@ def _restaurant_price_class(item, idx):
 def _index_hotel(item):
     available = [r for r in item.rooms.all() if getattr(r, "status", "") == "AVAILABLE"]
     cheapest = _cheapest_rate(available)
-    search = _searchable("name", "province", "municipality", "barangay", "establishment_id")(item)
+    search = _searchable("name", "country", "province", "municipality", "barangay", "establishment_id")(item)
     return {
         "price": _num(cheapest),
         "stars": star_rating(item),
@@ -346,7 +346,7 @@ def _index_hotel(item):
 def _index_resort(item):
     available = [u for u in item.units.all() if getattr(u, "status", "") == "AVAILABLE"]
     cheapest = _cheapest_rate(available)
-    search = _searchable("name", "province", "municipality", "barangay", "resort_id")(item)
+    search = _searchable("name", "country", "province", "municipality", "barangay", "resort_id")(item)
     return {
         "price": _num(cheapest),
         "stars": star_rating(item),
@@ -366,7 +366,7 @@ def _index_staycation(item):
         "province": _province_index(item),
         "capacity": _stay_capacity_bucket(item.capacity),
         "tags": [s.name for s in item.services.all()],
-        "search": _searchable("name", "province", "municipality", "barangay", "establishment_id")(item),
+        "search": _searchable("name", "country", "province", "municipality", "barangay", "establishment_id")(item),
     }
 
 

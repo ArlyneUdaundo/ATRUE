@@ -9,9 +9,9 @@ from .models import (
 
 @admin.register(Airport)
 class AirportAdmin(admin.ModelAdmin):
-    list_display = ('airport_name', 'iata_code', 'icao_code', 'city', 'country', 'status')
+    list_display = ('airport_name', 'iata_code', 'icao_code', 'city', 'address', 'country', 'status')
     list_filter = ('status', 'country')
-    search_fields = ('airport_name', 'iata_code', 'icao_code', 'city', 'country', 'region')
+    search_fields = ('airport_name', 'iata_code', 'icao_code', 'city', 'address', 'country', 'region')
 
 
 @admin.register(Airline)

@@ -66,7 +66,8 @@ def manage(request):
     if province:
         qs = qs.filter(province__icontains=province)
     if municipality:
-        qs = qs.filter(municipality__icontains=municipality)
+        qs = qs.filter(Q(country__icontains=municipality) | Q(province__icontains=municipality)
+                       | Q(municipality__icontains=municipality) | Q(barangay__icontains=municipality))
     if barangay:
         qs = qs.filter(barangay__icontains=barangay)
     return render(request, 'staycations/manage.html', {
@@ -117,9 +118,13 @@ def add_staycation(request):
 def update_staycation(request, staycation_id):
     staycation = get_object_or_404(Staycation, pk=staycation_id)
     if request.method == 'POST':
-        for field in ('name', 'country', 'province', 'municipality', 'barangay', 'contact_number', 'email',
+        for field in ('name', 'contact_number', 'email',
                       'house_rules', 'rate', 'status'):
             setattr(staycation, field, request.POST.get(field) or getattr(staycation, field))
+        staycation.country = ''
+        staycation.province = ''
+        staycation.municipality = (request.POST.get('municipality') or '').strip()
+        staycation.barangay = ''
         for field in ('capacity', 'capacity_adults', 'capacity_children'):
             try:
                 setattr(staycation, field, int(request.POST.get(field) or getattr(staycation, field)))

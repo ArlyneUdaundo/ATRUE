@@ -106,7 +106,8 @@ def manage(request):
     if province:
         qs = qs.filter(province__icontains=province)
     if municipality:
-        qs = qs.filter(municipality__icontains=municipality)
+        qs = qs.filter(Q(country__icontains=municipality) | Q(province__icontains=municipality)
+                       | Q(municipality__icontains=municipality) | Q(barangay__icontains=municipality))
     if barangay:
         qs = qs.filter(barangay__icontains=barangay)
     return render(request, 'resorts/manage.html', {
@@ -152,9 +153,12 @@ def add_resort(request):
 def update_resort(request, resort_id):
     resort = get_object_or_404(Resort, pk=resort_id)
     if request.method == 'POST':
-        for field in ('name', 'country', 'province', 'municipality', 'barangay',
-                      'contact_number', 'email', 'operating_schedule', 'status'):
+        for field in ('name', 'contact_number', 'email', 'operating_schedule', 'status'):
             setattr(resort, field, request.POST.get(field, getattr(resort, field)))
+        resort.country = ''
+        resort.province = ''
+        resort.municipality = (request.POST.get('municipality') or '').strip()
+        resort.barangay = ''
         resort.save()
         photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:

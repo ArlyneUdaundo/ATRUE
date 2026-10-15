@@ -84,6 +84,7 @@ def _serialize_airport(airport):
         'city': airport.city,
         'country': airport.country,
         'region': airport.region,
+        'address': airport.address,
         'label': f"{airport.code} — {', '.join(cities)}",
     }
 
@@ -103,7 +104,7 @@ def _airport_endpoint_payload(airport):
 def airports_api(request):
     """JSON endpoint backing the worldwide airport picker.
 
-    Search is server-side (name / IATA / ICAO / city / country / region) so the
+    Search is server-side (name / IATA / ICAO / city / address / country / region) so the
     whole world list never has to be shipped to the browser.  ``?id=N`` returns a
     single airport for pre-filled form values.
     """
@@ -122,7 +123,7 @@ def airports_api(request):
         airport_matches = (
             Q(iata_code__iexact=q) | Q(icao_code__iexact=q)
             | Q(airport_name__icontains=q) | Q(city__icontains=q)
-            | Q(country__icontains=q) | Q(region__icontains=q)
+            | Q(address__icontains=q) | Q(country__icontains=q) | Q(region__icontains=q)
         )
         for place in search_worldwide_places(q, limit=30):
             if place['level'] == 'city':

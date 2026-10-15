@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="{% static 'css/agoda.css' %}?v=20261014-instructor-landmark-layout">
     <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
     <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
+    <link rel="stylesheet" href="{% static 'css/location-autocomplete.css' %}?v=20261015-location-autocomplete-1">
     <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261014-airport-sheet-sizing-2">
 <link rel="stylesheet" href="{% static 'css/location-cascade.css' %}?v=20261012-location-popup-layer">
 <link rel="stylesheet" href="{% static 'css/atrue-datepicker.css' %}?v=20261011-modal-popup-layer">
@@ -469,6 +470,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <script src="{% static 'js/location-select.js' %}?v=20260922"></script>
     <script>window.ATRUE_LOC_DATA = {{ atrue_loc_tree_json|safe }};</script>
     <script src="{% static 'js/location-picker.js' %}?v=20261005"></script>
+    <script src="{% static 'js/location-autocomplete.js' %}?v=20261015-location-autocomplete-1"></script>
     <script src="{% static 'js/location-cascade.js' %}?v=20261012"></script>
     <script src="{% static 'js/airport-picker.js' %}?v=20261014-airport-sheet-sizing-2"></script>
 <script src="{% static 'js/money-format.js' %}?v=20261015-noop-observer-fix"></script>

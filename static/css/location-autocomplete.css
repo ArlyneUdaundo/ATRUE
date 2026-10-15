@@ -1,0 +1,9 @@
+.atrue-location-autocomplete { position: relative; }
+.atrue-location-autocomplete > input { width: 100%; }
+.atrue-location-options { position: absolute; z-index: 1200; top: calc(100% + 5px); left: 0; right: 0; max-height: min(320px, 55vh); overflow: auto; border: 1px solid #dbe3ef; border-radius: 12px; background: #fff; box-shadow: 0 14px 35px rgba(15,23,42,.16); padding: 5px; }
+.atrue-location-options[hidden] { display: none; }
+.atrue-location-option { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; color: #172033; text-align: left; cursor: pointer; }
+.atrue-location-option:hover, .atrue-location-option[aria-selected="true"] { background: #eff6ff; }
+.atrue-location-option strong { display: block; font-size: 14px; }
+.atrue-location-option small { display: block; margin-top: 2px; color: #64748b; font-size: 12px; }
+.atrue-location-empty { padding: 12px; color: #64748b; font-size: 13px; }
