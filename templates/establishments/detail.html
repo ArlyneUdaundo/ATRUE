@@ -29,6 +29,9 @@ drives the selection page, and hand off to it via the single primary action.
         {% if category == 'landmark' and is_landmark_manager %}
         <a href="{% url landmark_edit_url est.pk %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
         <a href="{% url 'landmarks:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
+        {% elif category == 'activity' and is_activity_manager %}
+        <a href="{% url 'activities:update_activity' est.pk %}" class="btn btn-brand"><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'activities:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
         {% else %}
         <a href="{{ list_url }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All {{ category_label }}</a>
         {% endif %}

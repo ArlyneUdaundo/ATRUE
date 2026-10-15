@@ -471,7 +471,13 @@ def activity_detail(request, pk):
         request.GET.get('date'), adapter.default_date(activity, date.today() + timedelta(days=1))
     )
     check_out = check_in + timedelta(days=1)
-    return render(request, 'establishments/detail.html', detail_context(adapter, activity, check_in, check_out))
+    context = detail_context(adapter, activity, check_in, check_out)
+    context['is_activity_manager'] = bool(
+        request.user.is_authenticated
+        and (is_activity_platform_user(request.user)
+             or 'ACTIVITY_MANAGER' in effective_role_keys(request.user))
+    )
+    return render(request, 'establishments/detail.html', context)
 
 
 @login_required
