@@ -38,7 +38,7 @@ drives the selection page, and hand off to it via the single primary action.
     </div>
 </div>
 
-<div class="ag-booking{% if category == 'landmark' and request.user.is_instructor %} landmark-instructor-view{% endif %}">
+<div class="ag-booking{% if request.user.is_instructor %} manager-detail-view{% endif %}">
     <div class="ag-booking-main">
         {% with first=cards.0 %}
         {% if first.photos %}
