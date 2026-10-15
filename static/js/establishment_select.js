@@ -57,6 +57,7 @@
     var guestModalSub = document.getElementById('guestModalSub');
     var guestSave = document.getElementById('guestModalSave');
     var guestOpener = null;
+    var guestFocusItemId = null;
     var compBox = document.getElementById('computationSummary');
     var linesBox = document.getElementById('pbItemLines');
     var totalBox = document.getElementById('pbTotal');
@@ -290,7 +291,7 @@
        Mirrors rooms.js buildSection(): same section/card structure, same
        header, same field order and labels, same extras blocks, same error
        slot. Only the badge noun, the item name and the numbers differ. */
-    function buildSection(s, i) {
+    function buildSection(s, i, hidden) {
         var g = s.guest;
         var c = s.charge || {};
         var totals = lineTotals(s);
@@ -329,7 +330,8 @@
         }
 
         return '' +
-        '<section class="bk-guest-card" data-guest-section="' + i + '">' +
+        '<section class="bk-guest-card" data-guest-section="' + i + '"' +
+            (hidden ? ' hidden' : '') + '>' +
             '<div class="bk-guest-head">' +
                 '<div><span class="badge badge-blue">' + esc(BADGE) + ' ' + (i + 1) + (i === 0 ? ' - Primary Guest' : ' - Additional Guest') + '</span>' +
                 '<h3 style="margin:8px 0 2px">' + esc(s.name) + '</h3>' +
@@ -371,9 +373,11 @@
         '</section>';
     }
 
-function renderSections() {
+function renderSections(focusedIndex) {
 if (!guestBox) { return; }
-        guestBox.innerHTML = SELECTED.map(buildSection).join('');
+        guestBox.innerHTML = SELECTED.map(function (entry, index) {
+            return buildSection(entry, index, focusedIndex !== undefined && index !== focusedIndex);
+        }).join('');
         // The guest modal sits outside <form>, so tie the per-item fields back
         // to the booking form with the HTML form="" attribute. Same inputs,
         // same names, same submit.
@@ -587,7 +591,8 @@ if (!guestBox) { return; }
         var idx = (itemId === undefined || itemId === null) ? 0 : findIndex(itemId);
         if (idx === -1) { return; }
         syncFromDom();
-        renderSections();
+        guestFocusItemId = SELECTED[idx].item_id;
+        renderSections(idx);
         var s = SELECTED[idx];
         if (guestModalSub) {
             guestModalSub.textContent = (SELECTED.length > 1
@@ -625,6 +630,7 @@ if (!guestBox) { return; }
         syncFromDom();
         computeAll();
         guestModal.classList.remove('open');
+        guestFocusItemId = null;
         if (!detailsOpen()) { document.body.style.overflow = ''; }
         // preventScroll: returning focus must not move the page.
         if (guestOpener && guestOpener.focus) {
@@ -693,7 +699,14 @@ if (!guestBox) { return; }
         // Guest fields and their service/amenity checkboxes are expensive to
         // rebuild for every item selection. Create them only when the modal is
         // open or when the user opens guest details.
-        if (guestModalOpen()) { renderSections(); }
+        if (guestModalOpen()) {
+            var focusedIndex = findIndex(guestFocusItemId);
+            if (focusedIndex === -1 && SELECTED.length) {
+                focusedIndex = 0;
+                guestFocusItemId = SELECTED[0].item_id;
+            }
+            renderSections(focusedIndex);
+        }
         renderCardStates();
         computeAll();
     }
@@ -865,7 +878,13 @@ if (!guestBox) { return; }
         guestSave.addEventListener('click', function () {
             syncFromDom();
             var errs = validateAll();
-            if (errs.length) { showErrors(errs); return; }
+            if (errs.length) {
+                var firstError = errs[0];
+                guestFocusItemId = SELECTED[firstError.index].item_id;
+                renderSections(firstError.index);
+                showErrors(errs);
+                return;
+            }
             closeGuestModal();
             document.dispatchEvent(new CustomEvent('atrue:establishment-guest-info-complete'));
         });
