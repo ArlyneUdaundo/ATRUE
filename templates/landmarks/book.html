@@ -32,7 +32,7 @@
             {% csrf_token %}
             <div class="ag-panel-head">
                 <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
-                <div><h3>Your visit details</h3><p>Date, visitors and guided tour (BR-059, BR-063)</p></div>
+                <div><h3>Your visit details</h3><p>Date, visitors and guided tour</p></div>
             </div>
             <div class="form-grid">
                 <div class="form-group">
@@ -73,7 +73,7 @@
             <div style="margin-top:18px">
                 <div class="ag-panel-head">
                     <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
-                    <div><h3>Visitor &amp; payer</h3><p>Contact details come from your account (BR-001, BR-003, BR-006)</p></div>
+                    <div><h3>Visitor &amp; payer</h3><p>Contact details come from your account</p></div>
                 </div>
                 <div class="ag-customer-box">
                     <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>

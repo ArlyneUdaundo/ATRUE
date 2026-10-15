@@ -22,7 +22,7 @@
     <div class="alert" style="display:flex;gap:10px;align-items:flex-start;background:var(--amber-50);border:1px solid var(--amber-200);color:var(--amber-800);padding:12px 14px;border-radius:10px;margin-bottom:18px">
         <i class="fas fa-triangle-exclamation" style="margin-top:3px"></i>
         <div>
-            <b>Heads up:</b> Deactivating blocks new bookings for this user (BR-007). Historical bookings and records are retained, and the account can be reactivated anytime.
+            <b>Heads up:</b> Deactivating blocks new bookings for this user. Historical bookings and records are retained, and the account can be reactivated anytime.
         </div>
     </div>
     <form method="post" action="{% url 'accounts:account_deactivate' account.id %}">

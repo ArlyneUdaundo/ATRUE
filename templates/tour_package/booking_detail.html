@@ -45,7 +45,7 @@
     </div>
 
     <div class="card card-pad">
-        <h3><i class="fas fa-file-invoice"></i> Billing (BR-080/BR-081)</h3>
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
         {% if bill %}
         <div class="table-wrap"><table class="table">
             <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
@@ -93,7 +93,7 @@
         <button name="action" value="complete" class="btn btn-brand btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
         {% endif %}
         {% if can_manage and booking.status == 'CONFIRMED' %}
-        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking? Components will be released (BR-077)."><i class="fas fa-ban"></i> Cancel</button>
+        <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking? Components will be released."><i class="fas fa-ban"></i> Cancel</button>
         {% endif %}
     </form>
 

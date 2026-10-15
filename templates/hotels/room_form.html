@@ -3,7 +3,7 @@
 {% block title %}{% if room %}Update Room{% else %}Add Room{% endif %}{% endblock %}
 
 {% block content %}
-<div class="page-head room-form-page-head"><div><h1>{% if room %}Update Room{% else %}Add Room{% endif %} — {{ hotel.name }}</h1><p>Room registration and status (BR-023, BR-025, BR-026).</p></div></div>
+<div class="page-head room-form-page-head"><div><h1>{% if room %}Update Room{% else %}Add Room{% endif %} — {{ hotel.name }}</h1><p>Room registration and status.</p></div></div>
 
 {% if error %}
 <div class="alert" style="display:flex;gap:10px;align-items:center;background:var(--red-50);border:1px solid var(--red-200);color:var(--red-700);padding:10px 14px;border-radius:10px;margin-bottom:14px;max-width:720px">

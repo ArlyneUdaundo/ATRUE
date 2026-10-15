@@ -3,7 +3,7 @@
 {% block title %}Update Airline{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>Update {{ airline.name }}</h1><p>Airline establishment information (BR-040). Airlines are predefined in the database; schedule flights to add services to an operator.</p></div></div>
+<div class="page-head"><div><h1>Update {{ airline.name }}</h1><p>Airline establishment information. Airlines are predefined in the database; schedule flights to add services to an operator.</p></div></div>
 
 <form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;max-width:720px;margin:0 auto" data-submit-loading>
     {% csrf_token %}

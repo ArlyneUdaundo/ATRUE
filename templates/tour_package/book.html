@@ -54,7 +54,7 @@
             {% csrf_token %}
             <div class="ag-panel-head">
                 <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
-                <div><h3>Your booking details</h3><p>Travelers and schedule (BR-080, BR-081)</p></div>
+                <div><h3>Your booking details</h3><p>Travelers and schedule</p></div>
             </div>
             <div class="form-grid">
                 <div class="form-group">
@@ -100,7 +100,7 @@
             <div style="margin-top:18px">
                 <div class="ag-panel-head">
                     <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
-                    <div><h3>Lead customer &amp; payer</h3><p>Customer info comes from your account (BR-001, BR-003, BR-006)</p></div>
+                    <div><h3>Lead customer &amp; payer</h3><p>Customer info comes from your account</p></div>
                 </div>
                 <div class="ag-customer-box">
                     <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>

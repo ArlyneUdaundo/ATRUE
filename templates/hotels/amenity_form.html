@@ -3,7 +3,7 @@
 {% block title %}{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %}{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %} — {{ hotel.name }}</h1><p>{% if amenity %}Hotel amenities management (BR-011, BR-024).{% else %}This amenity will be added to all hotels you manage.{% endif %}</p></div></div>
+<div class="page-head"><div><h1>{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %} — {{ hotel.name }}</h1><p>{% if amenity %}Hotel amenities management.{% else %}This amenity will be added to all hotels you manage.{% endif %}</p></div></div>
 
 <form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" data-submit-loading data-amenity-form data-modal-title="{% if amenity %}Update Amenity{% else %}Add Amenity{% endif %}">
     {% csrf_token %}

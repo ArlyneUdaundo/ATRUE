@@ -54,7 +54,7 @@
     </div>
 
     <div class="card card-pad">
-        <h3><i class="fas fa-file-invoice"></i> Billing (BR-032)</h3>
+        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
         {% if bill %}
         <div class="table-wrap"><table class="table">
             <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
@@ -90,7 +90,7 @@
 
 {% if can_manage %}
 <div class="card card-pad" style="margin-top:18px">
-    <h3><i class="fas fa-tasks"></i> Booking Lifecycle (BR-021, BR-022, BR-026)</h3>
+    <h3><i class="fas fa-tasks"></i> Booking Lifecycle</h3>
 
     <form method="post" class="flow-actions" style="display:flex;gap:10px;flex-wrap:wrap">
         {% csrf_token %}

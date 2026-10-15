@@ -1,9 +1,9 @@
-﻿{% extends 'dashboard_base.html' %}
+{% extends 'dashboard_base.html' %}
 
 {% block title %}{% if spot %}Update Tourist Spot{% else %}Add Tourist Spot{% endif %}{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>{% if spot %}Update Tourist Spot{% else %}Add New Tourist Spot{% endif %}</h1><p>Tourist spot information, fees, tours and capacity (BR-059).</p></div></div>
+<div class="page-head"><div><h1>{% if spot %}Update Tourist Spot{% else %}Add New Tourist Spot{% endif %}</h1><p>Tourist spot information, fees, tours and capacity.</p></div></div>
 
 <form method="post" enctype="multipart/form-data" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:760px" data-submit-loading data-landmark-form>
     {% csrf_token %}

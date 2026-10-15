@@ -3,7 +3,7 @@
 {% block title %}{% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %}{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>{% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %} — {{ agency.name }}</h1><p>Vehicle fleet registration with rate per kilometer (BR-054).</p></div></div>
+<div class="page-head"><div><h1>{% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %} — {{ agency.name }}</h1><p>Vehicle fleet registration with rate per kilometer.</p></div></div>
 
 <form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" enctype="multipart/form-data" data-submit-loading>
     {% csrf_token %}
