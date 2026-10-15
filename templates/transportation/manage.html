@@ -38,47 +38,28 @@
         <span class="scard-ico ico-blue"><i class="fas fa-bus"></i></span>
         <div style="flex:1">
             <h3 style="margin:0">{{ a.name }}</h3>
-            <div class="meta"><i class="fas fa-phone"></i> {{ a.contact_number }} · {{ a.vehicles.count }} vehicles · {{ a.drivers.count }} drivers</div>
+            <div class="meta"><i class="fas fa-phone"></i> {{ a.contact_number }} · {{ a.vehicles.count }} vehicles</div>
         </div>
         <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
         <button type="button" data-transport-modal="{% url 'transportation:update_agency' a.id %}" data-modal-title="Edit Agency" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</button>
         <button type="button" data-transport-modal="{% url 'transportation:add_vehicle' a.id %}" data-modal-title="Add Vehicle" class="btn btn-brand btn-sm"><i class="fas fa-car"></i> Vehicle</button>
     </div>
 
-    <div class="grid-2" style="margin-top:16px">
-        <div>
-            <h4 style="margin-bottom:8px"><i class="fas fa-car"></i> Vehicles</h4>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead><tr><th>Vehicle</th><th>Plate</th><th>Cap</th><th>Rate/km</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        {% for v in a.vehicles.all %}
-                        <tr>
-                            <td><div class="transport-vehicle-cell">{% if v.image %}<img src="{{ v.image.url }}" alt="{{ v.label }} photo">{% endif %}<span>{{ v.label }}</span></div></td><td class="mono">{{ v.plate_number }}</td>
-                            <td>{{ v.capacity }}</td><td>₱ {{ v.rate_per_km }}</td><td>{{ v.get_status_display }}</td>
-                            <td><button type="button" data-transport-modal="{% url 'transportation:update_vehicle' v.id %}" data-modal-title="Edit Vehicle" class="btn btn-ghost btn-sm">Edit</button></td>
-                        </tr>
-                        {% empty %}<tr><td colspan="6">No vehicles.</td></tr>{% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div>
-            <h4 style="margin-bottom:8px"><i class="fas fa-user-tie"></i> Drivers</h4>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead><tr><th>Driver</th><th>License</th><th>Contact</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        {% for d in a.drivers.all %}
-                        <tr>
-                            <td>{{ d.full_name }}</td><td class="mono">{{ d.license_number }}</td>
-                            <td>{{ d.contact_number }}</td><td>{{ d.get_status_display }}</td>
-                            <td><button type="button" data-transport-modal="{% url 'transportation:update_driver' d.id %}" data-modal-title="Edit Driver" class="btn btn-ghost btn-sm">Edit</button></td>
-                        </tr>
-                        {% empty %}<tr><td colspan="5">No drivers.</td></tr>{% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <div style="margin-top:16px">
+        <h4 style="margin-bottom:8px"><i class="fas fa-car"></i> Vehicles</h4>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Vehicle</th><th>Plate</th><th>Cap</th><th>Rate/km</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for v in a.vehicles.all %}
+                    <tr>
+                        <td><div class="transport-vehicle-cell">{% if v.image %}<img src="{{ v.image.url }}" alt="{{ v.label }} photo">{% endif %}<span>{{ v.label }}</span></div></td><td class="mono">{{ v.plate_number }}</td>
+                        <td>{{ v.capacity }}</td><td>₱ {{ v.rate_per_km }}</td><td>{{ v.get_status_display }}</td>
+                        <td><button type="button" data-transport-modal="{% url 'transportation:update_vehicle' v.id %}" data-modal-title="Edit Vehicle" class="btn btn-ghost btn-sm">Edit</button></td>
+                    </tr>
+                    {% empty %}<tr><td colspan="6">No vehicles.</td></tr>{% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
