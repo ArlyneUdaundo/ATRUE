@@ -564,7 +564,7 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'group_start', 'flow_select', 'booking_detail', 'ticket'},
         'fa-umbrella-beach',
         tasks=(
-            ('Browse Resort Units', 'resorts:list', 'fa-umbrella-beach'),
+            ('Browse Resort Units', 'resorts:flow_select', 'fa-umbrella-beach'),
             ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
         ),
     ),
@@ -785,6 +785,15 @@ def operation_with_urls(assignment, operation):
         if task['route'] == operation['route'] \
                 and operation.get('detail_route') and landing_key is not None:
             url = reverse(operation['detail_route'], args=[landing_key])
+        elif task['route'] == 'resorts:flow_select':
+            # A linked resort guest should land directly on that resort's
+            # unit selection page. Guests without a linked resort still need
+            # to choose one from the public resort list first.
+            url = (
+                reverse('resorts:flow_select', args=[landing_key])
+                if landing_key is not None
+                else reverse('resorts:list')
+            )
         else:
             url = reverse(task['route'])
             if assignment.hotel_id and task['route'].startswith('hotels:'):
