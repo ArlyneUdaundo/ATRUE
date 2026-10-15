@@ -208,8 +208,8 @@ input, select, textarea { font-family: inherit; }
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
-    width: clamp(82px, 6vw, 92px);
-    height: clamp(82px, 6vw, 92px);
+    width: clamp(68px, 5vw, 76px);
+    height: clamp(68px, 5vw, 76px);
     flex: 0 0 auto;
     border-radius: 16px;
     background: transparent;
@@ -1728,12 +1728,12 @@ input, select, textarea { font-family: inherit; }
     .stack-card { width: 200px; }
     .hero-visual .glass-panel { transform: scale(0.85); }
     .brand { gap: 8px; }
-    .brand-mark { width: 68px; height: 68px; }
+    .brand-mark { width: 52px; height: 52px; }
 }
 
 @media (max-width: 360px) {
     .brand { gap: 6px; }
-    .brand-mark { width: 60px; height: 60px; }
+    .brand-mark { width: 46px; height: 46px; }
     .brand-text b { font-size: 18px; }
     .brand-text small { font-size: 9px; letter-spacing: .16em; }
 }

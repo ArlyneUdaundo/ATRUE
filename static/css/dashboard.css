@@ -100,7 +100,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .brand { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 .side-logo {
-    width: clamp(82px, 6vw, 92px); height: clamp(82px, 6vw, 92px); border-radius: 0;
+    width: clamp(68px, 5vw, 76px); height: clamp(68px, 5vw, 76px); border-radius: 0;
     background: transparent;
     display: grid; place-items: center; color: #fff; font-size: 18px;
     overflow: visible; flex-shrink: 0;
@@ -2145,7 +2145,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .topbar-right { gap: 3px; }
     .topbar .icon-btn { width: 38px; height: 38px; }
     .topbar .brand { gap: 6px; }
-    .topbar .side-logo { width: 68px; height: 68px; }
+    .topbar .side-logo { width: 52px; height: 52px; }
     .topbar .side-brand b { font-size: 15px; }
     .topbar .side-brand small { font-size: 7px; letter-spacing: .12em; white-space: nowrap; }
     .topbar .user-chip { gap: 4px; padding: 3px; }
@@ -2155,7 +2155,7 @@ body.flight-booking-modal-open { overflow: hidden; }
 @media (max-width: 430px) {
     .topbar { gap: 10px; }
     .topbar .brand { gap: 8px; }
-    .topbar .side-logo { width: 68px; height: 68px; }
+    .topbar .side-logo { width: 56px; height: 56px; }
     .topbar .side-brand { min-width: 0; }
     .topbar .side-brand b { font-size: 16px; white-space: nowrap; }
     .topbar .side-brand small { font-size: 8px; letter-spacing: .12em; white-space: nowrap; }
@@ -2166,7 +2166,7 @@ body.flight-booking-modal-open { overflow: hidden; }
 @media (max-width: 360px) {
     .topbar { padding: 8px; gap: 4px; }
     .topbar .brand { gap: 4px; }
-    .topbar .side-logo { width: 60px; height: 60px; }
+    .topbar .side-logo { width: 50px; height: 50px; }
     .topbar .side-brand b { font-size: 14px; }
     .topbar .side-brand small { font-size: 6.5px; letter-spacing: .08em; }
     .topbar-right { gap: 3px; }
