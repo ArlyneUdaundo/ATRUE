@@ -114,7 +114,11 @@ def reset_password_view(request, user_id):
         'invalid_token': request.method == 'POST' and form is None,
     }, status=response_status)
     response['Cache-Control'] = 'no-store'
-    response['Referrer-Policy'] = 'no-referrer'
+    # Django's HTTPS CSRF fallback validates the Referer when a browser does
+    # not send Origin. `no-referrer` suppresses that required same-origin proof
+    # on ordinary form POSTs. strict-origin sends only the site origin, never
+    # the reset token (which is in the URL fragment) or the per-tab ctx value.
+    response['Referrer-Policy'] = 'strict-origin'
     return response
 
 
