@@ -171,6 +171,12 @@
         if (ACTIVE < 0) ACTIVE = 0;
     }
 
+    function toggleRoom(roomId) {
+        var id = Number(roomId);
+        if (findIndex(id) === -1) addRoom(id);
+        else removeRoom(id);
+    }
+
     // Paint the clicked room immediately; defer totals and the detailed
     // summary so large amenity/service datasets cannot block the click.
     var selectionComputeTimer = null;
@@ -835,14 +841,16 @@
 
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
+                var wasSelected = findIndex(roomId) !== -1;
                 if (guestModalOpen()) syncFromDom();
-                // Select is an entry into guest details. Keep an existing
-                // selection when the button is clicked again; removal has
-                // its own control in the guest modal.
-                if (findIndex(roomId) === -1) addRoom(roomId);
+                toggleRoom(roomId);
                 updateRoomSelection(roomId);
-                guestOpener = b;
-                openGuestModal(roomId);
+                // Restore the original booking flow: selecting a new room
+                // opens its Guest Information form; deselecting only removes it.
+                if (!wasSelected && findIndex(roomId) !== -1) {
+                    guestOpener = b;
+                    openGuestModal(roomId);
+                }
             });
         });
 
@@ -872,11 +880,15 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (b) {
         b.addEventListener('click', function () {
             var roomId = Number(b.getAttribute('data-compare-book'));
+            var wasSelected = findIndex(roomId) !== -1;
             if (guestModalOpen()) syncFromDom();
             if (findIndex(roomId) === -1) addRoom(roomId);
+            else removeRoom(roomId);
             updateRoomSelection(roomId);
-            guestOpener = b;
-            openGuestModal(roomId);
+            if (!wasSelected && findIndex(roomId) !== -1) {
+                guestOpener = b;
+                openGuestModal(roomId);
+            }
         });
     });
 
