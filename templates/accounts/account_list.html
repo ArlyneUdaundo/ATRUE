@@ -42,6 +42,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a href="{% url 'accounts:account_create' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-user-plus"></i> Create Account</a>
+        <a href="{% url 'accounts:account_create' %}?mode=bulk" class="btn btn-outline"><i class="fas fa-file-import"></i> Bulk Import</a>
     </div>
 </div>
 

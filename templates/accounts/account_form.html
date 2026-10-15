@@ -42,7 +42,7 @@
     <div style="padding:14px 26px 0"><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> {{ form.non_field_errors.0 }}</div></div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="establishment-form-card" style="padding:22px 26px 26px" {% if is_create %}data-account-create-form id="singleAccountPanel"{% endif %}>
+    <form method="post" enctype="multipart/form-data" class="establishment-form-card" style="padding:22px 26px 26px" {% if is_create %}data-account-create-form id="singleAccountPanel"{% if initial_import %} hidden{% endif %}{% endif %}>
         {% csrf_token %}
         {% for heading, icon, names in form_sections %}
         <div style="margin-bottom:20px">
@@ -73,7 +73,7 @@
         </div>
     </form>
     {% if is_create %}
-    <section class="account-import-panel" id="bulkAccountPanel" hidden aria-labelledby="bulkAccountTab">
+    <section class="account-import-panel" id="bulkAccountPanel" {% if not initial_import %}hidden{% endif %} aria-labelledby="bulkAccountTab">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px">
         <div><h3 style="margin:0 0 4px">Import user accounts</h3><p style="margin:0;color:var(--slate-500);font-size:13px">Upload up to 500 accounts. Leave username blank to generate one automatically; leave both password cells blank to create a secure password and email a one-time password setup link.</p></div>
             <a class="btn btn-outline" href="{% url 'accounts:account_import_template' %}"><i class="fas fa-download"></i> Download Excel Template</a>
@@ -127,6 +127,7 @@
         };
         singleTab.addEventListener('click', () => showTab(false));
         bulkTab.addEventListener('click', () => showTab(true));
+        {% if initial_import %}showTab(true);{% endif %}
         const setFile = (file) => {
             if (!file) return;
             fileInput.files = (() => { const data = new DataTransfer(); data.items.add(file); return data.files; })();

@@ -738,6 +738,7 @@ def account_create(request):
     return render(request, 'accounts/account_form.html', {
         'form': form,
         'is_create': True,
+        'initial_import': request.GET.get('mode') == 'bulk',
         'span_fields': SPAN_FIELDS,
         'form_sections': tuple(section for section in FORM_SECTIONS if section[0] != 'Profile Picture'),
         'page_title': 'Create User Account',
