@@ -16,7 +16,7 @@ drives the selection page, and hand off to it via the single primary action.
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261002modalfix">
-<link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20260930a">
+<link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20261016activitygallery">
 {% endblock %}
 
 {% block content %}
@@ -42,9 +42,9 @@ drives the selection page, and hand off to it via the single primary action.
     <div class="ag-booking-main">
         {% with first=cards.0 %}
         {% if first.photos %}
-        <div class="rm-media" style="border-radius:18px;overflow:hidden;margin-bottom:18px;aspect-ratio:16/7;background:var(--slate-100)">
+        <div class="est-detail-gallery">
             {% for photo in first.photos %}
-            <img class="rm-shot{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ est_name }} — photo {{ forloop.counter }}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+            <img class="est-detail-gallery-photo{% if forloop.first %} is-primary{% endif %}" src="{{ photo.image.url }}" alt="{{ est_name }} photo {{ forloop.counter }}" {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
             {% endfor %}
         </div>
         {% endif %}
