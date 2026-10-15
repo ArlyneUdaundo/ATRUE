@@ -101,6 +101,8 @@
             <span class="bk-from">avg.</span>
             <span class="bk-price">{{ t.price }}</span>
             <span class="bk-punit">{{ t.price_label }}</span>
+        {% elif t.price_kind == "label" %}
+            <span class="bk-price">{{ t.price }}</span>
         {% elif t.price_kind == "free" %}
             <span class="bk-from">entry</span>
             <span class="bk-price">Free</span>

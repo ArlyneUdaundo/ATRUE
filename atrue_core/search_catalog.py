@@ -790,7 +790,6 @@ def _package_card(item, request):
 
 def _restaurant_card(item, request):
     score = guest_score(item)
-    price_class = ["₱", "₱₱", "₱₱₱"][_seed(item, "price") % 3]
     tables = list(item.tables.all())
     available = [t for t in tables if getattr(t, "status", "") == "AVAILABLE"]
     max_cap = max((t.capacity for t in tables), default=0)
@@ -813,9 +812,8 @@ def _restaurant_card(item, request):
         ],
         "tags": [item.cuisine_type] if item.cuisine_type else [],
         "desc": "%s dining · reserve a table ahead with no booking fee." % (item.cuisine_type or "Local"),
-        "price": price_class,
-        "price_is_class": True,
-        "price_label": "avg. /person",
+        "price": "Cost per table",
+        "price_kind": "label",
         "imgs": images,
         "icon": "fa-utensils",
         **_flow_cta(request, "restaurant", item.pk, reverse("restaurants:detail", args=[item.slug]),
