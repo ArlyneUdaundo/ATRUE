@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
 from atrue_core.decorators import manager_required, student_booking_required
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -247,16 +248,17 @@ def delete_package(request, package_id):
     if not may_manage_package(request, package.pk):
         raise PermissionDenied('Only an assigned Tour Package Manager may delete this package.')
     name = package.name
-    if Booking.objects.filter(package=package).exists():
-        messages.error(request, f"Tour package '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
-        return redirect('tour_package:manage')
     try:
-        package.delete()
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            delete_booking_history(Booking.objects.filter(package=package))
+            delete_linked_establishment_history(package)
+            package.delete()
     except ProtectedError:
         messages.error(request, f"Tour package '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
         return redirect('tour_package:manage')
     log_activity(request.user, 'Deleted tour package', name)
-    messages.success(request, f"Tour package '{name}' deleted.")
+    messages.success(request, f"Tour package '{name}' and its booking history deleted.")
     return redirect('tour_package:manage')
 
 

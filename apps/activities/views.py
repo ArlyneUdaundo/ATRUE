@@ -5,6 +5,7 @@ from transactions.establishment_flow import add_booking as add_establishment_boo
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
@@ -202,16 +203,17 @@ def delete_activity(request, activity_id):
         return redirect('activities:manage')
     activity = get_object_or_404(scope_activities(request, Activity.objects.all()), pk=activity_id)
     name = activity.name
-    if Booking.objects.filter(activity=activity).exists():
-        messages.error(request, f"Activity '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
-        return redirect('activities:manage')
     try:
-        activity.delete()
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            delete_booking_history(Booking.objects.filter(activity=activity))
+            delete_linked_establishment_history(activity)
+            activity.delete()
     except ProtectedError:
         messages.error(request, f"Activity '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
         return redirect('activities:manage')
     log_activity(request.user, 'Deleted activity', name)
-    messages.success(request, f"Activity '{name}' deleted.")
+    messages.success(request, f"Activity '{name}' and its booking history deleted.")
     return redirect('activities:manage')
 
 

@@ -16,6 +16,7 @@ from atrue_core.hotel_scope import (
     assigned_hotel_ids, hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
 )
 from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.services import (
     bill_for_booking,
     cancel_booking,
@@ -312,14 +313,14 @@ def update_hotel(request, hotel_id):
 def delete_hotel(request, hotel_id):
     hotel = get_object_or_404(Hotel, pk=hotel_id)
     if request.method == 'POST':
-        if Booking.objects.filter(rooms__hotel=hotel).exists():
-            messages.error(request,
-                           f"Hotel '{hotel.name}' has booking records and cannot be deleted. Set its status to Inactive instead.")
-        else:
-            name = hotel.name
+        name = hotel.name
+        bookings = Booking.objects.filter(rooms__hotel=hotel).distinct()
+        with db_transaction.atomic():
+            delete_booking_history(bookings, include_hotel_payments=True)
+            delete_linked_establishment_history(hotel)
             hotel.delete()
-            log_activity(request.user, "Deleted hotel", name)
-            messages.success(request, f"Hotel '{name}' deleted.")
+        log_activity(request.user, "Deleted hotel", name)
+        messages.success(request, f"Hotel '{name}' and its booking history deleted.")
         return redirect('hotels:manage')
     messages.warning(request, "Invalid request.")
     return redirect('hotels:manage')

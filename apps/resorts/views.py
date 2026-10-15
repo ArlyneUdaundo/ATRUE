@@ -12,6 +12,7 @@ from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.utils import timezone
 from atrue_core.decorators import manager_required, student_booking_required
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -182,16 +183,16 @@ def delete_resort(request, resort_id):
     resort = get_object_or_404(
         resort_scope.scope_queryset(request, Resort.objects.all()), pk=resort_id)
     name = resort.name
-    if Reservation.objects.filter(unit__resort=resort).exists():
-        messages.error(request, f"Resort '{name}' has booking history and cannot be deleted. Set its status to Inactive instead.")
-        return redirect('resorts:manage')
     try:
-        resort.delete()
+        with db_transaction.atomic():
+            delete_booking_history(Reservation.objects.filter(unit__resort=resort))
+            delete_linked_establishment_history(resort)
+            resort.delete()
     except ProtectedError:
         messages.error(request, f"Resort '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
         return redirect('resorts:manage')
     log_activity(request.user, 'Deleted resort', name)
-    messages.success(request, f"Resort '{name}' deleted.")
+    messages.success(request, f"Resort '{name}' and its booking history deleted.")
     return redirect('resorts:manage')
 
 

@@ -8,6 +8,7 @@ from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
@@ -238,16 +239,17 @@ def delete_landmark(request, landmark_id):
         category=Landmark.Category.LANDMARK,
     )
     name = landmark.name
-    if Ticket.objects.filter(destination=landmark).exists():
-        messages.error(request, f"Landmark '{name}' has ticket history and cannot be deleted. Set its status to Inactive instead.")
-        return redirect('landmarks:manage')
     try:
-        landmark.delete()
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            delete_booking_history(Ticket.objects.filter(destination=landmark))
+            delete_linked_establishment_history(landmark)
+            landmark.delete()
     except ProtectedError:
         messages.error(request, f"Landmark '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
         return redirect('landmarks:manage')
     log_activity(request.user, 'Deleted landmark', name)
-    messages.success(request, f"Landmark '{name}' deleted.")
+    messages.success(request, f"Landmark '{name}' and its ticket history deleted.")
     return redirect('landmarks:manage')
 
 

@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from atrue_core.decorators import manager_required, student_booking_required
+from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.search_catalog import render_search_page
 from atrue_core.slugs import get_object_by_slug_or_404
@@ -320,16 +321,16 @@ def delete_restaurant(request, restaurant_id):
         qs = qs.filter(pk__in=restaurant_ids)
     restaurant = get_object_or_404(qs, pk=restaurant_id)
     name = restaurant.name
-    if Reservation.objects.filter(table__restaurant=restaurant).exists():
-        messages.error(request, f"Restaurant '{name}' has reservation history and cannot be deleted. Set its status to Inactive instead.")
-        return redirect('restaurants:manage')
     try:
-        restaurant.delete()
+        with transaction.atomic():
+            delete_booking_history(Reservation.objects.filter(table__restaurant=restaurant))
+            delete_linked_establishment_history(restaurant)
+            restaurant.delete()
     except ProtectedError:
         messages.error(request, f"Restaurant '{name}' is linked to existing records and cannot be deleted. Set its status to Inactive instead.")
         return redirect('restaurants:manage')
     log_activity(request.user, 'Deleted restaurant', name)
-    messages.success(request, f"Restaurant '{name}' deleted.")
+    messages.success(request, f"Restaurant '{name}' and its reservation history deleted.")
     return redirect('restaurants:manage')
 
 
