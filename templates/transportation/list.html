@@ -17,7 +17,10 @@
         <p>Step 1 of 3: pick your travel agency first, then we&rsquo;ll show you its cars.</p>
     </div>
     {% if request.user.is_platform_manager %}
-    <a href="{% url 'transportation:add_agency' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</a>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <a href="{% url 'transportation:add_agency' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</a>
+        <a href="{% url 'transportation:manage' %}" class="btn btn-outline"><i class="fas fa-sliders"></i> Manage Agencies</a>
+    </div>
     {% endif %}
 </div>
 
