@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
     cancel_booking,
@@ -190,7 +190,7 @@ def update_agency(request, agency_id):
             for index, image in enumerate(photos):
                 AgencyPhoto.objects.create(agency=agency, image=image, is_primary=(index == 0))
         for photo in agency.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         if agency.photos.exists() and not agency.photos.filter(is_primary=True).exists():
             first = agency.photos.first()
             first.is_primary = True

@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
     cancel_booking,
@@ -141,7 +141,7 @@ def _save_attraction(category, request, instance=None, key=''):
     for image in images:
         LandmarkPhoto.objects.create(landmark=instance, image=image, is_primary=not instance.photos.exists())
     for photo in instance.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-        photo.delete()
+        delete_image_record(photo)
     if instance.photos.exists() and not instance.photos.filter(is_primary=True).exists():
         first = instance.photos.first()
         first.is_primary = True

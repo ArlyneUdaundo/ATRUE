@@ -22,7 +22,7 @@ from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.location_hierarchy import country_province_keys, location_matches
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -771,7 +771,7 @@ def update_airline(request, airline_id):
         for image in photos:
             AirlinePhoto.objects.create(airline=airline, image=image, is_primary=not airline.photos.exists())
         for photo in airline.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         if airline.photos.exists() and not airline.photos.filter(is_primary=True).exists():
             first = airline.photos.first()
             first.is_primary = True
@@ -782,10 +782,11 @@ def update_airline(request, airline_id):
         logo = request.FILES.get('logo')
         if logo and is_valid_image(logo):
             for photo in airline.photos.all():
-                photo.delete()
+                delete_image_record(photo)
             AirlinePhoto.objects.create(airline=airline, image=logo, is_primary=True)
         elif request.POST.get('remove_logo'):
-            airline.photos.all().delete()
+            for photo in airline.photos.all().iterator():
+                delete_image_record(photo)
         # A flight is only bookable for the seats its layout has, and the layout
         # now comes from the airline's fleet, so changing the default type has to
         # re-seat the flights that have no aircraft of their own.

@@ -11,7 +11,7 @@ from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.utils import timezone
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
@@ -157,7 +157,7 @@ def update_resort(request, resort_id):
         for image in photos:
             ResortPhoto.objects.create(resort=resort, image=image, is_primary=not resort.photos.exists())
         for photo in resort.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         if resort.photos.exists() and not resort.photos.filter(is_primary=True).exists():
             first = resort.photos.first()
             first.is_primary = True
@@ -254,7 +254,7 @@ def update_unit(request, unit_id):
                 if is_valid_image(image):
                     UnitPhoto.objects.create(unit=unit, image=image)
             for photo in unit.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-                photo.delete()
+                delete_image_record(photo)
             log_activity(request.user, "Updated resort unit",
                          f"{unit.unit_id} ({unit.unit_number}) in {unit.resort.name}")
             messages.success(request, "Unit updated.")

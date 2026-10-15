@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     _load,
@@ -197,7 +197,7 @@ def _save_package(request, instance=None):
     for image in images:
         TourPackagePhoto.objects.create(package=package, image=image, is_primary=not package.photos.exists())
     for photo in package.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-        photo.delete()
+        delete_image_record(photo)
     if package.photos.exists() and not package.photos.filter(is_primary=True).exists():
         first = package.photos.first()
         first.is_primary = True

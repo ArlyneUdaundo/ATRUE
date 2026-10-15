@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.search_catalog import render_search_page
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -290,7 +290,7 @@ def update_restaurant(request, restaurant_id):
         for image in photos:
             RestaurantPhoto.objects.create(restaurant=restaurant, image=image, is_primary=not restaurant.photos.exists())
         for photo in restaurant.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         if restaurant.photos.exists() and not restaurant.photos.filter(is_primary=True).exists():
             first = restaurant.photos.first()
             first.is_primary = True

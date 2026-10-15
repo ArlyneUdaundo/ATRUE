@@ -15,7 +15,7 @@ from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
     assigned_hotel_ids, hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
 )
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
     cancel_booking,
@@ -285,7 +285,7 @@ def update_hotel(request, hotel_id):
         for image in photos:
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=not hotel.photos.exists())
         for photo in hotel.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         # Always keep a primary image when photos exist.
         if hotel.photos.exists() and not hotel.photos.filter(is_primary=True).exists():
             first = hotel.photos.first()
@@ -451,7 +451,7 @@ def update_room(request, room_id):
                 if is_valid_image(image):
                     RoomPhoto.objects.create(room=room, image=image)
             for photo in room.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-                photo.delete()
+                delete_image_record(photo)
             log_activity(request.user, "Updated hotel room",
                          f"{room.room_id} ({room.room_number}) in {room.hotel.name}")
             messages.success(request, "Room updated.")

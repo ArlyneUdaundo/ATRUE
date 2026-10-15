@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import is_valid_image
+from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
@@ -128,7 +128,7 @@ def update_staycation(request, staycation_id):
         for image in photos:
             StaycationPhoto.objects.create(staycation=staycation, image=image, is_primary=not staycation.photos.exists())
         for photo in staycation.photos.filter(pk__in=request.POST.getlist('delete_photos')):
-            photo.delete()
+            delete_image_record(photo)
         if staycation.photos.exists() and not staycation.photos.filter(is_primary=True).exists():
             first = staycation.photos.first()
             first.is_primary = True

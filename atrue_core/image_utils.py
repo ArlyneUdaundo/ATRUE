@@ -1,9 +1,12 @@
 """Shared helpers for validating uploaded media files."""
 
+import logging
+
 from PIL import Image
 
 MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
 ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+logger = logging.getLogger(__name__)
 
 
 class InvalidImageUpload(ValueError):
@@ -32,3 +35,23 @@ def is_valid_image(fileobj):
         except (OSError, AttributeError, ValueError):
             pass
     return True
+
+
+def delete_image_record(instance, field_name='image'):
+    """Delete an image record and remove its stored file when possible.
+
+    Django does not remove a FileField's stored object when its model row is
+    deleted. Remove the database record first so the gallery reflects the
+    successful request, then clean up the now-unreferenced file. A storage
+    cleanup failure is logged without turning a successful record deletion
+    into a misleading failed form response.
+    """
+    image = getattr(instance, field_name, None)
+    storage = getattr(image, 'storage', None)
+    name = getattr(image, 'name', '') if image else ''
+    instance.delete()
+    if storage and name:
+        try:
+            storage.delete(name)
+        except Exception:
+            logger.exception('Could not remove deleted image file %s', name)
