@@ -43,7 +43,6 @@
         <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
         <button type="button" data-transport-modal="{% url 'transportation:update_agency' a.id %}" data-modal-title="Edit Agency" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit</button>
         <button type="button" data-transport-modal="{% url 'transportation:add_vehicle' a.id %}" data-modal-title="Add Vehicle" class="btn btn-brand btn-sm"><i class="fas fa-car"></i> Vehicle</button>
-        <button type="button" data-transport-modal="{% url 'transportation:add_driver' a.id %}" data-modal-title="Add Driver" class="btn btn-ghost btn-sm"><i class="fas fa-user-tie"></i> Driver</button>
     </div>
 
     <div class="grid-2" style="margin-top:16px">
