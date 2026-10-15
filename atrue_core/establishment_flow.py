@@ -1725,6 +1725,29 @@ def handle_flow(request, adapter_key, pk):
             'Reservation submitted. Status: Pending. Waiting for Restaurant '
             'Reservation Officer confirmation.',
         )
+    elif total <= Decimal('0.00'):
+        # A free landmark/entry pass has a fully paid zero-balance bill but
+        # cannot create a zero-value Payment (record_payment rejects <= 0).
+        # Leave the booking pending so Billing can verify the zero balance,
+        # then the Reservation Officer can confirm it through the usual flow.
+        booking.status = booking.Status.PENDING
+        booking.amount_paid = Decimal('0.00')
+        booking.balance_due = Decimal('0.00')
+        booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+        log_activity(
+            request.user,
+            f'Submitted {adapter.singular.lower()} booking with no charge',
+            f'{booking.booking_reference} - awaiting Billing Officer verification',
+        )
+        record_transaction(
+            'BOOKING', booking.booking_reference, request.user,
+            f'{adapter.singular} booking {booking.booking_reference} submitted with zero balance',
+        )
+        messages.success(
+            request,
+            f'Booking {booking.booking_reference} submitted with no payment due. '
+            'The Billing Officer will verify the zero balance before the Reservation Officer confirms it.',
+        )
     elif ctx['pay_later'] or adapter.key == 'resort':
         booking.status = booking.Status.PENDING
         booking.save(update_fields=['status'])
