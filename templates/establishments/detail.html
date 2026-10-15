@@ -63,7 +63,7 @@ drives the selection page, and hand off to it via the single primary action.
             {% endwith %}
         </div>
 
-        {% if category != 'landmark' or not request.user.is_instructor %}
+        {% if not request.user.is_instructor %}
         <div class="rm-toolbar">
             <div>
                 <h2>Choose your {{ item_noun_plural|lower }}</h2>
