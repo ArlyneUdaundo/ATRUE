@@ -98,7 +98,9 @@ class ActivityProvider(models.Model):
 
     @property
     def bookable(self):
-        return self.verified and self.status == ACTIVITY_PROVIDER_STATUS_ACTIVE
+        # Provider verification is an administrative review marker; it does
+        # not block guest bookings when the provider is active.
+        return self.status == ACTIVITY_PROVIDER_STATUS_ACTIVE
 
     def __str__(self):
         return self.name

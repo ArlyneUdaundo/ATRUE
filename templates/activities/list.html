@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h2>Activities</h2>
-        <p>{{ activities|length }} activit{% if activities|length == 1 %}y{% else %}ies{% endif %} available · Book slots with verified providers</p>
+        <p>{{ activities|length }} activit{% if activities|length == 1 %}y{% else %}ies{% endif %} available · Book available activity slots</p>
     </div>
     {% if request.user.is_platform_manager %}
     {% if can_add_establishment %}<a href="{% url 'activities:add_activity' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Activity</a>{% endif %}
@@ -37,7 +37,7 @@
         </div>
     </div>
     {% empty %}
-    <div class="card"><div class="empty"><i class="fas fa-hiking"></i><h3>No activities yet</h3><p>Published activities from verified providers will appear here.</p></div></div>
+    <div class="card"><div class="empty"><i class="fas fa-hiking"></i><h3>No activities yet</h3><p>Available activities will appear here.</p></div></div>
     {% endfor %}
 </div>
 {% endblock %}
