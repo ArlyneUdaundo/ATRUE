@@ -101,8 +101,11 @@ def manage(request):
     return render(request, 'activities/manage.html', {
         'activities': activities,
         'can_delete': is_activity_platform_user(request.user),
-        'activity_owner': request.user.simulation_roles.filter(
-            status='ACTIVE', role='ACTIVITY_OWNER').exists(),
+        'activity_owner': (
+            request.user.account_type == 'ACTIVITY_OWNER'
+            or request.user.simulation_roles.filter(
+                status='ACTIVE', role='ACTIVITY_OWNER').exists()
+        ),
     })
 
 

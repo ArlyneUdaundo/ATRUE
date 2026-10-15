@@ -59,7 +59,11 @@ def assigned_activity_ids(request):
         return set()
     if is_activity_platform_user(request.user):
         return None
-    if request.user.simulation_roles.filter(status='ACTIVE', role='ACTIVITY_OWNER').exists():
+    # Activity owners are account-level operators too; they may create the
+    # first activity before an establishment assignment exists.
+    if (request.user.account_type == 'ACTIVITY_OWNER'
+            or request.user.simulation_roles.filter(
+                status='ACTIVE', role='ACTIVITY_OWNER').exists()):
         return None
     assignment = _active_assignment(request)
     roles = getattr(request, 'activity_authorized_roles', None)
