@@ -894,6 +894,12 @@ def booking_detail(request, booking_id):
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         remark = (request.POST.get('remark') or '').strip()
         if action == 'confirm':
+            if not bill or bill.status != 'FULLY_PAID' or not bill.verified_at:
+                messages.warning(
+                    request,
+                    'The Billing Officer must verify full payment before this reservation can be confirmed.',
+                )
+                return redirect('resorts:booking_detail', booking.id)
             booking.manager_remarks = remark or booking.manager_remarks
             if remark:
                 booking.save(update_fields=['manager_remarks'])
