@@ -31,14 +31,20 @@ def payment_review(request):
     assignment = (SimulationRoleAssignment.objects.filter(
         pk=assignment_id, student=request.user, role='BILLING_OFFICER', status='ACTIVE'
     ).select_related('session').first() if assignment_id else None)
+    eligible_assignments = SimulationRoleAssignment.objects.filter(
+        student=request.user, role='BILLING_OFFICER', status='ACTIVE',
+        session__isnull=False, establishment__isnull=False,
+    ).select_related('session', 'establishment')
     if assignment is None:
-        assignment = SimulationRoleAssignment.objects.filter(
-            student=request.user, role='BILLING_OFFICER', status='ACTIVE',
-            session__isnull=False,
-        ).select_related('session').first()
+        establishment_ids = list(eligible_assignments.order_by().values_list(
+            'establishment_id', flat=True).distinct()[:2])
+        if len(establishment_ids) == 1:
+            assignment = eligible_assignments.filter(
+                establishment_id=establishment_ids[0]).first()
     is_admin = request.user.is_staff or request.user.is_superuser
-    if not is_admin and assignment is None:
-        raise PermissionDenied('Only an assigned Billing Officer can review payments.')
+    if not is_admin and (assignment is None or assignment.establishment_id is None):
+        raise PermissionDenied(
+            'Open payment review from the assigned establishment task. Each Billing Officer assignment covers one establishment.')
 
     bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
     rows = []
@@ -51,6 +57,10 @@ def payment_review(request):
             from simulation.completion import establishment_for_booking
             establishment = establishment_for_booking(booking)
         except Exception:
+            continue
+        if (not is_admin and assignment is not None
+                and (establishment is None
+                     or establishment.pk != assignment.establishment_id)):
             continue
         if request.method == 'POST' and request.POST.get('bill_id') == str(bill.pk):
             if bill.status != Bill.Status.FULLY_PAID:

@@ -493,7 +493,7 @@ def sync_roles():
             'category': category,
             'establishment_type': establishment_type,
             'operation_category': operation_category,
-            'requires_establishment': establishment_type is not None,
+            'requires_establishment': establishment_type is not None or code == 'BILLING_OFFICER',
             'workflow_stage': Role.STAGE_FOR_OPERATION_CATEGORY.get(
                 operation_category, Role.WorkflowStage.INTAKE),
             'sort_order': order,
@@ -531,7 +531,7 @@ def sync_activity_roles():
             'category': category,
             'establishment_type': establishment_type,
             'operation_category': operation_category,
-            'requires_establishment': establishment_type is not None,
+            'requires_establishment': establishment_type is not None or code == 'BILLING_OFFICER',
             'workflow_stage': Role.STAGE_FOR_OPERATION_CATEGORY.get(
                 operation_category, Role.WorkflowStage.INTAKE),
             'sort_order': order,

@@ -699,7 +699,7 @@ def task_operation_for(assignment):
     """Return the operations and task routes allowed for this assignment."""
     role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
     if role_code == 'BILLING_OFFICER':
-        return _BILLING_OPERATION
+        return _BILLING_OPERATION if assignment.establishment_id else None
     if role_code.endswith('_OWNER') and role_code in _OWNER_OPERATIONS:
         return _owner_operation(role_code)
     if role_code == 'PASSENGER_AIRLINE':

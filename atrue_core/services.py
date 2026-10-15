@@ -308,10 +308,10 @@ def billing_officer_session_for_booking(booking, user, session=None):
     """Return the booking's session when it has an active assigned biller."""
     from simulation.models import SimulationRoleAssignment
 
+    from simulation.completion import establishment_for_booking
+    booking_establishment = establishment_for_booking(booking)
     review_session = session
     if review_session is None:
-        from simulation.completion import establishment_for_booking
-        booking_establishment = establishment_for_booking(booking)
         if booking_establishment is not None:
             reservation_assignment = SimulationRoleAssignment.objects.filter(
                 student=user,
@@ -319,8 +319,9 @@ def billing_officer_session_for_booking(booking, user, session=None):
                 establishment=booking_establishment,
             ).select_related('session').first()
             review_session = reservation_assignment.session if reservation_assignment else None
-    if review_session and SimulationRoleAssignment.objects.filter(
+    if review_session and booking_establishment and SimulationRoleAssignment.objects.filter(
             session=review_session,
+            establishment=booking_establishment,
             status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
             role='BILLING_OFFICER').exists():
         return review_session

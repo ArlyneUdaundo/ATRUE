@@ -355,6 +355,10 @@ def _resolve_student(raw_id):
 
 def _establishments_for_type(establishment_type):
     """The selectable establishments of one type, for the dynamic picker."""
+    if establishment_type == 'ANY':
+        return Establishment.objects.filter(
+            status=Establishment.Status.ACTIVE,
+        ).order_by('type', 'name')
     if not establishment_type:
         return Establishment.objects.none()
     return Establishment.objects.filter(
@@ -420,7 +424,9 @@ def _assignable_roles(offered=None):
         (
             code,
             offered[code].name if code in offered else label,
-            (None if code.endswith('_OWNER') else Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type)),
+            ('ANY' if code == 'BILLING_OFFICER' else
+             None if code.endswith('_OWNER') else
+             Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type)),
         )
         for code, label, _category, establishment_type, _operation, _order
         in active_entries()
@@ -552,7 +558,10 @@ def _assignment_picker_data():
                 for establishment in _establishments_for_type(value)
             ]
             for value, _label in Establishment.Type.choices
-        },
+        } | {'ANY': [
+            {'id': establishment.pk, 'name': establishment.name}
+            for establishment in _establishments_for_type('ANY')
+        ]},
     }
 
 
@@ -662,19 +671,20 @@ def assign_role(request):
         # The establishment the role belongs to. Resolving it *through* the
         # role's own type is what makes "Hotel Manager + Cebu Pacific" impossible
         # rather than merely discouraged.
-        if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
+        if role_row.requires_establishment and not role_row.code.endswith('_OWNER'):
             if not establishment_id:
                 return again(
                     f"{role_row.name} is performed inside an establishment, so select "
                     f"the one this student will work at."
                 )
             establishment = _resolve_establishment(
-                establishment_id, role_row.establishment_category)
+                establishment_id,
+                'ANY' if role_row.code == 'BILLING_OFFICER'
+                else role_row.establishment_category)
             if establishment is None:
-                return again(
-                    f"Select an active {role_row.get_establishment_category_display()} "
-                    f"from the list."
-                )
+                label = ('establishment' if role_row.code == 'BILLING_OFFICER'
+                         else role_row.get_establishment_category_display())
+                return again(f"Select an active {label} from the list.")
             # The legacy hotel column is a mirror kept for the older templates and
             # atrue_core.hotel_scope; only set it for an actual hotel.
             hotel = establishment.entity if establishment.type == Establishment.Type.HOTEL else None
@@ -935,17 +945,19 @@ def session_assignment(request, session_id):
 
     # Role + establishment agreement, mirrored from ``assign_role`` so both doors
     # into the assignment table resolve the posted id instead of trusting it.
-    if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
+    if role_row.requires_establishment and not role_row.code.endswith('_OWNER'):
         if not establishment_id:
             return fail([
                 f"{role_row.name} is performed inside an establishment, so select "
                 f"the one this student will work at."])
         establishment = _resolve_establishment(
-            establishment_id, role_row.establishment_category)
+            establishment_id,
+            'ANY' if role_row.code == 'BILLING_OFFICER'
+            else role_row.establishment_category)
         if establishment is None:
-            return fail([
-                f"Select an active {role_row.get_establishment_category_display()} "
-                "from the list."])
+            label = ('establishment' if role_row.code == 'BILLING_OFFICER'
+                     else role_row.get_establishment_category_display())
+            return fail([f"Select an active {label} from the list."])
         hotel = establishment.entity if establishment.type == Establishment.Type.HOTEL else None
     elif role_row.code in _guest_destination_types():
         if establishment_id:
@@ -973,6 +985,8 @@ def session_assignment(request, session_id):
     active_status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
     clash_qs = SimulationRoleAssignment.objects.filter(
         student=student, role=role, status=active_status)
+    if role == 'BILLING_OFFICER':
+        clash_qs = clash_qs.filter(establishment=establishment)
     if existing is not None:
         clash_qs = clash_qs.exclude(pk=existing.pk)
     clash = list(clash_qs.order_by('-assigned_at'))
@@ -1113,7 +1127,10 @@ def role_detail(request, assignment_id):
                 for establishment in _establishments_for_type(value)
             ]
             for value, _label in Establishment.Type.choices
-        },
+        } | {'ANY': [
+            {'id': establishment.pk, 'name': establishment.name}
+            for establishment in _establishments_for_type('ANY')
+        ]},
         'student_roles': SimulationRoleAssignment.objects
             .select_related('assigned_by', 'establishment')
             .filter(student=assignment.student)
@@ -1159,10 +1176,12 @@ def role_update(request, assignment_id):
     # the place they work. Switching *type* has to supply a new one, because the
     # old establishment is then of the wrong type.
     establishment = None
-    if role_row.establishment_type and not role_row.code.endswith('_OWNER'):
-        wanted_type = role_row.establishment_category
+    if role_row.requires_establishment and not role_row.code.endswith('_OWNER'):
+        wanted_type = ('ANY' if role_row.code == 'BILLING_OFFICER'
+                       else role_row.establishment_category)
         current = assignment.establishment
-        if not establishment_id and current is not None and current.type == wanted_type:
+        if (not establishment_id and current is not None
+                and (wanted_type == 'ANY' or current.type == wanted_type)):
             establishment = current
         elif not establishment_id:
             messages.error(
@@ -1173,10 +1192,11 @@ def role_update(request, assignment_id):
         else:
             establishment = _resolve_establishment(establishment_id, wanted_type)
             if establishment is None:
+                label = ('establishment' if role_row.code == 'BILLING_OFFICER'
+                         else role_row.get_establishment_category_display())
                 messages.error(
                     request,
-                    f"Select an active {role_row.get_establishment_category_display()} "
-                    "from the list.")
+                    f"Select an active {label} from the list.")
                 return redirect('simulation:role_detail', assignment_id=assignment_id)
     elif role_row.code in _guest_destination_types():
         # A guest's place is optional, like the assign form: post a new one of
@@ -1207,7 +1227,7 @@ def role_update(request, assignment_id):
         establishment.entity
         if (establishment is not None
             and establishment.type == Establishment.Type.HOTEL
-            and role_row.establishment_type)
+            and role_row.establishment_type and role_row.code != 'BILLING_OFFICER')
         else None)
     # ``save`` re-derives role/hotel/establishment_type/establishment_required, so
     # the field list has to name every mirrored column it writes.

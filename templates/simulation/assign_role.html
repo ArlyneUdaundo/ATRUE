@@ -42,7 +42,7 @@
                 <option value="{{ value }}"{% if posted and posted.role == value %} selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <em class="muted-hint">Every operational role is performed inside one establishment, so those roles reveal the establishment field below. Guest roles may optionally be pointed at a specific place too.</em>
+            <em class="muted-hint">Operational roles and Billing Officer assignments are tied to one establishment. Guest roles may optionally be pointed at a specific place too.</em>
         </div>
         <div class="form-group" id="establishmentGroup" style="display:none">
             <label>Establishment</label>
@@ -231,9 +231,9 @@
             }
 
             const options = establishmentData[type] || [];
-            const label = (establishmentTypeLabels.filter(function (t) {
+            const label = type === 'ANY' ? 'establishment' : (establishmentTypeLabels.filter(function (t) {
                 return t.value === type;
-            })[0] || {}).label || type;
+            })[0] || {}).label || type);
 
             let html = '<option value="">' + (optional ? 'No specific place' : 'Select ' + label.toLowerCase()) + '</option>';
             options.forEach(function (establishment) {

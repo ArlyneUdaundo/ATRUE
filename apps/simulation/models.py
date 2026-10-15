@@ -407,7 +407,8 @@ class SimulationRoleAssignment(models.Model):
                     f'{role.name} is performed inside an establishment, so one must be '
                     'selected. A role is only an assignment together with the '
                     'establishment it applies to.')
-            elif self.establishment.type != role.establishment_category:
+            elif (role.code != 'BILLING_OFFICER'
+                  and self.establishment.type != role.establishment_category):
                 errors['establishment'] = (
                     f'{role.name} cannot be assigned to a '
                     f'{self.establishment.get_type_display()}. Choose a '
@@ -1024,7 +1025,8 @@ class Role(models.Model):
         # the caller) is what keeps the column honest for rows created by the
         # catalogue seeder, by a data migration and by hand.
         self.requires_establishment = bool(
-            self.establishment_type and not self.code.endswith('_OWNER'))
+            (self.establishment_type and not self.code.endswith('_OWNER'))
+            or self.code == 'BILLING_OFFICER')
         return super().save(*args, **kwargs)
 
     def clean(self):
