@@ -184,6 +184,38 @@
         return 'Are you sure you want to remove this?';
     }
 
+    function submitConfirmedForm(form, submitter) {
+        form.dataset.deleteConfirmed = '1';
+        if (typeof form.requestSubmit === 'function') {
+            try {
+                // A submit button can be detached or reassigned while a modal is
+                // open. requestSubmit(button) throws unless it still belongs to
+                // this form, which previously left the confirmed action unsent.
+                if (submitter && submitter.form === form && !submitter.disabled) {
+                    form.requestSubmit(submitter);
+                } else {
+                    form.requestSubmit();
+                }
+                return;
+            } catch (error) {
+                delete form.dataset.deleteConfirmed;
+                console.error('Could not replay confirmed remove form submission; using native form submit.', error);
+            }
+        }
+
+        // Last-resort path for older browsers or invalid forms. Preserve the
+        // submitter's name/value (for actions such as booking cancellation).
+        if (submitter && submitter.name && !submitter.disabled) {
+            var hiddenSubmitter = document.createElement('input');
+            hiddenSubmitter.type = 'hidden';
+            hiddenSubmitter.name = submitter.name;
+            hiddenSubmitter.value = submitter.value || submitter.textContent || '';
+            form.appendChild(hiddenSubmitter);
+        }
+        delete form.dataset.deleteConfirmed;
+        HTMLFormElement.prototype.submit.call(form);
+    }
+
     document.addEventListener('submit', function (event) {
         var form = event.target;
         if (!(form instanceof HTMLFormElement) || !isDeleteConfirmation(form, event.submitter)) return;
@@ -204,13 +236,7 @@
         else if (/remove/i.test(message)) confirmLabel = 'Yes, Remove';
         else if (/delete/i.test(message)) confirmLabel = 'Yes, Delete';
         askForDelete(confirmationMessage(form, submitter), function () {
-            form.dataset.deleteConfirmed = '1';
-            if (typeof form.requestSubmit === 'function') {
-                if (submitter && submitter.isConnected) form.requestSubmit(submitter);
-                else form.requestSubmit();
-            } else {
-                form.submit();
-            }
+            submitConfirmedForm(form, submitter);
         }, submitter || form.querySelector('[type="submit"]'), {
             title: photoRemoval ? 'Remove selected photos?' : (photoAction ? 'Remove this photo?' : (/cancel/i.test(message) ? 'Confirm cancellation?' : undefined)),
             confirmLabel: confirmLabel,
@@ -243,9 +269,7 @@
             if (target instanceof HTMLAnchorElement) {
                 window.location.assign(target.href);
             } else if (form && target.type === 'submit') {
-                form.dataset.deleteConfirmed = '1';
-                if (typeof form.requestSubmit === 'function') form.requestSubmit(target);
-                else form.submit();
+                submitConfirmedForm(form, target);
             } else {
                 target.dataset.deleteConfirmed = '1';
                 target.click();
