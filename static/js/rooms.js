@@ -180,6 +180,7 @@
     // Paint the clicked room immediately; defer totals and the detailed
     // summary so large amenity/service datasets cannot block the click.
     var selectionComputeTimer = null;
+    var selectionComputeIdle = null;
     function updateRoomSelection(roomId) {
         syncRoomIds();
         var picked = findIndex(roomId) !== -1;
@@ -207,10 +208,24 @@
                 : '<i class="fas fa-bed"></i> Book room(s)';
         }
         if (selectionComputeTimer) window.clearTimeout(selectionComputeTimer);
-        selectionComputeTimer = window.setTimeout(function () {
-            selectionComputeTimer = null;
-            computeAll();
-        }, 0);
+        if (selectionComputeIdle !== null && window.cancelIdleCallback) {
+            window.cancelIdleCallback(selectionComputeIdle);
+        }
+        selectionComputeIdle = null;
+        // Let the selected state and guest modal paint before refreshing the
+        // secondary price summary. A busy student device must still be able to
+        // interact with the guest form while that summary is being computed.
+        if (window.requestIdleCallback) {
+            selectionComputeIdle = window.requestIdleCallback(function () {
+                selectionComputeIdle = null;
+                computeAll();
+            }, { timeout: 1000 });
+        } else {
+            selectionComputeTimer = window.setTimeout(function () {
+                selectionComputeTimer = null;
+                computeAll();
+            }, 0);
+        }
     }
 
     /* ------------------------------------------------------- card chrome */
@@ -322,7 +337,6 @@
         // Build the guest form only when it is needed. Rebuilding every
         // selected room's service/amenity controls on each Select click can
         // freeze the browser when a property has many extras.
-        renderSections();
         setActive(idx);
         var s = SELECTED[ACTIVE];
         if (guestModalSub && s) {
