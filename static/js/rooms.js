@@ -597,9 +597,9 @@
         }
         if (btn) {
             btn.disabled = !SELECTED.length || !okDates;
-            btn.innerHTML = SELECTED.length < 1
-                ? '<i class="fas fa-bed"></i> Book room(s)'
-                : '<i class="fas fa-bed"></i> BOOK ' + SELECTED.length + ' ROOM' + (SELECTED.length === 1 ? '' : 'S');
+        btn.innerHTML = SELECTED.length < 1
+            ? '<i class="fas fa-bed"></i> Book room(s)'
+            : '<i class="fas fa-bed"></i> REVIEW &amp; PAY (' + SELECTED.length + ' ROOM' + (SELECTED.length === 1 ? '' : 'S') + ')';
         }
 
         renderSummary(rows, roomsSub, extraSub, svcSub, grand, okDates);
@@ -959,7 +959,8 @@
             var errs = validateAll().filter(function (e) { return e.index === ACTIVE; });
             if (errs.length) { showErrors(errs); return; }
             closeGuestModal();
-            document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
+            // Don't auto-proceed to summary; let user continue selecting rooms if desired
+            // document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
         });
     }
     document.addEventListener('keydown', function (e) {

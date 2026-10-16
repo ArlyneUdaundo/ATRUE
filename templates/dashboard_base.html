@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var back = document.createElement('button');
         back.type = 'button';
         back.className = 'ag-btn ag-btn-muted establishment-booking-back';
-        back.innerHTML = '<i class="fas fa-arrow-left"></i> Back to details';
+        back.innerHTML = '<i class="fas fa-arrow-left"></i> Back to room selection';
         actions.insertBefore(back, actions.firstChild);
 
         function syncNextState() {
@@ -446,6 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (heading) heading.focus({ preventScroll: true });
             summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        // For hotel room selection with guest modal, proceed to summary when main Confirm/Review button is clicked
         if (!continuesFromGuestModal) {
             next.addEventListener('click', function () {
                 if (confirmButton && confirmButton.disabled) return;
@@ -453,6 +454,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 showBookingSummary();
             });
         } else {
+            // Wire the main confirm button in price box to show summary
+            if (confirmButton) {
+                confirmButton.addEventListener('click', function (e) {
+                    // Let form validation happen naturally, but also ensure we show summary
+                    // Don't prevent default - form submit will handle validation
+                    setTimeout(function () {
+                        if (!confirmButton.disabled) {
+                            showBookingSummary();
+                        }
+                    }, 0);
+                });
+            }
             ['atrue:hotel-guest-info-complete', 'atrue:establishment-guest-info-complete'].forEach(function (eventName) {
                 document.addEventListener(eventName, function () { showBookingSummary(); });
             });
