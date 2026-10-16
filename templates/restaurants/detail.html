@@ -19,11 +19,6 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="ag-btn" data-modal-open="restaurantEditModal"><i class="fas fa-edit"></i> Edit</button>
     </div>
-    {% else %}
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" class="ag-btn" data-restaurant-reserve-start><i class="fas fa-chair"></i> Reserve a Table</button>
-        <a href="{% url 'restaurants:list' %}" class="ag-btn"><i class="fas fa-arrow-left"></i> All Restaurants</a>
-    </div>
     {% endif %}
 </div>
 
@@ -323,7 +318,20 @@
         document.getElementById('restaurantConfirmBooking').addEventListener('click', function () {
             if (!selected.length) return;
             if (!reservationDate || !reservationTime) { error.textContent = 'Enter the reservation date and time.'; error.hidden = false; openGuest(null); return; }
-            document.getElementById('restaurantBookingForm').submit();
+            var bookingForm = document.getElementById('restaurantBookingForm');
+            // requestSubmit() fires the shared submit listener, which adds the
+            // current tab's ctx token. Native form.submit() skips that event;
+            // the server would then see this authenticated tab as signed out.
+            if (bookingForm.requestSubmit) {
+                bookingForm.requestSubmit();
+            } else {
+                var ctx = document.createElement('input');
+                ctx.type = 'hidden';
+                ctx.name = 'ctx';
+                ctx.value = window.ATRUE_CTX || '';
+                bookingForm.appendChild(ctx);
+                bookingForm.submit();
+            }
         });
     }
     document.querySelectorAll('[data-modal-open]').forEach(function (button) {
