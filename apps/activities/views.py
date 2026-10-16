@@ -18,7 +18,6 @@ from atrue_core.services import (
     decline_booking,
     log_activity,
     record_payment,
-    resource_is_bookable,
 )
 from django.core.exceptions import PermissionDenied
 from django.db.models.deletion import ProtectedError
@@ -87,8 +86,8 @@ def activity_list(request):
         # Managers can see new activities before their provider verification is complete.
         activities = scope_activities(request, activities)
     else:
-        # Publish every active activity in the catalogue. The card still marks
-        # activities unavailable until their provider is verified.
+        # The activity status controls publication. Suspended providers are
+        # still reflected as unavailable through Activity.bookable.
         activities = activities.filter(status=Activity.Status.ACTIVE)
     return render_search_page(request, 'activity', activities)
 
@@ -227,7 +226,7 @@ def delete_activity(request, activity_id):
 @activity_guest_booking_required
 def book_activity(request, activity_id):
     activity = get_object_or_404(Activity.objects.select_related('provider'), pk=activity_id)
-    if not activity.bookable or not resource_is_bookable(activity.provider):
+    if not activity.bookable:
         messages.error(request, "This activity is not currently bookable.")
         return redirect('activities:list')
 
