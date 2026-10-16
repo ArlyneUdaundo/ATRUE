@@ -1184,26 +1184,10 @@ def hotel_group_select_rooms(request, hotel_id):
             messages.error(request, f"Room {room.room_number} is no longer available for those dates.")
             return redirect('hotels:group_start', hotel.id)
 
-    adults_search = int(request.POST.get('adults') or rooms_needed)
-    children_search = int(request.POST.get('children') or 0)
-    is_final = any(key.startswith('room_0_') for key in request.POST)
+      adults_search = int(request.POST.get('adults') or rooms_needed)
+      children_search = int(request.POST.get('children') or 0)
 
-    if not is_final:
-        request.session['hotel_group_booking'] = {
-            'hotel_id': hotel.id,
-            'check_in': check_in.isoformat(),
-            'check_out': check_out.isoformat(),
-            'rooms_needed': rooms_needed,
-            'adults_search': adults_search,
-            'children_search': children_search,
-            'room_ids': room_ids,
-            'payment_method': request.POST.get('payment_method', 'GCASH'),
-            'pay_later': request.POST.get('pay_later') == 'on',
-        }
-        request.session.modified = True
-        return redirect('hotels:group_guests')
-
-    guest_lines, errors = _parse_guest_lines(request, rooms)
+      guest_lines, errors = _parse_guest_lines(request, rooms)
     if errors:
         return _render_room_selection(
             request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
