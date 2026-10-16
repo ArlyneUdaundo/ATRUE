@@ -1008,8 +1008,11 @@
             showErrors(errs);
             return;
         }
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening payment...';
+        // Trigger summary step before submitting
+        document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
+        // Don't disable immediately if we want summary to show first
+        // btn.disabled = true;
+        // btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening payment...';
     });
 
     // Seed from the server-side prefill (validation-error re-render).
