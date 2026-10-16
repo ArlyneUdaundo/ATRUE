@@ -199,6 +199,30 @@ def hotel_scoped(view_func):
         if task_hotel_id is not None:
             request.assigned_hotel_assignment = task_assignment
 
+        # A hotel-role user may also be a guest. Let them read their own
+        # booking detail even when its hotel is outside their staff assignment;
+        # management actions still pass through the normal assignment check.
+        if (view_name == 'booking_detail'
+                and request.method in {'GET', 'HEAD'}
+                and kwargs.get('booking_id') is not None):
+            from hotels.models import Booking
+
+            customer_booking = Booking.objects.filter(
+                pk=kwargs['booking_id'], customer_id=user.pk)
+            if customer_booking.exists():
+                booking_hotel_ids = set(customer_booking.values_list(
+                    'rooms__hotel_id', flat=True)) - {None}
+                if allowed is None or booking_hotel_ids <= allowed:
+                    # Continue through normal staff scope when this hotel is
+                    # already assigned (or the user has platform-wide access).
+                    pass
+                else:
+                    # This is the customer's own reservation at another hotel.
+                    # Permit read-only detail access; the booking view uses this
+                    # marker to hide staff controls, and POSTs remain scoped.
+                    request.hotel_booking_customer_read_only = True
+                    return view_func(request, *args, **kwargs)
+
         requested = (request.GET.get('hotel') or '').strip()
         if requested.isdigit() and allowed is not None:
             requested = int(requested)

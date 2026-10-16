@@ -1469,13 +1469,22 @@ def booking_detail(request, booking_id):
     bill = bill_for_booking(booking)
     payments = bill.payments.all() if bill else Payment.objects.none()
 
-    can_manage = request.user.is_staff or is_manager_user(request.user)
+    customer_read_only = getattr(request, 'hotel_booking_customer_read_only', False)
+    can_manage = (
+        request.user.is_staff or is_manager_user(request.user)
+    ) and not customer_read_only
 
     from accounts.roles import can_process_booking_checkin
-    can_process_checkin = can_process_booking_checkin(request.user, 'hotels')
+    can_process_checkin = (
+        can_process_booking_checkin(request.user, 'hotels')
+        and not customer_read_only
+    )
 
     from accounts.roles import is_reservation_officer
-    reservation_officer = is_reservation_officer(request.user, 'hotels')
+    reservation_officer = (
+        is_reservation_officer(request.user, 'hotels')
+        and not customer_read_only
+    )
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
