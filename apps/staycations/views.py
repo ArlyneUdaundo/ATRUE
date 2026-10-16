@@ -9,7 +9,7 @@ from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
-from accounts.roles import effective_role_keys
+from accounts.roles import can_create_establishment
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.image_utils import delete_image_record, is_valid_image
@@ -83,7 +83,7 @@ def manage(request):
         'status_choices': Staycation.Status.choices,
         'active_assignment': request.assigned_staycation_assignment,
         'scoped_user': staycation_scope.is_scoped(request.user),
-        'owner_role': 'STAYCATION_OWNER' in effective_role_keys(request.user),
+        'owner_role': can_create_establishment(request.user, 'staycations'),
     })
 
 

@@ -27,7 +27,7 @@ from atrue_core.services import (
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from accounts.roles import effective_role_keys
+from accounts.roles import can_create_establishment
 
 from atrue_core.search_catalog import render_search_page
 
@@ -90,7 +90,7 @@ def manage(request):
         'selected_status': status,
         'status_choices': Landmark.Status.choices,
         'can_delete': not landmark_scope.is_scoped(request.user),
-        'landmark_owner': 'LANDMARK_OWNER' in effective_role_keys(request.user),
+        'landmark_owner': can_create_establishment(request.user, 'landmarks'),
     })
 
 

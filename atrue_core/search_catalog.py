@@ -1081,22 +1081,18 @@ def build_search_context(request, category_key, items):
             if v != "—" and v not in dest_suggestions:
                 dest_suggestions.append(v)
 
-    owner_roles_by_category = {
-        "hotel": {"HOTEL_OWNER"},
-        "resort": {"RESORT_OWNER"},
-        "staycation": {"STAYCATION_OWNER"},
-        "restaurant": {"RESTAURANT_OWNER"},
-        "landmark": {"LANDMARK_OWNER"},
-        "activity": {"ACTIVITY_OWNER"},
-        "package": {"TOUR_PACKAGE_OWNER", "TOUR_OPERATOR_OWNER", "TRAVEL_AGENCY_OWNER"},
+    from accounts.roles import can_create_establishment
+    module_by_category = {
+        "hotel": "hotels",
+        "resort": "resorts",
+        "staycation": "staycations",
+        "restaurant": "restaurants",
+        "landmark": "landmarks",
+        "activity": "activities",
+        "package": "tour_package",
     }
-    from accounts.roles import owner_role_keys
-    can_add_establishment = bool(
-        request.user.is_authenticated
-        and owner_roles_by_category.get(category_key)
-        and set(owner_role_keys(request.user)).intersection(
-            owner_roles_by_category[category_key]
-        )
+    can_add_establishment = can_create_establishment(
+        request.user, module_by_category.get(category_key, "")
     )
 
     context = {

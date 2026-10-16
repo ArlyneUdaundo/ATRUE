@@ -29,7 +29,7 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Transportation Management</h1><p>Create, update and manage agencies, vehicles and drivers.</p></div>
-    {% if transportation_owner %}<button type="button" data-transport-modal="{% url 'transportation:add_agency' %}" data-modal-title="Add Agency" class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</button>{% endif %}
+    {% if can_add_agency %}<button type="button" data-transport-modal="{% url 'transportation:add_agency' %}" data-modal-title="Add Agency" class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</button>{% endif %}
 </div>
 
 {% for a in agencies %}

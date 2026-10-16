@@ -23,7 +23,7 @@ from atrue_core.services import (
 from django.core.exceptions import PermissionDenied
 from django.db.models.deletion import ProtectedError
 from django.db.models import Sum
-from accounts.roles import effective_role_keys
+from accounts.roles import can_create_establishment, effective_role_keys
 from django.shortcuts import get_object_or_404, redirect, render
 
 from atrue_core.search_catalog import render_search_page
@@ -103,7 +103,7 @@ def manage(request):
     return render(request, 'activities/manage.html', {
         'activities': activities,
         'can_delete': is_activity_platform_user(request.user),
-        'activity_owner': 'ACTIVITY_OWNER' in effective_role_keys(request.user),
+        'activity_owner': can_create_establishment(request.user, 'activities'),
     })
 
 
@@ -156,6 +156,8 @@ def _save_activity(request, provider, instance=None):
 @manager_required
 @activity_role_required('ACTIVITY_MANAGER')
 def add_activity(request):
+    if not can_create_establishment(request.user, 'activities'):
+        raise PermissionDenied('Only an activity owner may add activities.')
     provider = None
     providers = scope_providers(request, ActivityProvider.objects.all())
     if request.method == 'POST':

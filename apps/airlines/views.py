@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 
 from transactions.cart import add_booking_to_cart, create_single_booking_order
 from transactions.establishment_flow import add_booking as add_establishment_booking
-from accounts.roles import FULL_ACCESS_TYPES, can_access_module, effective_role_keys
+from accounts.roles import (
+    FULL_ACCESS_TYPES,
+    can_access_module,
+    can_create_establishment,
+    effective_role_keys,
+    owner_role_keys,
+)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -694,7 +700,7 @@ def flight_list(request):
         'destination': destination,
         'origin_airport': origin_airport,
         'destination_airport': destination_airport,
-        'airline_owner': request.user.is_authenticated and 'AIRLINE_OWNER' in effective_role_keys(request.user),
+        'can_add_flight': can_create_establishment(request.user, 'airlines'),
         'origin_airport_object': (
             Airport.objects.filter(pk=origin_airport).first()
             if origin_airport.isdigit() else None
@@ -1283,7 +1289,7 @@ def flights(request):
         'airlines': airlines,
         'q': q, 'airline': airline, 'status': status,
         'date_from': date_from, 'date_to': date_to,
-        'airline_owner': request.user.is_authenticated and 'AIRLINE_OWNER' in effective_role_keys(request.user),
+        'can_add_flight': can_create_establishment(request.user, 'airlines'),
     })
 
 
@@ -1291,7 +1297,7 @@ def _assigned_airline_ids_for_management(request):
     user = request.user
     if user.is_staff or set(effective_role_keys(user)).intersection(FULL_ACCESS_TYPES):
         return None
-    if 'AIRLINE_OWNER' in effective_role_keys(user):
+    if 'AIRLINE_OWNER' in owner_role_keys(user):
         return None
 
     assignment = getattr(request, 'active_simulation_assignment', None)
@@ -2457,6 +2463,8 @@ def add_flight(request, airline_id=None):
     journey is searched, shown and ticketed as a single thing while each leg
     keeps its own aircraft, cabin, seat map and fare.
     """
+    if not can_create_establishment(request.user, 'airlines'):
+        raise PermissionDenied('You are not authorised to add flights.')
     airline = get_object_or_404(Airline, pk=airline_id) if airline_id is not None else None
     airline_fixed = airline_id is not None
     if airline is None and request.method == 'GET':

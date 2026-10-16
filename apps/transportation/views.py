@@ -11,7 +11,7 @@ from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from atrue_core.decorators import manager_required, student_booking_required
-from accounts.roles import effective_role_keys
+from accounts.roles import can_create_establishment
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
@@ -114,7 +114,7 @@ def transportation_list(request):
         'agencies': result,
         'schedule': schedule,
         'search_query': search_query,
-        'transportation_owner': request.user.is_authenticated and 'TRANSPORTATION_OWNER' in effective_role_keys(request.user),
+        'can_add_agency': can_create_establishment(request.user, 'transportation'),
     })
 
 
@@ -148,17 +148,14 @@ def manage(request):
     )
     return render(request, 'transportation/manage.html', {
         'agencies': agencies,
-        'transportation_owner': 'TRANSPORTATION_OWNER' in effective_role_keys(request.user),
+        'can_add_agency': can_create_establishment(request.user, 'transportation'),
     })
 
 
 @manager_required
 def add_agency(request):
-    # Creating an agency is a platform-side deed: a slot-holder may manage only
-    # the agencies they were assigned, never create a brand new one.
-    if assigned_agency_ids(request) is not None:
-        raise PermissionDenied(
-            'You can only manage the transport agencies you are assigned to.')
+    if not can_create_establishment(request.user, 'transportation'):
+        raise PermissionDenied('You are not authorised to add transport agencies.')
     if request.method == 'POST':
         agency = Agency.objects.create(
             name=request.POST.get('name'),

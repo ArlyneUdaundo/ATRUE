@@ -18,7 +18,7 @@
     </div>
     {% if request.user.is_platform_manager %}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        {% if transportation_owner %}<a href="{% url 'transportation:add_agency' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</a>{% endif %}
+        {% if can_add_agency %}<a href="{% url 'transportation:add_agency' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Agency</a>{% endif %}
         <a href="{% url 'transportation:manage' %}" class="btn btn-outline"><i class="fas fa-sliders"></i> Manage Agencies</a>
     </div>
     {% endif %}

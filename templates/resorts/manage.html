@@ -5,6 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Resort Management</h1><p>Create, update and manage resorts, units and services.</p></div>
+    {% if can_add_establishment %}<a href="{% url 'resorts:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Resort</a>{% endif %}
 </div>
 
 <form method="get" class="card card-pad" style="margin-bottom:18px">

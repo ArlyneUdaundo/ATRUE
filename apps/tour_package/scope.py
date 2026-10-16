@@ -2,7 +2,7 @@ from atrue_core.establishment_scope import (
     assigned_establishment_for_write,
     assigned_establishment_pks,
 )
-from accounts.roles import FULL_ACCESS_TYPES, effective_role_keys
+from accounts.roles import FULL_ACCESS_TYPES, effective_role_keys, owner_role_keys
 
 
 ESTABLISHMENT_TYPE = 'TOUR_PACKAGE'
@@ -30,7 +30,7 @@ def has_package_role(request, roles):
         return True
     if set(effective_role_keys(request.user)).intersection(roles):
         return True
-    if set(effective_role_keys(request.user)).intersection(
+    if owner_role_keys(request.user).intersection(
             {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'}):
         return True
     return bool(package_ids_for_roles(request, roles))
@@ -53,7 +53,7 @@ def package_ids_for_roles(request, roles):
         return set()
     from simulation.models import SimulationRoleAssignment
     from establishments.models import Establishment
-    if set(effective_role_keys(request.user)).intersection(
+    if owner_role_keys(request.user).intersection(
             {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'}):
         return None
     return set(Establishment.objects.filter(

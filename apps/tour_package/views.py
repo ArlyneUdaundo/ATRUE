@@ -23,7 +23,7 @@ from atrue_core.services import (
     record_payment,
 )
 from django.core.exceptions import PermissionDenied
-from accounts.roles import effective_role_keys
+from accounts.roles import can_create_establishment
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -130,10 +130,8 @@ def manage(request):
         request, TourPackage.objects.prefetch_related('photos').all(), PACKAGE_MANAGER_ROLES)
     return render(request, 'tour_package/manage.html', {
         'packages': packages,
-        'can_create_package': is_platform_operator(request.user),
-        'package_owner': bool(set(effective_role_keys(request.user)).intersection({
-                'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'
-            })),
+        'can_create_package': can_create_establishment(request.user, 'tour_package'),
+        'package_owner': can_create_establishment(request.user, 'tour_package'),
         'can_delete_package': is_platform_operator(request.user),
     })
 
@@ -215,11 +213,8 @@ def _save_package(request, instance=None):
 
 @manager_required
 def add_package(request):
-    package_owner = bool(set(effective_role_keys(request.user)).intersection({
-            'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'
-        }))
-    if not is_platform_operator(request.user) and not package_owner:
-        raise PermissionDenied('Only a platform administrator or instructor can create tour packages.')
+    if not can_create_establishment(request.user, 'tour_package'):
+        raise PermissionDenied('You are not authorised to create tour packages.')
     if request.method == 'POST':
         package = _save_package(request)
         log_activity(request.user, "Created tour package", package.name)

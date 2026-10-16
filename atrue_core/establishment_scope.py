@@ -26,6 +26,7 @@ from django.core.exceptions import PermissionDenied
 from accounts.roles import (
     FULL_ACCESS_TYPES,
     can_access_module,
+    can_create_establishment,
     effective_role_keys,
     owner_role_keys,
 )
@@ -238,6 +239,15 @@ class EstablishmentScope:
                     and task_assignment.establishment_type == self.establishment_type
                     else None
                 )
+                view_name = getattr(
+                    getattr(request.resolver_match, 'func', None), '__name__', '')
+                # Instructors/admins can be unscoped, but their module access
+                # must not bypass owner-only establishment creation.
+                if (view_name in self.platform_views
+                        and not can_create_establishment(user, self.module)):
+                    raise PermissionDenied(
+                        f'You are not authorised to add or remove '
+                        f'{self.entity_label} establishments.')
                 if not self.is_scoped(user) and task_entity_id is None:
                     setattr(request, self.allowed_attr, None)
                     return view_func(request, *args, **kwargs)
@@ -260,24 +270,8 @@ class EstablishmentScope:
                         setattr(request, self.assignment_attr,
                                 self.assignment_for(user, requested))
 
-                view_name = getattr(
-                    getattr(request.resolver_match, 'func', None), '__name__', '')
                 if view_name in self.list_views:
                     return view_func(request, *args, **kwargs)
-                owner_code = {
-                    'HOTEL': 'HOTEL_OWNER', 'RESORT': 'RESORT_OWNER',
-                    'RESTAURANT': 'RESTAURANT_OWNER', 'STAYCATION': 'STAYCATION_OWNER',
-                    'LANDMARK': 'LANDMARK_OWNER', 'AIRLINE': 'AIRLINE_OWNER',
-                    'TRAVEL_AGENCY': 'TRAVEL_AGENCY_OWNER',
-                    'TOUR_OPERATOR': 'TOUR_OPERATOR_OWNER',
-                    'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
-                    'TRANSPORTATION': 'TRANSPORTATION_OWNER',
-                }.get(self.establishment_type)
-                has_owner_role = bool(owner_code and owner_code in effective_role_keys(user))
-                if view_name in self.platform_views and not has_owner_role:
-                    raise PermissionDenied(
-                        f'Only a platform administrator can add or remove '
-                        f'{self.entity_label} establishments.')
 
                 ids = self.resolve_ids(kwargs) if kwargs else None
                 if ids is not None and allowed is not None and not ids <= allowed:

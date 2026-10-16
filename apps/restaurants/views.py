@@ -5,6 +5,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from accounts.roles import (
     FULL_ACCESS_TYPES,
+    can_create_establishment,
     can_manage_booking,
     effective_role_keys,
     owner_role_keys,
@@ -110,7 +111,7 @@ def _can_confirm_reservation(request):
 def _assigned_restaurant_ids(request):
     if _full_restaurant_access(request.user):
         return None
-    if request.user.simulation_roles.filter(status='ACTIVE', role='RESTAURANT_OWNER').exists():
+    if 'RESTAURANT_OWNER' in owner_role_keys(request.user):
         return None
     assignment = getattr(request, 'active_simulation_assignment', None)
     if assignment is not None:
@@ -260,11 +261,14 @@ def manage(request):
         'seating_area_choices': Table.SeatingArea.choices,
         'table_status_choices': Table.Status.choices,
         'can_delete': restaurant_ids is None,
+        'can_add_establishment': can_create_establishment(request.user, 'restaurants'),
     })
 
 
 @manager_required
 def add_restaurant(request):
+    if not can_create_establishment(request.user, 'restaurants'):
+        raise PermissionDenied('You are not authorised to add restaurants.')
     if request.method == 'POST':
         cost_per_table = _parse_table_cost(request.POST.get('cost_per_table'))
         if cost_per_table is None:

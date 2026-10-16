@@ -189,6 +189,23 @@ MANAGEMENT_MODULE_ACCESS.update({
     'TRANSPORTATION_OWNER': frozenset({'transportation'}),
 })
 
+# Creation is narrower than opening a management module: managers may handle
+# the operations in their module, but only the matching establishment owner
+# may add a new catalogue entry.
+ESTABLISHMENT_OWNER_ROLES = {
+    'hotels': frozenset({'HOTEL_OWNER'}),
+    'resorts': frozenset({'RESORT_OWNER'}),
+    'staycations': frozenset({'STAYCATION_OWNER'}),
+    'tour_package': frozenset({
+        'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER',
+    }),
+    'restaurants': frozenset({'RESTAURANT_OWNER'}),
+    'landmarks': frozenset({'LANDMARK_OWNER'}),
+    'activities': frozenset({'ACTIVITY_OWNER'}),
+    'transportation': frozenset({'TRANSPORTATION_OWNER'}),
+    'airlines': frozenset({'AIRLINE_OWNER'}),
+}
+
 # Operational staff roles are allowlisted rather than given the whole module,
 # keeping reservation and front-desk roles out of manager-only routes.
 _OPERATIONAL_STAFF_ROLES = {
@@ -316,6 +333,15 @@ def can_access_module(user, module):
         if module in MANAGEMENT_MODULE_ACCESS.get(key, frozenset()):
             return True
     return False
+
+
+def can_create_establishment(user, module):
+    """Whether the user holds the owner role for this establishment category."""
+    if not user or not user.is_authenticated:
+        return False
+    return bool(owner_role_keys(user).intersection(
+        ESTABLISHMENT_OWNER_ROLES.get(module, ())
+    ))
 
 
 def can_access_module_route(user, module, route_name):

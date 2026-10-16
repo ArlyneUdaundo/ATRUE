@@ -6,7 +6,7 @@ from functools import wraps
 
 from django.core.exceptions import PermissionDenied
 
-from accounts.roles import FULL_ACCESS_TYPES, effective_role_keys
+from accounts.roles import FULL_ACCESS_TYPES, effective_role_keys, owner_role_keys
 from .models import Activity
 
 
@@ -61,7 +61,7 @@ def assigned_activity_ids(request):
         return None
     # Activity owners are account-level operators too; they may create the
     # first activity before an establishment assignment exists.
-    if 'ACTIVITY_OWNER' in effective_role_keys(request.user):
+    if 'ACTIVITY_OWNER' in owner_role_keys(request.user):
         return None
     assignment = _active_assignment(request)
     roles = getattr(request, 'activity_authorized_roles', None)

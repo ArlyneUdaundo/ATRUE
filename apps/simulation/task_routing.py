@@ -43,16 +43,16 @@ _AIRLINE_MANAGER_ROUTES = {
     'manage', 'airline_detail', 'update_airline', 'aircrafts',
     'aircraft_detail', 'airline_fleet', 'add_aircraft', 'update_aircraft',
     'services', 'service_detail', 'add_service', 'update_service',
-    'flights', 'add_flight', 'add_flight_schedule', 'update_flight',
+    'flights', 'update_flight',
     'bookings', 'booking_detail', 'itinerary_detail', 'update_itinerary',
 }
 _TRANSPORT_MANAGER_ROUTES = {
     'manage', 'agency_vehicles', 'update_agency', 'add_vehicle',
     'update_vehicle', 'add_driver', 'update_driver', 'bookings', 'booking_detail',
 }
-_PACKAGE_MANAGER_ROUTES = {'manage', 'add_package', 'update_package'}
+_PACKAGE_MANAGER_ROUTES = {'manage', 'update_package'}
 _ACTIVITY_MANAGER_ROUTES = {
-    'manage', 'add_activity', 'update_activity',
+    'manage', 'update_activity',
 }
 _RESORT_MANAGER_ROUTES = {
     'manage', 'update_resort', 'units', 'unit_detail', 'update_unit', 'add_unit',
@@ -678,7 +678,12 @@ def _owner_operation(role_code):
     if base is None:
         return None
     result = dict(base)
-    result['allowed_routes'] = frozenset(set(base['allowed_routes']) | {add_route})
+    owner_routes = {add_route}
+    if role_code == 'AIRLINE_OWNER':
+        # Airline detail pages use this route when adding a flight to a
+        # selected airline; the schedule page uses add_flight_schedule.
+        owner_routes.add('airlines:add_flight')
+    result['allowed_routes'] = frozenset(set(base['allowed_routes']) | owner_routes)
     result['tasks'] = ({'label': add_label, 'route': add_route, 'icon': 'fa-plus'},) + base['tasks']
     return result
 

@@ -5,6 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div><h1>Restaurant Management</h1><p>Create, update and manage restaurants and tables (Module 11 – Restaurant Management).</p></div>
+    {% if can_add_establishment %}<a href="{% url 'restaurants:add' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-plus"></i> Add Restaurant</a>{% endif %}
 </div>
 
 <form method="get" class="card card-pad" style="margin-bottom:18px">

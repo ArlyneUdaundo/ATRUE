@@ -17,7 +17,13 @@ from functools import wraps
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 
-from accounts.roles import FULL_ACCESS_TYPES, can_access_module, effective_role_keys
+from accounts.roles import (
+    FULL_ACCESS_TYPES,
+    can_access_module,
+    can_create_establishment,
+    effective_role_keys,
+    owner_role_keys,
+)
 
 #: Views that list across hotels and must FILTER rather than reject. Every
 #: other hotel management view is keyed to exactly one hotel (directly or
@@ -79,7 +85,7 @@ def assigned_hotel_ids(user):
     """
     if has_full_hotel_access(user):
         return None
-    if 'HOTEL_OWNER' in effective_role_keys(user):
+    if 'HOTEL_OWNER' in owner_role_keys(user):
         return None
     return set(active_hotel_assignments(user).values_list('hotel_id', flat=True))
 
@@ -175,6 +181,11 @@ def hotel_scoped(view_func):
             and task_assignment.establishment.type == 'HOTEL'
             else None
         )
+        view_name = getattr(getattr(request.resolver_match, 'func', None), '__name__', '')
+        # Enforce owner-only hotel creation before the unscoped-user fast path.
+        if (view_name in _PLATFORM_WIDE_VIEWS
+                and not can_create_establishment(user, 'hotels')):
+            raise PermissionDenied('You are not authorised to add or remove hotels.')
         if not is_hotel_scoped(user) and task_hotel_id is None:
             request.allowed_hotel_ids = None
             return view_func(request, *args, **kwargs)
@@ -193,12 +204,8 @@ def hotel_scoped(view_func):
             if task_hotel_id is None:
                 request.assigned_hotel_assignment = active_hotel_assignment_for(user, requested)
 
-        view_name = getattr(getattr(request.resolver_match, 'func', None), '__name__', '')
         if view_name in _LIST_VIEWS:
             return view_func(request, *args, **kwargs)
-        if (view_name in _PLATFORM_WIDE_VIEWS
-                and 'HOTEL_OWNER' not in effective_role_keys(user)):
-            raise PermissionDenied('Only a platform administrator can add or remove hotels.')
 
         hotel_ids = resolve_hotel_ids(view_name, kwargs) if kwargs else None
         if hotel_ids is not None and allowed is not None and not hotel_ids <= allowed:
