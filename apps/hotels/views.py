@@ -1,4 +1,5 @@
 ﻿import json
+import logging
 import re
 from datetime import date, timedelta
 
@@ -45,6 +46,8 @@ from atrue_core.slugs import get_object_by_slug_or_404
 
 from . import pricing, room_offers
 from .models import AdditionalGuest, Amenity, Booking, Hotel, HotelPhoto, Room, RoomPhoto, Service
+
+logger = logging.getLogger(__name__)
 
 
 # Guest contact numbers are digits only: no letters, spaces or punctuation.
@@ -1207,9 +1210,21 @@ def hotel_group_select_rooms(request, hotel_id):
         )
     method = request.POST.get('payment_method', 'GCASH')
     pay_later = request.POST.get('pay_later') == 'on'
-    booking, create_error = _create_hotel_booking(
-        request.user, hotel, rooms, check_in, check_out, guest_lines, method, pay_later,
-    )
+    try:
+        booking, create_error = _create_hotel_booking(
+            request.user, hotel, rooms, check_in, check_out, guest_lines, method, pay_later,
+        )
+    except Exception:
+        logger.exception(
+            "Unexpected error creating hotel booking (hotel_id=%s, user_id=%s)",
+            hotel.pk, request.user.pk,
+        )
+        return _render_room_selection(
+            request, hotel, check_in, check_out, rooms_needed, adults_search,
+            children_search, selected_rooms=rooms, guest_lines=guest_lines,
+            errors=["We couldn't submit your booking due to a server issue. "
+                    "Your information is still on this page; please try again."],
+        )
     if create_error:
         return _render_room_selection(
             request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
@@ -1218,11 +1233,17 @@ def hotel_group_select_rooms(request, hotel_id):
     from simulation.completion import complete_guest_booking
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
-    complete_guest_booking(
-        request.user,
-        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
-        booking_reference=booking.booking_reference,
-    )
+    try:
+        complete_guest_booking(
+            request.user,
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            booking_reference=booking.booking_reference,
+        )
+    except Exception:
+        logger.exception(
+            "Hotel booking saved but guest task completion failed "
+            "(booking_id=%s, user_id=%s)", booking.pk, request.user.pk,
+        )
     request.session.pop('hotel_group_booking', None)
     request.session.modified = True
     if booking.status == Booking.Status.CONFIRMED:
@@ -1335,20 +1356,34 @@ def hotel_group_payment(request):
         return redirect('hotels:group_review')
     method = request.POST.get('payment_method', 'GCASH')
     pay_later = request.POST.get('pay_later') == 'on'
-    booking, create_error = _create_hotel_booking(
-        request.user, hotel, rooms, check_in, check_out, data['guests'], method, pay_later,
-    )
+    try:
+        booking, create_error = _create_hotel_booking(
+            request.user, hotel, rooms, check_in, check_out, data['guests'], method, pay_later,
+        )
+    except Exception:
+        logger.exception(
+            "Unexpected error creating hotel group booking from payment step "
+            "(hotel_id=%s, user_id=%s)", hotel.pk, request.user.pk,
+        )
+        messages.error(request, "We couldn't submit your booking due to a server issue. Please try again.")
+        return redirect('hotels:group_start', hotel.id)
     if create_error:
         messages.error(request, create_error)
         return redirect('hotels:group_start', hotel.id)
     from simulation.completion import complete_guest_booking
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
-    complete_guest_booking(
-        request.user,
-        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
-        booking_reference=booking.booking_reference,
-    )
+    try:
+        complete_guest_booking(
+            request.user,
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            booking_reference=booking.booking_reference,
+        )
+    except Exception:
+        logger.exception(
+            "Hotel booking saved but guest task completion failed "
+            "(booking_id=%s, user_id=%s)", booking.pk, request.user.pk,
+        )
     request.session.pop('hotel_group_booking', None)
     request.session.modified = True
     if booking.status == Booking.Status.CONFIRMED:
