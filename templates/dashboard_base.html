@@ -376,7 +376,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.ag-booking').forEach(function (flow) {
         if (flow.classList.contains('landtransport-booking-flow') ||
             flow.classList.contains('resort-unit-selection-flow') ||
-            flow.querySelector('[data-booking-summary-step]')) return;
+            flow.querySelector('[data-booking-summary-step]') ||
+            flow.querySelector('[data-compare-book]')) return;
         var main = flow.querySelector(':scope > .ag-booking-main') || flow.querySelector('.ag-booking-main');
         var summary = flow.querySelector(':scope > .ag-price-box') || flow.querySelector('.ag-price-box');
         if (!main || !summary) return;
@@ -414,12 +415,11 @@ document.addEventListener('DOMContentLoaded', function () {
         next.type = 'button';
         next.className = 'ag-btn ag-btn-block establishment-booking-next';
         next.innerHTML = '<i class="fas fa-arrow-right"></i> Continue';
-        var isRoomSelectionPage = !!flow.querySelector('[data-compare-book]');
         // Some establishment pages render the guest modal beside the booking form,
         // outside .ag-booking, so also check the page-level modal in that flow.
         var hasGuestInfoModal = !!(flow.querySelector('#guestModalSave') ||
             (form.id === 'bookingForm' && document.getElementById('guestModalSave')));
-        var continuesFromGuestModal = isRoomSelectionPage || hasGuestInfoModal;
+        var continuesFromGuestModal = hasGuestInfoModal;
         if (!continuesFromGuestModal) main.appendChild(next);
 
         var actions = summary.querySelector('.ag-pb-actions') || summary;
