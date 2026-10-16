@@ -228,6 +228,7 @@ def add_hotel(request):
             })
         hotel = Hotel.objects.create(
             name=name,
+            created_by=request.user,
             country=country,
             province=province,
             municipality=municipality,

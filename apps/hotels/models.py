@@ -75,6 +75,14 @@ class Hotel(SlugByNameMixin, models.Model):
     email = models.EmailField(blank=True)
     operating_schedule = models.CharField(max_length=150, blank=True)
     status = models.CharField(max_length=20, choices=HOTEL_STATUS_CHOICES, default='ACTIVE')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_hotels',
+        editable=False,
+    )
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:

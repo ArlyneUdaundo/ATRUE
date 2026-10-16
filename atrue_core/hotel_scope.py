@@ -86,7 +86,11 @@ def assigned_hotel_ids(user):
     if has_full_hotel_access(user):
         return None
     if 'HOTEL_OWNER' in owner_role_keys(user):
-        return None
+        from hotels.models import Hotel
+
+        created_ids = Hotel.objects.filter(created_by=user).values_list('pk', flat=True)
+        assigned_ids = active_hotel_assignments(user).values_list('hotel_id', flat=True)
+        return set(created_ids).union(assigned_ids)
     return set(active_hotel_assignments(user).values_list('hotel_id', flat=True))
 
 
