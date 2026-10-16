@@ -190,10 +190,7 @@
         if (ACTIVE < 0) ACTIVE = 0;
     }
 
-    // Paint the clicked room immediately; defer totals and the detailed
-    // summary so large amenity/service datasets cannot block the click.
-    var selectionComputeTimer = null;
-    var selectionComputeIdle = null;
+    // Refresh the right-hand booking summary as soon as room selection changes.
     function updateRoomSelection(roomId) {
         syncRoomIds();
         var picked = findIndex(roomId) !== -1;
@@ -220,29 +217,7 @@
                 ? '<i class="fas fa-bed"></i> BOOK ' + SELECTED.length + ' ROOM' + (SELECTED.length === 1 ? '' : 'S')
                 : '<i class="fas fa-bed"></i> Book room(s)';
         }
-        if (selectionComputeTimer) window.clearTimeout(selectionComputeTimer);
-        if (selectionComputeIdle !== null && window.cancelIdleCallback) {
-            window.cancelIdleCallback(selectionComputeIdle);
-        }
-        selectionComputeIdle = null;
-        // Let the selected state and guest modal paint before refreshing the
-        // secondary price summary. A busy student device must still be able to
-        // interact with the guest form while that summary is being computed.
-        if (window.requestIdleCallback) {
-            selectionComputeIdle = window.requestIdleCallback(function () {
-                selectionComputeIdle = null;
-                // Keep the guest form responsive; refresh totals when it
-                // closes if this callback fires while the modal is open.
-                if (guestModalOpen()) return;
-                computeAll();
-            }, { timeout: 1000 });
-        } else {
-            selectionComputeTimer = window.setTimeout(function () {
-                selectionComputeTimer = null;
-                if (guestModalOpen()) return;
-                computeAll();
-            }, 0);
-        }
+        computeAll();
     }
 
     /* ------------------------------------------------------- card chrome */
@@ -304,17 +279,7 @@
 
     function paintTabs() {
         var cards = wrap.querySelectorAll('.bk-guest-card');
-        var tabbed = SELECTED.length >= 2;
-        for (var j = 0; j < cards.length; j++) {
-            cards[j].hidden = (j !== ACTIVE);
-            if (tabbed) {
-                cards[j].setAttribute('role', 'tabpanel');
-                cards[j].setAttribute('aria-labelledby', 'bkRoomTab' + j);
-            } else {
-                cards[j].removeAttribute('role');
-                cards[j].removeAttribute('aria-labelledby');
-            }
-        }
+        for (var j = 0; j < cards.length; j++) cards[j].hidden = false;
         var tabs = wrap.querySelectorAll('[data-room-tab]');
         for (var i = 0; i < tabs.length; i++) {
             var on = (i === ACTIVE);
@@ -328,9 +293,7 @@
         if (!SELECTED.length) return;
         syncFromDom();
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, i));
-        // Keep only the visible room's guest controls in the DOM. A hotel can
-        // have many services and amenities; rendering every checkbox for every
-        // selected room at once can freeze the browser during room selection.
+        // Re-render all room forms so every selected room stays visible.
         renderSections();
     }
 
@@ -356,17 +319,16 @@
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, idx));
         var s = SELECTED[ACTIVE];
         if (guestModalSub && s) {
-            guestModalSub.textContent = 'Room ' + (ACTIVE + 1) + ' of ' + SELECTED.length +
-                ' · ' + s.room_type + ' · Room ' + s.room_number +
-                '. Please provide the guest details below.';
+            guestModalSub.textContent = SELECTED.length > 1
+                ? 'Guest information for all ' + SELECTED.length + ' selected rooms. Room 1 uses your account profile; enter each additional room guest manually.'
+                : 'Guest information for this room. Room 1 uses your account profile.';
         }
-        // Show the modal immediately as part of the Select click. Only the
-        // active room's guest fields are rendered, so larger multi-room
-        // bookings do not build every guest form at once.
+        // Show the modal immediately as part of the Select click. Every
+        // selected room has its own visible guest form in this modal.
         guestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
         renderSections();
-        var card = wrap && wrap.querySelector('.bk-guest-card:not([hidden])');
+        var card = wrap && wrap.querySelector('.bk-guest-card');
         var target = card && card.querySelector(
             'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
         );
@@ -438,7 +400,9 @@
     }
 
     function renderSections() {
-        wrap.innerHTML = tabsMarkup() + (SELECTED.length ? buildSection(SELECTED[ACTIVE], ACTIVE) : '');
+        wrap.innerHTML = tabsMarkup() + SELECTED.map(function (room, index) {
+            return buildSection(room, index);
+        }).join('');
         Array.prototype.forEach.call(wrap.querySelectorAll('[data-room-extras]'), function (details) {
             function loadOptions() {
                 if (details.dataset.loaded === 'true') return;
@@ -700,6 +664,7 @@
     }
 
     function showErrors(errs) {
+        if (errs.length) setActive(errs[0].index);
         clearErrors();
         var firstBad = null;
         var firstBadIdx = -1;
@@ -714,7 +679,6 @@
             }
             if (!firstBad) { firstBad = sec; firstBadIdx = e.index; }
         });
-        if (firstBadIdx !== -1) setActive(firstBadIdx);
         if (firstBad && firstBad.scrollIntoView) {
             firstBad.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -866,13 +830,16 @@
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
                 if (guestModalOpen()) syncFromDom();
-                // Select always means continue to guest details. If the room
-                // was already selected, keep it and reopen the modal instead
-                // of silently deselecting it.
-                if (findIndex(roomId) === -1) addRoom(roomId);
+                // Selecting a room keeps the live sidebar visible. Open guest
+                // details only when the guest selects an already-added room
+                // or uses its dedicated Guest info button.
+                if (findIndex(roomId) !== -1) {
+                    guestOpener = b;
+                    openGuestModal(roomId);
+                    return;
+                }
+                addRoom(roomId);
                 updateRoomSelection(roomId);
-                guestOpener = b;
-                openGuestModal(roomId);
             });
         });
 
@@ -903,10 +870,13 @@
         b.addEventListener('click', function () {
             var roomId = Number(b.getAttribute('data-compare-book'));
             if (guestModalOpen()) syncFromDom();
-            if (findIndex(roomId) === -1) addRoom(roomId);
+            if (findIndex(roomId) !== -1) {
+                guestOpener = b;
+                openGuestModal(roomId);
+                return;
+            }
+            addRoom(roomId);
             updateRoomSelection(roomId);
-            guestOpener = b;
-            openGuestModal(roomId);
         });
     });
 
@@ -956,7 +926,7 @@
     if (guestSave) {
         guestSave.addEventListener('click', function () {
             syncFromDom();
-            var errs = validateAll().filter(function (e) { return e.index === ACTIVE; });
+            var errs = validateAll();
             if (errs.length) { showErrors(errs); return; }
             closeGuestModal();
             // Don't auto-proceed to summary; let user continue selecting rooms if desired
