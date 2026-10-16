@@ -1208,49 +1208,20 @@ def hotel_group_select_rooms(request, hotel_id):
             request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
             selected_rooms=rooms, guest_lines=guest_lines, errors=errors,
         )
-    method = request.POST.get('payment_method', 'GCASH')
-    pay_later = request.POST.get('pay_later') == 'on'
-    try:
-        booking, create_error = _create_hotel_booking(
-            request.user, hotel, rooms, check_in, check_out, guest_lines, method, pay_later,
-        )
-    except Exception:
-        logger.exception(
-            "Unexpected error creating hotel booking (hotel_id=%s, user_id=%s)",
-            hotel.pk, request.user.pk,
-        )
-        return _render_room_selection(
-            request, hotel, check_in, check_out, rooms_needed, adults_search,
-            children_search, selected_rooms=rooms, guest_lines=guest_lines,
-            errors=["We couldn't submit your booking due to a server issue. "
-                    "Your information is still on this page; please try again."],
-        )
-    if create_error:
-        return _render_room_selection(
-            request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
-            selected_rooms=rooms, guest_lines=guest_lines, errors=[create_error],
-        )
-    from simulation.completion import complete_guest_booking
-    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
-
-    try:
-        complete_guest_booking(
-            request.user,
-            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
-            booking_reference=booking.booking_reference,
-        )
-    except Exception:
-        logger.exception(
-            "Hotel booking saved but guest task completion failed "
-            "(booking_id=%s, user_id=%s)", booking.pk, request.user.pk,
-        )
-    request.session.pop('hotel_group_booking', None)
+    request.session['hotel_group_booking'] = {
+        'hotel_id': hotel.id,
+        'check_in': check_in.isoformat(),
+        'check_out': check_out.isoformat(),
+        'rooms_needed': rooms_needed,
+        'adults_search': adults_search,
+        'children_search': children_search,
+        'room_ids': room_ids,
+        'guests': guest_lines,
+        'payment_method': request.POST.get('payment_method', 'GCASH'),
+        'pay_later': request.POST.get('pay_later') == 'on',
+    }
     request.session.modified = True
-    if booking.status == Booking.Status.CONFIRMED:
-        messages.success(request, f'Hotel booking confirmed! Reference: {booking.booking_reference}')
-    else:
-        messages.success(request, f'Hotel booking {booking.booking_reference} created. Payment is pending.')
-    return redirect('hotels:booking_detail', booking.id)
+    return redirect('hotels:group_payment')
 
 
 @login_required
@@ -1280,6 +1251,48 @@ def hotel_group_guests(request):
     })
 
 
+def _hotel_group_summary(hotel, rooms, guest_lines, check_in, check_out):
+    nights = max(1, (check_out - check_in).days)
+    lines = []
+    grand_total = Decimal('0')
+    room_subtotal = Decimal('0')
+    extra_subtotal = Decimal('0')
+    services_subtotal = Decimal('0')
+    for idx, room in enumerate(rooms):
+        guest = guest_lines[idx]
+        adults = int(guest['adults'])
+        children = int(guest['children'])
+        total_guests = adults + children
+        extra_count = max(0, total_guests - room.capacity)
+        extra_total = room.additional_guest_charge * extra_count * nights
+        room_total = room.rate * nights
+        services = list(hotel.services.filter(
+            pk__in=guest.get('services', []), status=Service.ServiceStatus.ACTIVE,
+        ))
+        amenities = list(hotel.amenities.filter(
+            pk__in=guest.get('amenities', []), status=Amenity.AmenityStatus.ACTIVE,
+        ))
+        services_total = sum((service.rate for service in services), Decimal('0'))
+        amount = room_total + extra_total + services_total
+        grand_total += amount
+        room_subtotal += room_total
+        extra_subtotal += extra_total
+        services_subtotal += services_total
+        lines.append({
+            'index': idx + 1, 'room': room, 'guest': guest,
+            'extra_count': extra_count, 'extra_total': extra_total,
+            'room_total': room_total, 'services': services,
+            'amenities': amenities, 'services_total': services_total,
+            'amount': amount,
+        })
+    return {
+        'hotel': hotel, 'lines': lines, 'check_in': check_in,
+        'check_out': check_out, 'nights': nights, 'grand_total': grand_total,
+        'room_subtotal': room_subtotal, 'extra_subtotal': extra_subtotal,
+        'services_subtotal': services_subtotal,
+    }
+
+
 @login_required
 @student_booking_required
 def hotel_group_review(request):
@@ -1292,48 +1305,19 @@ def hotel_group_review(request):
     )
     rooms = list(Room.objects.filter(hotel=hotel, pk__in=data['room_ids']).prefetch_related('photos'))
     rooms.sort(key=lambda r: data['room_ids'].index(r.pk))
-    check_in = date.fromisoformat(data['check_in']); check_out = date.fromisoformat(data['check_out'])
-    nights = max(1, (check_out - check_in).days)
-    lines = []
-    grand_total = Decimal('0')
-    room_subtotal = Decimal('0')
-    extra_subtotal = Decimal('0')
-    services_subtotal = Decimal('0')
-    for idx, room in enumerate(rooms):
-        g = data['guests'][idx]
-        adults = int(g['adults']); children = int(g['children'])
-        total_guests = adults + children
-        extra_count = max(0, total_guests - room.capacity)
-        extra_total = room.additional_guest_charge * extra_count * nights
-        room_total = room.rate * nights
-        selected_services = list(room.hotel.services.filter(pk__in=g.get('services', []), status=Service.ServiceStatus.ACTIVE))
-        selected_amenities = list(room.hotel.amenities.filter(pk__in=g.get('amenities', []), status=Amenity.AmenityStatus.ACTIVE))
-        services_total = sum((s.rate for s in selected_services), Decimal('0'))
-        amount = room_total + extra_total + services_total
-        grand_total += amount
-        room_subtotal += room_total
-        extra_subtotal += extra_total
-        services_subtotal += services_total
-        lines.append({
-            'index': idx + 1, 'room': room, 'guest': g, 'extra_count': extra_count,
-            'extra_total': extra_total, 'room_total': room_total, 'services': selected_services,
-            'amenities': selected_amenities, 'services_total': services_total, 'amount': amount,
-        })
+    check_in = date.fromisoformat(data['check_in'])
+    check_out = date.fromisoformat(data['check_out'])
+    summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
     if request.method == 'POST':
         if request.POST.get('action') == 'edit':
             return redirect('hotels:group_guests')
         if request.POST.get('action') == 'proceed_payment':
-            return render(request, 'hotels/group_payment.html', {
-                'hotel': hotel, 'lines': lines, 'check_in': check_in, 'check_out': check_out,
-                'nights': nights, 'grand_total': grand_total,
+            summary.update({
                 'default_payment_method': data.get('payment_method', 'GCASH'),
                 'default_pay_later': bool(data.get('pay_later')),
             })
-    return render(request, 'hotels/group_review.html', {
-        'hotel': hotel, 'lines': lines, 'check_in': check_in, 'check_out': check_out,
-        'nights': nights, 'grand_total': grand_total, 'room_subtotal': room_subtotal,
-        'extra_subtotal': extra_subtotal, 'services_subtotal': services_subtotal,
-    })
+            return render(request, 'hotels/group_payment.html', summary)
+    return render(request, 'hotels/group_review.html', summary)
 
 
 @login_required
@@ -1353,7 +1337,12 @@ def hotel_group_payment(request):
         messages.error(request, 'One or more rooms are no longer available.')
         return redirect('hotels:group_start', hotel.id)
     if request.method != 'POST':
-        return redirect('hotels:group_review')
+        summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
+        summary.update({
+            'default_payment_method': data.get('payment_method', 'GCASH'),
+            'default_pay_later': bool(data.get('pay_later')),
+        })
+        return render(request, 'hotels/group_payment.html', summary)
     method = request.POST.get('payment_method', 'GCASH')
     pay_later = request.POST.get('pay_later') == 'on'
     try:

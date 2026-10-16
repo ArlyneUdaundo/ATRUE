@@ -1005,7 +1005,7 @@
             return;
         }
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening payment...';
     });
 
     // Seed from the server-side prefill (validation-error re-render).

@@ -269,22 +269,11 @@
             <div class="ag-pb-total"><span id="pbTotalLabel">Estimated total × {{ nights }} night{{ nights|pluralize }}</span><b id="pbTotal">₱ 0</b></div>
 
             <div class="ag-pb-divider"></div>
-            <div class="form-group" style="margin:0">
-                <label>Payment Method</label>
-                <select name="payment_method" class="form-input" required>
-                    <option value="GCASH" {% if default_payment_method == 'GCASH' %}selected{% endif %}>GCash</option>
-                    <option value="MAYA" {% if default_payment_method == 'MAYA' %}selected{% endif %}>Maya</option>
-                    <option value="BANK_TRANSFER" {% if default_payment_method == 'BANK_TRANSFER' %}selected{% endif %}>Bank Transfer</option>
-                    <option value="CREDIT_CARD" {% if default_payment_method == 'CREDIT_CARD' %}selected{% endif %}>Credit Card</option>
-                    <option value="DEBIT_CARD" {% if default_payment_method == 'DEBIT_CARD' %}selected{% endif %}>Debit Card</option>
-                    <option value="PAYPAL" {% if default_payment_method == 'PAYPAL' %}selected{% endif %}>PayPal</option>
-                    <option value="QR_PH" {% if default_payment_method == 'QR_PH' %}selected{% endif %}>QR Ph</option></select>
-            </div>
-            <label class="checkbox" style="margin-top:12px"><input type="checkbox" name="pay_later" {% if default_pay_later %}checked{% endif %}> Pay later (booking stays pending)</label>
+            <div class="ag-pb-secure">Choose your payment method on the next screen.</div>
         </div>
         <div class="ag-pb-actions">
-            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas fa-bed"></i> Book Selected Room(s)</button>
-            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Pay on-site or online &middot; no prepayment required</div>
+            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas fa-bed"></i> Confirm Booking</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Review your total and continue to payment.</div>
             <div class="ag-pb-note"><a href="{% url 'hotels:list' %}">Back to all hotels</a></div>
         </div>
     </aside>
