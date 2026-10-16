@@ -3,7 +3,12 @@ from decimal import Decimal, InvalidOperation
 
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
-from accounts.roles import FULL_ACCESS_TYPES, can_manage_booking, effective_role_keys
+from accounts.roles import (
+    FULL_ACCESS_TYPES,
+    can_manage_booking,
+    effective_role_keys,
+    owner_role_keys,
+)
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required

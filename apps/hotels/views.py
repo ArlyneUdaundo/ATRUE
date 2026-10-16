@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.core.validators import validate_email
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
-from accounts.roles import effective_role_keys
+from accounts.roles import effective_role_keys, owner_role_keys
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
     assigned_hotel_ids, hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
@@ -194,7 +194,7 @@ def manage(request):
         'status_choices': Hotel.Status.choices,
         'active_assignment': request.assigned_hotel_assignment,
         'hotel_scoped_user': is_hotel_scoped(request.user),
-        'hotel_owner': 'HOTEL_OWNER' in effective_role_keys(request.user),
+        'hotel_owner': 'HOTEL_OWNER' in owner_role_keys(request.user),
     })
 
 @manager_required

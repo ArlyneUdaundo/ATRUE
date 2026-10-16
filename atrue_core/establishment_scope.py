@@ -23,7 +23,12 @@ from functools import wraps
 
 from django.core.exceptions import PermissionDenied
 
-from accounts.roles import FULL_ACCESS_TYPES, can_access_module, effective_role_keys
+from accounts.roles import (
+    FULL_ACCESS_TYPES,
+    can_access_module,
+    effective_role_keys,
+    owner_role_keys,
+)
 
 
 def assigned_establishment_pks(request, establishment_type):
@@ -55,7 +60,7 @@ def assigned_establishment_pks(request, establishment_type):
         'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
         'TRANSPORTATION': 'TRANSPORTATION_OWNER',
     }
-    if owner_codes.get(establishment_type) in effective_role_keys(user):
+    if owner_codes.get(establishment_type) in owner_role_keys(user):
         return None
 
     return set(
@@ -150,7 +155,7 @@ class EstablishmentScope:
             'TOUR_PACKAGE': 'TOUR_PACKAGE_OWNER', 'ACTIVITY': 'ACTIVITY_OWNER',
             'TRANSPORTATION': 'TRANSPORTATION_OWNER',
         }.get(self.establishment_type)
-        if owner_code and owner_code in effective_role_keys(user):
+        if owner_code and owner_code in owner_role_keys(user):
             return None
         return set(
             self.active_assignments(user).values_list('establishment__entity_id', flat=True))

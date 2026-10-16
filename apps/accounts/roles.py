@@ -280,6 +280,25 @@ def effective_role_keys(user):
     return keys
 
 
+def owner_role_keys(user):
+    """Return the raw ``*_OWNER`` role codes currently held by ``user``.
+
+    ``effective_role_keys`` deliberately folds every ``*_OWNER`` onto its
+    ``*_MANAGER`` alias (``ROLE_KEY_ALIASES``) so owners inherit module access.
+    Owner-only decisions - who may add or delete establishments of that type -
+    must therefore read the *unaliased* codes, or they never match.
+    """
+    if not user or not user.is_authenticated:
+        return set()
+    keys = set(user.simulation_roles.filter(
+        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+    ).values_list('role', flat=True))
+    account_type = user.account_type
+    if account_type and account_type.endswith('_OWNER'):
+        keys.add(account_type)
+    return {key for key in keys if key.endswith('_OWNER')}
+
+
 def can_access_module(user, module):
     """Return True when ``user`` may manage the given URL namespace ``module``.
 
