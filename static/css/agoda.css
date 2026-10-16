@@ -267,14 +267,58 @@
 .ag-booking.manager-detail-view { grid-template-columns: minmax(0, 1fr); }
 .ag-booking-main { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
 .landtransport-continue { margin-top: 18px; }
-.landtransport-booking-flow:not(.is-summary-step) { grid-template-columns: minmax(0, 1fr); }
-.landtransport-booking-flow:not(.is-summary-step) .ag-booking-main { width: 100%; }
-.landtransport-booking-flow.is-summary-step { width: min(360px, 100%); max-width: 360px; grid-template-columns: minmax(0, 1fr); justify-content: center; }
-.landtransport-booking-flow.is-summary-step .ag-booking-main { display: none; }
-.landtransport-booking-flow.is-summary-step .ag-price-box { position: static; top: auto; width: 100%; }
+/* Land transport booking keeps the vehicle + details on the left and a pinned
+   price summary on the right; it collapses to one column on narrow screens. */
+.landtransport-booking-flow { align-items: start; }
+.landtransport-booking-flow .ag-price-box { top: 12px; }
 .transport-booking-schedule-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .transport-booking-schedule-field { display: grid; gap: 4px; min-width: 0; }
 .transport-booking-schedule-field > small { color: var(--slate-500); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+
+/* Vehicle summary card inside the booking modal */
+.lt-vehicle-card { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; padding: 18px; }
+.lt-vehicle-card__media { position: relative; min-height: 150px; overflow: hidden; border-radius: 14px; background: var(--grad-brand-soft); display: grid; place-items: center; }
+.lt-vehicle-card__media img { width: 100%; height: 100%; min-height: 150px; object-fit: cover; }
+.lt-vehicle-card__media .lt-vehicle-card__placeholder { position: absolute; color: var(--indigo); font-size: 42px; opacity: .55; }
+.lt-vehicle-card__media:not(.is-empty) .lt-vehicle-card__placeholder { display: none; }
+.lt-vehicle-card__media.is-empty .lt-vehicle-card__placeholder { display: grid; }
+.lt-vehicle-card__body { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.lt-vehicle-card__title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lt-vehicle-card__title h3 { margin: 0; font-size: 19px; font-weight: 800; color: var(--slate-900); }
+.lt-vehicle-card__agency { margin: 0; font-size: 13px; color: var(--slate-500); }
+.lt-vehicle-card__agency i { color: var(--indigo); margin-right: 6px; }
+.lt-vehicle-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+.lt-vehicle-card__facts > span { display: grid; gap: 1px; min-width: 0; }
+.lt-vehicle-card__facts i { display: none; }
+.lt-vehicle-card__facts small { color: var(--slate-500); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.lt-vehicle-card__facts b { color: var(--slate-800); font-size: 13.5px; overflow-wrap: anywhere; }
+.lt-vehicle-card__rate { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--slate-200); }
+.lt-vehicle-card__rate > span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--slate-500); }
+.lt-vehicle-card__rate b { font-size: 20px; color: var(--indigo); }
+.lt-vehicle-card__rate b small { font-size: 12px; color: var(--slate-500); font-weight: 600; }
+.lt-status { flex: none; padding: 4px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--slate-100); color: var(--slate-600); }
+.lt-status--available { background: #ecfdf5; color: #065f46; }
+.lt-status--in_use { background: #fffbeb; color: #92400e; }
+.lt-status--maintenance { background: #fef2f2; color: #991b1b; }
+.lt-section-head:not(:first-child) { margin-top: 22px; }
+.lt-booking-error { margin: 0; }
+
+/* Booking confirmation shown inside the modal after a successful submit */
+.lt-success { max-width: 520px; margin: 24px auto; padding: 32px 28px; text-align: center; background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 20px; box-shadow: 0 24px 60px -30px rgba(15,23,42,.3); }
+.lt-success__icon { width: 68px; height: 68px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; background: #ecfdf5; color: #059669; font-size: 32px; }
+.lt-success h2 { margin: 0 0 6px; font-size: 22px; color: var(--slate-900); }
+.lt-success > p { margin: 0 0 18px; color: var(--slate-500); font-size: 14px; }
+.lt-success__ref { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border-radius: 12px; background: var(--slate-50); border: 1px solid var(--slate-200); }
+.lt-success__ref span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--slate-500); }
+.lt-success__ref b { font-size: 16px; color: var(--slate-900); }
+.lt-success__list { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 9px; text-align: left; }
+.lt-success__list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--slate-700); }
+.lt-success__list i { width: 18px; text-align: center; color: var(--indigo); }
+.lt-success__hint { margin: 12px 0 0; font-size: 12px; color: var(--slate-400); }
+@media (max-width: 720px) {
+    .lt-vehicle-card { grid-template-columns: minmax(0, 1fr); }
+    .lt-vehicle-card__media { min-height: 180px; }
+}
 
 .ag-panel {
     background: #fff;

@@ -283,6 +283,24 @@ def update_driver(request, driver_id):
     return render(request, 'transportation/driver_form.html', {'agency': driver.agency, 'driver': driver})
 
 
+def _booking_is_embedded(request):
+    """True when the booking page is being loaded inside the dashboard modal."""
+    return request.GET.get('embed') == '1' or request.POST.get('embed') == '1'
+
+
+def _book_context(request, vehicle, drivers, default_schedule, **extra):
+    context = {
+        'vehicle': vehicle,
+        'drivers': drivers,
+        'default_schedule': default_schedule,
+        'rate_per_km': vehicle.rate_per_km,
+        'photo_url': _vehicle_photo_url(vehicle.agency, vehicle),
+        'embed': _booking_is_embedded(request),
+    }
+    context.update(extra)
+    return context
+
+
 @xframe_options_sameorigin
 @login_required
 @student_booking_required
@@ -292,35 +310,48 @@ def book_vehicle(request, vehicle_id):
         messages.error(request, "This vehicle is not currently available for booking.")
         return redirect('transportation:list')
     default_schedule = _parse_datetime(request.GET.get('schedule'), timezone.now() + timedelta(hours=3))
-    booking_error = None
-    if _vehicle_conflict(vehicle, default_schedule):
-        booking_error = "This vehicle is already reserved for the selected schedule. Pick a different date or choose another vehicle."
     drivers = vehicle.agency.drivers.filter(status=Driver.Status.ACTIVE)
+
     if request.method == 'POST':
         when = _parse_datetime(request.POST.get('schedule'), default_schedule)
         try:
             distance = Decimal(request.POST.get('distance_km') or 0)
         except (InvalidOperation, TypeError, ValueError):
             distance = Decimal(0)
-        duration = int(request.POST.get('duration_hours') or 3)
-
-        if _vehicle_conflict(vehicle, when, duration):
-            messages.error(request, "This vehicle is already booked for the selected schedule.")
-            return render(request, 'transportation/book.html', {
-                'vehicle': vehicle, 'drivers': drivers, 'default_schedule': default_schedule,
-                'rate_per_km': vehicle.rate_per_km, 'booking_error': booking_error,
-            })
-
+        try:
+            duration = int(request.POST.get('duration_hours') or 3)
+        except (TypeError, ValueError):
+            duration = 3
         try:
             passenger_count = int(request.POST.get('passengers') or 1)
         except (TypeError, ValueError):
             passenger_count = 1
-        if passenger_count < 1 or passenger_count > vehicle.capacity:
-            messages.error(request, f"Passenger count must be between 1 and {vehicle.capacity} for this vehicle.")
-            return render(request, 'transportation/book.html', {
-                'vehicle': vehicle, 'drivers': drivers, 'default_schedule': default_schedule,
-                'rate_per_km': vehicle.rate_per_km, 'booking_error': booking_error,
-            })
+
+        # Re-validate every rule server-side before touching the database so a
+        # forged or stale form can never create an overlapping/invalid booking.
+        error = None
+        if _vehicle_conflict(vehicle, when, duration):
+            error = ("This vehicle is already reserved for the selected schedule. "
+                     "Pick a different date or choose another vehicle.")
+        elif distance <= 0:
+            error = "Enter the travel distance in kilometres (greater than 0)."
+        elif duration < 1:
+            error = "Rental duration must be at least 1 hour."
+        elif passenger_count < 1 or passenger_count > vehicle.capacity:
+            error = f"Passenger count must be between 1 and {vehicle.capacity} for this vehicle."
+
+        if error:
+            estimated_total = None
+            if distance > 0:
+                estimated_total = bill_items_total(
+                    compute_transport_bill(vehicle.rate_per_km, distance))
+            return render(request, 'transportation/book.html', _book_context(
+                request, vehicle, drivers, default_schedule,
+                booking_error=error,
+                form_data=request.POST,
+                form_schedule=when,
+                estimated_total=estimated_total,
+            ))
 
         items = compute_transport_bill(vehicle.rate_per_km, distance)
         total = bill_items_total(items)
@@ -387,18 +418,30 @@ def book_vehicle(request, vehicle_id):
             pay_later=request.POST.get('pay_later') == 'on',
         )
         booking.refresh_from_db()
+
+        if _booking_is_embedded(request):
+            # Inside the modal, confirm in place so the parent page can refresh
+            # the vehicle list only after the booking really succeeded.
+            return render(request, 'transportation/book.html', _book_context(
+                request, vehicle, drivers, default_schedule,
+                booking_success=True,
+                order=order,
+                booking=booking,
+                passenger_summary=passenger_summary,
+                total=total,
+            ))
+
         if request.POST.get('pay_later') == 'on':
             messages.success(request, f"Transport order created: {order.order_reference} · {passenger_summary} under ONE transaction (pending payment).")
         else:
             messages.success(request, f"Transport booked successfully: {order.order_reference} · {passenger_summary} under ONE transaction.")
         return redirect('transactions:order_detail', order.id)
-    return render(request, 'transportation/book.html', {
-        'vehicle': vehicle,
-        'drivers': drivers,
-        'default_schedule': default_schedule,
-        'rate_per_km': vehicle.rate_per_km,
-        'booking_error': booking_error,
-    })
+
+    booking_error = None
+    if _vehicle_conflict(vehicle, default_schedule):
+        booking_error = "This vehicle is already reserved for the selected schedule. Pick a different date or choose another vehicle."
+    return render(request, 'transportation/book.html', _book_context(
+        request, vehicle, drivers, default_schedule, booking_error=booking_error))
 
 
 @manager_required

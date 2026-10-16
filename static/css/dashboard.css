@@ -933,7 +933,7 @@ form.card { width: 100%; max-width: 780px; margin: 0 auto; }
 .flight-booking-modal__close { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 10px; background: var(--slate-100); color: var(--slate-700); font-size: 25px; cursor: pointer; }
 .flight-booking-modal__frame { display: block; flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
 body.flight-booking-modal-open { overflow: hidden; }
-.transport-booking-modal .flight-booking-modal__panel { width: min(760px, 100%); height: min(780px, 90vh); }
+.transport-booking-modal .flight-booking-modal__panel { width: min(1080px, 100%); height: min(880px, 92vh); }
 @media (max-width: 1080px) {
     .fcard-head-row { grid-template-columns: minmax(0, 1fr); }
     .fcard-summary-toggle { grid-template-columns: 88px minmax(120px, 1fr) minmax(62px, .6fr) 70px minmax(84px, .7fr) minmax(62px, .6fr) 70px auto 12px; gap: 10px; }

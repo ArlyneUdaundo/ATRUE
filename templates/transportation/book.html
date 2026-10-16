@@ -1,200 +1,274 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Book Transport{% endblock %}
 
 {% block content %}
-<div class="ag-steps">
-    <div class="ag-step done"><i class="fas fa-check"></i> Travel agency</div>
-    <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step done"><i class="fas fa-check"></i> Type of car</div>
-    <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step active"><i>3</i> Book land transport</div>
+{% if booking_success %}
+<div class="lt-success" data-landtransport-booking-success>
+    <div class="lt-success__icon"><i class="fas fa-circle-check"></i></div>
+    <h2>Booking confirmed</h2>
+    <p>Your land transport booking was saved successfully.</p>
+    <div class="lt-success__ref">
+        <span>Order reference</span>
+        <b>{{ order.order_reference }}</b>
+    </div>
+    <ul class="lt-success__list">
+        <li><i class="fas fa-car"></i> {{ vehicle.label }} · {{ vehicle.plate_number }}</li>
+        <li><i class="fas fa-route"></i> {{ booking.pickup_location }} &rarr; {{ booking.drop_off_location }}</li>
+        <li><i class="fas fa-calendar-alt"></i> {{ booking.schedule|date:'M d, Y g:i A' }}</li>
+        <li><i class="fas fa-users"></i> {{ passenger_summary }}</li>
+        <li><i class="fas fa-receipt"></i> Total: &#8369; {{ total|floatformat:2 }}</li>
+    </ul>
+    <button type="button" class="ag-btn ag-btn-block" data-landtransport-booking-done>
+        <i class="fas fa-check"></i> Done
+    </button>
+    <p class="lt-success__hint">The vehicle list will refresh with the latest availability.</p>
 </div>
-
-{% if booking_error %}
-<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ booking_error }}</div>
-{% endif %}
-
+{% else %}
 <div class="ag-booking landtransport-booking-flow" data-landtransport-booking-flow>
     <div class="ag-booking-main">
-        <div class="ag-panel">
-            <div class="ag-panel-head">
-                <span class="ag-ph-ico"><i class="fas fa-bus"></i></span>
-                <div>
-                    <h3>{{ vehicle.agency.name }} — {{ vehicle.label }}</h3>
-                    <p>{{ vehicle.plate_number }}</p>
-                </div>
-            </div>
-            <div class="ag-detail-row"><i class="fas fa-users"></i> Capacity {{ vehicle.capacity }} pax</div>
-            <div class="ag-detail-row"><i class="fas fa-tachometer-alt"></i> Rate: <b>₱ {{ rate_per_km }}</b> /km</div>
-            <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ vehicle.agency.contact_number }}</div>
+        {% if booking_error %}
+        <div class="alert alert-danger lt-booking-error" role="alert">
+            <i class="fas fa-exclamation-circle"></i> {{ booking_error }}
         </div>
+        {% endif %}
 
-        <form method="post" class="ag-panel" id="booking-form" data-submit-loading>
+        <section class="ag-panel lt-vehicle-card" aria-label="Vehicle information">
+            <div class="lt-vehicle-card__media">
+                {% if photo_url %}
+                <img src="{{ photo_url }}" alt="{{ vehicle.label }}"
+                     onerror="this.style.display='none';this.parentElement.classList.add('is-empty')">
+                {% endif %}
+                <span class="lt-vehicle-card__placeholder"><i class="fas fa-car-side"></i></span>
+            </div>
+            <div class="lt-vehicle-card__body">
+                <div class="lt-vehicle-card__title">
+                    <h3>{{ vehicle.vehicle_name|default:vehicle.get_vehicle_type_display }}</h3>
+                    <span class="lt-status lt-status--{{ vehicle.status|lower }}">{{ vehicle.get_status_display }}</span>
+                </div>
+                <p class="lt-vehicle-card__agency"><i class="fas fa-building"></i> {{ vehicle.agency.name }}</p>
+                <div class="lt-vehicle-card__facts">
+                    <span><i class="fas fa-tag"></i><small>Category</small><b>{{ vehicle.get_vehicle_type_display }}</b></span>
+                    <span><i class="fas fa-users"></i><small>Capacity</small><b>{{ vehicle.capacity }} pax</b></span>
+                    <span><i class="fas fa-id-card"></i><small>Plate</small><b>{{ vehicle.plate_number }}</b></span>
+                    <span><i class="fas fa-shield-alt"></i><small>Condition</small><b>{{ vehicle.get_roadworthiness_display }}</b></span>
+                </div>
+                <div class="lt-vehicle-card__rate">
+                    <span>Rate basis</span>
+                    <b>&#8369; {{ rate_per_km|floatformat:2 }} <small>/ km</small></b>
+                </div>
+            </div>
+        </section>
+
+        <form method="post" class="ag-panel lt-form" id="booking-form" data-submit-loading novalidate>
             {% csrf_token %}
-            <div class="ag-panel-head">
-                <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
-                <div><h3>Your trip details</h3><p>Route, schedule and passengers — one vehicle booking can carry multiple passengers in ONE transaction</p></div>
+            {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+            <input type="hidden" name="schedule" data-transport-booking-schedule
+                   value="{% if form_schedule %}{{ form_schedule|date:'Y-m-d\TH:i' }}{% else %}{{ default_schedule|date:'Y-m-d\TH:i' }}{% endif %}">
+
+            <div class="ag-panel-head lt-section-head">
+                <span class="ag-ph-ico"><i class="fas fa-route"></i></span>
+                <div>
+                    <h3>Booking details</h3>
+                    <p>Route, schedule and passengers for this vehicle.</p>
+                </div>
             </div>
+
             <div class="form-grid">
                 <div class="form-group atrue-location-autocomplete" data-location-autocomplete>
-                    <label>Pickup Location</label>
-                    <input type="text" name="pickup_location" class="form-input" placeholder="e.g. Tuguegarao City" autocomplete="off" required>
+                    <label>Pickup location</label>
+                    <input type="text" name="pickup_location" class="form-input" required
+                           placeholder="e.g. Tuguegarao City" autocomplete="off"
+                           value="{{ form_data.pickup_location|default:'' }}">
                     <div class="atrue-location-options" role="listbox" hidden></div>
                 </div>
                 <div class="form-group atrue-location-autocomplete" data-location-autocomplete>
-                    <label>Drop-off Location</label>
-                    <input type="text" name="drop_off_location" class="form-input" placeholder="e.g. Palaui Island" autocomplete="off" required>
+                    <label>Drop-off location</label>
+                    <input type="text" name="drop_off_location" class="form-input" required
+                           placeholder="e.g. Palaui Island" autocomplete="off"
+                           value="{{ form_data.drop_off_location|default:'' }}">
                     <div class="atrue-location-options" role="listbox" hidden></div>
                 </div>
             </div>
+
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Distance (km)</label>
-                    <input type="number" name="distance_km" id="distance_km" step="0.01" class="form-input" value="" required oninput="updateFare()">
+                    <label>Distance (km) <span class="meta">rate basis</span></label>
+                    <input type="number" name="distance_km" id="distance_km" step="0.01" min="0.01"
+                           class="form-input" required inputmode="decimal" placeholder="e.g. 45"
+                           value="{{ form_data.distance_km|default:'' }}" oninput="updateFare()">
                 </div>
                 <div class="form-group">
-                    <label>Passengers <span class="meta">(all passengers stay in one booking)</span></label>
-                    <input type="number" name="passengers" id="passengers" class="form-input" value="1" min="1" max="{{ vehicle.capacity }}" oninput="updateFare()">
+                    <label>Passengers <span class="meta">max {{ vehicle.capacity }}</span></label>
+                    <input type="number" name="passengers" id="passengers" class="form-input" value="{{ form_data.passengers|default:'1' }}"
+                           min="1" max="{{ vehicle.capacity }}" required oninput="updateFare()">
                 </div>
             </div>
+
             <div class="form-grid">
                 <div class="form-group">
                     <label>Schedule</label>
                     <div class="transport-booking-schedule-controls">
-                        <div class="transport-booking-schedule-field"><small>Date</small><input type="date" data-transport-booking-date placeholder="Select date" value="{{ default_schedule|date:'Y-m-d' }}" required></div>
-                        <div class="transport-booking-schedule-field"><small>Time</small><input type="time" data-transport-booking-time placeholder="Select time" value="{{ default_schedule|date:'H:i' }}" required></div>
+                        <div class="transport-booking-schedule-field">
+                            <small>Date</small>
+                            <input type="date" data-transport-booking-date required
+                                   value="{% if form_schedule %}{{ form_schedule|date:'Y-m-d' }}{% else %}{{ default_schedule|date:'Y-m-d' }}{% endif %}">
+                        </div>
+                        <div class="transport-booking-schedule-field">
+                            <small>Time</small>
+                            <input type="time" data-transport-booking-time required
+                                   value="{% if form_schedule %}{{ form_schedule|date:'H:i' }}{% else %}{{ default_schedule|date:'H:i' }}{% endif %}">
+                        </div>
                     </div>
-                    <input type="hidden" name="schedule" data-transport-booking-schedule value="{{ default_schedule|date:'Y-m-d\TH:i' }}">
                 </div>
                 <div class="form-group">
                     <label>Duration (hours)</label>
-                    <input type="number" name="duration_hours" class="form-input" value="3" min="1">
+                    <input type="number" name="duration_hours" class="form-input" min="1"
+                           value="{{ form_data.duration_hours|default:'3' }}">
                 </div>
             </div>
+
             {% if drivers %}
             <div class="form-group">
                 <label>Driver</label>
                 <select name="driver" class="form-input">
                     <option value="">No preference</option>
                     {% for d in drivers %}
-                    <option value="{{ d.id }}">{{ d.full_name }}</option>
+                    <option value="{{ d.id }}"{% if form_data.driver == d.id|stringformat:"s" %} selected{% endif %}>{{ d.full_name }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
+
             <div class="form-group">
-                <label>Special Requests</label>
-                <textarea name="special_requests" class="form-input" rows="1"></textarea>
+                <label>Special requests</label>
+                <textarea name="special_requests" class="form-input" rows="2" placeholder="Optional notes for the operator">{{ form_data.special_requests|default:'' }}</textarea>
             </div>
-            <div style="margin-top:18px">
-                <div class="ag-panel-head">
-                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
-                    <div><h3>Passenger &amp; payer</h3><p>Contact details come from your account</p></div>
-                </div>
-                <div class="ag-customer-box">
-                    <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
-                    <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
-                    <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
-                    <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
-                    <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
-                </div>
-                <label class="checkbox" style="margin-bottom:10px">
-                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead passenger
-                </label>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Payer Name</label>
-                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
-                    </div>
-                    <div class="form-group">
-                        <label>Payer Contact</label>
-                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
-                    </div>
+
+            <div class="ag-panel-head lt-section-head">
+                <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                <div>
+                    <h3>Customer information</h3>
+                    <p>Contact details come from your account.</p>
                 </div>
             </div>
-            <button type="button" class="ag-btn ag-btn-block landtransport-continue" data-booking-continue><i class="fas fa-arrow-right"></i> Continue Booking</button>
-            <script>
-                function togglePayer() {
-                    var same = document.getElementById('payer-same');
-                    if (!same) return;
-                    var lock = same.checked;
-                    var name = document.getElementById('payer-name');
-                    var contact = document.getElementById('payer-contact');
-                    if (name) {
-                        name.readOnly = lock;
-                        name.style.background = lock ? 'var(--slate-100)' : '';
-                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
-                    }
-                    if (contact) {
-                        contact.readOnly = lock;
-                        contact.style.background = lock ? 'var(--slate-100)' : '';
-                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
-                    }
-                }
-                togglePayer();
-                var KM_RATE = {{ rate_per_km }};
-                function updateFare() {
-                    var km = parseFloat(document.getElementById('distance_km').value);
-                    var pax = parseInt(document.getElementById('passengers').value) || 1;
-                    var paxSummary = document.getElementById('pb-pax');
-                    var distanceSummary = document.getElementById('pb-distance');
-                    var fareSummary = document.getElementById('pb-fare');
-                    if (paxSummary) paxSummary.textContent = pax;
-                    if (distanceSummary) distanceSummary.textContent = !isNaN(km) && km > 0 ? km.toFixed(2) + ' km' : 'Set in form';
-                    if (!isNaN(km) && km > 0) {
-                        if (fareSummary) fareSummary.textContent = '₱ ' + (km * KM_RATE).toFixed(2);
-                    } else if (fareSummary) {
-                        fareSummary.textContent = '—';
-                    }
-                }
-                updateFare();
-            </script>
-            <button type="button" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px" data-landtransport-booking-cancel><i class="fas fa-arrow-left"></i> Cancel</button>
+            <div class="ag-customer-box">
+                <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
+                <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
+                <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
+                <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
+                <div class="ag-detail-row"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
+            </div>
+            <label class="checkbox" style="margin:10px 0">
+                <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead passenger
+            </label>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Payer name</label>
+                    <input type="text" name="payer_name" class="form-input" id="payer-name"
+                           value="{{ form_data.payer_name|default:request.user.get_full_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Payer contact</label>
+                    <input type="text" name="payer_contact" class="form-input" id="payer-contact"
+                           placeholder="Contact number / email"
+                           value="{{ form_data.payer_contact|default:request.user.contact_number }}">
+                </div>
+            </div>
         </form>
     </div>
 
-    <aside class="ag-price-box" data-booking-summary-step hidden>
-        <div class="ag-pb-head" tabindex="-1"><i class="fas fa-file-invoice-dollar"></i> <b>Payment process</b></div>
+    <aside class="ag-price-box" aria-label="Price summary">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Price summary</b></div>
         <div class="ag-pb-body">
             <div class="ag-pb-prop">
-                <span class="ag-pb-ico"><i class="fas fa-bus"></i></span>
+                <span class="ag-pb-ico"><i class="fas fa-car-side"></i></span>
                 <div><b>{{ vehicle.label }}</b><small>{{ vehicle.agency.name }} · {{ vehicle.plate_number }}</small></div>
             </div>
             <div class="ag-pb-rows">
-                <div class="ag-pb-row"><span>Rate</span><b>₱ {{ rate_per_km }} /km</b></div>
-                <div class="ag-pb-row"><span>Passengers</span><b><span id="pb-pax">1</span> pax</b></div>
-                <div class="ag-pb-row"><span>Distance</span><b id="pb-distance">Set in form</b></div>
+                <div class="ag-pb-row"><span>Rate</span><b>&#8369; {{ rate_per_km|floatformat:2 }} / km</b></div>
+                <div class="ag-pb-row"><span>Passengers</span><b><span id="pb-pax">{{ form_data.passengers|default:'1' }}</span> pax</b></div>
+                <div class="ag-pb-row"><span>Distance</span><b id="pb-distance">Enter distance</b></div>
+                <div class="ag-pb-row"><span>Duration</span><b id="pb-duration">{{ form_data.duration_hours|default:'3' }} hr</b></div>
             </div>
-            <div class="form-group" style="margin-top:16px">
-                <label for="transport-payment-method">Payment Method</label>
+            <div class="form-group">
+                <label for="transport-payment-method">Payment method</label>
                 <select name="payment_method" id="transport-payment-method" form="booking-form" class="form-input">
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option>
+                    <option value="GCASH"{% if form_data.payment_method == 'GCASH' %} selected{% endif %}>GCash</option>
+                    <option value="MAYA"{% if form_data.payment_method == 'MAYA' %} selected{% endif %}>Maya</option>
+                    <option value="BANK_TRANSFER"{% if form_data.payment_method == 'BANK_TRANSFER' %} selected{% endif %}>Bank Transfer</option>
+                    <option value="CREDIT_CARD"{% if form_data.payment_method == 'CREDIT_CARD' %} selected{% endif %}>Credit Card</option>
+                    <option value="DEBIT_CARD"{% if form_data.payment_method == 'DEBIT_CARD' %} selected{% endif %}>Debit Card</option>
+                    <option value="PAYPAL"{% if form_data.payment_method == 'PAYPAL' %} selected{% endif %}>PayPal</option>
+                    <option value="QR_PH"{% if form_data.payment_method == 'QR_PH' %} selected{% endif %}>QR Ph</option>
                 </select>
             </div>
             <label class="checkbox" style="margin-bottom:6px">
-                <input type="checkbox" name="pay_later" form="booking-form"> Pay later (booking stays pending)
+                <input type="checkbox" name="pay_later" form="booking-form"{% if form_data.pay_later == 'on' %} checked{% endif %}> Pay later (booking stays pending)
             </label>
             <div class="ag-pb-divider"></div>
-            <div class="ag-pb-row"><span>Transaction</span><b>1 order / 1 payment</b></div>
-            <div class="ag-pb-total"><span>Estimated fare</span><b><span id="pb-fare">—</span></b></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b id="pb-fare">—</b></div>
+            <p class="ag-pb-note" id="pb-note">Fare = distance (km) × rate. Applied on confirmation.</p>
         </div>
         <div class="ag-pb-actions">
-            <button type="button" class="ag-btn ag-btn-muted" style="width:100%" data-booking-back><i class="fas fa-arrow-left"></i> Back to trip details</button>
-            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay — 1 Transaction</button>
-        
-        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Vehicle</button>
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block" data-book-now>
+                <i class="fas fa-lock"></i> Book Now
+            </button>
+            <button type="button" class="ag-btn ag-btn-muted" style="width:100%" data-landtransport-booking-cancel>
+                <i class="fas fa-arrow-left"></i> Cancel
+            </button>
+            <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%">
+                <i class="fas fa-plus"></i> Book &amp; Add Another Vehicle
+            </button>
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
-            <div class="ag-pb-note">*Fare = distance (km) × rate, applied by the system after you enter the route.</div>
         </div>
     </aside>
 </div>
+{% endif %}
+
+<script>
+    function togglePayer() {
+        var same = document.getElementById('payer-same');
+        if (!same) return;
+        var lock = same.checked;
+        var name = document.getElementById('payer-name');
+        var contact = document.getElementById('payer-contact');
+        if (name) {
+            name.readOnly = lock;
+            name.style.background = lock ? 'var(--slate-100)' : '';
+            if (lock) name.value = "{{ request.user.get_full_name|escapejs }}";
+        }
+        if (contact) {
+            contact.readOnly = lock;
+            contact.style.background = lock ? 'var(--slate-100)' : '';
+            if (lock) contact.value = "{{ request.user.contact_number|default:''|escapejs }}";
+        }
+    }
+    var KM_RATE = Number('{{ rate_per_km }}') || 0;
+    function updateFare() {
+        var kmInput = document.getElementById('distance_km');
+        var paxInput = document.getElementById('passengers');
+        if (!kmInput) return;
+        var km = parseFloat(kmInput.value);
+        var pax = paxInput ? (parseInt(paxInput.value, 10) || 1) : 1;
+        var paxSummary = document.getElementById('pb-pax');
+        var distanceSummary = document.getElementById('pb-distance');
+        var fareSummary = document.getElementById('pb-fare');
+        var note = document.getElementById('pb-note');
+        if (paxSummary) paxSummary.textContent = pax;
+        if (distanceSummary) distanceSummary.textContent = (!isNaN(km) && km > 0) ? km.toFixed(2) + ' km' : 'Enter distance';
+        if (!isNaN(km) && km > 0) {
+            if (fareSummary) fareSummary.textContent = '\u20B1 ' + (km * KM_RATE).toFixed(2);
+            if (note) note.textContent = 'Fare = ' + km.toFixed(2) + ' km × \u20B1 ' + KM_RATE.toFixed(2) + ' / km';
+        } else {
+            if (fareSummary) fareSummary.textContent = '—';
+            if (note) note.textContent = 'Enter the travel distance to see the estimated total.';
+        }
+    }
+    togglePayer();
+    updateFare();
+</script>
 {% endblock %}
 
 {% block extra_js %}
@@ -203,35 +277,60 @@
 (function () {
     var flow = document.querySelector('[data-landtransport-booking-flow]');
     var bookingForm = document.getElementById('booking-form');
-    var summary = document.querySelector('[data-booking-summary-step]');
-    var continueButton = document.querySelector('[data-booking-continue]');
-    var backButton = document.querySelector('[data-booking-back]');
-    var paymentMethod = document.getElementById('transport-payment-method');
-    if (!flow || !bookingForm || !summary || !continueButton || !backButton || !paymentMethod) return;
+    if (!flow || !bookingForm) return;
+
+    function syncDuration() {
+        var duration = bookingForm.querySelector('[name="duration_hours"]');
+        var out = document.getElementById('pb-duration');
+        if (duration && out) out.textContent = (parseInt(duration.value, 10) || 3) + ' hr';
+    }
+    var durationInput = bookingForm.querySelector('[name="duration_hours"]');
+    if (durationInput) durationInput.addEventListener('input', syncDuration);
+    syncDuration();
+
+    // Keep the single hidden schedule field (used for server-side overlap
+    // detection) in step with the date/time controls at submit time.
     bookingForm.addEventListener('submit', function (event) {
-        if (!flow.classList.contains('is-summary-step')) {
-            event.preventDefault();
-            continueButton.click();
-            return;
+        var date = bookingForm.querySelector('[data-transport-booking-date]');
+        var time = bookingForm.querySelector('[data-transport-booking-time]');
+        var hidden = bookingForm.querySelector('[data-transport-booking-schedule]');
+        if (date && time && hidden) hidden.value = date.value + 'T' + time.value;
+        if (bookingForm.dataset.submitting === '1') return;
+        bookingForm.dataset.submitting = '1';
+        // Carry the clicked action (e.g. "Book & Add Another Vehicle") through a
+        // hidden field so disabling the buttons cannot drop its name/value.
+        var submitter = event.submitter;
+        if (submitter && submitter.name
+                && !bookingForm.querySelector('input[type="hidden"][name="' + submitter.name + '"]')) {
+            var action = document.createElement('input');
+            action.type = 'hidden';
+            action.name = submitter.name;
+            action.value = submitter.value;
+            bookingForm.appendChild(action);
         }
-        var date = bookingForm.querySelector('[data-transport-booking-date]').value;
-        var time = bookingForm.querySelector('[data-transport-booking-time]').value;
-        bookingForm.querySelector('[data-transport-booking-schedule]').value = date + 'T' + time;
+        flow.querySelectorAll('button[type="submit"]').forEach(function (btn) {
+            btn.disabled = true;
+            if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing…';
+        });
     });
-    continueButton.addEventListener('click', function () {
-        if (!bookingForm.reportValidity()) return;
-        updateFare();
-        paymentMethod.required = true;
-        flow.classList.add('is-summary-step');
-        summary.hidden = false;
-        summary.querySelector('.ag-pb-head').focus({ preventScroll: true });
-    });
-    backButton.addEventListener('click', function () {
-        paymentMethod.required = false;
-        flow.classList.remove('is-summary-step');
-        summary.hidden = true;
-        continueButton.focus({ preventScroll: true });
-    });
+
+    var cancel = document.querySelector('[data-landtransport-booking-cancel]');
+    if (cancel) {
+        cancel.addEventListener('click', function () {
+            if (window.self !== window.top) return; // the modal handles it
+            window.location.href = "{% url 'transportation:agency_vehicles' vehicle.agency_id %}";
+        });
+    }
+
+    // In-iframe (non-modal) fallback: leave when the booking is done.
+    var done = document.querySelector('[data-landtransport-booking-done]');
+    if (done) {
+        done.addEventListener('click', function () {
+            if (window.self !== window.top) return; // the modal handles it
+            window.location.href = "{% url 'transportation:agency_vehicles' vehicle.agency_id %}";
+        });
+    }
 })();
 </script>
 {% endblock %}

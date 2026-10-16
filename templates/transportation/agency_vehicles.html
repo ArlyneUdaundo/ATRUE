@@ -85,10 +85,10 @@
 <div class="flight-booking-modal transport-booking-modal" data-landtransport-booking-modal hidden>
     <section class="flight-booking-modal__panel" role="dialog" aria-modal="true" aria-labelledby="landtransportBookingModalTitle">
         <header class="flight-booking-modal__head">
-            <h2 id="landtransportBookingModalTitle">Book this car</h2>
+            <h2 id="landtransportBookingModalTitle">Book This Vehicle</h2>
             <button type="button" class="flight-booking-modal__close" data-landtransport-booking-close aria-label="Close booking">&times;</button>
         </header>
-        <iframe class="flight-booking-modal__frame" data-landtransport-booking-frame title="Land transport booking form"></iframe>
+        <iframe class="flight-booking-modal__frame" data-landtransport-booking-frame title="Vehicle booking form" src="about:blank"></iframe>
     </section>
 </div>
 {% endblock %}
@@ -106,51 +106,104 @@
             agencySchedule.querySelector('[data-transport-agency-schedule-value]').value = date + 'T' + time;
         });
     }
+
     var modal = document.querySelector('[data-landtransport-booking-modal]');
     var frame = document.querySelector('[data-landtransport-booking-frame]');
     var close = document.querySelector('[data-landtransport-booking-close]');
     var trigger = null;
+    var completed = false;
     if (!modal || !frame || !close) return;
-    function closeModal() {
+
+    function frameDocument() {
+        try { return frame.contentDocument || null; } catch (error) { return null; }
+    }
+
+    function hasEnteredDetails() {
+        var doc = frameDocument();
+        if (!doc) return false;
+        var form = doc.getElementById('booking-form');
+        if (!form) return false;
+        return ['pickup_location', 'drop_off_location', 'distance_km'].some(function (name) {
+            var field = form.querySelector('[name="' + name + '"]');
+            return field && field.value && field.value.trim() !== '';
+        });
+    }
+
+    function closeModal(refresh) {
         modal.hidden = true;
         document.body.classList.remove('flight-booking-modal-open');
-        frame.src = 'about:blank';
-        if (trigger) trigger.focus();
+        try { frame.src = 'about:blank'; } catch (error) { /* ignore */ }
+        if (trigger && document.contains(trigger)) trigger.focus();
         trigger = null;
+        if (refresh) window.location.reload();
     }
+
+    // Closing via the X, the backdrop or Escape must not silently throw away
+    // entered details; ask first unless the booking already succeeded.
+    function requestClose() {
+        if (!completed && hasEnteredDetails()
+                && !window.confirm('Close this booking? The details you entered will be lost.')) {
+            return;
+        }
+        closeModal(completed);
+    }
+
     document.addEventListener('click', function (event) {
         var link = event.target.closest && event.target.closest('[data-landtransport-booking]');
         if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         trigger = link;
+        completed = false;
         var bookingUrl = new URL(link.href, window.location.href);
         var tabContext = window.ATRUE_CTX || new URL(window.location.href).searchParams.get('ctx');
         if (tabContext) bookingUrl.searchParams.set('ctx', tabContext);
+        bookingUrl.searchParams.set('embed', '1');
         frame.src = bookingUrl.toString();
         modal.hidden = false;
         document.body.classList.add('flight-booking-modal-open');
         close.focus();
     });
+
     frame.addEventListener('load', function () {
-        try {
-            var doc = frame.contentDocument;
-            if (!doc || doc.location.href === 'about:blank' || doc.getElementById('landtransport-booking-embed-style')) return;
-            var style = doc.createElement('style');
-            style.id = 'landtransport-booking-embed-style';
-            style.textContent = '.site-header,.ag-steps{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}.landtransport-booking-flow [data-booking-summary-step][hidden]{display:none!important}';
-            doc.head.appendChild(style);
-            doc.addEventListener('click', function (frameEvent) {
-                var cancel = frameEvent.target.closest && frameEvent.target.closest('[data-landtransport-booking-cancel]');
-                if (!cancel) return;
+        var doc = frameDocument();
+        if (!doc || doc.location.href === 'about:blank') return;
+
+        // A same-origin navigation away from the booking page means the request
+        // was accepted (order summary, cart, establishment booking, ...).
+        var path = '';
+        try { path = frame.contentWindow.location.pathname; } catch (error) { path = ''; }
+        if (path && path.indexOf('/transportation/book/') === -1) {
+            closeModal(true);
+            return;
+        }
+
+        if (doc.querySelector('[data-landtransport-booking-success]')) {
+            completed = true;
+        }
+
+        if (doc.getElementById('landtransport-booking-embed-style')) return;
+        var style = doc.createElement('style');
+        style.id = 'landtransport-booking-embed-style';
+        style.textContent = '.site-header,.ag-steps{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}';
+        doc.head.appendChild(style);
+
+        doc.addEventListener('click', function (frameEvent) {
+            var target = frameEvent.target;
+            if (!target || !target.closest) return;
+            if (target.closest('[data-landtransport-booking-cancel]')) {
                 frameEvent.preventDefault();
-                closeModal();
-            });
-        } catch (error) { /* Keep the in-modal booking page usable if frame access is restricted. */ }
+                closeModal(false);
+            } else if (target.closest('[data-landtransport-booking-done]')) {
+                frameEvent.preventDefault();
+                closeModal(true);
+            }
+        });
     });
-    close.addEventListener('click', closeModal);
-    modal.addEventListener('click', function (event) { if (event.target === modal) closeModal(); });
+
+    close.addEventListener('click', requestClose);
+    modal.addEventListener('click', function (event) { if (event.target === modal) requestClose(); });
     document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && !modal.hidden) closeModal();
+        if (event.key === 'Escape' && !modal.hidden) requestClose();
     });
 })();
 </script>
