@@ -56,18 +56,6 @@
         <div class="hotel-section-icon"><i class="fas fa-bed" aria-hidden="true"></i></div>
         <div><h2 id="hotel-rooms-title">Rooms</h2><p>Explore room options and check availability for your stay.</p></div>
     </div>
-    {% if not is_manager %}
-    <div class="card card-pad hotel-availability-card">
-        <form method="get" class="ag-search mb">
-            <div class="ag-search-fields filter-grid">
-                <div class="ag-field"><label><i class="fas fa-sign-in-alt"></i> Check-in</label><input type="date" name="check_in" value="{{ check_in|date:'Y-m-d' }}" required></div>
-                <div class="ag-field"><label><i class="fas fa-sign-out-alt"></i> Check-out</label><input type="date" name="check_out" value="{{ check_out|date:'Y-m-d' }}" required></div>
-                <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
-            </div>
-        </form>
-        <div class="meta"><i class="fas fa-info-circle"></i> Availability is shown for {{ check_in|date:'M d, Y' }} to {{ check_out|date:'M d, Y' }} ({{ nights }} night{{ nights|pluralize }}). Change the dates above to update.</div>
-    </div>
-    {% endif %}
     <div class="hotel-room-list">
         {% for room in hotel.rooms.all %}
         <article class="hotel-room-card">
