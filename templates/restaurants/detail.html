@@ -94,6 +94,23 @@
     .restaurant-tables-subtitle { margin:0; color:var(--slate-500); font-size:13px; }
     .restaurant-tables-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
     .restaurant-table-card { display:flex; align-items:flex-start; gap:13px; min-width:0; min-height:116px; padding:16px; border:1px solid #dbe7f5; border-radius:15px; background:#fff; box-shadow:0 4px 14px rgba(25,61,112,.055); }
+    #restaurantBookingCart { overflow:hidden; padding:0; border:1px solid #e2e8f0; border-radius:18px; background:#fff; }
+    .restaurant-cart-head { padding:14px 18px; color:#fff; background:linear-gradient(115deg,#1d4ed8,#3b82f6); font-weight:800; }
+    .restaurant-cart-body { padding:16px 18px; }
+    .restaurant-cart-establishment { display:flex; gap:11px; align-items:center; padding-bottom:14px; border-bottom:1px solid #e2e8f0; }
+    .restaurant-cart-establishment-icon { width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:12px; color:#2563eb; background:#e8f0ff; }
+    .restaurant-cart-establishment small { display:block; color:#64748b; margin-top:3px; }
+    .restaurant-cart-row { display:flex; justify-content:space-between; gap:10px; margin:8px 0; font-size:13px; }
+    .restaurant-cart-lines { padding:9px 0; margin:10px 0; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; }
+    .restaurant-cart-table-line { padding:8px 0; border-bottom:1px solid #edf2f7; }
+    .restaurant-cart-table-line:last-child { border-bottom:0; }
+    .restaurant-cart-table-line small { display:block; margin-top:4px; color:#64748b; font-size:11px; line-height:1.45; overflow-wrap:anywhere; }
+    .restaurant-cart-total { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 0; border-top:1px solid #e2e8f0; font-weight:800; }
+    .restaurant-cart-total strong { color:#2563eb; font-size:20px; white-space:nowrap; }
+    .restaurant-cart-note { margin:8px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
+    .restaurant-cart-actions { padding:14px 18px 17px; background:#f8fafc; }
+    .restaurant-cart-actions .ag-btn { width:100%; justify-content:center; }
+    .restaurant-cart-back { display:block; margin-top:9px; text-align:center; color:#2563eb; font-size:12px; font-weight:700; text-decoration:none; }
     .restaurant-table-icon { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:50%; color:#2563eb; background:#eaf2ff; font-size:16px; }
     .restaurant-table-content { flex:1; min-width:0; }
     .restaurant-table-name { display:block; overflow-wrap:anywhere; color:#17233d; font-size:15px; font-weight:700; line-height:1.35; text-decoration:none; }
@@ -156,7 +173,24 @@
             <div class="empty restaurant-tables-empty"><h3>No tables yet</h3><p>{% if is_manager %}Use &quot;Add Table&quot; to create the first one.{% else %}Tables will appear soon.{% endif %}</p></div>
             {% endfor %}
             </div>
-            {% if not is_manager %}<section id="restaurantBookingCart" class="card card-pad" hidden><h3 style="margin:0 0 8px"><i class="fas fa-shopping-cart"></i> Booking cart</h3><div id="restaurantBookingCartItems" class="restaurant-table-meta"></div><p id="restaurantBookingParty" class="restaurant-tables-subtitle" style="margin:8px 0"></p><button type="button" class="ag-btn ag-btn-block" id="restaurantConfirmBooking"><i class="fas fa-check"></i> Confirm Booking Now</button></section>{% endif %}
+            {% if not is_manager %}
+            <aside id="restaurantBookingCart" hidden aria-label="Your booking summary">
+                <div class="restaurant-cart-head"><i class="fas fa-shopping-cart"></i> Your booking</div>
+                <div class="restaurant-cart-body">
+                    <div class="restaurant-cart-establishment"><span class="restaurant-cart-establishment-icon"><i class="fas fa-utensils"></i></span><div><b>{{ restaurant.name }}</b><small>{{ restaurant.location }}</small></div></div>
+                    <div style="margin-top:12px">
+                        <div class="restaurant-cart-row"><span>Reservation date</span><b id="restaurantBookingDateSummary">—</b></div>
+                        <div class="restaurant-cart-row"><span>Reservation time</span><b id="restaurantBookingTimeSummary">—</b></div>
+                        <div class="restaurant-cart-row"><span>Guests</span><b id="restaurantBookingGuestSummary">0</b></div>
+                        <div class="restaurant-cart-row"><span>Tables to reserve</span><b id="restaurantBookingTableCount">0</b></div>
+                    </div>
+                    <div class="restaurant-cart-lines" id="restaurantBookingCartItems"></div>
+                    <div class="restaurant-cart-total"><span>Estimated total</span><strong id="restaurantBookingTotal">₱ 0.00</strong></div>
+                    <p class="restaurant-cart-note">Your reservation will remain pending until a Restaurant Reservation Officer confirms it.</p>
+                </div>
+                <div class="restaurant-cart-actions"><button type="button" class="ag-btn" id="restaurantConfirmBooking"><i class="fas fa-check"></i> Confirm Booking</button><a class="restaurant-cart-back" href="{% url 'restaurants:list' %}">Back to all restaurants</a></div>
+            </aside>
+            {% endif %}
             </div>
         </section>
     </div>
@@ -180,59 +214,107 @@
     var modal = document.getElementById('restaurantGuestInfoModal');
     if (modal) {
         var selected = [];
-        var party = null;
+        var leadGuest = null;
+        var reservationDate = '';
+        var reservationTime = '';
         var pendingTable = null;
         var cart = document.getElementById('restaurantBookingCart');
         var error = document.getElementById('restaurantGuestError');
         var fieldsBox = document.getElementById('restaurantBookingFields');
         function openGuest(tableButton) {
             pendingTable = tableButton || null;
+            var perTable = Boolean(pendingTable && selected.length);
+            if (perTable) {
+                ['restaurantGuestFirst','restaurantGuestMiddle','restaurantGuestLast','restaurantGuestEmail','restaurantGuestContact','restaurantGuestRequest'].forEach(function (id) { document.getElementById(id).value = ''; });
+                document.getElementById('restaurantGuestAdults').value = '1';
+                document.getElementById('restaurantGuestChildren').value = '0';
+            } else if (leadGuest) {
+                document.getElementById('restaurantGuestFirst').value = leadGuest.first_name;
+                document.getElementById('restaurantGuestMiddle').value = leadGuest.middle_name;
+                document.getElementById('restaurantGuestLast').value = leadGuest.last_name;
+                document.getElementById('restaurantGuestEmail').value = leadGuest.email;
+                document.getElementById('restaurantGuestContact').value = leadGuest.contact;
+                document.getElementById('restaurantGuestAdults').value = String(leadGuest.adults);
+                document.getElementById('restaurantGuestChildren').value = String(leadGuest.children);
+                document.getElementById('restaurantGuestRequest').value = leadGuest.special_request;
+            }
+            if (reservationDate) document.getElementById('restaurantGuestDate').value = reservationDate;
+            if (reservationTime) document.getElementById('restaurantGuestTime').value = reservationTime;
+            var description = modal.querySelector('.rm-modal-head p');
+            if (description) description.textContent = perTable ? 'Enter the guest information for this table.' : 'Enter your party details and reservation time.';
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             error.hidden = true;
         }
         function closeGuest() { modal.classList.remove('open'); document.body.style.overflow = ''; }
-        function allocate() {
-            var adults = party.adults, children = party.children;
-            selected.forEach(function (t) { t.adults = 1; t.children = 0; });
-            if (adults < selected.length) return 'At least one adult is required for each selected table.';
-            adults -= selected.length;
-            selected.forEach(function (t) { var n = Math.min(adults, Math.max(0, t.capacity - 1)); t.adults += n; adults -= n; });
-            selected.forEach(function (t) { var n = Math.min(children, Math.max(0, t.capacity - t.adults)); t.children += n; children -= n; });
-            return adults + children ? 'Selected tables do not have enough combined capacity. Select more tables or reduce the party size.' : '';
-        }
         function renderCart() {
-            var problem = allocate();
             cart.hidden = !selected.length;
-            document.getElementById('restaurantBookingCartItems').textContent = selected.map(function (t) { return t.name + ' (' + (t.adults + t.children) + ' guests)'; }).join(' · ');
-            document.getElementById('restaurantBookingParty').textContent = problem || (party ? party.adults + ' adult(s), ' + party.children + ' child(ren) · ' + document.getElementById('restaurantGuestDate').value + ' at ' + document.getElementById('restaurantGuestTime').value : '');
-            document.getElementById('restaurantConfirmBooking').disabled = Boolean(problem);
+            var lines = document.getElementById('restaurantBookingCartItems');
+            lines.innerHTML = '';
+            var guests = selected.reduce(function (sum, t) { return sum + t.guest.adults + t.guest.children; }, 0);
+            selected.forEach(function (t) {
+                var line = document.createElement('div'); line.className = 'restaurant-cart-table-line';
+                var row = document.createElement('div'); row.className = 'restaurant-cart-row';
+                var label = document.createElement('b'); label.textContent = t.name;
+                var guestCount = document.createElement('span'); guestCount.textContent = (t.guest.adults + t.guest.children) + ' guest(s)';
+                row.appendChild(label); row.appendChild(guestCount); line.appendChild(row);
+                var details = document.createElement('small');
+                details.textContent = [
+                    [t.guest.first_name, t.guest.middle_name, t.guest.last_name].filter(Boolean).join(' '),
+                    t.guest.email,
+                    t.guest.contact,
+                    t.guest.adults + ' adult(s), ' + t.guest.children + ' child(ren)'
+                ].filter(Boolean).join(' · ');
+                line.appendChild(details); lines.appendChild(line);
+            });
+            var dateText = reservationDate ? new Date(reservationDate + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }) : '—';
+            document.getElementById('restaurantBookingDateSummary').textContent = dateText;
+            document.getElementById('restaurantBookingTimeSummary').textContent = reservationTime || '—';
+            document.getElementById('restaurantBookingGuestSummary').textContent = guests + ' guest' + (guests === 1 ? '' : 's');
+            document.getElementById('restaurantBookingTableCount').textContent = String(selected.length);
+            document.getElementById('restaurantConfirmBooking').disabled = !selected.length;
             fieldsBox.innerHTML = '';
             selected.forEach(function (t, i) {
-                var values = { first_name: party.first_name, middle_name: party.middle_name, last_name: party.last_name, email: party.email, contact: party.contact, adults: t.adults, children: t.children, special_request: party.special_request };
+                var values = { first_name: t.guest.first_name, middle_name: t.guest.middle_name, last_name: t.guest.last_name, email: t.guest.email, contact: t.guest.contact, adults: t.guest.adults, children: t.guest.children, special_request: t.guest.special_request };
                 var id = document.createElement('input'); id.type = 'hidden'; id.name = 'item_ids'; id.value = t.id; fieldsBox.appendChild(id);
                 Object.keys(values).forEach(function (key) { var input = document.createElement('input'); input.type = 'hidden'; input.name = 'item_' + i + '_' + key; input.value = values[key]; fieldsBox.appendChild(input); });
             });
-            document.getElementById('restaurantBookingDate').value = document.getElementById('restaurantGuestDate').value;
-            document.getElementById('restaurantBookingTime').value = document.getElementById('restaurantGuestTime').value;
+            document.getElementById('restaurantBookingDate').value = reservationDate;
+            document.getElementById('restaurantBookingTime').value = reservationTime;
         }
-        function addOrToggle(button) {
+        function removeSelected(button) {
             var id = button.getAttribute('data-restaurant-reserve-table');
             var index = selected.findIndex(function (t) { return String(t.id) === String(id); });
-            if (index >= 0) selected.splice(index, 1);
-            else selected.push({ id: id, name: button.getAttribute('data-table-name'), capacity: Number(button.getAttribute('data-table-capacity')) || 1 });
-            button.classList.toggle('is-on', index < 0);
-            button.innerHTML = index < 0 ? '<i class="fas fa-check"></i> Selected' : '<i class="fas fa-chair"></i> Reserve';
+            if (index < 0) return false;
+            selected.splice(index, 1);
+            button.classList.remove('is-on');
+            button.innerHTML = '<i class="fas fa-chair"></i> Reserve';
             renderCart();
+            return true;
         }
         document.querySelectorAll('[data-restaurant-reserve-start]').forEach(function (b) { b.addEventListener('click', function () { openGuest(null); }); });
-        document.querySelectorAll('[data-restaurant-reserve-table]').forEach(function (b) { b.addEventListener('click', function () { if (!party) { openGuest(b); return; } addOrToggle(b); }); });
+        document.querySelectorAll('[data-restaurant-reserve-table]').forEach(function (b) { b.addEventListener('click', function () {
+            if (removeSelected(b)) return;
+            if (!selected.length && leadGuest) {
+                selected.push({ id: b.getAttribute('data-restaurant-reserve-table'), name: b.getAttribute('data-table-name'), capacity: Number(b.getAttribute('data-table-capacity')) || 1, guest: Object.assign({}, leadGuest) });
+                b.classList.add('is-on'); b.innerHTML = '<i class="fas fa-check"></i> Selected'; renderCart(); return;
+            }
+            openGuest(b);
+        }); });
         document.getElementById('restaurantGuestContinue').addEventListener('click', function () {
             var ids = ['restaurantGuestFirst','restaurantGuestLast','restaurantGuestEmail','restaurantGuestContact','restaurantGuestDate','restaurantGuestTime','restaurantGuestAdults','restaurantGuestChildren'];
             for (var i = 0; i < ids.length; i++) { var field = document.getElementById(ids[i]); if (!field.checkValidity()) { field.reportValidity(); return; } }
-            party = { first_name: document.getElementById('restaurantGuestFirst').value.trim(), middle_name: document.getElementById('restaurantGuestMiddle').value.trim(), last_name: document.getElementById('restaurantGuestLast').value.trim(), email: document.getElementById('restaurantGuestEmail').value.trim(), contact: document.getElementById('restaurantGuestContact').value.trim(), adults: Number(document.getElementById('restaurantGuestAdults').value), children: Number(document.getElementById('restaurantGuestChildren').value), special_request: document.getElementById('restaurantGuestRequest').value.trim() };
+            var guest = { first_name: document.getElementById('restaurantGuestFirst').value.trim(), middle_name: document.getElementById('restaurantGuestMiddle').value.trim(), last_name: document.getElementById('restaurantGuestLast').value.trim(), email: document.getElementById('restaurantGuestEmail').value.trim(), contact: document.getElementById('restaurantGuestContact').value.trim(), adults: Number(document.getElementById('restaurantGuestAdults').value), children: Number(document.getElementById('restaurantGuestChildren').value), special_request: document.getElementById('restaurantGuestRequest').value.trim() };
+            if (guest.adults + guest.children < 1) { error.textContent = 'Enter at least one guest.'; error.hidden = false; return; }
+            if (pendingTable && guest.adults + guest.children > Number(pendingTable.getAttribute('data-table-capacity'))) { error.textContent = 'This table can seat up to ' + pendingTable.getAttribute('data-table-capacity') + ' guests.'; error.hidden = false; return; }
+            reservationDate = document.getElementById('restaurantGuestDate').value;
+            reservationTime = document.getElementById('restaurantGuestTime').value;
+            if (!leadGuest) leadGuest = Object.assign({}, guest);
             closeGuest();
-            if (pendingTable) addOrToggle(pendingTable);
+            if (pendingTable) {
+                selected.push({ id: pendingTable.getAttribute('data-restaurant-reserve-table'), name: pendingTable.getAttribute('data-table-name'), capacity: Number(pendingTable.getAttribute('data-table-capacity')) || 1, guest: guest });
+                pendingTable.classList.add('is-on'); pendingTable.innerHTML = '<i class="fas fa-check"></i> Selected';
+            }
             pendingTable = null;
             renderCart();
         });
@@ -240,8 +322,7 @@
         modal.addEventListener('click', function (e) { if (e.target === modal) closeGuest(); });
         document.getElementById('restaurantConfirmBooking').addEventListener('click', function () {
             if (!selected.length) return;
-            var problem = allocate();
-            if (problem) { openGuest(null); error.textContent = problem; error.hidden = false; return; }
+            if (!reservationDate || !reservationTime) { error.textContent = 'Enter the reservation date and time.'; error.hidden = false; openGuest(null); return; }
             document.getElementById('restaurantBookingForm').submit();
         });
     }
