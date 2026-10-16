@@ -1355,7 +1355,12 @@ def hotel_group_payment(request):
             "(hotel_id=%s, user_id=%s)", hotel.pk, request.user.pk,
         )
         messages.error(request, "We couldn't submit your booking due to a server issue. Please try again.")
-        return redirect('hotels:group_start', hotel.id)
+        summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
+        summary.update({
+            'default_payment_method': method,
+            'default_pay_later': pay_later,
+        })
+        return render(request, 'hotels/group_payment.html', summary)
     if create_error:
         messages.error(request, create_error)
         return redirect('hotels:group_start', hotel.id)

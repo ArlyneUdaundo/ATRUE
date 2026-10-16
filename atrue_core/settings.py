@@ -428,5 +428,10 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "hotels.views": {
+            "handlers": ["console_errors"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
