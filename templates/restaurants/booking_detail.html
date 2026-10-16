@@ -65,6 +65,22 @@
 </div>
 {% endif %}
 
+{% if can_process_checkin and booking.status == 'CONFIRMED' or can_process_checkin and booking.status == 'CHECKED_IN' %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-utensils"></i> Guest Dining</h3>
+    <p class="meta">Mark the guest as seated when they arrive, then complete the visit when they leave.</p>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap" data-submit-loading>
+        {% csrf_token %}
+        {% if booking.status == 'CONFIRMED' %}
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-utensils"></i> Dine In</button>
+        {% endif %}
+        {% if booking.status == 'CHECKED_IN' %}
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-receipt"></i> Dine Out</button>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
 {% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-tasks"></i> Review Reservation</h3>
@@ -80,15 +96,7 @@
             <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Reject Reservation</button>
             {% endif %}
             {% if booking.status == 'CONFIRMED' %}
-        {% if can_process_checkin %}
-            <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Mark Seated</button>
-        {% endif %}
             <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this reservation and release the table?"><i class="fas fa-ban"></i> Cancel</button>
-            {% endif %}
-            {% if booking.status == 'CHECKED_IN' %}
-        {% if can_process_checkin %}
-            <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Complete Meal</button>
-        {% endif %}
             {% endif %}
         </div>
     </form>
@@ -145,5 +153,4 @@
 </div>
 {% endif %}
 
-<a href="{% url 'transactions:booking_list' %}" class="btn btn-outline" style="margin-top:18px">Back to My Bookings</a>
 {% endblock %}

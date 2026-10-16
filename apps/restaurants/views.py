@@ -754,6 +754,9 @@ def booking_detail(request, booking_id):
                 )
             return redirect('restaurants:booking_detail', booking.id)
         elif action == 'checkin':
+            if booking.status != Reservation.Status.CONFIRMED:
+                messages.error(request, 'Only confirmed reservations can be marked as seated.')
+                return redirect('restaurants:booking_detail', booking.id)
             booking.status = Reservation.Status.CHECKED_IN
             booking.checked_in_at = timezone.now()
             booking.save(update_fields=['status', 'checked_in_at'])
@@ -761,6 +764,9 @@ def booking_detail(request, booking_id):
             booking.table.save(update_fields=['status'])
             log_activity(request.user, "Party seated", str(booking.pk))
         elif action == 'checkout':
+            if booking.status != Reservation.Status.CHECKED_IN:
+                messages.error(request, 'Only seated guests can be marked as finished.')
+                return redirect('restaurants:booking_detail', booking.id)
             booking.status = Reservation.Status.CHECKED_OUT
             booking.checked_out_at = timezone.now()
             booking.save(update_fields=['status', 'checked_out_at'])

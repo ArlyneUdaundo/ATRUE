@@ -480,6 +480,39 @@ class RestaurantReservationWorkflowTests(TestCase):
         self.assertEqual(reservation.status, Reservation.Status.PENDING)
         self.assertIsNone(reservation.confirmed_by)
 
+    def test_front_desk_can_mark_guest_dine_in_and_dine_out(self):
+        reservation = create_restaurant_reservation(
+            customer=self.guest,
+            table=self.table,
+            when=self.reservation_datetime,
+            guests=2,
+        )
+        reservation.status = Reservation.Status.CONFIRMED
+        reservation.save(update_fields=['status'])
+        self.client.force_login(self.front_desk)
+        self.activate_assignment(self.client, self.front_desk_assignment)
+        detail_url = reverse('restaurants:booking_detail', args=[reservation.pk])
+
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, 'Dine In')
+        self.assertNotContains(detail, 'Dine Out')
+
+        self.client.post(detail_url, {'action': 'checkin'}, follow=True)
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.status, Reservation.Status.CHECKED_IN)
+        self.assertIsNotNone(reservation.checked_in_at)
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.status, Table.Status.OCCUPIED)
+
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, 'Dine Out')
+        self.client.post(detail_url, {'action': 'checkout'}, follow=True)
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.status, Reservation.Status.CHECKED_OUT)
+        self.assertIsNotNone(reservation.checked_out_at)
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.status, Table.Status.AVAILABLE)
+
     def test_confirmation_refuses_a_conflicting_reservation_and_keeps_pending(self):
         reservation = create_restaurant_reservation(
             customer=self.guest,
