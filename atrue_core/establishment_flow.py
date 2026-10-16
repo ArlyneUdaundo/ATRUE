@@ -795,15 +795,15 @@ class RestaurantAdapter(BaseAdapter):
     item_noun = 'Table'
     item_noun_plural = 'Tables'
     item_badge = 'TABLE'
-    charge_section = 'Table charges'
+    charge_section = 'Table deposit'
     icon = 'fa-utensils'
-    unit_noun = 'table'
+    unit_noun = 'guest'
     duration_noun = 'Seating'
     price_missing_note = 'Contact establishment for pricing'
     date_label = 'Reservation date'
     show_time = True
     time_label = 'Reservation time'
-    use_account_primary_guest = False
+    use_account_primary_guest = True
 
     def get_est(self, pk):
         from restaurants.models import Restaurant
@@ -825,6 +825,7 @@ class RestaurantAdapter(BaseAdapter):
 
     def items(self, est, check_in, check_out, nights):
         from restaurants.models import Table
+        from restaurants.services import DEPOSIT_PER_GUEST
 
         rows = []
         for table in est.tables.all():
@@ -849,14 +850,12 @@ class RestaurantAdapter(BaseAdapter):
                 'sleeps': f'{table.capacity} guests',
                 'feature_labels': [],
                 'photos': [],
-                'rate': None,
-                # Restaurants store no rate, so nothing is charged online. The
-                # plan says so explicitly rather than showing an invented price.
+                'rate': DEPOSIT_PER_GUEST,
                 'charge': self.charge_plan(
-                    0, 'table', table.capacity, table.capacity,
-                    mode='flat', extra_mode='none',
+                    DEPOSIT_PER_GUEST, 'guest', table.capacity, table.capacity,
+                    mode='guests', extra_mode='none',
                 ),
-                '_rate_value': Decimal('0'),
+                '_rate_value': DEPOSIT_PER_GUEST,
                 'siblings_available': sum(
                     1 for t in est.tables.all()
                     if t.status != Table.Status.MAINTENANCE
@@ -869,30 +868,40 @@ class RestaurantAdapter(BaseAdapter):
         from django.db import transaction
         from restaurants.models import Table
         from restaurants.services import (
+            DEPOSIT_PER_GUEST,
             RestaurantReservationError,
             create_restaurant_reservation,
         )
 
         try:
             reservations = []
+            reservation_bill_items = []
             with transaction.atomic():
                 for selection in selections:
                     guest = selection['guest']
                     table = Table.objects.get(
                         pk=selection['card']['id'], restaurant=est)
+                    guests = max(1, int(guest['adults']) + int(guest['children']))
+                    deposit = DEPOSIT_PER_GUEST * guests
                     reservations.append(create_restaurant_reservation(
                         customer=user,
                         table=table,
                         when=ctx['reservation_datetime'],
-                        guests=max(1, int(guest['adults']) + int(guest['children'])),
+                        guests=guests,
                         seating_preference=table.seating_area,
                         special_requests=guest.get('special_request', ''),
-                        deposit=Decimal('0.00'),
+                        deposit=deposit,
                     ))
-            # The shared checkout creates the first reservation's bill and
-            # transaction. The view also creates matching rows for this set.
+                    reservation_bill_items.append([{
+                        'label': 'Table deposit',
+                        'description': f'{guests} guest(s) × ₱{DEPOSIT_PER_GUEST:.2f}',
+                        'quantity': guests,
+                        'rate': DEPOSIT_PER_GUEST,
+                        'amount': deposit,
+                    }])
             reservations[0]._related_reservations = reservations[1:]
-            return reservations[0], [], None
+            reservations[0]._related_bill_items = reservation_bill_items[1:]
+            return reservations[0], reservation_bill_items[0], None
         except RestaurantReservationError as exc:
             return None, [], str(exc)
         except Table.DoesNotExist:
@@ -1744,13 +1753,17 @@ def handle_flow(request, adapter_key, pk):
             request.user,
             f'Restaurant reservation {booking.booking_reference} submitted',
         )
-        for related in getattr(booking, '_related_reservations', []):
-            create_bill(
+        related_items = getattr(booking, '_related_bill_items', [])
+        for index, related in enumerate(getattr(booking, '_related_reservations', [])):
+            items = related_items[index] if index < len(related_items) else bill_items
+            related_total = sum(
+                (dec(item.get('amount')) for item in items), Decimal('0'))
+            related_bill = create_bill(
                 service='restaurant', customer=request.user,
-                items=bill_items, booking=related,
+                items=items, booking=related,
             )
-            related.total_bill = total
-            related.balance_due = total
+            related.total_bill = related_total
+            related.balance_due = related_total
             related.amount_paid = Decimal('0.00')
             related.status = related.Status.PENDING
             related.save(update_fields=[
@@ -1766,9 +1779,10 @@ def handle_flow(request, adapter_key, pk):
             )
         messages.success(
             request,
-            'Reservation submitted. Status: Pending. Waiting for Restaurant '
-            'Reservation Officer confirmation.',
+            'Reservation details saved. Submit payment for Billing Officer verification; '
+            'the Restaurant Reservation Officer can confirm it after payment is verified.',
         )
+        return redirect('transactions:bill_detail', bill.id)
     elif total <= Decimal('0.00'):
         # A free landmark/entry pass has a fully paid zero-balance bill but
         # cannot create a zero-value Payment (record_payment rejects <= 0).
@@ -1792,41 +1806,20 @@ def handle_flow(request, adapter_key, pk):
             f'Booking {booking.booking_reference} submitted with no payment due. '
             'The Billing Officer will verify the zero balance before the Reservation Officer confirms it.',
         )
-    elif ctx['pay_later'] or adapter.key == 'resort':
+    else:
         booking.status = booking.Status.PENDING
-        booking.save(update_fields=['status'])
+        booking.amount_paid = Decimal('0.00')
+        booking.balance_due = total
+        booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
         log_activity(request.user, f'Placed {adapter.label.lower().rstrip("s")} booking',
-                     f'{booking.booking_reference} - pending payment')
+                     f'{booking.booking_reference} - awaiting payment submission')
         record_transaction('BOOKING', booking.booking_reference, request.user,
                            f'{adapter.label} booking {booking.booking_reference}')
-        if adapter.key == 'resort':
-            messages.success(
-                request,
-                f'Reservation {booking.booking_reference} saved. Pay the bill from your booking details; '
-                'the Billing Officer will verify payment and confirm the reservation.',
-            )
-            return redirect(adapter.booking_detail_url(booking))
         messages.success(
             request,
-            f'{adapter.singular} booking {booking.booking_reference} created. Payment is pending.',
+            f'Booking {booking.booking_reference} saved. Submit payment for Billing Officer verification before the Reservation Officer confirms it.',
         )
-    else:
-        record_payment(customer=request.user, amount=total, method=ctx['payment_method'],
-                       service=adapter.key,
-                       description=f'{adapter.singular} booking {booking.booking_reference}',
-                       bill=bill, booking=booking)
-        booking.status = booking.Status.PENDING
-        booking.amount_paid = bill.amount_paid if bill else Decimal('0.00')
-        booking.balance_due = bill.balance_due if bill else total
-        booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
-        log_activity(request.user, f'Submitted payment for {adapter.label.lower().rstrip("s")} booking',
-                     f'{booking.booking_reference} - pending Billing Officer confirmation')
-        record_transaction('BOOKING', booking.booking_reference, request.user,
-                           f'{adapter.singular} booking {booking.booking_reference} payment submitted')
-        messages.success(
-            request,
-            f'Payment for booking {booking.booking_reference} submitted. It remains pending until Billing Officer confirmation.',
-        )
+        return redirect('transactions:bill_detail', bill.id)
 
     return redirect(adapter.booking_detail_url(booking))
 

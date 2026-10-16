@@ -21,7 +21,7 @@
 {% if not can_manage and booking.status == 'PENDING' %}
 <div class="alert alert-info">
     <i class="fas fa-clock"></i>
-    <div><b>PENDING — Waiting for Restaurant Reservation Officer confirmation.</b> You will receive a notification when the restaurant responds.</div>
+    <div><b>PENDING — Waiting for payment verification.</b> The Billing Officer must verify your payment before the Restaurant Reservation Officer confirms the reservation.</div>
 </div>
 {% elif not can_manage and booking.status == 'CONFIRMED' %}
 <div class="alert alert-success">

@@ -38,7 +38,7 @@ same markup, and any block with no real data behind it is simply not rendered.
         {% if category == 'restaurant' %}
         <span class="badge badge-green">1 Guest Information</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-blue">2 Select tables</span><i class="fas fa-arrow-right"></i>
-        <span class="badge badge-gray">3 Review &amp; confirm</span>
+        <span class="badge badge-gray">3 Review &amp; Payment</span>
         {% else %}
         <span class="badge badge-green">1 Search</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-blue">2 Details</span><i class="fas fa-arrow-right"></i>
@@ -307,24 +307,8 @@ same markup, and any block with no real data behind it is simply not rendered.
             <div class="ag-pb-divider" id="pbDivider" style="display:none"></div>
             <div class="ag-pb-total"><span id="pbTotalLabel">Estimated total</span><b id="pbTotal">&#8369; 0</b></div>
 
-            {% if category != 'restaurant' and category != 'resort' %}
             <div class="ag-pb-divider"></div>
-            <div class="form-group" style="margin:0">
-                <label>Payment Method</label>
-                <select name="payment_method" class="form-input" required>
-                    {% for m in payment_methods %}
-                    <option value="{{ m.value }}" {% if selected_payment_method == m.value %}selected{% endif %}>{{ m.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <label class="checkbox" style="margin-top:12px"><input type="checkbox" name="pay_later" {% if pay_later %}checked{% endif %}> Pay later (booking stays pending)</label>
-            {% elif category == 'resort' %}
-            <div class="ag-pb-divider"></div>
-            <div class="meta">Your reservation will be saved first. Pay from the booking details; the Billing Officer will verify payment to confirm the booking.</div>
-            {% else %}
-            <div class="ag-pb-divider"></div>
-            <div class="meta">Submitting this request does not confirm the reservation. A Restaurant Reservation Officer must review and confirm it.</div>
-            {% endif %}
+            <div class="meta">Your booking details will be saved first. Continue to the payment page to submit payment for Billing Officer verification.</div>
         </div>
         <div class="ag-pb-actions">
             {% if category == 'restaurant' %}
@@ -333,7 +317,7 @@ same markup, and any block with no real data behind it is simply not rendered.
             {% else %}
             <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas {{ adapter.icon }}"></i> Confirm Booking</button>
             {% endif %}
-            {% if category != 'restaurant' and category != 'resort' %}<div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Pay on-site or online &middot; no prepayment required</div>{% endif %}
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Payment is reviewed by the Billing Officer before reservation confirmation.</div>
             <div class="ag-pb-note"><a href="{{ list_url }}">Back to all {{ category_label|lower }}</a></div>
         </div>
     </aside>

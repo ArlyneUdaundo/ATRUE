@@ -31,14 +31,13 @@ from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY, task_operation_
 
 from .models import Reservation, Restaurant, RestaurantPhoto, Table
 from .services import (
+    DEPOSIT_PER_GUEST,
     RestaurantReservationError,
     confirm_restaurant_reservation,
     create_restaurant_reservation,
     reject_restaurant_reservation,
     table_has_conflict,
 )
-
-DEPOSIT_PER_GUEST = 100
 
 #: Storefront routes that only display data. A student whose active task
 #: belongs to another module keeps read-only access to these - task routing

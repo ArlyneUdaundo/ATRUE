@@ -1,6 +1,7 @@
 """Transactional restaurant reservation operations."""
 
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -13,6 +14,7 @@ from simulation.models import SimulationRoleAssignment
 from .models import Reservation, Table
 
 TABLE_WINDOW_MINUTES = 120
+DEPOSIT_PER_GUEST = Decimal('100.00')
 INACTIVE_RESERVATION_STATUSES = (
     Reservation.Status.CANCELLED,
     Reservation.Status.COMPLETED,

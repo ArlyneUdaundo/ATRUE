@@ -11,7 +11,11 @@ Permission lists reuse ``simulation.models.ROLE_PERMISSIONS`` so a role shown
 on a user account and the role shown on a simulation assignment stay in sync.
 """
 
-from simulation.models import ROLE_PERMISSIONS, SimulationRoleAssignment
+from simulation.models import (
+    BILLING_OFFICER_ROLE_CODES,
+    ROLE_PERMISSIONS,
+    SimulationRoleAssignment,
+)
 
 #: Account types that manage the platform (module admins, reporting).
 ROLE_KEY_ALIASES = {
@@ -247,6 +251,10 @@ ROLE_MODULE_ROUTE_ACCESS.update(_route_grants_from_operations())
 ROLE_MODULE_ROUTE_ACCESS['BILLING_OFFICER'] = {
     'transactions': frozenset({'payment_review'}),
 }
+for _billing_role_code in BILLING_OFFICER_ROLE_CODES:
+    ROLE_MODULE_ROUTE_ACCESS[_billing_role_code] = {
+        'transactions': frozenset({'payment_review'}),
+    }
 
 
 def _normalize_role_key(key):
