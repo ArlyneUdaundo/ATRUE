@@ -840,8 +840,9 @@ def ticket_pdf(request, booking_id):
 
 @login_required
 @student_booking_required
+@transaction.atomic
 def restaurant_flow_select(request, restaurant_id):
-    """Choose a table, add guest details and reserve in one page."""
+    """Capture lead guest details, select tables, then submit them together."""
     from atrue_core.establishment_flow import handle_flow
 
     _require_assigned_restaurant(request, restaurant_id)

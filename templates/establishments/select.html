@@ -35,11 +35,17 @@ same markup, and any block with no real data behind it is simply not rendered.
 
 <div class="card card-pad" style="margin-bottom:18px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        {% if category == 'restaurant' %}
+        <span class="badge badge-green">1 Guest Information</span><i class="fas fa-arrow-right"></i>
+        <span class="badge badge-blue">2 Select tables</span><i class="fas fa-arrow-right"></i>
+        <span class="badge badge-gray">3 Review &amp; confirm</span>
+        {% else %}
         <span class="badge badge-green">1 Search</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-blue">2 Details</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-blue">3 Select</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-gray">4 Review &amp; Payment</span>
         <span class="meta" style="margin-left:6px">Search &rarr; Overview &rarr; Compare &rarr; Select &rarr; Confirm.</span>
+        {% endif %}
     </div>
 </div>
 
@@ -275,7 +281,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 
     <aside class="ag-price-box">
         <div class="ag-pb-head"><i class="fas fa-shopping-cart"></i> <b>Your booking</b></div>
-        <div class="ag-pb-body">
+        <div class="ag-pb-body"{% if category == 'restaurant' and not selected_ids_json %} hidden data-restaurant-summary{% endif %}>
             <div class="ag-pb-prop">
                 <span class="ag-pb-ico"><i class="fas {{ adapter.icon }}"></i></span>
                 <div>
@@ -320,7 +326,12 @@ same markup, and any block with no real data behind it is simply not rendered.
             {% endif %}
         </div>
         <div class="ag-pb-actions">
-            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas {{ adapter.icon }}"></i> {% if category == 'restaurant' %}Submit Reservation{% else %}Confirm Booking{% endif %}</button>
+            {% if category == 'restaurant' %}
+            <button class="ag-btn ag-btn-block" id="restaurantReviewBtn" type="button" disabled{% if selected_ids_json %} hidden{% endif %}><i class="fas fa-arrow-right"></i> Continue</button>
+            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled{% if not selected_ids_json %} hidden{% endif %}><i class="fas fa-check"></i> Confirm Booking Now</button>
+            {% else %}
+            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas {{ adapter.icon }}"></i> Confirm Booking</button>
+            {% endif %}
             {% if category != 'restaurant' and category != 'resort' %}<div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Pay on-site or online &middot; no prepayment required</div>{% endif %}
             <div class="ag-pb-note"><a href="{{ list_url }}">Back to all {{ category_label|lower }}</a></div>
         </div>
@@ -362,6 +373,30 @@ same markup, and any block with no real data behind it is simply not rendered.
    fixed. The guest fields themselves submit through form="" back to
    #bookingForm - same inputs, same names, same submit. #}
 {% block overlay %}
+{% if category == 'restaurant' %}
+<div class="rm-modal" id="restaurantLeadGuestModal" role="dialog" aria-modal="true" aria-labelledby="restaurantLeadGuestTitle" data-restaurant-lead-guest>
+    <div class="rm-modal-card">
+        <div class="rm-modal-head">
+            <div><h3 id="restaurantLeadGuestTitle"><i class="fas fa-user-check"></i> Guest Information</h3><p>Enter the lead guest details before selecting tables.</p></div>
+            <a class="rm-modal-x" href="{{ detail_url }}" aria-label="Back to restaurant overview"><i class="fas fa-xmark"></i></a>
+        </div>
+        <div class="rm-modal-body">
+            <div class="form-grid">
+                <div class="form-group"><label for="restaurantLeadFirst">First name</label><input class="form-input" id="restaurantLeadFirst" type="text" value="{{ primary_guest_json.first_name }}" required></div>
+                <div class="form-group"><label for="restaurantLeadLast">Last name</label><input class="form-input" id="restaurantLeadLast" type="text" value="{{ primary_guest_json.last_name }}" required></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label for="restaurantLeadEmail">Email</label><input class="form-input" id="restaurantLeadEmail" type="email" value="{{ primary_guest_json.email }}" required></div>
+                <div class="form-group"><label for="restaurantLeadContact">Contact number</label><input class="form-input" id="restaurantLeadContact" type="tel" value="{{ primary_guest_json.contact }}" required></div>
+            </div>
+        </div>
+        <div class="rm-modal-foot">
+            <a class="ag-btn ag-btn-muted" href="{{ detail_url }}"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <button type="button" class="ag-btn" id="restaurantLeadGuestContinue"><i class="fas fa-arrow-right"></i> Continue to tables</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="rm-modal" id="guestModal" role="dialog" aria-modal="true" aria-labelledby="guestModalTitle">
     <div class="rm-modal-card">
         <div class="rm-modal-head">

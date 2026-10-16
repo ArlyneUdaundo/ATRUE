@@ -67,7 +67,7 @@
             <input type="hidden" name="schedule" data-transport-booking-schedule
                    value="{% if form_schedule %}{{ form_schedule|date:'Y-m-d\TH:i' }}{% else %}{{ default_schedule|date:'Y-m-d\TH:i' }}{% endif %}">
 
-            <div class="ag-panel-head lt-section-head">
+            <div class="ag-panel-head lt-section-head" data-booking-info>
                 <span class="ag-ph-ico"><i class="fas fa-route"></i></span>
                 <div>
                     <h3>Booking details</h3>
@@ -75,7 +75,7 @@
                 </div>
             </div>
 
-            <div class="form-grid">
+            <div class="form-grid" data-booking-info>
                 <div class="form-group atrue-location-autocomplete" data-location-autocomplete>
                     <label>Pickup location</label>
                     <input type="text" name="pickup_location" class="form-input" required
@@ -92,7 +92,7 @@
                 </div>
             </div>
 
-            <div class="form-grid">
+            <div class="form-grid" data-booking-info>
                 <div class="form-group">
                     <label>Distance (km) <span class="meta">rate basis</span></label>
                     <input type="number" name="distance_km" id="distance_km" step="0.01" min="0.01"
@@ -106,7 +106,7 @@
                 </div>
             </div>
 
-            <div class="form-grid">
+            <div class="form-grid" data-booking-info>
                 <div class="form-group">
                     <label>Schedule</label>
                     <div class="transport-booking-schedule-controls">
@@ -141,29 +141,29 @@
             </div>
             {% endif %}
 
-            <div class="form-group">
+            <div class="form-group" data-booking-info>
                 <label>Special requests</label>
                 <textarea name="special_requests" class="form-input" rows="2" placeholder="Optional notes for the operator">{{ form_data.special_requests|default:'' }}</textarea>
             </div>
 
-            <div class="ag-panel-head lt-section-head">
+            <div class="ag-panel-head lt-section-head" data-booking-info>
                 <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
                 <div>
                     <h3>Customer information</h3>
                     <p>Contact details come from your account.</p>
                 </div>
             </div>
-            <div class="ag-customer-box">
+            <div class="ag-customer-box" data-booking-info>
                 <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
                 <div class="ag-detail-row"><i class="fas fa-envelope"></i> {{ request.user.email|default:'—' }}</div>
                 <div class="ag-detail-row"><i class="fas fa-phone"></i> {{ request.user.contact_number|default:'—' }}</div>
                 <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
                 <div class="ag-detail-row"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
             </div>
-            <label class="checkbox" style="margin:10px 0">
+            <label class="checkbox" style="margin:10px 0" data-booking-info>
                 <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead passenger
             </label>
-            <div class="form-grid">
+            <div class="form-grid" data-booking-info>
                 <div class="form-group">
                     <label>Payer name</label>
                     <input type="text" name="payer_name" class="form-input" id="payer-name"
@@ -176,11 +176,24 @@
                            value="{{ form_data.payer_contact|default:request.user.contact_number }}">
                 </div>
             </div>
+            <section class="lt-payment-step" data-booking-step-two hidden>
+                <div class="ag-panel-head lt-section-head"><span class="ag-ph-ico"><i class="fas fa-credit-card"></i></span><div><h3>Payment</h3><p>Select payment for this booking.</p></div></div>
+                <div class="form-group"><label for="transport-payment-method">Payment method</label><select name="payment_method" id="transport-payment-method" class="form-input">
+                    <option value="GCASH"{% if form_data.payment_method == 'GCASH' or not form_data.payment_method %} selected{% endif %}>GCash</option>
+                    <option value="MAYA"{% if form_data.payment_method == 'MAYA' %} selected{% endif %}>Maya</option>
+                    <option value="BANK_TRANSFER"{% if form_data.payment_method == 'BANK_TRANSFER' %} selected{% endif %}>Bank Transfer</option>
+                    <option value="CREDIT_CARD"{% if form_data.payment_method == 'CREDIT_CARD' %} selected{% endif %}>Credit Card</option>
+                    <option value="DEBIT_CARD"{% if form_data.payment_method == 'DEBIT_CARD' %} selected{% endif %}>Debit Card</option>
+                    <option value="PAYPAL"{% if form_data.payment_method == 'PAYPAL' %} selected{% endif %}>PayPal</option>
+                    <option value="QR_PH"{% if form_data.payment_method == 'QR_PH' %} selected{% endif %}>QR Ph</option>
+                </select></div>
+                <label class="checkbox"><input type="checkbox" name="pay_later"{% if form_data.pay_later == 'on' %} checked{% endif %}> Pay later (booking stays pending)</label>
+            </section>
         </form>
     </div>
 
     <aside class="ag-price-box" aria-label="Price summary">
-        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Price summary</b></div>
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
         <div class="ag-pb-body">
             <div class="ag-pb-prop">
                 <span class="ag-pb-ico"><i class="fas fa-car-side"></i></span>
@@ -192,33 +205,18 @@
                 <div class="ag-pb-row"><span>Distance</span><b id="pb-distance">Enter distance</b></div>
                 <div class="ag-pb-row"><span>Duration</span><b id="pb-duration">{{ form_data.duration_hours|default:'3' }} hr</b></div>
             </div>
-            <div class="form-group">
-                <label for="transport-payment-method">Payment method</label>
-                <select name="payment_method" id="transport-payment-method" form="booking-form" class="form-input">
-                    <option value="GCASH"{% if form_data.payment_method == 'GCASH' %} selected{% endif %}>GCash</option>
-                    <option value="MAYA"{% if form_data.payment_method == 'MAYA' %} selected{% endif %}>Maya</option>
-                    <option value="BANK_TRANSFER"{% if form_data.payment_method == 'BANK_TRANSFER' %} selected{% endif %}>Bank Transfer</option>
-                    <option value="CREDIT_CARD"{% if form_data.payment_method == 'CREDIT_CARD' %} selected{% endif %}>Credit Card</option>
-                    <option value="DEBIT_CARD"{% if form_data.payment_method == 'DEBIT_CARD' %} selected{% endif %}>Debit Card</option>
-                    <option value="PAYPAL"{% if form_data.payment_method == 'PAYPAL' %} selected{% endif %}>PayPal</option>
-                    <option value="QR_PH"{% if form_data.payment_method == 'QR_PH' %} selected{% endif %}>QR Ph</option>
-                </select>
-            </div>
-            <label class="checkbox" style="margin-bottom:6px">
-                <input type="checkbox" name="pay_later" form="booking-form"{% if form_data.pay_later == 'on' %} checked{% endif %}> Pay later (booking stays pending)
-            </label>
             <div class="ag-pb-divider"></div>
             <div class="ag-pb-total"><span>Estimated total</span><b id="pb-fare">—</b></div>
             <p class="ag-pb-note" id="pb-note">Fare = distance (km) × rate. Applied on confirmation.</p>
         </div>
         <div class="ag-pb-actions">
-            <button type="submit" form="booking-form" class="ag-btn ag-btn-block" data-book-now>
-                <i class="fas fa-lock"></i> Book Now
-            </button>
+            <button type="button" class="ag-btn ag-btn-block" data-booking-continue>Continue Booking <i class="fas fa-arrow-right"></i></button>
+            <button type="button" class="ag-btn ag-btn-muted" style="width:100%" data-booking-back hidden><i class="fas fa-arrow-left"></i> Back to details</button>
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block" data-booking-confirm hidden><i class="fas fa-lock"></i> Confirm Booking</button>
             <button type="button" class="ag-btn ag-btn-muted" style="width:100%" data-landtransport-booking-cancel>
                 <i class="fas fa-arrow-left"></i> Cancel
             </button>
-            <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%">
+            <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%" data-booking-confirm hidden>
                 <i class="fas fa-plus"></i> Book &amp; Add Another Vehicle
             </button>
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
@@ -278,6 +276,27 @@
     var flow = document.querySelector('[data-landtransport-booking-flow]');
     var bookingForm = document.getElementById('booking-form');
     if (!flow || !bookingForm) return;
+    var infoSections = flow.querySelectorAll('[data-booking-info]');
+    var paymentStep = flow.querySelector('[data-booking-step-two]');
+    var continueButton = flow.querySelector('[data-booking-continue]');
+    var backButton = flow.querySelector('[data-booking-back]');
+    var confirmButtons = flow.querySelectorAll('[data-booking-confirm]');
+    function showPayment(show) {
+        infoSections.forEach(function (section) { section.hidden = show; });
+        if (paymentStep) paymentStep.hidden = !show;
+        if (continueButton) continueButton.hidden = show;
+        if (backButton) backButton.hidden = !show;
+        confirmButtons.forEach(function (button) { button.hidden = !show; });
+    }
+    showPayment({% if booking_error and form_data %}true{% else %}false{% endif %});
+    if (continueButton) continueButton.addEventListener('click', function () {
+        var required = bookingForm.querySelectorAll('[data-booking-info] input[required], [data-booking-info] select[required]');
+        for (var i = 0; i < required.length; i++) {
+            if (!required[i].checkValidity()) { required[i].reportValidity(); return; }
+        }
+        showPayment(true);
+    });
+    if (backButton) backButton.addEventListener('click', function () { showPayment(false); });
 
     function syncDuration() {
         var duration = bookingForm.querySelector('[name="duration_hours"]');
@@ -291,6 +310,7 @@
     // Keep the single hidden schedule field (used for server-side overlap
     // detection) in step with the date/time controls at submit time.
     bookingForm.addEventListener('submit', function (event) {
+        if (paymentStep && paymentStep.hidden) { event.preventDefault(); showPayment(true); return; }
         var date = bookingForm.querySelector('[data-transport-booking-date]');
         var time = bookingForm.querySelector('[data-transport-booking-time]');
         var hidden = bookingForm.querySelector('[data-transport-booking-schedule]');

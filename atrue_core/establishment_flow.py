@@ -803,6 +803,7 @@ class RestaurantAdapter(BaseAdapter):
     date_label = 'Reservation date'
     show_time = True
     time_label = 'Reservation time'
+    use_account_primary_guest = False
 
     def get_est(self, pk):
         from restaurants.models import Restaurant
@@ -865,26 +866,33 @@ class RestaurantAdapter(BaseAdapter):
         return rows
 
     def build_booking(self, user, est, selections, ctx):
+        from django.db import transaction
         from restaurants.models import Table
         from restaurants.services import (
             RestaurantReservationError,
             create_restaurant_reservation,
         )
 
-        table_id = selections[0]['card']['id']
-        guest = selections[0]['guest']
         try:
-            table = Table.objects.get(pk=table_id, restaurant=est)
-            reservation = create_restaurant_reservation(
-                customer=user,
-                table=table,
-                when=ctx['reservation_datetime'],
-                guests=max(1, int(guest['adults']) + int(guest['children'])),
-                seating_preference=table.seating_area,
-                special_requests=guest.get('special_request', ''),
-                deposit=Decimal('0.00'),
-            )
-            return reservation, [], None
+            reservations = []
+            with transaction.atomic():
+                for selection in selections:
+                    guest = selection['guest']
+                    table = Table.objects.get(
+                        pk=selection['card']['id'], restaurant=est)
+                    reservations.append(create_restaurant_reservation(
+                        customer=user,
+                        table=table,
+                        when=ctx['reservation_datetime'],
+                        guests=max(1, int(guest['adults']) + int(guest['children'])),
+                        seating_preference=table.seating_area,
+                        special_requests=guest.get('special_request', ''),
+                        deposit=Decimal('0.00'),
+                    ))
+            # The shared checkout creates the first reservation's bill and
+            # transaction. The view also creates matching rows for this set.
+            reservations[0]._related_reservations = reservations[1:]
+            return reservations[0], [], None
         except RestaurantReservationError as exc:
             return None, [], str(exc)
         except Table.DoesNotExist:
@@ -1502,13 +1510,20 @@ def parse_guest_lines(request, cards, adapter):
         for extra in adapter.guest_extra_fields:
             line[extra['name']] = (request.POST.get(prefix + extra['name']) or '').strip()
 
-        if idx == 0:
+        if idx == 0 and getattr(adapter, 'use_account_primary_guest', True):
             line.update(account_primary_guest(request.user))
         who = cards[idx]['name']
         if not line['first_name']:
             errors.append(f'{who}: guest first name is required.')
         if not line['last_name']:
             errors.append(f'{who}: guest last name is required.')
+        if adapter.key == 'restaurant':
+            from django.core.exceptions import ValidationError
+            from django.core.validators import validate_email
+            try:
+                validate_email(line['email'])
+            except ValidationError:
+                errors.append(f'{who}: enter a valid guest email address.')
         contact = line['contact'].replace(' ', '')
         if not contact:
             errors.append(f'{who}: a contact number is required.')
@@ -1594,6 +1609,8 @@ def _context_for(request, adapter, est, check_in, check_out, source,
                     % adapter.item_noun_plural.lower(),
             'charge_section': adapter.charge_section,
             'show_duration': adapter.lodging,
+            'category': adapter.key,
+            'detail_url': adapter.detail_url(est),
         },
         'date_label': adapter.date_label,
         'end_date_label': adapter.end_date_label,
@@ -1720,6 +1737,26 @@ def handle_flow(request, adapter_key, pk):
             request.user,
             f'Restaurant reservation {booking.booking_reference} submitted',
         )
+        for related in getattr(booking, '_related_reservations', []):
+            create_bill(
+                service='restaurant', customer=request.user,
+                items=bill_items, booking=related,
+            )
+            related.total_bill = total
+            related.balance_due = total
+            related.amount_paid = Decimal('0.00')
+            related.status = related.Status.PENDING
+            related.save(update_fields=[
+                'total_bill', 'balance_due', 'amount_paid', 'status',
+            ])
+            log_activity(
+                request.user, 'Submitted restaurant reservation',
+                f'{related.booking_reference} - pending officer confirmation',
+            )
+            record_transaction(
+                'BOOKING', related.booking_reference, request.user,
+                f'Restaurant reservation {related.booking_reference} submitted',
+            )
         messages.success(
             request,
             'Reservation submitted. Status: Pending. Waiting for Restaurant '

@@ -45,6 +45,7 @@
     if (!form) { return; }
 
     var BADGE = CONFIG.badge || 'ITEM';
+    var CATEGORY = CONFIG.category || '';
     var ITEM = CONFIG.item || 'Item';
     var ITEM_PLURAL = (CONFIG.item_plural || 'Items').toLowerCase();
     var HINT = CONFIG.hint || 'Recalculated live as you pick items, dates, guests and services.';
@@ -56,6 +57,11 @@
     var guestModal = document.getElementById('guestModal');
     var guestModalSub = document.getElementById('guestModalSub');
     var guestSave = document.getElementById('guestModalSave');
+    var leadGuestModal = document.getElementById('restaurantLeadGuestModal');
+    var leadGuestContinue = document.getElementById('restaurantLeadGuestContinue');
+    var restaurantReviewBtn = document.getElementById('restaurantReviewBtn');
+    var restaurantSummary = document.querySelector('[data-restaurant-summary]');
+    var INITIAL_GUEST_COMPLETE = CATEGORY !== 'restaurant' || SELECTED_IDS.length > 0;
     var guestOpener = null;
     var guestFocusItemId = null;
     var compBox = document.getElementById('computationSummary');
@@ -143,7 +149,8 @@
             rate: Number(m.rate || 0),
             max_guests: Number(m.max_guests || 1),
             charge: c,
-            guest: SELECTED.length === 0 ? Object.assign(emptyGuest(), PRIMARY_GUEST) : emptyGuest(),
+            guest: (CATEGORY === 'restaurant' || SELECTED.length === 0)
+                ? Object.assign(emptyGuest(), PRIMARY_GUEST) : emptyGuest(),
             services: [],
             amenities: []
         };
@@ -390,8 +397,16 @@ if (!guestBox) { return; }
 
     function renderHiddenIds() {
         if (!inputsBox) { return; }
-        inputsBox.innerHTML = SELECTED.map(function (s) {
-            return '<input type="hidden" name="item_ids" value="' + esc(s.item_id) + '">';
+        var guestFields = ['first_name', 'middle_name', 'last_name', 'email', 'contact', 'adults', 'children', 'special_request'];
+        inputsBox.innerHTML = SELECTED.map(function (s, index) {
+            var html = '<input type="hidden" name="item_ids" value="' + esc(s.item_id) + '">';
+            if (CATEGORY === 'restaurant' && INITIAL_GUEST_COMPLETE) {
+                guestFields.forEach(function (field) {
+                    html += '<input type="hidden" name="item_' + index + '_' + field + '" value="' +
+                        esc(s.guest[field] == null ? '' : s.guest[field]) + '">';
+                });
+            }
+            return html;
         }).join('');
     }
 
@@ -420,6 +435,7 @@ if (!guestBox) { return; }
             s.services = checked('[name="item_' + i + '_services"]:checked');
             s.amenities = checked('[name="item_' + i + '_amenities"]:checked');
         });
+        renderHiddenIds();
     }
 
     /* -------------------------------------------------------- computation
@@ -499,6 +515,7 @@ if (!guestBox) { return; }
         if (continueBtn) {
             continueBtn.disabled = !SELECTED.length;
         }
+        if (restaurantReviewBtn) { restaurantReviewBtn.disabled = !SELECTED.length; }
 
         renderSummary(rows, baseSub, extraSub, svcSub, grand, okDates);
         updateGuestTotals(rows);
@@ -836,7 +853,7 @@ if (!guestBox) { return; }
             if (guestModalOpen()) { syncFromDom(); }
             toggleItem(id);
             updateItemSelection(book, id);
-            if (!wasSelected && findIndex(id) !== -1) {
+            if (!wasSelected && findIndex(id) !== -1 && CATEGORY !== 'restaurant') {
                 guestOpener = book;
                 openGuestModal(id);
             }
@@ -887,6 +904,47 @@ if (!guestBox) { return; }
             }
             closeGuestModal();
             document.dispatchEvent(new CustomEvent('atrue:establishment-guest-info-complete'));
+        });
+    }
+
+    if (leadGuestContinue && leadGuestModal) {
+        leadGuestContinue.addEventListener('click', function () {
+            var fields = {
+                first_name: document.getElementById('restaurantLeadFirst'),
+                last_name: document.getElementById('restaurantLeadLast'),
+                email: document.getElementById('restaurantLeadEmail'),
+                contact: document.getElementById('restaurantLeadContact')
+            };
+            for (var key in fields) {
+                if (fields[key] && !fields[key].checkValidity()) {
+                    fields[key].reportValidity();
+                    return;
+                }
+            }
+            Object.keys(fields).forEach(function (key) {
+                PRIMARY_GUEST[key] = fields[key] ? fields[key].value.trim() : '';
+            });
+            INITIAL_GUEST_COMPLETE = true;
+            SELECTED.forEach(function (entry) {
+                ['first_name', 'middle_name', 'last_name', 'email', 'contact'].forEach(function (key) {
+                    entry.guest[key] = PRIMARY_GUEST[key] || '';
+                });
+            });
+            leadGuestModal.classList.remove('open');
+            document.body.style.overflow = '';
+            renderAll();
+        });
+    }
+
+    if (restaurantReviewBtn) {
+        restaurantReviewBtn.addEventListener('click', function () {
+            if (!SELECTED.length || !INITIAL_GUEST_COMPLETE) { return; }
+            syncFromDom();
+            var errs = validateAll();
+            if (errs.length) { revealGuestErrors(errs); return; }
+            if (restaurantSummary) { restaurantSummary.hidden = false; }
+            restaurantReviewBtn.hidden = true;
+            if (continueBtn) { continueBtn.hidden = false; continueBtn.disabled = false; }
         });
     }
 
@@ -1000,4 +1058,10 @@ if (!guestBox) { return; }
     }
 
     renderAll();
+    if (CATEGORY === 'restaurant' && leadGuestModal && !SELECTED_IDS.length) {
+        leadGuestModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        var firstLeadField = document.getElementById('restaurantLeadFirst');
+        if (firstLeadField) { requestAnimationFrame(function () { firstLeadField.focus(); }); }
+    }
 })();

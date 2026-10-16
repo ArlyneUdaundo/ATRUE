@@ -226,6 +226,7 @@ class RestaurantReservationWorkflowTests(TestCase):
                 'item_ids': [str(self.table.pk)],
                 'item_0_first_name': 'Rae',
                 'item_0_last_name': 'Guest',
+                'item_0_email': 'rae@example.com',
                 'item_0_contact': '09123456789',
                 'item_0_adults': '2',
                 'item_0_children': '0',
@@ -249,6 +250,49 @@ class RestaurantReservationWorkflowTests(TestCase):
                 notification_type=Notification.Type.RESTAURANT_RESERVATION_SUBMITTED,
             ).exists()
         )
+
+    def test_shared_restaurant_flow_saves_every_selected_table_in_one_submit(self):
+        second_table = Table.objects.create(
+            restaurant=self.restaurant,
+            table_number='A2',
+            capacity=4,
+        )
+        self.client.force_login(self.guest)
+        self.activate_assignment(self.client, self.guest_assignment)
+        response = self.client.post(
+            reverse('restaurants:flow_select', args=[self.restaurant.pk]),
+            {
+                'check_in': self.reservation_datetime.date().isoformat(),
+                'time': self.reservation_datetime.strftime('%H:%M'),
+                'item_ids': [str(self.table.pk), str(second_table.pk)],
+                'item_0_first_name': 'Rae', 'item_0_last_name': 'Guest',
+                'item_0_email': 'rae@example.com',
+                'item_0_contact': '09123456789', 'item_0_adults': '2',
+                'item_0_children': '0',
+                'item_1_first_name': 'Rae', 'item_1_last_name': 'Guest',
+                'item_1_email': 'rae@example.com',
+                'item_1_contact': '09123456789', 'item_1_adults': '2',
+                'item_1_children': '0',
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        reservations = Reservation.objects.filter(
+            customer=self.guest, table__in=[self.table, second_table])
+        self.assertEqual(reservations.count(), 2)
+        self.assertEqual(
+            set(reservations.values_list('status', flat=True)),
+            {Reservation.Status.PENDING},
+        )
+
+    def test_restaurant_selection_opens_with_guest_information_popup(self):
+        self.client.force_login(self.guest)
+        self.activate_assignment(self.client, self.guest_assignment)
+        response = self.client.get(
+            reverse('restaurants:flow_select', args=[self.restaurant.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Guest Information')
+        self.assertContains(response, 'Continue to tables')
+        self.assertContains(response, 'Confirm Booking Now')
 
     def test_pay_now_checkout_does_not_confirm_a_guest_reservation(self):
         response = self.submit_direct_reservation(pay_later='')

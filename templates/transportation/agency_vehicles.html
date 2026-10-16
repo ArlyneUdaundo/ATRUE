@@ -59,7 +59,7 @@
     <div class="scard">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo transport-vehicle-photo"><img src="{% if item.photo_url %}{{ item.photo_url }}{% else %}https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75{% endif %}" data-fallback="https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75" onerror="this.onerror=null;this.src=this.dataset.fallback" alt="{{ v.label }}"></div>
+                <div class="scard-photo transport-vehicle-photo">{% if item.photo_url %}<img src="{{ item.photo_url }}" onerror="this.remove()" alt="{{ v.label }}">{% else %}<span class="transport-vehicle-placeholder" aria-label="No vehicle photo"><i class="fas fa-car-side"></i></span>{% endif %}</div>
             </div>
             <h3>{{ v.label }}</h3>
             <div class="meta"><i class="fas fa-car"></i> Type: <b>{{ v.get_vehicle_type_display }}</b></div>
@@ -123,7 +123,10 @@
         if (!doc) return false;
         var form = doc.getElementById('booking-form');
         if (!form) return false;
-        return ['pickup_location', 'drop_off_location', 'distance_km'].some(function (name) {
+        return Array.prototype.some.call(form.querySelectorAll('input:not([type="hidden"]), select, textarea'), function (field) {
+            if (field.type === 'checkbox' || field.type === 'radio') return field.checked !== field.defaultChecked;
+            return field.value !== '' && field.value !== field.defaultValue;
+        }) || ['pickup_location', 'drop_off_location', 'distance_km'].some(function (name) {
             var field = form.querySelector('[name="' + name + '"]');
             return field && field.value && field.value.trim() !== '';
         });

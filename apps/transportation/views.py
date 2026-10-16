@@ -7,6 +7,7 @@ from transactions.cart import add_booking_to_cart, create_single_booking_order
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from atrue_core.decorators import manager_required, student_booking_required
@@ -25,6 +26,7 @@ from atrue_core.services import (
     record_payment,
     resource_is_bookable,
 )
+from atrue_core.payment_methods import PAYMENT_METHOD_VALUES
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -304,18 +306,30 @@ def _book_context(request, vehicle, drivers, default_schedule, **extra):
 @xframe_options_sameorigin
 @login_required
 @student_booking_required
+@db_transaction.atomic
 def book_vehicle(request, vehicle_id):
-    vehicle = get_object_or_404(Vehicle.objects.select_related('agency').prefetch_related('agency__drivers'), pk=vehicle_id)
-    if not resource_is_bookable(vehicle):
+    vehicle = get_object_or_404(Vehicle.objects.select_for_update().select_related('agency').prefetch_related('agency__drivers'), pk=vehicle_id)
+    if (not resource_is_bookable(vehicle)
+            or vehicle.status != Vehicle.VehicleStatus.AVAILABLE
+            or vehicle.agency.status != Agency.Status.ACTIVE):
         messages.error(request, "This vehicle is not currently available for booking.")
         return redirect('transportation:list')
     default_schedule = _parse_datetime(request.GET.get('schedule'), timezone.now() + timedelta(hours=3))
     drivers = vehicle.agency.drivers.filter(status=Driver.Status.ACTIVE)
 
     if request.method == 'POST':
-        when = _parse_datetime(request.POST.get('schedule'), default_schedule)
+        schedule_value = (request.POST.get('schedule') or '').strip()
         try:
-            distance = Decimal(request.POST.get('distance_km') or 0)
+            when = datetime.fromisoformat(schedule_value)
+            if when.tzinfo is None:
+                when = timezone.make_aware(when)
+            else:
+                when = when.astimezone(timezone.get_current_timezone())
+            schedule_invalid = False
+        except (ValueError, TypeError):
+            when, schedule_invalid = default_schedule, True
+        try:
+            distance = Decimal((request.POST.get('distance_km') or '').strip()).quantize(Decimal('0.01'))
         except (InvalidOperation, TypeError, ValueError):
             distance = Decimal(0)
         try:
@@ -329,16 +343,34 @@ def book_vehicle(request, vehicle_id):
 
         # Re-validate every rule server-side before touching the database so a
         # forged or stale form can never create an overlapping/invalid booking.
+        pickup = (request.POST.get('pickup_location') or '').strip()
+        drop_off = (request.POST.get('drop_off_location') or '').strip()
+        driver_id = (request.POST.get('driver') or '').strip()
+        payment_method = (request.POST.get('payment_method') or '').strip()
         error = None
-        if _vehicle_conflict(vehicle, when, duration):
+        if schedule_invalid:
+            error = 'Choose a valid pickup date and time.'
+        elif when <= timezone.now():
+            error = 'Pickup date and time must be in the future.'
+        elif vehicle.status != Vehicle.VehicleStatus.AVAILABLE or vehicle.agency.status != Agency.Status.ACTIVE:
+            error = 'This vehicle or agency is not currently available for booking.'
+        elif not pickup or not drop_off:
+            error = 'Enter both pickup and drop-off locations.'
+        elif len(pickup) > 255 or len(drop_off) > 255:
+            error = 'Pickup and drop-off locations must be 255 characters or fewer.'
+        elif distance <= 0 or distance > Decimal('999999.99'):
+            error = 'Enter a valid travel distance between 0 and 999999.99 kilometres.'
+        elif duration < 1:
+            error = 'Rental duration must be at least 1 hour.'
+        elif passenger_count < 1 or passenger_count > vehicle.capacity:
+            error = f'Passenger count must be between 1 and {vehicle.capacity} for this vehicle.'
+        elif payment_method not in PAYMENT_METHOD_VALUES:
+            error = 'Choose a supported payment method.'
+        elif driver_id and not drivers.filter(pk=driver_id).exists():
+            error = 'Choose an active driver from this agency.'
+        elif _vehicle_conflict(vehicle, when, duration):
             error = ("This vehicle is already reserved for the selected schedule. "
                      "Pick a different date or choose another vehicle.")
-        elif distance <= 0:
-            error = "Enter the travel distance in kilometres (greater than 0)."
-        elif duration < 1:
-            error = "Rental duration must be at least 1 hour."
-        elif passenger_count < 1 or passenger_count > vehicle.capacity:
-            error = f"Passenger count must be between 1 and {vehicle.capacity} for this vehicle."
 
         if error:
             estimated_total = None
@@ -359,9 +391,9 @@ def book_vehicle(request, vehicle_id):
         booking = Booking.objects.create(
             customer=request.user,
             vehicle=vehicle,
-            driver_id=request.POST.get('driver') or None,
-            pickup_location=request.POST.get('pickup_location'),
-            drop_off_location=request.POST.get('drop_off_location'),
+            driver_id=driver_id or None,
+            pickup_location=pickup,
+            drop_off_location=drop_off,
             distance_km=distance,
             schedule=when,
             duration_hours=duration,
@@ -412,7 +444,7 @@ def book_vehicle(request, vehicle_id):
             booking=booking,
             service='transport',
             amount=total,
-            payment_method=request.POST.get('payment_method', 'GCASH'),
+            payment_method=payment_method,
             description=(f"{vehicle.label} · {booking.pickup_location} → {booking.drop_off_location} · {passenger_summary}"),
             items=items,
             pay_later=request.POST.get('pay_later') == 'on',
