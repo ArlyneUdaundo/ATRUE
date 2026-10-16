@@ -91,6 +91,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 <input type="hidden" name="check_out" id="bkCheckOut" value="{{ check_out|date:'Y-m-d' }}">
 {% if show_time %}<input type="hidden" name="time" id="bkTime" value="{{ request.GET.time|default:'' }}">{% endif %}
 <div id="itemIdsInputs"></div>
+{% if category == 'restaurant' %}<div id="restaurantPartyAllocationError" class="alert alert-danger" role="alert" hidden></div>{% endif %}
 
 {% if errors %}
 <div class="alert alert-danger" id="serverErrors" style="background:#fef2f2;color:#991b1b;padding:12px 16px;border-radius:12px;margin-bottom:16px"><b>Please fix before confirming:</b><ul style="margin:8px 0 0 18px">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
@@ -383,12 +384,20 @@ same markup, and any block with no real data behind it is simply not rendered.
         <div class="rm-modal-body">
             <div class="form-grid">
                 <div class="form-group"><label for="restaurantLeadFirst">First name</label><input class="form-input" id="restaurantLeadFirst" type="text" value="{{ primary_guest_json.first_name }}" required></div>
-                <div class="form-group"><label for="restaurantLeadLast">Last name</label><input class="form-input" id="restaurantLeadLast" type="text" value="{{ primary_guest_json.last_name }}" required></div>
+                <div class="form-group"><label for="restaurantLeadMiddle">Middle name</label><input class="form-input" id="restaurantLeadMiddle" type="text" value="{{ primary_guest_json.middle_name }}"></div>
             </div>
             <div class="form-grid">
+                <div class="form-group"><label for="restaurantLeadLast">Last name</label><input class="form-input" id="restaurantLeadLast" type="text" value="{{ primary_guest_json.last_name }}" required></div>
                 <div class="form-group"><label for="restaurantLeadEmail">Email</label><input class="form-input" id="restaurantLeadEmail" type="email" value="{{ primary_guest_json.email }}" required></div>
-                <div class="form-group"><label for="restaurantLeadContact">Contact number</label><input class="form-input" id="restaurantLeadContact" type="tel" value="{{ primary_guest_json.contact }}" required></div>
             </div>
+            <div class="form-grid">
+                <div class="form-group"><label for="restaurantLeadContact">Contact number</label><input class="form-input" id="restaurantLeadContact" type="tel" value="{{ primary_guest_json.contact }}" required></div>
+                <div class="form-group"><label for="restaurantLeadAdults">Adults</label><input class="form-input" id="restaurantLeadAdults" type="number" min="1" step="1" value="1" required></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label for="restaurantLeadChildren">Children</label><input class="form-input" id="restaurantLeadChildren" type="number" min="0" step="1" value="0" required></div>
+            </div>
+            <div class="form-group"><label for="restaurantLeadRequest">Special request <span class="muted">(optional)</span></label><textarea class="form-input" id="restaurantLeadRequest" rows="3" maxlength="1000" placeholder="Add any requests for the establishment"></textarea></div>
         </div>
         <div class="rm-modal-foot">
             <a class="ag-btn ag-btn-muted" href="{{ detail_url }}"><i class="fas fa-arrow-left"></i> Cancel</a>

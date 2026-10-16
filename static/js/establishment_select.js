@@ -61,6 +61,9 @@
     var leadGuestContinue = document.getElementById('restaurantLeadGuestContinue');
     var restaurantReviewBtn = document.getElementById('restaurantReviewBtn');
     var restaurantSummary = document.querySelector('[data-restaurant-summary]');
+    var partyAllocationError = document.getElementById('restaurantPartyAllocationError');
+    var RESTAURANT_PARTY = { adults: 1, children: 0, special_request: '' };
+    var restaurantPartyAllocationValid = true;
     var INITIAL_GUEST_COMPLETE = CATEGORY !== 'restaurant' || SELECTED_IDS.length > 0;
     var guestOpener = null;
     var guestFocusItemId = null;
@@ -230,6 +233,57 @@
     function toggleItem(id) {
         if (meta(id).bookable === false) { return; }
         if (findIndex(id) === -1) { addItem(id); } else { removeItem(id); }
+        if (CATEGORY === 'restaurant' && INITIAL_GUEST_COMPLETE) { allocateRestaurantParty(); }
+    }
+
+    // The lead popup collects the whole party once. Split that party across
+    // selected table reservations so the server doesn't count guests twice.
+    function allocateRestaurantParty() {
+        if (CATEGORY !== 'restaurant' || !SELECTED.length) { return true; }
+        var adultsLeft = Math.max(1, Number(RESTAURANT_PARTY.adults) || 1);
+        var childrenLeft = Math.max(0, Number(RESTAURANT_PARTY.children) || 0);
+        if (adultsLeft < SELECTED.length) {
+            restaurantPartyAllocationValid = false;
+            if (partyAllocationError) {
+                partyAllocationError.textContent = 'At least one adult is required for each selected table. Add an adult or remove a table.';
+                partyAllocationError.hidden = false;
+            }
+            return false;
+        }
+        SELECTED.forEach(function (entry) {
+            ['first_name', 'middle_name', 'last_name', 'email', 'contact'].forEach(function (key) {
+                entry.guest[key] = PRIMARY_GUEST[key] || '';
+            });
+            entry.guest.adults = 1;
+            entry.guest.children = 0;
+            entry.guest.special_request = RESTAURANT_PARTY.special_request;
+        });
+        adultsLeft -= SELECTED.length;
+        SELECTED.forEach(function (entry) {
+            var capacity = Math.max(1, Number(entry.max_guests) || 1);
+            var extraAdults = Math.min(adultsLeft, Math.max(0, capacity - 1));
+            entry.guest.adults += extraAdults;
+            adultsLeft -= extraAdults;
+        });
+        SELECTED.forEach(function (entry) {
+            var capacity = Math.max(1, Number(entry.max_guests) || 1);
+            var room = Math.max(0, capacity - entry.guest.adults - entry.guest.children);
+            var children = Math.min(childrenLeft, room);
+            entry.guest.children += children;
+            childrenLeft -= children;
+        });
+        if (adultsLeft + childrenLeft > 0) {
+            restaurantPartyAllocationValid = false;
+            if (partyAllocationError) {
+                partyAllocationError.textContent = 'The selected tables do not have enough combined capacity for ' + (adultsLeft + childrenLeft) + ' guest(s). Select more tables or reduce the party size.';
+                partyAllocationError.hidden = false;
+            }
+            return false;
+        }
+        restaurantPartyAllocationValid = true;
+        if (partyAllocationError) { partyAllocationError.hidden = true; }
+        renderHiddenIds();
+        return true;
     }
 
     // Update the selected item immediately and run the detailed booking
@@ -911,25 +965,33 @@ if (!guestBox) { return; }
         leadGuestContinue.addEventListener('click', function () {
             var fields = {
                 first_name: document.getElementById('restaurantLeadFirst'),
+                middle_name: document.getElementById('restaurantLeadMiddle'),
                 last_name: document.getElementById('restaurantLeadLast'),
                 email: document.getElementById('restaurantLeadEmail'),
                 contact: document.getElementById('restaurantLeadContact')
             };
+            var adultsField = document.getElementById('restaurantLeadAdults');
+            var childrenField = document.getElementById('restaurantLeadChildren');
+            var requestField = document.getElementById('restaurantLeadRequest');
             for (var key in fields) {
                 if (fields[key] && !fields[key].checkValidity()) {
                     fields[key].reportValidity();
                     return;
                 }
             }
+            if (!adultsField.checkValidity()) { adultsField.reportValidity(); return; }
+            if (!childrenField.checkValidity()) { childrenField.reportValidity(); return; }
             Object.keys(fields).forEach(function (key) {
                 PRIMARY_GUEST[key] = fields[key] ? fields[key].value.trim() : '';
             });
+            RESTAURANT_PARTY.adults = Number(adultsField.value);
+            RESTAURANT_PARTY.children = Number(childrenField.value);
+            RESTAURANT_PARTY.special_request = requestField ? requestField.value.trim() : '';
+            PRIMARY_GUEST.adults = RESTAURANT_PARTY.adults;
+            PRIMARY_GUEST.children = RESTAURANT_PARTY.children;
+            PRIMARY_GUEST.special_request = RESTAURANT_PARTY.special_request;
             INITIAL_GUEST_COMPLETE = true;
-            SELECTED.forEach(function (entry) {
-                ['first_name', 'middle_name', 'last_name', 'email', 'contact'].forEach(function (key) {
-                    entry.guest[key] = PRIMARY_GUEST[key] || '';
-                });
-            });
+            allocateRestaurantParty();
             leadGuestModal.classList.remove('open');
             document.body.style.overflow = '';
             renderAll();
@@ -939,6 +1001,10 @@ if (!guestBox) { return; }
     if (restaurantReviewBtn) {
         restaurantReviewBtn.addEventListener('click', function () {
             if (!SELECTED.length || !INITIAL_GUEST_COMPLETE) { return; }
+            if (CATEGORY === 'restaurant' && !restaurantPartyAllocationValid) {
+                if (partyAllocationError) { partyAllocationError.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                return;
+            }
             syncFromDom();
             var errs = validateAll();
             if (errs.length) { revealGuestErrors(errs); return; }
@@ -1055,6 +1121,11 @@ if (!guestBox) { return; }
                 amenities: (p.amenities || []).map(Number)
             };
         });
+        if (CATEGORY === 'restaurant') {
+            RESTAURANT_PARTY.adults = PRESELECTED.reduce(function (sum, p) { return sum + (Number(p.adults) || 0); }, 0) || 1;
+            RESTAURANT_PARTY.children = PRESELECTED.reduce(function (sum, p) { return sum + (Number(p.children) || 0); }, 0);
+            RESTAURANT_PARTY.special_request = PRESELECTED.map(function (p) { return p.special_request || ''; }).filter(Boolean)[0] || '';
+        }
     }
 
     renderAll();
