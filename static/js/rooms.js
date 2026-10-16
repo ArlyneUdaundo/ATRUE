@@ -412,9 +412,12 @@
         return '' +
         '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
             '<div class="bk-guest-head">' +
-                '<div><span class="badge badge-blue">Room ' + (i + 1) + (i === 0 ? ' — Primary Guest' : ' — Additional Guest') + '</span>' +
+                '<div><span class="badge badge-blue">Room ' + (i + 1) + (i === 0 ? ' — Account Owner' : ' — Additional Guest') + '</span>' +
                 '<h3 style="margin:8px 0 2px">' + esc(s.room_type) + ' Room</h3>' +
                 '<small>Room ' + esc(s.room_number) + ' · ' + fmt(s.rate) + '/night · Included guests: ' + s.capacity + ' · Max: ' + s.max_guests + (s.additional_charge > 0 ? ' · Extra guest: ' + fmt(s.additional_charge) + '/guest/night' : '') + '</small>' +
+                '<p class="meta" style="margin:8px 0 0">' + (i === 0
+                    ? 'Guest information is filled from your account profile.'
+                    : 'Enter the name and contact information for this room’s guest.') + '</p>' +
                 '</div>' +
                 '<button type="button" class="bk-remove" data-remove-room="' + s.room_id + '"><i class="fas fa-times"></i> Remove</button>' +
             '</div>' +
