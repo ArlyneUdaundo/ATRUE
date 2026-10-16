@@ -393,3 +393,23 @@ BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL', '')
 BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', '')
 APP_BASE_URL = os.getenv('APP_BASE_URL', '').rstrip('/')
+
+# Send unhandled request exceptions to Render's process logs. With Django's
+# default production logging, HTTP 500 responses may show up only as access-log
+# lines, leaving the exception traceback invisible in the service logs.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console_errors": {
+            "class": "logging.StreamHandler",
+            "level": "ERROR",
+        },
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console_errors"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
