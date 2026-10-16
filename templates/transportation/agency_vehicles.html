@@ -137,7 +137,7 @@
             if (!doc || doc.location.href === 'about:blank' || doc.getElementById('landtransport-booking-embed-style')) return;
             var style = doc.createElement('style');
             style.id = 'landtransport-booking-embed-style';
-            style.textContent = '.site-header{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}';
+            style.textContent = '.site-header,.ag-steps{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}.landtransport-booking-flow [data-booking-summary-step][hidden]{display:none!important}';
             doc.head.appendChild(style);
             doc.addEventListener('click', function (frameEvent) {
                 var cancel = frameEvent.target.closest && frameEvent.target.closest('[data-landtransport-booking-cancel]');
