@@ -16,11 +16,29 @@
     </div>
     {% else %}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="{% url 'restaurants:flow_select' restaurant.id %}" class="ag-btn"><i class="fas fa-chair"></i> Reserve a Table</a>
+        <button type="button" class="ag-btn" data-restaurant-reserve-start><i class="fas fa-chair"></i> Reserve a Table</button>
         <a href="{% url 'restaurants:list' %}" class="ag-btn"><i class="fas fa-arrow-left"></i> All Restaurants</a>
     </div>
     {% endif %}
 </div>
+
+{% if not is_manager %}
+<form id="restaurantBookingForm" method="post" action="{% url 'restaurants:flow_select' restaurant.id %}" hidden>
+    {% csrf_token %}<input type="hidden" name="check_in" id="restaurantBookingDate"><input type="hidden" name="time" id="restaurantBookingTime"><div id="restaurantBookingFields"></div>
+</form>
+<div class="rm-modal" id="restaurantGuestInfoModal" role="dialog" aria-modal="true" aria-labelledby="restaurantGuestInfoTitle">
+    <div class="rm-modal-card"><div class="rm-modal-head"><div><h3 id="restaurantGuestInfoTitle"><i class="fas fa-user-check"></i> Guest Information</h3><p>Enter your party details and reservation time.</p></div><button type="button" class="rm-modal-x" data-restaurant-modal-close aria-label="Close"><i class="fas fa-xmark"></i></button></div>
+        <div class="rm-modal-body">
+            <div class="form-grid"><div class="form-group"><label>First name</label><input class="form-input" id="restaurantGuestFirst" value="{{ primary_guest.first_name }}" required></div><div class="form-group"><label>Middle name</label><input class="form-input" id="restaurantGuestMiddle" value="{{ primary_guest.middle_name }}"></div></div>
+            <div class="form-grid"><div class="form-group"><label>Last name</label><input class="form-input" id="restaurantGuestLast" value="{{ primary_guest.last_name }}" required></div><div class="form-group"><label>Email</label><input class="form-input" id="restaurantGuestEmail" type="email" value="{{ primary_guest.email }}" required></div></div>
+            <div class="form-grid"><div class="form-group"><label>Contact number</label><input class="form-input" id="restaurantGuestContact" type="tel" value="{{ primary_guest.contact }}" required></div><div class="form-group"><label>Reservation date</label><input class="form-input" id="restaurantGuestDate" type="date" min="{% now 'Y-m-d' %}" value="{% now 'Y-m-d' %}" required></div></div>
+            <div class="form-grid"><div class="form-group"><label>Reservation time</label><input class="form-input" id="restaurantGuestTime" type="time" required></div><div class="form-grid"><div class="form-group"><label>Adults</label><input class="form-input" id="restaurantGuestAdults" type="number" min="1" step="1" value="1" required></div><div class="form-group"><label>Children</label><input class="form-input" id="restaurantGuestChildren" type="number" min="0" step="1" value="0" required></div></div></div>
+            <div class="form-group"><label>Special request <span class="muted">(optional)</span></label><textarea class="form-input" id="restaurantGuestRequest" rows="3" maxlength="1000"></textarea></div><div id="restaurantGuestError" class="alert alert-danger" hidden></div>
+        </div>
+        <div class="rm-modal-foot"><button type="button" class="ag-btn ag-btn-muted" data-restaurant-modal-close>Cancel</button><button type="button" class="ag-btn" id="restaurantGuestContinue"><i class="fas fa-arrow-right"></i> Continue to tables</button></div>
+    </div>
+</div>
+{% endif %}
 
 {% if is_manager %}
 <dialog id="restaurantEditModal" class="restaurant-admin-modal">
@@ -62,8 +80,10 @@
 {% endif %}
 
 <style>
-    .restaurant-details-layout { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+    .restaurant-details-layout { grid-template-columns:minmax(0,1fr); }
     .restaurant-tables-section { min-width: 0; }
+    .restaurant-table-workspace { display:grid; grid-template-columns:minmax(0,1fr) 300px; align-items:start; gap:14px; }
+    #restaurantBookingCart { position:sticky; top:160px; margin:0; box-shadow:0 12px 36px rgba(23,61,112,.14); }
     .restaurant-tables-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
     .restaurant-tables-heading h3 { margin:0 0 4px; }
     .restaurant-tables-subtitle { margin:0; color:var(--slate-500); font-size:13px; }
@@ -79,6 +99,7 @@
     .restaurant-tables-empty { grid-column:1/-1; margin:0; }
     @media (max-width: 900px) { .restaurant-details-layout { grid-template-columns:minmax(0,1fr); } }
     @media (max-width: 620px) {
+        .restaurant-table-workspace { grid-template-columns:minmax(0,1fr); }
         .restaurant-tables-grid { grid-template-columns:minmax(0,1fr); }
         .restaurant-tables-heading { align-items:center; }
         .restaurant-table-card { min-height:0; }
@@ -100,10 +121,11 @@
             <div class="restaurant-tables-heading">
                 <div>
                     <h3 id="restaurant-tables-title"><i class="fas fa-chair" style="color:#2563eb"></i> Tables ({{ restaurant.tables.count }})</h3>
-                    <p class="restaurant-tables-subtitle">Manage your restaurant tables.</p>
+                    <p class="restaurant-tables-subtitle">Choose one or more tables here. Your booking summary appears below.</p>
                 </div>
                 {% if is_manager %}<button type="button" class="ag-btn" data-modal-open="restaurantAddTableModal"><i class="fas fa-plus"></i> Add Table</button>{% endif %}
             </div>
+            <div class="restaurant-table-workspace">
             <div class="restaurant-tables-grid">
             {% for t in restaurant.tables.all %}
             <article class="restaurant-table-card">
@@ -121,13 +143,15 @@
                     {% if is_manager %}
                     <button type="button" class="btn btn-ghost btn-sm" data-modal-open="restaurantEditTable{{ t.id }}" aria-label="Edit Table {{ t.table_number }}"><i class="fas fa-pencil-alt"></i> Edit</button>
                     {% elif t.status != 'MAINTENANCE' %}
-                    <a href="{% url 'restaurants:flow_select' restaurant.id %}" class="ag-btn btn-sm"><i class="fas fa-chair"></i> Reserve</a>
+                    <button type="button" class="ag-btn btn-sm" data-restaurant-reserve-table="{{ t.id }}" data-table-capacity="{{ t.capacity }}" data-table-name="Table {{ t.table_number }}"><i class="fas fa-chair"></i> Reserve</button>
                     {% endif %}
                 </div>
             </article>
             {% empty %}
             <div class="empty restaurant-tables-empty"><h3>No tables yet</h3><p>{% if is_manager %}Use &quot;Add Table&quot; to create the first one.{% else %}Tables will appear soon.{% endif %}</p></div>
             {% endfor %}
+            </div>
+            {% if not is_manager %}<section id="restaurantBookingCart" class="card card-pad" hidden><h3 style="margin:0 0 8px"><i class="fas fa-shopping-cart"></i> Booking cart</h3><div id="restaurantBookingCartItems" class="restaurant-table-meta"></div><p id="restaurantBookingParty" class="restaurant-tables-subtitle" style="margin:8px 0"></p><button type="button" class="ag-btn ag-btn-block" id="restaurantConfirmBooking"><i class="fas fa-check"></i> Confirm Booking Now</button></section>{% endif %}
             </div>
         </section>
     </div>
@@ -148,6 +172,74 @@
 {% endif %}
 <script>
 (function () {
+    var modal = document.getElementById('restaurantGuestInfoModal');
+    if (modal) {
+        var selected = [];
+        var party = null;
+        var pendingTable = null;
+        var cart = document.getElementById('restaurantBookingCart');
+        var error = document.getElementById('restaurantGuestError');
+        var fieldsBox = document.getElementById('restaurantBookingFields');
+        function openGuest(tableButton) {
+            pendingTable = tableButton || null;
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            error.hidden = true;
+        }
+        function closeGuest() { modal.classList.remove('open'); document.body.style.overflow = ''; }
+        function allocate() {
+            var adults = party.adults, children = party.children;
+            selected.forEach(function (t) { t.adults = 1; t.children = 0; });
+            if (adults < selected.length) return 'At least one adult is required for each selected table.';
+            adults -= selected.length;
+            selected.forEach(function (t) { var n = Math.min(adults, Math.max(0, t.capacity - 1)); t.adults += n; adults -= n; });
+            selected.forEach(function (t) { var n = Math.min(children, Math.max(0, t.capacity - t.adults)); t.children += n; children -= n; });
+            return adults + children ? 'Selected tables do not have enough combined capacity. Select more tables or reduce the party size.' : '';
+        }
+        function renderCart() {
+            var problem = allocate();
+            cart.hidden = !selected.length;
+            document.getElementById('restaurantBookingCartItems').textContent = selected.map(function (t) { return t.name + ' (' + (t.adults + t.children) + ' guests)'; }).join(' · ');
+            document.getElementById('restaurantBookingParty').textContent = problem || (party ? party.adults + ' adult(s), ' + party.children + ' child(ren) · ' + document.getElementById('restaurantGuestDate').value + ' at ' + document.getElementById('restaurantGuestTime').value : '');
+            document.getElementById('restaurantConfirmBooking').disabled = Boolean(problem);
+            fieldsBox.innerHTML = '';
+            selected.forEach(function (t, i) {
+                var values = { first_name: party.first_name, middle_name: party.middle_name, last_name: party.last_name, email: party.email, contact: party.contact, adults: t.adults, children: t.children, special_request: party.special_request };
+                var id = document.createElement('input'); id.type = 'hidden'; id.name = 'item_ids'; id.value = t.id; fieldsBox.appendChild(id);
+                Object.keys(values).forEach(function (key) { var input = document.createElement('input'); input.type = 'hidden'; input.name = 'item_' + i + '_' + key; input.value = values[key]; fieldsBox.appendChild(input); });
+            });
+            document.getElementById('restaurantBookingDate').value = document.getElementById('restaurantGuestDate').value;
+            document.getElementById('restaurantBookingTime').value = document.getElementById('restaurantGuestTime').value;
+        }
+        function addOrToggle(button) {
+            var id = button.getAttribute('data-restaurant-reserve-table');
+            var index = selected.findIndex(function (t) { return String(t.id) === String(id); });
+            if (index >= 0) selected.splice(index, 1);
+            else selected.push({ id: id, name: button.getAttribute('data-table-name'), capacity: Number(button.getAttribute('data-table-capacity')) || 1 });
+            button.classList.toggle('is-on', index < 0);
+            button.innerHTML = index < 0 ? '<i class="fas fa-check"></i> Selected' : '<i class="fas fa-chair"></i> Reserve';
+            renderCart();
+        }
+        document.querySelectorAll('[data-restaurant-reserve-start]').forEach(function (b) { b.addEventListener('click', function () { openGuest(null); }); });
+        document.querySelectorAll('[data-restaurant-reserve-table]').forEach(function (b) { b.addEventListener('click', function () { if (!party) { openGuest(b); return; } addOrToggle(b); }); });
+        document.getElementById('restaurantGuestContinue').addEventListener('click', function () {
+            var ids = ['restaurantGuestFirst','restaurantGuestLast','restaurantGuestEmail','restaurantGuestContact','restaurantGuestDate','restaurantGuestTime','restaurantGuestAdults','restaurantGuestChildren'];
+            for (var i = 0; i < ids.length; i++) { var field = document.getElementById(ids[i]); if (!field.checkValidity()) { field.reportValidity(); return; } }
+            party = { first_name: document.getElementById('restaurantGuestFirst').value.trim(), middle_name: document.getElementById('restaurantGuestMiddle').value.trim(), last_name: document.getElementById('restaurantGuestLast').value.trim(), email: document.getElementById('restaurantGuestEmail').value.trim(), contact: document.getElementById('restaurantGuestContact').value.trim(), adults: Number(document.getElementById('restaurantGuestAdults').value), children: Number(document.getElementById('restaurantGuestChildren').value), special_request: document.getElementById('restaurantGuestRequest').value.trim() };
+            closeGuest();
+            if (pendingTable) addOrToggle(pendingTable);
+            pendingTable = null;
+            renderCart();
+        });
+        document.querySelectorAll('[data-restaurant-modal-close]').forEach(function (b) { b.addEventListener('click', closeGuest); });
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeGuest(); });
+        document.getElementById('restaurantConfirmBooking').addEventListener('click', function () {
+            if (!selected.length) return;
+            var problem = allocate();
+            if (problem) { openGuest(null); error.textContent = problem; error.hidden = false; return; }
+            document.getElementById('restaurantBookingForm').submit();
+        });
+    }
     document.querySelectorAll('[data-modal-open]').forEach(function (button) {
         button.addEventListener('click', function () {
             var dialog = document.getElementById(button.getAttribute('data-modal-open'));

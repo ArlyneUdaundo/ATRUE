@@ -1695,6 +1695,10 @@ def handle_flow(request, adapter_key, pk):
 
     guest_lines, errors = parse_guest_lines(request, selected, adapter)
     if errors:
+        if adapter.key == 'restaurant':
+            for error in errors:
+                messages.error(request, error)
+            return redirect(adapter.detail_url(est))
         return render(
             request, 'establishments/select.html',
             _context_for(request, adapter, est, check_in, check_out, source,
@@ -1707,6 +1711,9 @@ def handle_flow(request, adapter_key, pk):
     ]
     booking, bill_items, error = adapter.build_booking(request.user, est, selections, ctx)
     if error or booking is None:
+        if adapter.key == 'restaurant':
+            messages.error(request, error or 'Booking failed. Please review your table selection and guest information.')
+            return redirect(adapter.detail_url(est))
         return render(
             request, 'establishments/select.html',
             _context_for(request, adapter, est, check_in, check_out, source,

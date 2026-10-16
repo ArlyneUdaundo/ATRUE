@@ -284,15 +284,21 @@ class RestaurantReservationWorkflowTests(TestCase):
             {Reservation.Status.PENDING},
         )
 
-    def test_restaurant_selection_opens_with_guest_information_popup(self):
+    def test_restaurant_reserve_uses_detail_page_guest_modal_and_cart(self):
         self.client.force_login(self.guest)
         self.activate_assignment(self.client, self.guest_assignment)
         response = self.client.get(
             reverse('restaurants:flow_select', args=[self.restaurant.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Guest Information')
-        self.assertContains(response, 'Continue to tables')
-        self.assertContains(response, 'Confirm Booking Now')
+        self.assertRedirects(
+            response,
+            reverse('restaurants:detail', args=[self.restaurant.slug]),
+        )
+        detail = self.client.get(response.url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, 'restaurantGuestInfoModal')
+        self.assertContains(detail, 'Continue to tables')
+        self.assertContains(detail, 'restaurantBookingCart')
+        self.assertContains(detail, 'Confirm Booking Now')
 
     def test_pay_now_checkout_does_not_confirm_a_guest_reservation(self):
         response = self.submit_direct_reservation(pay_later='')

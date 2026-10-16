@@ -369,6 +369,13 @@ def restaurant_detail(request, restaurant_id):
     return render(request, 'restaurants/detail.html', {
         'restaurant': restaurant,
         'is_manager': is_manager,
+        'primary_guest': {
+            'first_name': (request.user.first_name or request.user.username).strip(),
+            'middle_name': getattr(request.user, 'middle_name', '') or '',
+            'last_name': request.user.last_name or '',
+            'email': request.user.email or '',
+            'contact': getattr(request.user, 'contact_number', '') or '',
+        },
         'status_choices': Restaurant.Status.choices,
         'seating_area_choices': Table.SeatingArea.choices,
         'table_status_choices': Table.Status.choices,
@@ -842,8 +849,11 @@ def ticket_pdf(request, booking_id):
 @student_booking_required
 @transaction.atomic
 def restaurant_flow_select(request, restaurant_id):
-    """Capture lead guest details, select tables, then submit them together."""
+    """Accept the detail-page table cart and create all selected reservations."""
     from atrue_core.establishment_flow import handle_flow
 
     _require_assigned_restaurant(request, restaurant_id)
+    if request.method == 'GET':
+        restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
+        return redirect('restaurants:detail', restaurant.slug)
     return handle_flow(request, 'restaurant', restaurant_id)
