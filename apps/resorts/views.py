@@ -16,6 +16,7 @@ from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     compute_resort_bill,
     confirm_booking,
@@ -447,10 +448,20 @@ def resort_group_start(request, resort_id):
         check_out = check_in + timedelta(days=1)
 
     if request.method == 'POST':
-        check_in = _parse_date(request.POST.get('check_in'), check_in)
-        check_out = _parse_date(request.POST.get('check_out'), check_out)
+        raw_check_in = request.POST.get('check_in')
+        raw_check_out = request.POST.get('check_out')
+        posted_check_in = _parse_date(raw_check_in, None)
+        posted_check_out = _parse_date(raw_check_out, None)
+        if not posted_check_in or not posted_check_out:
+            messages.error(request, 'Enter valid check-in and check-out dates.')
+            return redirect('resorts:group_start', resort.id)
+        check_in, check_out = posted_check_in, posted_check_out
+        if check_in < date.today():
+            messages.error(request, 'Check-in cannot be in the past.')
+            return redirect('resorts:group_start', resort.id)
         if check_out <= check_in:
-            check_out = check_in + timedelta(days=1)
+            messages.error(request, 'Check-out must be after check-in.')
+            return redirect('resorts:group_start', resort.id)
         villa_ids = [int(x) for x in request.POST.getlist('villa_ids') if str(x).isdigit()]
         villa_ids = list(dict.fromkeys(villa_ids))
         if not villa_ids:
@@ -464,8 +475,11 @@ def resort_group_start(request, resort_id):
             ):
                 messages.error(request, f'Villa {unit.unit_number} is no longer available for those dates.')
                 return redirect('resorts:group_start', resort.id)
-        adults = _parse_int(request.POST.get('adults'), 1)
-        children = _parse_int(request.POST.get('children'), 0)
+        adults = _parse_int(request.POST.get('adults'), 0)
+        children = _parse_int(request.POST.get('children'), -1)
+        if adults < 1 or children < 0:
+            messages.error(request, 'Enter at least one adult and a valid number of children.')
+            return redirect('resorts:group_start', resort.id)
         villas_data = []
         for unit in villas:
             services = [int(x) for x in request.POST.getlist(f'services_{unit.id}') if str(x).isdigit()]
@@ -520,8 +534,11 @@ def resort_group_review(request):
     lines = []
     grand_total = Decimal('0')
     unit_subtotal = Decimal('0')
+    extra_subtotal = Decimal('0')
     services_subtotal = Decimal('0')
-    for item in data['villas']:
+    remaining_adults = max(1, int(data.get('adults', 1)))
+    remaining_children = max(0, int(data.get('children', 0)))
+    for index, item in enumerate(data['villas']):
         unit = units.get(item['unit_id'])
         if unit is None:
             messages.error(request, 'One of the selected villas is no longer available.')
@@ -530,14 +547,28 @@ def resort_group_review(request):
             return redirect('resorts:list')
         selected_services = list(resort.services.filter(
             pk__in=item.get('services', []), status=Service.ServiceStatus.ACTIVE))
+        capacity = max(0, unit.capacity)
+        adults_for_unit = min(remaining_adults, capacity)
+        remaining_adults -= adults_for_unit
+        children_for_unit = min(remaining_children, max(0, capacity - adults_for_unit))
+        remaining_children -= children_for_unit
+        if index == len(data['villas']) - 1:
+            adults_for_unit += remaining_adults
+            children_for_unit += remaining_children
+            remaining_adults = remaining_children = 0
+        extra_guests = max(0, adults_for_unit + children_for_unit - capacity)
         unit_total = unit.rate * nights
+        extra_total = unit.additional_guest_charge * extra_guests * nights
         services_total = sum((s.rate for s in selected_services), Decimal('0'))
-        amount = unit_total + services_total
+        amount = unit_total + extra_total + services_total
         grand_total += amount
         unit_subtotal += unit_total
+        extra_subtotal += extra_total
         services_subtotal += services_total
         lines.append({
             'unit': unit, 'nights': nights, 'unit_total': unit_total,
+            'extra_guests': extra_guests, 'extra_total': extra_total,
+            'adults': adults_for_unit, 'children': children_for_unit,
             'services': selected_services, 'services_total': services_total, 'amount': amount,
         })
 
@@ -561,8 +592,8 @@ def resort_group_review(request):
                         check_in=check_in,
                         check_out=check_out,
                         number_of_units=1,
-                        number_of_adults=max(1, data.get('adults', 1)),
-                        number_of_children=max(0, data.get('children', 0)),
+                        number_of_adults=line['adults'],
+                        number_of_children=line['children'],
                         special_requests=data.get('special_requests', ''),
                         payer_name=request.user.full_profile,
                         payer_contact=request.user.contact_number or '',
@@ -576,6 +607,14 @@ def resort_group_review(request):
                         'description': f'{nights} night(s) at {resort.name}',
                         'quantity': nights, 'rate': unit.rate, 'amount': unit.rate * nights,
                     }]
+                    if line['extra_guests'] and unit.additional_guest_charge:
+                        reservation_bill_items.append({
+                            'label': 'Additional guest charge',
+                            'description': f"{line['extra_guests']} extra guest(s) × {nights} night(s)",
+                            'quantity': line['extra_guests'] * nights,
+                            'rate': unit.additional_guest_charge,
+                            'amount': line['extra_total'],
+                        })
                     for service in line['services']:
                         service_item = {
                             'label': service.name,
@@ -587,7 +626,7 @@ def resort_group_review(request):
                     reservation_bill = Bill(service='resort', customer=request.user)
                     reservation_bill.link_to_booking(reservation)
                     reservation_bill.calculate(reservation_bill_items)
-                total = sum((Decimal(str(i['amount'])) for i in bill_items), Decimal('0'))
+                total = bill_items_total(bill_items)
                 order = TravelOrder.objects.create(
                     customer=request.user,
                     status=TravelOrder.Status.PENDING,
@@ -639,6 +678,7 @@ def resort_group_review(request):
         'nights': nights,
         'grand_total': grand_total,
         'unit_subtotal': unit_subtotal,
+        'extra_subtotal': extra_subtotal,
         'services_subtotal': services_subtotal,
     })
 
@@ -653,8 +693,48 @@ def book_resort(request, unit_id):
     base_in = date.today() + timedelta(days=1)
     base_out = base_in + timedelta(days=1)
     if request.method == 'POST':
-        check_in = _parse_date(request.POST.get('check_in'), base_in)
-        check_out = _parse_date(request.POST.get('check_out'), base_out)
+        posted_check_in = _parse_date(request.POST.get('check_in'), None)
+        posted_check_out = _parse_date(request.POST.get('check_out'), None)
+        if not posted_check_in or not posted_check_out:
+            messages.error(request, 'Enter valid check-in and check-out dates.')
+            return render(request, 'resorts/book.html', {
+                'unit': unit, 'check_in': base_in, 'check_out': base_out, 'nights': 1,
+                'services': unit.resort.services.filter(status=Service.ServiceStatus.ACTIVE),
+            })
+        check_in, check_out = posted_check_in, posted_check_out
+        date_errors = validate_stay_dates(check_in, check_out)
+        if date_errors or check_in < date.today():
+            messages.error(request, date_errors[0] if date_errors else 'Check-in cannot be in the past.')
+            return render(request, 'resorts/book.html', {
+                'unit': unit, 'check_in': check_in, 'check_out': check_out,
+                'nights': max(1, (check_out - check_in).days),
+                'services': unit.resort.services.filter(status=Service.ServiceStatus.ACTIVE),
+            })
+        try:
+            adults = int(request.POST.get('adults') or 1)
+            children = int(request.POST.get('children') or 0)
+        except (TypeError, ValueError):
+            adults, children = 0, -1
+        if adults < 1 or children < 0:
+            messages.error(request, 'Enter at least one adult and a valid number of children.')
+            return render(request, 'resorts/book.html', {
+                'unit': unit, 'check_in': check_in, 'check_out': check_out,
+                'nights': max(1, (check_out - check_in).days),
+                'services': unit.resort.services.filter(status=Service.ServiceStatus.ACTIVE),
+            })
+        try:
+            selected_service_ids = {int(value) for value in request.POST.getlist('services')}
+        except (TypeError, ValueError):
+            selected_service_ids = {-1}
+        active_services = unit.resort.services.filter(status=Service.ServiceStatus.ACTIVE)
+        selected_services = list(active_services.filter(pk__in=selected_service_ids))
+        if len(selected_services) != len(selected_service_ids):
+            messages.error(request, 'One or more selected services are unavailable for this resort.')
+            return render(request, 'resorts/book.html', {
+                'unit': unit, 'check_in': check_in, 'check_out': check_out,
+                'nights': max(1, (check_out - check_in).days),
+                'services': active_services,
+            })
 
         if overlapping_booking_exists(
             Reservation, resource_field='unit', resource=unit, start=check_in, end=check_out
@@ -671,15 +751,15 @@ def book_resort(request, unit_id):
             unit=unit,
             check_in=check_in,
             check_out=check_out,
-            number_of_units=_parse_int(request.POST.get('number_of_units'), 1),
-            number_of_adults=_parse_int(request.POST.get('adults'), 1),
-            number_of_children=_parse_int(request.POST.get('children'), 0),
+            number_of_units=1,
+            number_of_adults=adults,
+            number_of_children=children,
             special_requests=request.POST.get('special_requests', ''),
             payer_name=request.user.full_profile,
             payer_contact=request.user.contact_number or '',
             status=Reservation.Status.PENDING,
         )
-        reservation.services.set(request.POST.getlist('services'))
+        reservation.services.set(selected_services)
         unit.status = RoomVilla.Status.RESERVED
         unit.save(update_fields=['status'])
 
@@ -695,19 +775,21 @@ def book_resort(request, unit_id):
                     country=country.strip(),
                 )
 
+        extra_guest_count = max(0, adults + children - unit.capacity)
         items = compute_resort_bill(
             unit, reservation.nights,
-            services=reservation.services.select_related().all(),
+            services=selected_services,
             extra_charges=[
                 {
                     'label': 'Additional guest charge',
-                    'quantity': reservation.nights,
+                    'description': f'{extra_guest_count} extra guest(s) × {reservation.nights} night(s)',
+                    'quantity': extra_guest_count * reservation.nights,
                     'rate': unit.additional_guest_charge,
-                    'amount': unit.additional_guest_charge * reservation.nights,
+                    'amount': unit.additional_guest_charge * extra_guest_count * reservation.nights,
                 }
-            ] if unit.additional_guest_charge else None,
+            ] if unit.additional_guest_charge and extra_guest_count else None,
         )
-        total = sum(float(i['amount']) for i in items)
+        total = bill_items_total(items)
         bill = Bill(service='resort', customer=request.user)
         bill.link_to_booking(reservation)
         bill.calculate(items)
@@ -919,13 +1001,17 @@ def booking_detail(request, booking_id):
                 extra_charges=[
                     {
                         'label': 'Additional guest charge',
-                        'quantity': booking.nights,
+                        'quantity': max(0, booking.number_of_adults + booking.number_of_children - booking.unit.capacity) * booking.nights,
                         'rate': booking.unit.additional_guest_charge,
-                        'amount': booking.unit.additional_guest_charge * booking.nights,
+                        'amount': booking.unit.additional_guest_charge * max(
+                            0, booking.number_of_adults + booking.number_of_children - booking.unit.capacity
+                        ) * booking.nights,
                     }
-                ] if booking.unit.additional_guest_charge else None,
+                ] if booking.unit.additional_guest_charge and (
+                    booking.number_of_adults + booking.number_of_children > booking.unit.capacity
+                ) else None,
             )
-            total = sum(float(i['amount']) for i in items)
+            total = bill_items_total(items)
             if bill:
                 bill.calculate(items)
                 bill.save(update_fields=['items', 'total_amount'])

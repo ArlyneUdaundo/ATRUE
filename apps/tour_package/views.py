@@ -12,6 +12,7 @@ from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     _load,
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_package_bill,
@@ -312,14 +313,24 @@ def book_package(request, package_id):
             messages.error(request, "A package component is currently unavailable (BR-073 to BR-075).")
             return redirect('tour_package:list')
 
-        travelers = int(request.POST.get('travelers') or 1)
-        adults = int(request.POST.get('adults') or 0)
-        children = int(request.POST.get('children') or 0)
+        try:
+            travelers = int(request.POST.get('travelers') or 1)
+            adults = int(request.POST.get('adults') or 0)
+            children = int(request.POST.get('children') or 0)
+        except (TypeError, ValueError):
+            messages.error(request, 'Enter valid traveler, adult, and child counts.')
+            return redirect('tour_package:book_package', package_id=package.pk)
+        if travelers < 1 or adults < 0 or children < 0:
+            messages.error(request, 'At least one traveler is required; adult and child counts cannot be negative.')
+            return redirect('tour_package:book_package', package_id=package.pk)
         if not adults and not children:
             adults = travelers
+        elif adults + children != travelers:
+            messages.error(request, 'Total travelers must equal the number of adults plus children.')
+            return redirect('tour_package:book_package', package_id=package.pk)
         items, extra_heads, adjustment = compute_package_bill(
             package, travelers, package.included_headcount, package.extra_person_rate)
-        total = _load(package.price) + adjustment
+        total = bill_items_total(items)
 
         booking = Booking.objects.create(
             customer=request.user,
@@ -463,7 +474,7 @@ def booking_detail(request, booking_id):
             items, extra_heads, adjustment = compute_package_bill(
                 booking.package, booking.number_of_travelers,
                 booking.package.included_headcount, booking.package.extra_person_rate)
-            booking.total_bill = _load(booking.package.price) + adjustment
+            booking.total_bill = bill_items_total(items)
             booking.status = Booking.Status.MODIFIED
             booking.guests.all().delete()
             _save_guests(booking, request)

@@ -269,7 +269,7 @@ var LEG_FARES = {
 {% endfor %}
 };
 var CONNECTING_FEE = {{ itinerary.service_fee|default:0 }};
-var BAG_RATE = {{ itinerary.baggage_rate|default:0 }};
+var BAG_RATE = {{ itinerary.baggage_rate|default:legs.0.baggage_rate|default:0 }};
 var MAX_SEATS = {{ remaining }};
 
 /* seats[segment][passengerIndex] -> seat number, or '' when not yet chosen. */

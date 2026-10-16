@@ -42,21 +42,21 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>Check-in</label>
-                    <input type="date" name="check_in" id="ci" class="form-input" value="{{ check_in|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                    <input type="date" name="check_in" id="ci" class="form-input" value="{{ check_in|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required onchange="updateEstimate()">
                 </div>
                 <div class="form-group">
                     <label>Check-out</label>
-                    <input type="date" name="check_out" id="co" class="form-input" value="{{ check_out|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                    <input type="date" name="check_out" id="co" class="form-input" value="{{ check_out|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required onchange="updateEstimate()">
                 </div>
             </div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Adults</label>
-                    <input type="number" name="adults" id="adults" class="form-input" value="1" min="1" max="{{ staycation.capacity }}" oninput="updateEstimate()">
+                    <input type="number" name="adults" id="adults" class="form-input" value="1" min="1" max="{{ staycation.capacity_adults }}" oninput="updateEstimate()">
                 </div>
                 <div class="form-group">
                     <label>Children</label>
-                    <input type="number" name="children" id="children" class="form-input" value="0" min="0" oninput="updateEstimate()">
+                    <input type="number" name="children" id="children" class="form-input" value="0" min="0" max="{{ staycation.capacity_children }}" oninput="updateEstimate()">
                 </div>
             </div>
             <div class="form-group">
@@ -89,7 +89,7 @@
             </div>
             {% if services %}
             <div class="form-group">
-                <label>Add-ons / Services</label>
+                <label>Add-ons / Services <span class="meta">(charged once per stay)</span></label>
                 {% for svc in services %}
                 <label class="checkbox"><input type="checkbox" name="services" value="{{ svc.id }}" data-rate="{{ svc.rate }}" onchange="updateEstimate()"> {{ svc.name }} {% if svc.rate %}— ₱ {{ svc.rate }}{% endif %}</label>
                 {% endfor %}
@@ -154,23 +154,43 @@
                     }
                 }
                 togglePayer();
-                var STAY_RATE = {{ staycation.rate }};
+                var STAY_RATE_CENTS = Math.round(Number('{{ staycation.rate }}') * 100);
                 function updateEstimate() {
-                    var ci = new Date(document.getElementById('ci').value + 'T00:00:00');
-                    var co = new Date(document.getElementById('co').value + 'T00:00:00');
+                    var ciValue = document.getElementById('ci').value;
+                    var coValue = document.getElementById('co').value;
+                    var ci = new Date(ciValue + 'T00:00:00');
+                    var co = new Date(coValue + 'T00:00:00');
                     var nights = 1;
                     if (!isNaN(ci) && !isNaN(co) && co > ci) nights = Math.round((co - ci) / 86400000);
                     var adults = parseInt(document.getElementById('adults').value) || 1;
                     var children = parseInt(document.getElementById('children').value) || 0;
-                    var total = STAY_RATE * nights;
+                    var addonsCents = 0;
                     document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
-                        total += (parseFloat(cb.dataset.rate) || 0) * nights;
+                        addonsCents += Math.round((parseFloat(cb.dataset.rate) || 0) * 100);
                     });
+                    var totalCents = STAY_RATE_CENTS * nights + addonsCents;
                     document.getElementById('pb-nights').textContent = nights;
                     document.getElementById('pb-guests').textContent = adults + children;
-                    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+                    document.getElementById('pb-addons').textContent = '₱ ' + (addonsCents / 100).toFixed(2);
+                    document.getElementById('pb-total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
                 }
-                updateEstimate();
+                document.getElementById('booking-form').addEventListener('submit', function (event) {
+                    var checkIn = document.getElementById('ci');
+                    var checkOut = document.getElementById('co');
+                    var adultsInput = document.getElementById('adults');
+                    var childrenInput = document.getElementById('children');
+                    var adults = parseInt(adultsInput.value, 10) || 0;
+                    var children = parseInt(childrenInput.value, 10) || 0;
+                    checkOut.setCustomValidity(checkIn.value && checkOut.value && checkOut.value <= checkIn.value
+                        ? 'Check-out must be after check-in.' : '');
+                    adultsInput.setCustomValidity(adults + children > {{ staycation.capacity }}
+                        ? 'Total guests exceed this staycation capacity.' : '');
+                    if (!this.reportValidity()) event.preventDefault();
+                });
+                document.getElementById('ci').addEventListener('change', function () {
+                    document.getElementById('co').setCustomValidity('');
+                });
+                document.addEventListener('DOMContentLoaded', updateEstimate);
             </script>
             <a href="{% url 'staycations:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
         </form>
@@ -187,6 +207,7 @@
                 <div class="ag-pb-row"><span>Stay rate</span><b>₱ {{ staycation.rate }} /night</b></div>
                 <div class="ag-pb-row"><span>Nights</span><b><span id="pb-nights">1</span> night(s)</b></div>
                 <div class="ag-pb-row"><span>Guests</span><b><span id="pb-guests">1</span> guest(s)</b></div>
+                <div class="ag-pb-row"><span>Add-ons (one-time)</span><b id="pb-addons">₱ 0.00</b></div>
             </div>
             <div class="ag-pb-divider"></div>
             <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ {{ staycation.rate }}</span></b></div>

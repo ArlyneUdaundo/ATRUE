@@ -54,15 +54,12 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>Check-in</label>
-                    <input type="date" name="check_in" id="ci" class="form-input" value="{{ check_in|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                    <input type="date" name="check_in" id="ci" class="form-input" value="{{ check_in|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required onchange="updateEstimate()">
                 </div>
                 <div class="form-group">
                     <label>Check-out</label>
-                    <input type="date" name="check_out" id="co" class="form-input" value="{{ check_out|date:'Y-m-d' }}" required onchange="updateEstimate()">
+                    <input type="date" name="check_out" id="co" class="form-input" value="{{ check_out|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required onchange="updateEstimate()">
                 </div>
-            </div>
-            <div class="form-grid">
-                <div class="form-group"><label>Number of Units</label><input type="number" name="number_of_units" id="units" class="form-input" value="1" min="1" oninput="updateEstimate()"></div>
             </div>
             <div class="form-group"><button type="button" class="ag-btn ag-btn-muted" id="resortGuestInfoOpen"><i class="fas fa-user-check"></i> Edit Guest Information</button></div>
             <div class="rm-modal open" id="guestModal" role="dialog" aria-modal="true" aria-labelledby="resortGuestModalTitle">
@@ -82,8 +79,8 @@
                     <div class="form-group bk-col-2"><label>Contact Number</label><input class="form-input" value="{{ request.user.contact_number|default:'' }}" readonly aria-readonly="true" readonly></div>
                 </div>
                 <div class="resort-guest-info-grid">
-                    <div class="form-group"><label>Adults</label><input type="number" name="adults" id="adults" class="form-input" value="1" min="1" max="{{ unit.capacity_adults }}" oninput="updateEstimate()"></div>
-                    <div class="form-group"><label>Children</label><input type="number" name="children" id="children" class="form-input" value="0" min="0" max="{{ unit.capacity_children }}" oninput="updateEstimate()"></div>
+                    <div class="form-group"><label>Adults</label><input type="number" name="adults" id="adults" class="form-input" value="1" min="1" oninput="updateEstimate()"><small class="meta">Included: {{ unit.capacity_adults }}</small></div>
+                    <div class="form-group"><label>Children</label><input type="number" name="children" id="children" class="form-input" value="0" min="0" oninput="updateEstimate()"><small class="meta">Included: {{ unit.capacity_children }}</small></div>
                     <div class="form-group span-2"><label>Total guests</label><div class="form-input" style="background:#f8fafc"><span id="resort-guest-total">1</span> <small class="meta">of {{ unit.capacity }} max</small></div></div>
                     <div class="form-group span-4"><label>Special Requests</label><textarea name="special_requests" class="form-input" rows="2"></textarea></div>
                 </div>
@@ -163,29 +160,42 @@
                 togglePayer();
             </script>
             <script>
-                var UNIT_RATE = {{ unit.rate }};
-                var UNIT_EXTRA = {{ unit.additional_guest_charge }};
+                var UNIT_RATE_CENTS = Math.round(Number('{{ unit.rate }}') * 100);
+                var UNIT_EXTRA_CENTS = Math.round(Number('{{ unit.additional_guest_charge }}') * 100);
                 var UNIT_CAPACITY = {{ unit.capacity }};
                 function updateEstimate() {
-                    var ci = new Date(document.getElementById('ci').value + 'T00:00:00');
-                    var co = new Date(document.getElementById('co').value + 'T00:00:00');
+                    var ciValue = document.getElementById('ci').value;
+                    var coValue = document.getElementById('co').value;
+                    var ci = new Date(ciValue + 'T00:00:00');
+                    var co = new Date(coValue + 'T00:00:00');
                     var nights = 1;
                     if (!isNaN(ci) && !isNaN(co) && co > ci) nights = Math.round((co - ci) / 86400000);
-                    var units = parseInt(document.getElementById('units').value) || 1;
                     var adults = parseInt(document.getElementById('adults').value) || 1;
                     var children = parseInt(document.getElementById('children').value) || 0;
-                    var rate = UNIT_RATE + (adults + children > UNIT_CAPACITY ? UNIT_EXTRA : 0);
-                    var total = rate * nights * units;
+                    var extraGuests = Math.max(0, adults + children - UNIT_CAPACITY);
+                    var extraGuestCents = extraGuests * UNIT_EXTRA_CENTS * nights;
+                    var servicesCents = 0;
                     document.querySelectorAll('input[name="services"]:checked').forEach(function (cb) {
-                        total += (parseFloat(cb.dataset.rate) || 0) * nights;
+                        servicesCents += Math.round((parseFloat(cb.dataset.rate) || 0) * 100);
                     });
+                    var totalCents = UNIT_RATE_CENTS * nights + extraGuestCents + servicesCents;
                     document.getElementById('pb-nights').textContent = nights;
                     document.getElementById('pb-guests').textContent = adults + children;
                     var guestTotal = document.getElementById('resort-guest-total');
                     if (guestTotal) guestTotal.textContent = adults + children;
-                    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+                    var extraTotal = document.getElementById('pb-extra-guest-total');
+                    if (extraTotal) extraTotal.textContent = '₱ ' + (extraGuestCents / 100).toFixed(2);
+                    document.getElementById('pb-services').textContent = '₱ ' + (servicesCents / 100).toFixed(2);
+                    document.getElementById('pb-total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
                 }
-                updateEstimate();
+                document.getElementById('booking-form').addEventListener('submit', function (event) {
+                    var checkIn = document.getElementById('ci');
+                    var checkOut = document.getElementById('co');
+                    checkOut.setCustomValidity(checkIn.value && checkOut.value && checkOut.value <= checkIn.value
+                        ? 'Check-out must be after check-in.' : '');
+                    if (!this.reportValidity()) event.preventDefault();
+                });
+                document.addEventListener('DOMContentLoaded', updateEstimate);
             </script>
             <a href="{% url 'resorts:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
             <script>
@@ -226,10 +236,12 @@
             <div class="ag-pb-rows">
                 <div class="ag-pb-row"><span>Unit rate</span><b>₱ {{ unit.rate }} /night</b></div>
                 {% if unit.additional_guest_charge %}
-                <div class="ag-pb-row"><span>Extra guest charge</span><b>₱ {{ unit.additional_guest_charge }}/night</b></div>
+                <div class="ag-pb-row"><span>Extra guests</span><b>₱ {{ unit.additional_guest_charge }} per guest/night</b></div>
                 {% endif %}
                 <div class="ag-pb-row"><span>Nights</span><b><span id="pb-nights">1</span> night(s)</b></div>
                 <div class="ag-pb-row"><span>Guests</span><b><span id="pb-guests">1</span> guest(s)</b></div>
+                {% if unit.additional_guest_charge %}<div class="ag-pb-row"><span>Extra guest total</span><b id="pb-extra-guest-total">₱ 0.00</b></div>{% endif %}
+                <div class="ag-pb-row"><span>Services (one-time)</span><b id="pb-services">₱ 0.00</b></div>
             </div>
             <div class="ag-pb-divider"></div>
             <div class="ag-pb-total"><span>Estimated total</span><b><span id="pb-total">₱ {{ unit.rate }}</span></b></div>
@@ -238,7 +250,7 @@
             <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm Booking</button>
         
             <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
-            <div class="ag-pb-note">*Total is computed by the system after applying dates, guests and add-ons.</div>
+            <div class="ag-pb-note">*One selected unit is booked. Services are charged once; guests over the included capacity are charged per guest, per night.</div>
         </div>
     </aside>
 </div>

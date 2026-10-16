@@ -38,37 +38,7 @@
         {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
     </div>
 
-    <div class="card card-pad">
-        <h3><i class="fas fa-file-invoice"></i> Billing</h3>
-        {% if bill %}
-        <div class="table-wrap"><table class="table">
-            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-            <tbody>
-                {% for item in bill.items %}
-                <tr><td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>₱ {{ item.rate }}</td><td>₱ {{ item.amount }}</td></tr>
-                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
-            </tbody>
-        </table></div>
-        <div class="meta" style="margin-top:12px">
-            Total: <b>₱ {{ bill.total_amount }}</b> ·
-            Paid: ₱ {{ bill.amount_paid }} ·
-            Balance: <b>₱ {{ bill.balance_due }}</b>
-            <span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
-        </div>
-        {% else %}<div class="empty"><h3>No bill generated</h3></div>{% endif %}
-
-        {% if payments %}
-        <h4 style="margin-top:16px">Payments</h4>
-        <div class="table-wrap"><table class="table">
-            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>On</th></tr></thead>
-            <tbody>
-                {% for p in payments %}
-                <tr><td class="mono">{{ p.pk }}</td><td>₱ {{ p.amount }}</td><td>{{ p.get_method_display }}</td><td>{{ p.paid_at|date:"M d, Y H:i" }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table></div>
-        {% endif %}
-    </div>
+    {% include 'transactions/_booking_billing.html' %}
 </div>
 
 {% if can_manage_lifecycle %}

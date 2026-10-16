@@ -14,6 +14,7 @@ from accounts.roles import effective_role_keys
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_transport_bill,
@@ -322,7 +323,7 @@ def book_vehicle(request, vehicle_id):
             })
 
         items = compute_transport_bill(vehicle.rate_per_km, distance)
-        total = float(vehicle.rate_per_km) * float(distance or 0)
+        total = bill_items_total(items)
 
         booking = Booking.objects.create(
             customer=request.user,

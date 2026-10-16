@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
@@ -12,6 +13,7 @@ from atrue_core.establishment_deletion import delete_booking_history, delete_lin
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_attraction_bill,
@@ -261,7 +263,24 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
     remaining = _capacity_remaining(destination, default_date.date(), destination_type)
     if request.method == 'POST':
         when = _parse_datetime(request.POST.get('visit_datetime'), default_date)
-        visitors = int(request.POST.get('visitors') or 1)
+        try:
+            visitors = int(request.POST.get('visitors') or 1)
+            equipment_qty = int(request.POST.get('equipment_quantity') or 0)
+            equipment_rate = Decimal(request.POST.get('equipment_rate') or '0')
+        except (TypeError, ValueError, InvalidOperation):
+            messages.error(request, 'Enter valid visitor and equipment quantities.')
+            return render(request, 'landmarks/book.html', {
+                'name': name, 'fee': fee, 'default_date': default_date,
+                'guided_tour_rate': guided_tour_rate, 'private_tour_rate': private_tour_rate,
+                'remaining': remaining,
+            })
+        if visitors < 1 or equipment_qty < 0 or equipment_rate < 0:
+            messages.error(request, 'Visitors must be at least one and equipment amounts cannot be negative.')
+            return render(request, 'landmarks/book.html', {
+                'name': name, 'fee': fee, 'default_date': default_date,
+                'guided_tour_rate': guided_tour_rate, 'private_tour_rate': private_tour_rate,
+                'remaining': remaining,
+            })
         remaining_on_date = _capacity_remaining(destination, when.date(), destination_type)
         if remaining_on_date is not None and visitors > remaining_on_date:
             messages.error(request, f"Only {remaining_on_date} visitor slot(s) remain for this date.")
@@ -272,11 +291,16 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
             })
 
         tour = request.POST.get('guided_tour', Ticket.GuidedTour.NONE)
+        if tour not in Ticket.GuidedTour.values:
+            messages.error(request, 'Choose a valid guided tour option.')
+            return render(request, 'landmarks/book.html', {
+                'name': name, 'fee': fee, 'default_date': default_date,
+                'guided_tour_rate': guided_tour_rate, 'private_tour_rate': private_tour_rate,
+                'remaining': remaining,
+            })
         tour_rate = {'NONE': 0, 'STANDARD': guided_tour_rate, 'PRIVATE': private_tour_rate}.get(tour, 0)
         tour_participants = visitors if tour == 'STANDARD' else (1 if tour == 'PRIVATE' else 0)
 
-        equipment_rate = float(request.POST.get('equipment_rate') or 0)
-        equipment_qty = int(request.POST.get('equipment_quantity') or 0)
         equipment_charge = equipment_rate * equipment_qty
         equipment_charges = ([{'label': 'Equipment rental',
                                'quantity': equipment_qty, 'rate': equipment_rate,
@@ -285,7 +309,7 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
         items = compute_attraction_bill(fee, visitors, guided_tour_rate=tour_rate,
                                         tour_participants=tour_participants,
                                         equipment_charges=equipment_charges)
-        total = float(fee) * visitors + float(tour_rate) * tour_participants + equipment_charge
+        total = bill_items_total(items)
 
         ticket = Ticket.objects.create(
             customer=request.user,

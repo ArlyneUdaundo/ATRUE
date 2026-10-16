@@ -3,46 +3,100 @@
 {% block title %}Payment Review{% endblock %}
 
 {% block content %}
+<style>
+    .payment-review-list{display:grid;gap:14px}
+    .payment-review-card{padding:18px}
+    .payment-review-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+    .payment-review-title{margin:0 0 5px;font-size:17px}
+    .payment-review-subtitle{margin:0;color:var(--muted);font-size:13px}
+    .payment-review-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+    .payment-review-field{min-width:0;padding:11px 12px;background:var(--slate-50,#f8fafc);border:1px solid var(--slate-200,#e2e8f0);border-radius:10px}
+    .payment-review-label{display:block;margin-bottom:4px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    .payment-review-value{font-weight:650;overflow-wrap:anywhere}
+    .payment-review-action{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:13px;border-top:1px solid var(--slate-200,#e2e8f0)}
+    .payment-review-help{margin:0;color:var(--muted);font-size:13px}
+    .payment-review-empty{text-align:center;padding:42px 18px;color:var(--muted)}
+    .payment-review-empty i{font-size:28px;margin-bottom:10px}
+    @media(max-width:760px){.payment-review-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:420px){.payment-review-grid{grid-template-columns:1fr}.payment-review-action form,.payment-review-action button{width:100%}}
+</style>
+
 <div class="page-head">
     <div>
         <h1>Payment Review</h1>
-        <p>Confirm guest-submitted payments. Fully paid bookings then move to the Reservation Officer for confirmation.</p>
+        <p>Review the guest's submitted payment. Once the full bill is verified, the Reservation Officer can confirm the booking.</p>
     </div>
 </div>
 
-<div class="card card-pad">
-    {% if rows %}
-    <div class="table-wrap">
-        <table class="table">
-            <thead><tr><th>Bill</th><th>Booking</th><th>Customer</th><th>Establishment</th><th>Payment / balance</th><th>Billing action</th></tr></thead>
-            <tbody>
-                {% for row in rows %}
-                <tr>
-                    <td>{{ row.bill.bill_reference }}</td>
-                    <td>{{ row.booking.booking_reference|default:row.booking.pk }}</td>
-                    <td>{{ row.bill.customer.get_full_name|default:row.bill.customer.username }}</td>
-                    <td>{{ row.establishment|default:'—' }}</td>
-                    <td>{% if row.payment %}₱{{ row.payment.amount|floatformat:2 }} · {{ row.payment.get_method_display }}<br><small>Payment {{ row.payment.get_status_display|lower }}</small>{% else %}₱{{ row.bill.amount_paid|floatformat:2 }} paid / ₱{{ row.bill.balance_due|floatformat:2 }} balance<br><small>Awaiting bill verification</small>{% endif %}</td>
-                    <td>
-                        <form method="post">
-                            {% csrf_token %}
-                            {% if row.payment %}
-                            <input type="hidden" name="payment_id" value="{{ row.payment.pk }}">
-                            <input type="hidden" name="action" value="confirm_payment">
-                            <button type="submit" class="btn btn-brand btn-sm">Confirm received payment</button>
-                            {% else %}
-                            <input type="hidden" name="bill_id" value="{{ row.bill.pk }}">
-                            <button type="submit" class="btn btn-brand btn-sm">Confirm Payment</button>
-                            {% endif %}
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="margin:0;color:var(--muted)">There are no guest payments or fully paid bills waiting for review in this session.</p>
-    {% endif %}
+{% if rows %}
+<div class="payment-review-list">
+    {% for row in rows %}
+    <section class="card payment-review-card">
+        <div class="payment-review-top">
+            <div>
+                <h2 class="payment-review-title">{{ row.establishment|default:'Establishment' }}</h2>
+                <p class="payment-review-subtitle">{{ row.booking_type }} · Booking {{ row.booking.booking_reference|default:row.booking.pk }}</p>
+            </div>
+            <span class="badge {% if row.booking.status == 'CONFIRMED' %}badge-green{% elif row.booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ row.booking.get_status_display }}</span>
+        </div>
+
+        <div class="payment-review-grid">
+            <div class="payment-review-field">
+                <span class="payment-review-label">Guest</span>
+                <span class="payment-review-value">{{ row.bill.customer.get_full_name|default:row.bill.customer.username }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Bill reference</span>
+                <span class="payment-review-value">{{ row.bill.bill_reference }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Stay dates</span>
+                <span class="payment-review-value">{% if row.check_in and row.check_out %}{{ row.check_in|date:'M d, Y' }} – {{ row.check_out|date:'M d, Y' }}{% else %}Not applicable{% endif %}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Payment submitted</span>
+                <span class="payment-review-value">{% if row.payment %}₱{{ row.payment.amount|floatformat:2 }} · {{ row.payment.get_method_display }}{% else %}₱{{ row.bill.amount_paid|floatformat:2 }} paid{% endif %}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Bill total</span>
+                <span class="payment-review-value">₱{{ row.bill.total_amount|floatformat:2 }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Current balance</span>
+                <span class="payment-review-value">₱{{ row.bill.balance_due|floatformat:2 }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Payment status</span>
+                <span class="payment-review-value">{% if row.payment %}{{ row.payment.get_status_display }}{% else %}Awaiting bill verification{% endif %}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Guest account</span>
+                <span class="payment-review-value">{{ row.bill.customer.username }}</span>
+            </div>
+        </div>
+
+        <div class="payment-review-action">
+            <p class="payment-review-help">{% if row.payment %}Verify that the submitted amount was received. The booking moves to the Reservation Officer after full payment is verified.{% else %}This bill is fully paid and ready for verification.{% endif %}</p>
+            <form method="post">
+                {% csrf_token %}
+                {% if row.payment %}
+                <input type="hidden" name="payment_id" value="{{ row.payment.pk }}">
+                <input type="hidden" name="action" value="confirm_payment">
+                <button type="submit" class="btn btn-brand btn-sm">Confirm received payment</button>
+                {% else %}
+                <input type="hidden" name="bill_id" value="{{ row.bill.pk }}">
+                <button type="submit" class="btn btn-brand btn-sm">Verify fully paid bill</button>
+                {% endif %}
+            </form>
+        </div>
+    </section>
+    {% endfor %}
 </div>
+{% else %}
+<div class="card payment-review-empty">
+    <i class="fas fa-receipt"></i>
+    <h3>No payments waiting for review</h3>
+    <p>New guest payments for your assigned establishment will appear here.</p>
+</div>
+{% endif %}
 {% endblock %}

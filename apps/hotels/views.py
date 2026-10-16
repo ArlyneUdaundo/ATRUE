@@ -21,6 +21,7 @@ from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_hotel_bill,
@@ -1066,7 +1067,7 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                     bill_items.append({'label': 'Additional guest charge', 'description': f'Room {room.room_number}: {extra_count} extra guest(s) × {nights} night(s)', 'quantity': extra_count * nights, 'rate': room.additional_guest_charge, 'amount': extra_amount})
                 for service in selected_services:
                     bill_items.append({'label': service.name, 'description': f'Room {room.room_number} hotel service', 'quantity': 1, 'rate': service.rate, 'amount': service.rate})
-            total = sum((Decimal(str(i['amount'])) for i in bill_items), Decimal('0'))
+            total = bill_items_total(bill_items)
             bill = create_bill(service='hotel', customer=user, items=bill_items, booking=booking)
             if pay_later:
                 log_activity(user, 'Placed hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending payment')

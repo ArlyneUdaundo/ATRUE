@@ -45,7 +45,7 @@
                 </div>
                 <div class="form-group">
                     <label>Participants</label>
-                    <input type="number" name="participants" class="form-input" value="1" min="1"{% if remaining is not None %} max="{{ remaining }}"{% endif %}>
+                    <input type="number" name="participants" id="participants" class="form-input" value="{{ activity.min_participants }}" min="{{ activity.min_participants }}" max="{{ activity.capacity }}" oninput="updateActivityEstimate()">
                 </div>
             </div>
             <div class="form-grid">
@@ -117,6 +117,17 @@
                     }
                 }
                 togglePayer();
+                function updateActivityEstimate() {
+                    var participants = parseInt(document.getElementById('participants').value, 10) || 0;
+                    var rateType = '{{ activity.rate_type }}';
+                    var quantity = rateType === 'PER_PERSON' ? participants : 1;
+                    var baseCents = Math.round(Number('{{ activity.fee }}') * 100) * quantity;
+                    var additionalCents = Math.round(Number('{{ activity.additional_fee }}') * 100) * quantity;
+                    document.getElementById('activity-summary-participants').textContent = participants;
+                    document.getElementById('activity-summary-total').textContent = '₱ '
+                        + ((baseCents + additionalCents) / 100).toFixed(2);
+                }
+                document.addEventListener('DOMContentLoaded', updateActivityEstimate);
             </script>
             <a href="{% url 'activities:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
         </form>
@@ -130,11 +141,12 @@
                 <div><b>{{ activity.name }}</b><small>{{ activity.get_category_display }} · {{ activity.duration }}</small></div>
             </div>
             <div class="ag-pb-rows">
-                <div class="ag-pb-row"><span>Activity rate</span><b>₱ {{ activity.fee }} /participant</b></div>
-                <div class="ag-pb-row"><span>Participants</span><b>1 pax</b></div>
+                <div class="ag-pb-row"><span>Activity rate</span><b>₱ {{ activity.fee }} · {{ activity.get_rate_type_display }}</b></div>
+                {% if activity.additional_fee %}<div class="ag-pb-row"><span>Additional fee</span><b>₱ {{ activity.additional_fee }} {{ activity.get_rate_type_display|lower }}</b></div>{% endif %}
+                <div class="ag-pb-row"><span>Participants</span><b><span id="activity-summary-participants">{{ activity.min_participants }}</span> pax</b></div>
             </div>
             <div class="ag-pb-divider"></div>
-            <div class="ag-pb-total"><span>Total</span><b>₱ {{ activity.fee }}*</b></div>
+            <div class="ag-pb-total"><span>Total</span><b id="activity-summary-total">₱ {{ activity.fee }}</b></div>
         </div>
         <div class="ag-pb-actions">
             <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>

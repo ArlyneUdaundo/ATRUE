@@ -52,7 +52,7 @@
                 <div class="cards">
                     {% for unit in available_units %}
                     <label class="card card-pad group-villa-card" for="villa-{{ unit.id }}">
-                        <input type="checkbox" name="villa_ids" id="villa-{{ unit.id }}" value="{{ unit.id }}" hidden data-rate="{{ unit.rate }}" data-svc="{{ services.count }}">
+                        <input type="checkbox" name="villa_ids" id="villa-{{ unit.id }}" value="{{ unit.id }}" hidden data-rate="{{ unit.rate }}" data-capacity="{{ unit.capacity }}" data-extra-rate="{{ unit.additional_guest_charge }}" data-svc="{{ services.count }}">
                         <div class="group-villa-head">
                             <div>
                                 <b>{{ unit.get_unit_type_display }} {{ unit.unit_number }}</b>
@@ -132,19 +132,36 @@
 
 <script>
 function recalcGroup() {
-    var total = 0, count = 0;
-    document.querySelectorAll('input[name="villa_ids"]:checked').forEach(function (cb) {
+    var totalCents = 0, count = 0;
+    var remainingAdults = parseInt(document.querySelector('[name="adults"]').value, 10) || 1;
+    var remainingChildren = parseInt(document.querySelector('[name="children"]').value, 10) || 0;
+    var selectedVillas = Array.from(document.querySelectorAll('input[name="villa_ids"]:checked'));
+    selectedVillas.forEach(function (cb, index) {
         count += 1;
-        total += (parseFloat(cb.dataset.rate) || 0) * {{ nights }};
+        var nights = {{ nights }};
+        var baseRate = Math.round((parseFloat(cb.dataset.rate) || 0) * 100);
+        var extraRate = Math.round((parseFloat(cb.dataset.extraRate) || 0) * 100);
+        var capacity = parseInt(cb.dataset.capacity, 10) || 0;
+        var adultsInVilla = Math.min(remainingAdults, capacity);
+        remainingAdults -= adultsInVilla;
+        var childrenInVilla = Math.min(remainingChildren, Math.max(0, capacity - adultsInVilla));
+        remainingChildren -= childrenInVilla;
+        if (index === selectedVillas.length - 1) {
+            adultsInVilla += remainingAdults;
+            childrenInVilla += remainingChildren;
+            remainingAdults = remainingChildren = 0;
+        }
+        var extras = Math.max(0, adultsInVilla + childrenInVilla - capacity);
+        totalCents += baseRate * nights + extraRate * extras * nights;
         var card = cb.closest('.group-villa-card');
         card.querySelectorAll('input[type="checkbox"][name^="services_"]:checked').forEach(function (s) {
-            total += (parseFloat(s.dataset.rate) || 0);
+            totalCents += Math.round((parseFloat(s.dataset.rate) || 0) * 100);
         });
     });
     document.getElementById('villa-count').textContent = count;
     document.getElementById('pb-villas').textContent = count;
-    document.getElementById('villa-total').textContent = '\u20b1 ' + total.toFixed(2);
-    document.getElementById('pb-total').textContent = '\u20b1 ' + total.toFixed(2);
+    document.getElementById('villa-total').textContent = '\u20b1 ' + (totalCents / 100).toFixed(2);
+    document.getElementById('pb-total').textContent = '\u20b1 ' + (totalCents / 100).toFixed(2);
 }
 document.querySelectorAll('input[name="villa_ids"]').forEach(function (cb) {
     cb.addEventListener('change', function () {
@@ -155,6 +172,9 @@ document.querySelectorAll('input[name="villa_ids"]').forEach(function (cb) {
 });
 document.querySelectorAll('input[name^="services_"]').forEach(function (s) {
     s.addEventListener('change', recalcGroup);
+});
+document.querySelectorAll('[name="adults"], [name="children"]').forEach(function (input) {
+    input.addEventListener('input', recalcGroup);
 });
 recalcGroup();
 </script>

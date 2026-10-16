@@ -45,12 +45,12 @@
                 </div>
                 <div class="form-group">
                     <label>Number of Visitors</label>
-                    <input type="number" name="visitors" class="form-input" value="1" min="1"{% if remaining is not None %} max="{{ remaining }}"{% endif %}>
+                    <input type="number" name="visitors" id="visitors" class="form-input" value="1" min="1"{% if remaining is not None %} max="{{ remaining }}"{% endif %} oninput="updateTicketEstimate()">
                 </div>
             </div>
             <div class="form-group">
                 <label>Guided Tour</label>
-                <select name="guided_tour" class="form-input">
+                <select name="guided_tour" id="guided-tour" class="form-input" onchange="updateTicketEstimate()">
                     <option value="NONE">No Guided Tour</option>
                     <option value="STANDARD">Standard Guided Tour{% if guided_tour_rate %} (₱ {{ guided_tour_rate }}/visitor){% endif %}</option>
                     <option value="PRIVATE">Private Guided Tour{% if private_tour_rate %} (₱ {{ private_tour_rate }}){% endif %}</option>
@@ -59,11 +59,11 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>Equipment Rate (₱ / item)</label>
-                    <input type="number" name="equipment_rate" step="0.01" class="form-input" value="0" min="0">
+                    <input type="number" name="equipment_rate" id="equipment-rate" step="0.01" class="form-input" value="0" min="0" oninput="updateTicketEstimate()">
                 </div>
                 <div class="form-group">
                     <label>Equipment Quantity</label>
-                    <input type="number" name="equipment_quantity" class="form-input" value="0" min="0">
+                    <input type="number" name="equipment_quantity" id="equipment-quantity" class="form-input" value="0" min="0" oninput="updateTicketEstimate()">
                 </div>
             </div>
             <div class="form-group">
@@ -143,6 +143,23 @@
                     }
                 }
                 togglePayer();
+                function updateTicketEstimate() {
+                    var visitors = parseInt(document.getElementById('visitors').value, 10) || 1;
+                    var tour = document.getElementById('guided-tour').value;
+                    var tourRate = tour === 'STANDARD' ? Number('{{ guided_tour_rate }}')
+                        : (tour === 'PRIVATE' ? Number('{{ private_tour_rate }}') : 0);
+                    var tourCount = tour === 'STANDARD' ? visitors : (tour === 'PRIVATE' ? 1 : 0);
+                    var equipmentRate = Number(document.getElementById('equipment-rate').value) || 0;
+                    var equipmentQty = parseInt(document.getElementById('equipment-quantity').value, 10) || 0;
+                    var totalCents = Math.round(Number('{{ fee }}') * 100) * visitors
+                        + Math.round(tourRate * 100) * tourCount
+                        + Math.round(equipmentRate * 100) * equipmentQty;
+                    document.getElementById('summary-visitors').textContent = visitors;
+                    document.getElementById('summary-tour').textContent = '₱ ' + (Math.round(tourRate * 100) * tourCount / 100).toFixed(2);
+                    document.getElementById('summary-equipment').textContent = '₱ ' + (Math.round(equipmentRate * 100) * equipmentQty / 100).toFixed(2);
+                    document.getElementById('summary-total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
+                }
+                document.addEventListener('DOMContentLoaded', updateTicketEstimate);
             </script>
             <a href="{% url 'landmarks:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
         </form>
@@ -159,10 +176,12 @@
                 <div class="ag-pb-row"><span>Entry fee</span><b>₱ {{ fee }} /visitor</b></div>
                 {% if guided_tour_rate %}<div class="ag-pb-row"><span>Std guided tour</span><b>₱ {{ guided_tour_rate }}/visitor</b></div>{% endif %}
                 {% if private_tour_rate %}<div class="ag-pb-row"><span>Private tour</span><b>₱ {{ private_tour_rate }}</b></div>{% endif %}
-                <div class="ag-pb-row"><span>Visitors</span><b>1 visitor</b></div>
+                <div class="ag-pb-row"><span>Visitors</span><b><span id="summary-visitors">1</span> visitor(s)</b></div>
+                <div class="ag-pb-row"><span>Guided tour</span><b id="summary-tour">₱ 0.00</b></div>
+                <div class="ag-pb-row"><span>Equipment rental</span><b id="summary-equipment">₱ 0.00</b></div>
             </div>
             <div class="ag-pb-divider"></div>
-            <div class="ag-pb-total"><span>Estimated total</span><b>₱ {{ fee }}*</b></div>
+            <div class="ag-pb-total"><span>Estimated total</span><b id="summary-total">₱ {{ fee }}</b></div>
         </div>
         <div class="ag-pb-actions">
             <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>

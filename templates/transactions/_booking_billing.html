@@ -1,0 +1,55 @@
+<style>
+    .booking-billing-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+    .booking-billing-stat{padding:12px;border:1px solid var(--slate-200,#e2e8f0);border-radius:10px;background:var(--slate-50,#f8fafc)}
+    .booking-billing-stat small{display:block;color:var(--slate-500);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+    .booking-billing-stat strong{font-size:15px}
+    @media(max-width:650px){.booking-billing-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:380px){.booking-billing-summary{grid-template-columns:1fr}}
+</style>
+<div class="card card-pad booking-billing-card">
+    <h3><i class="fas fa-file-invoice"></i> Billing &amp; Payments</h3>
+    {% if bill %}
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in bill.items %}
+                <tr>
+                    <td>{{ item.label }}{% if item.description %}<small class="meta">{{ item.description }}</small>{% endif %}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>₱ {{ item.rate|floatformat:2 }}</td>
+                    <td>₱ {{ item.amount|floatformat:2 }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="4">No line items.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="booking-billing-summary">
+        <div class="booking-billing-stat"><small>Total bill</small><strong>₱ {{ bill.total_amount|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat"><small>Paid</small><strong>₱ {{ bill.amount_paid|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat"><small>Balance</small><strong>₱ {{ bill.balance_due|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat"><small>Verification</small><strong><span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Verified{% else %}Pending{% endif %}</span></strong></div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No bill generated</h3></div>
+    {% endif %}
+
+    {% if payments %}
+    <h4 style="margin-top:18px">Payment history</h4>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Reference</th><th>Amount</th><th>Method</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr>
+                    <td class="mono">{{ payment.payment_reference|default:payment.pk }}</td>
+                    <td>₱ {{ payment.amount|floatformat:2 }}</td>
+                    <td>{{ payment.get_method_display }}</td>
+                    <td>{{ payment.paid_at|date:"M d, Y H:i"|default:"Pending" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>

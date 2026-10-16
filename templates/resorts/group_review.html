@@ -41,7 +41,9 @@
                 <div class="group-line">
                     <div>
                         <b>{{ line.unit.get_unit_type_display }} {{ line.unit.unit_number }}</b>
+                        <div class="meta">{{ line.adults }} adult(s), {{ line.children }} child(ren)</div>
                         <div class="meta">{{ line.nights }} night(s) at ₱ {{ line.unit.rate }}/night{% if line.unit.additional_guest_charge %} · +₱ {{ line.unit.additional_guest_charge }} extra guest{% endif %}</div>
+                        {% if line.extra_total %}<div class="meta">Extra guests: {{ line.extra_guests }} × {{ line.nights }} night(s) · ₱ {{ line.extra_total }}</div>{% endif %}
                         {% if line.services %}
                         <div class="meta">Add-ons: {% for s in line.services %}{{ s.name }} (₱ {{ s.rate }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>
                         {% endif %}
@@ -50,7 +52,7 @@
                 </div>
                 {% endfor %}
                 <div class="group-line group-line-total">
-                    <div><b>Total</b><div class="meta">Villas ₱ {{ unit_subtotal }} · add-ons ₱ {{ services_subtotal }}</div></div>
+                    <div><b>Total</b><div class="meta">Villas ₱ {{ unit_subtotal }} · extra guests ₱ {{ extra_subtotal }} · add-ons ₱ {{ services_subtotal }}</div></div>
                     <b>₱ {{ grand_total }}</b>
                 </div>
             </div>
@@ -74,6 +76,7 @@
             <div class="ag-pb-rows">
                 <div class="ag-pb-row"><span>Villas</span><b>{{ lines|length }}</b></div>
                 <div class="ag-pb-row"><span>Villa charges</span><b>₱ {{ unit_subtotal }}</b></div>
+                <div class="ag-pb-row"><span>Extra guest charges</span><b>₱ {{ extra_subtotal }}</b></div>
                 <div class="ag-pb-row"><span>Add-on services</span><b>₱ {{ services_subtotal }}</b></div>
             </div>
             <div class="ag-pb-divider"></div>

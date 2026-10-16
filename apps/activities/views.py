@@ -9,6 +9,7 @@ from atrue_core.establishment_deletion import delete_booking_history, delete_lin
 from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_activity_bill,
@@ -232,15 +233,29 @@ def book_activity(request, activity_id):
     remaining = _slots_remaining(activity, default_date)
     if request.method == 'POST':
         when = _parse_date(request.POST.get('schedule_date'), default_date)
-        participants = int(request.POST.get('participants') or 1)
+        try:
+            participants = int(request.POST.get('participants') or 1)
+        except (TypeError, ValueError):
+            participants = 0
+        if participants < max(1, activity.min_participants):
+            messages.error(request, f'At least {max(1, activity.min_participants)} participant(s) are required.')
+            return render(request, 'activities/book.html', {
+                'activity': activity, 'default_date': default_date, 'remaining': remaining,
+            })
+        if participants > activity.capacity:
+            messages.error(request, f'Participant count cannot exceed this activity’s capacity of {activity.capacity}.')
+            return render(request, 'activities/book.html', {
+                'activity': activity, 'default_date': default_date, 'remaining': remaining,
+            })
         remaining_on_date = _slots_remaining(activity, when)
-        if remaining_on_date is not None and participants > remaining_on_date:
+        if remaining_on_date is not None and (remaining_on_date <= 0 or participants > remaining_on_date):
             messages.error(request, f"This activity has only {remaining_on_date} slot(s) open on that date (BR-067).")
             return render(request, 'activities/book.html', {
                 'activity': activity, 'default_date': default_date, 'remaining': remaining_on_date,
             })
 
-        total = float(activity.fee) * participants
+        items = compute_activity_bill(activity, participants)
+        total = bill_items_total(items)
         booking = Booking.objects.create(
             customer=request.user,
             activity=activity,
@@ -253,7 +268,6 @@ def book_activity(request, activity_id):
             payer_contact=request.POST.get('payer_contact', ''),
             status=Booking.Status.PENDING,
         )
-        items = compute_activity_bill(activity, participants)
         bill = create_bill(service='activity', customer=request.user, items=items, booking=booking)
         booking.total_bill = total
         booking.save(update_fields=['total_bill'])

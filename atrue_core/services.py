@@ -458,6 +458,15 @@ def cancel_booking(booking, user, release_callback=None):
 
 # -- Billing formulas from the BRS ---------------------------------------------
 
+def bill_items_total(items):
+    """Return the exact bill total from the same line items shown to the guest."""
+    from decimal import Decimal
+
+    return sum(
+        (Decimal(str(item.get('amount') or 0)) for item in items),
+        Decimal('0.00'),
+    )
+
 def _load(items):
     from decimal import Decimal, InvalidOperation
     return Decimal(items) if items is not None else Decimal(0)
@@ -580,8 +589,19 @@ def compute_attraction_bill(entry_fee, visitors, guided_tour_rate=0, tour_partic
 
 
 def compute_activity_bill(activity, participants, extra_charges=None):
-    items = [{'label': activity.name, 'quantity': participants,
-              'rate': activity.fee, 'amount': activity.fee * participants}]
+    per_person = activity.rate_type == 'PER_PERSON'
+    quantity = participants if per_person else 1
+    description = (f'{participants} participant(s)' if per_person
+                   else activity.get_rate_type_display().lower())
+    items = [{'label': activity.name, 'description': description,
+              'quantity': quantity, 'rate': activity.fee,
+              'amount': activity.fee * quantity}]
+    if activity.additional_fee:
+        items.append({
+            'label': 'Additional fee', 'description': activity.name,
+            'quantity': quantity, 'rate': activity.additional_fee,
+            'amount': activity.additional_fee * quantity,
+        })
     for item in (extra_charges or []):
         items.append(item)
     return items

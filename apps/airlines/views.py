@@ -27,6 +27,7 @@ from atrue_core.location_hierarchy import country_province_keys, location_matche
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     compute_airline_bill,
@@ -2840,18 +2841,19 @@ def book_flight(request, flight_id):
             names.append('')
 
         extras = Service.objects.none()
-        baggage_kg = float(request.POST.get('baggage') or 0)
-        baggage_charge = baggage_kg * float(flight.baggage_rate or 0)
+        try:
+            baggage_kg = Decimal(request.POST.get('baggage') or '0')
+        except (InvalidOperation, TypeError, ValueError):
+            baggage_kg = Decimal('0')
+        baggage_kg = max(Decimal('0'), baggage_kg)
+        baggage_charge = baggage_kg * (flight.baggage_rate or Decimal('0'))
         fare = flight.fare_for(fare_class)
         return_fare = (return_flight.fare_for(fare_class)
                        if return_flight is not None else None)
         items = compute_airline_bill(flight, passengers, fare, services=extras,
                                      baggage_charge=baggage_charge, baggage_kg=baggage_kg,
                                      return_flight=return_flight, return_fare=return_fare)
-        leg_total = float(fare) * passengers
-        if return_flight is not None:
-            leg_total += float(return_fare) * passengers
-        total = leg_total + sum(float(getattr(s, 'rate', 0)) for s in extras) + baggage_charge
+        total = bill_items_total(items)
 
         booking = Booking.objects.create(
             flight=flight,
@@ -3138,26 +3140,22 @@ def book_itinerary(request, itinerary_id):
 
         extras = Service.objects.none()
         try:
-            baggage_kg = float(request.POST.get('baggage') or 0)
-        except (TypeError, ValueError):
-            baggage_kg = 0
-        baggage_kg = max(0, baggage_kg)
+            baggage_kg = Decimal(request.POST.get('baggage') or '0')
+        except (InvalidOperation, TypeError, ValueError):
+            baggage_kg = Decimal('0')
+        baggage_kg = max(Decimal('0'), baggage_kg)
         # The rate is the itinerary's, falling back to the first leg's, so the
         # quoted price matches what the journey card showed.
         baggage_rate = itinerary.baggage_rate or legs[0].baggage_rate or 0
-        baggage_charge = baggage_kg * float(baggage_rate or 0)
+        baggage_charge = baggage_kg * Decimal(str(baggage_rate or 0))
 
         # Each leg keeps its own fare; the chain sums to the journey price.
         leg_fares = [(leg, leg.fare_for(fare_class)) for leg in legs]
-        total_leg_fare = sum(float(fare) for _, fare in leg_fares) * passengers
-        total = (total_leg_fare
-                 + sum(float(getattr(s, 'rate', 0)) for s in extras)
-                 + baggage_charge
-                 + float(itinerary.service_fee or 0) * passengers)
         items = compute_airline_bill(
             legs[0], passengers, leg_fares[0][1], services=extras,
             baggage_charge=baggage_charge, baggage_kg=baggage_kg,
             itinerary_legs=leg_fares)
+        total = bill_items_total(items)
 
         travel_document_type = 'PASSPORT'
         travel_document_number = request.POST.get('travel_document_number', '')

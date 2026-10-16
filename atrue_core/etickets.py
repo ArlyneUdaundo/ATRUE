@@ -278,8 +278,13 @@ def _ctx_landmarks(booking, bill):
 def _ctx_activities(booking, bill):
     act = booking.activity
     prov = act.provider
-    base = _money(act.fee) * _money(booking.participant_count) + _money(act.additional_fee or 0)
-    rows = [(f"{act.name} ({booking.participant_count} participant(s))", base)]
+    if bill is not None:
+        rows = [(item.get('label', act.name), _money(item.get('amount')))
+                for item in (bill.items or [])]
+    else:
+        from atrue_core.services import compute_activity_bill
+        rows = [(item['label'], _money(item['amount']))
+                for item in compute_activity_bill(act, booking.participant_count)]
     grid = [
         ('Activity', act.name),
         ('Provider', prov.name if prov else '—'),

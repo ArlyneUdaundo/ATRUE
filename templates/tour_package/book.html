@@ -199,11 +199,11 @@
 <script>
 function updateTotal() {
     const count = parseInt(document.getElementById('id_travelers').value || 1);
-    const base = {{ package.price }};
+    const baseCents = Math.round(Number('{{ package.price }}') * 100);
     const headcount = {{ package.included_headcount }};
-    const extra = {{ package.extra_person_rate }};
-    const total = base + Math.max(0, count - headcount) * extra;
-    document.getElementById('id_total').textContent = '₱ ' + total.toFixed(2);
+    const extraCents = Math.round(Number('{{ package.extra_person_rate }}') * 100);
+    const totalCents = baseCents + Math.max(0, count - headcount) * extraCents;
+    document.getElementById('id_total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
 }
 
 function addGuestRow() {

@@ -16,6 +16,7 @@ from atrue_core.image_utils import delete_image_record, is_valid_image
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
+    bill_items_total,
     cancel_booking,
     checkout,
     confirm_booking,
@@ -311,44 +312,82 @@ def book_staycation(request, staycation_id):
         return redirect('staycations:list')
     base_in = date.today() + timedelta(days=1)
     base_out = base_in + timedelta(days=1)
+    active_services = staycation.services.filter(status=Service.ServiceStatus.ACTIVE)
+
+    def invalid_booking(message, check_in=None, check_out=None):
+        messages.error(request, message)
+        return render(request, 'staycations/book.html', {
+            'staycation': staycation,
+            'check_in': check_in or base_in,
+            'check_out': check_out or base_out,
+            'nights': max(1, ((check_out or base_out) - (check_in or base_in)).days),
+            'services': active_services,
+        })
+
     if request.method == 'POST':
-        check_in = _parse_date(request.POST.get('check_in'), base_in)
-        check_out = _parse_date(request.POST.get('check_out'), base_out)
+        check_in = _parse_date(request.POST.get('check_in'), None)
+        check_out = _parse_date(request.POST.get('check_out'), None)
+        if not check_in or not check_out:
+            return invalid_booking('Enter valid check-in and check-out dates.', check_in, check_out)
+        if check_in < date.today():
+            return invalid_booking('Check-in cannot be in the past.', check_in, check_out)
+        if check_out <= check_in:
+            return invalid_booking('Check-out must be after check-in.', check_in, check_out)
+
+        try:
+            adults = int(request.POST.get('adults') or 1)
+            children = int(request.POST.get('children') or 0)
+        except (TypeError, ValueError):
+            return invalid_booking('Enter a valid number of adults and children.', check_in, check_out)
+        if adults < 1 or children < 0:
+            return invalid_booking('At least one adult is required; children cannot be negative.', check_in, check_out)
+        if (adults > staycation.capacity_adults
+                or children > staycation.capacity_children
+                or adults + children > staycation.capacity):
+            return invalid_booking(
+                f'Guest count exceeds capacity. This staycation allows up to '
+                f'{staycation.capacity_adults} adult(s), {staycation.capacity_children} '
+                f'child(ren), and {staycation.capacity} guest(s) total.',
+                check_in, check_out)
+
+        try:
+            selected_service_ids = {int(value) for value in request.POST.getlist('services')}
+        except (TypeError, ValueError):
+            return invalid_booking('One or more selected add-ons are invalid.', check_in, check_out)
+        selected_services = list(active_services.filter(pk__in=selected_service_ids))
+        if len(selected_services) != len(selected_service_ids):
+            return invalid_booking(
+                'One or more selected add-ons are unavailable for this staycation.',
+                check_in, check_out)
 
         for block in staycation.blocked_dates.all():
             if check_in < block.end_date and check_out > block.start_date:
-                messages.error(request, f"Selected dates fall on a block-out period ({block.start_date} to {block.end_date}).")
-                return render(request, 'staycations/book.html', {
-                    'staycation': staycation, 'check_in': check_in, 'check_out': check_out,
-                    'nights': max(1, (check_out - check_in).days),
-                    'services': staycation.services.filter(status=Service.ServiceStatus.ACTIVE),
-                })
+                return invalid_booking(
+                    f"Selected dates fall on a block-out period ({block.start_date} to {block.end_date}).",
+                    check_in, check_out)
 
         if overlapping_booking_exists(
             Reservation, resource_field='staycation', resource=staycation,
             start=check_in, end=check_out,
         ):
-            messages.error(request, "This staycation is already reserved for the selected dates.")
-            return render(request, 'staycations/book.html', {
-                'staycation': staycation, 'check_in': check_in, 'check_out': check_out,
-                'nights': max(1, (check_out - check_in).days),
-                'services': staycation.services.filter(status=Service.ServiceStatus.ACTIVE),
-            })
+            return invalid_booking(
+                'This staycation is already reserved for the selected dates.',
+                check_in, check_out)
 
-        nights = max(1, (check_out - check_in).days)
+        nights = (check_out - check_in).days
         reservation = Reservation.objects.create(
             customer=request.user,
             staycation=staycation,
             check_in=check_in,
             check_out=check_out,
-            number_of_adults=int(request.POST.get('adults') or 1),
-            number_of_children=int(request.POST.get('children') or 0),
+            number_of_adults=adults,
+            number_of_children=children,
             special_requests=request.POST.get('special_requests', ''),
             payer_name=request.user.full_profile,
             payer_contact=request.user.contact_number or '',
             status=Reservation.Status.PENDING,
         )
-        reservation.services.set(request.POST.getlist('services'))
+        reservation.services.set(selected_services)
 
         first_names = request.POST.getlist('additional_first_name')
         last_names = request.POST.getlist('additional_last_name')
@@ -375,12 +414,12 @@ def book_staycation(request, staycation_id):
         service_items = [
             {'label': s.name, 'description': 'Staycation service',
              'quantity': 1, 'rate': s.rate, 'amount': s.rate}
-            for s in reservation.services.all()
+            for s in selected_services
         ]
         items = [{'label': 'Staycation', 'description': f"{staycation.name} x {nights} night(s)",
                   'quantity': nights, 'rate': staycation.rate, 'amount': staycation.rate * nights}]
         items += service_items
-        total = staycation.rate * nights + sum(float(s.rate) for s in reservation.services.all())
+        total = bill_items_total(items)
         bill = create_bill(service='staycation', customer=request.user, items=items, booking=reservation)
         reservation.total_bill = total
         reservation.save(update_fields=['total_bill'])
@@ -431,7 +470,7 @@ def book_staycation(request, staycation_id):
         'check_in': base_in,
         'check_out': base_out,
         'nights': 1,
-        'services': staycation.services.filter(status=Service.ServiceStatus.ACTIVE),
+        'services': active_services,
     })
 
 

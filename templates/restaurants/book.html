@@ -44,7 +44,7 @@
                 </div>
                 <div class="form-group">
                     <label>Number of Guests</label>
-                    <input type="number" name="guests" id="guests" class="form-input" value="2" min="1" max="{{ table.capacity }}" oninput="updateDeposit()">
+                    <input type="number" name="guests" id="guests" class="form-input" value="{{ default_guests }}" min="1" max="{{ table.capacity }}" oninput="updateDeposit()">
                 </div>
             </div>
             <div class="form-grid">

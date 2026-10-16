@@ -258,6 +258,12 @@ var FARES = {
     PREMIUM_ECONOMY: {{ flight.premium_economy_fare|default:0 }},
     ECONOMY: {{ flight.economy_fare|default:0 }}
 };
+var RETURN_FARES = {
+    FIRST_CLASS: {{ return_flight.first_class_fare|default:0 }},
+    BUSINESS: {{ return_flight.business_fare|default:0 }},
+    PREMIUM_ECONOMY: {{ return_flight.premium_economy_fare|default:0 }},
+    ECONOMY: {{ return_flight.economy_fare|default:0 }}
+};
 var BAG_RATE = {{ flight.baggage_rate }};
 
 var SEGMENTS = ['departure'];
@@ -627,13 +633,14 @@ function refresh() {
 /* ---- unchanged booking-page behaviour ----------------------------------- */
 function updateFare() {
     var n = paxCount();
-    var perPax = parseFloat(FARES[fareInput.value]) || 0;
-    // A round trip is two flown legs at the same cabin fare, so the estimate
-    // counts each passenger twice rather than hiding the return in a total that
-    // is only correct after submission.
-    var total = perPax * n * {{ return_flight|yesno:"2,1" }};
-    total += (parseFloat(document.getElementById('baggage').value) || 0) * BAG_RATE;
-    document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
+    var perPaxCents = Math.round((parseFloat(FARES[fareInput.value]) || 0) * 100);
+    if (HAS_RETURN) perPaxCents += Math.round((parseFloat(RETURN_FARES[fareInput.value]) || 0) * 100);
+    // Each leg can have its own fare, so the preview adds both cabin fares
+    // before multiplying by the passenger count.
+    var totalCents = perPaxCents * n;
+    totalCents += Math.round((parseFloat(document.getElementById('baggage').value) || 0)
+        * (parseFloat(BAG_RATE) || 0) * 100);
+    document.getElementById('pb-total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
 }
 
 /* ---- wiring ------------------------------------------------------------- */

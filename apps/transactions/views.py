@@ -146,8 +146,13 @@ def payment_review(request):
             else:
                 messages.success(request, f'Partial payment confirmed for {bill.bill_reference}. Remaining balance is still due.')
             return redirect('transactions:payment_review')
-        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment,
-                     'payment': payment, 'needs_recording': False})
+        rows.append({
+            'bill': bill, 'booking': booking, 'establishment': establishment,
+            'payment': payment, 'needs_recording': False,
+            'booking_type': booking._meta.verbose_name.title(),
+            'check_in': getattr(booking, 'check_in', None),
+            'check_out': getattr(booking, 'check_out', None),
+        })
 
     for bill in bills.select_related('customer').prefetch_related('payments'):
         booking = bill.booking
@@ -185,8 +190,13 @@ def payment_review(request):
             else:
                 messages.success(request, f'Payment for {bill.bill_reference} verified.')
             return redirect('transactions:payment_review')
-        rows.append({'bill': bill, 'booking': booking, 'establishment': establishment,
-                     'needs_recording': False})
+        rows.append({
+            'bill': bill, 'booking': booking, 'establishment': establishment,
+            'needs_recording': False,
+            'booking_type': booking._meta.verbose_name.title(),
+            'check_in': getattr(booking, 'check_in', None),
+            'check_out': getattr(booking, 'check_out', None),
+        })
     return render(request, 'transactions/payment_review.html', {
         'rows': rows,
         'active_assignment': assignment,
@@ -217,7 +227,7 @@ def _notify_reservation_officers(booking, establishment, assignment, bill):
     notify_many(
         [row.student for row in officers],
         Notification.Type.GENERAL,
-        f'Payment verified for resort reservation {booking.booking_reference}. '
+        f'Payment verified for reservation {booking.booking_reference}. '
         'Review and confirm the reservation.',
         session=assignment.session if assignment else None,
         establishment=establishment,

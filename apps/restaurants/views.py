@@ -507,6 +507,7 @@ def book_restaurant(request, table_id):
         messages.error(request, "This table is not currently available for booking.")
         return redirect('restaurants:list')
     default_when = timezone.now() + timedelta(hours=2)
+    default_guests = max(1, min(2, table.capacity))
     if request.method == 'POST':
         when = _parse_datetime(request.POST.get('reservation_datetime'), default_when)
         guests = _parse_int(request.POST.get('guests'), 1)
@@ -547,6 +548,7 @@ def book_restaurant(request, table_id):
                 'table': table,
                 'default_when': default_when,
                 'deposit_per_guest': DEPOSIT_PER_GUEST,
+                'default_guests': default_guests,
                 'occasions': Reservation.Occasion.choices,
                 'booking_error': str(exc),
             })
@@ -605,6 +607,7 @@ def book_restaurant(request, table_id):
         'table': table,
         'default_when': default_when,
         'deposit_per_guest': DEPOSIT_PER_GUEST,
+        'default_guests': default_guests,
         'occasions': Reservation.Occasion.choices,
     })
 
