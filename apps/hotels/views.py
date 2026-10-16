@@ -1,4 +1,4 @@
-﻿import json
+import json
 import logging
 import re
 from datetime import date, timedelta
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 
 # Guest contact numbers are digits only: no letters, spaces or punctuation.
-# ASCII-only on purpose -- str.isdigit() also accepts things like '²' and
+# ASCII-only on purpose -- str.isdigit() also accepts things like '2' and
 # Arabic-Indic digits, which are not dialable.
 CONTACT_DIGITS_RE = re.compile(r'[0-9]+')
 MIN_CONTACT_DIGITS = 7
@@ -335,7 +335,7 @@ def delete_hotel(request, hotel_id):
 
 
 def hotel_detail(request, hotel_id):
-    """FR-003 VIEW Hotel – full detail profile (rooms, services, amenities).
+    """FR-003 VIEW Hotel - full detail profile (rooms, services, amenities).
 
     Room availability is computed against the customer-selected check-in /
     check-out dates: a room appears bookable only when it is not reserved,
@@ -518,7 +518,7 @@ def delete_room(request, room_id):
 @manager_required
 @hotel_scoped
 def rooms(request):
-    """FR-002 RETRIEVE Rooms – search and filter by hotel, type, or status."""
+    """FR-002 RETRIEVE Rooms - search and filter by hotel, type, or status."""
     qs = Room.objects.select_related('hotel').prefetch_related('photos').all()
     qs = scope_qs(request, qs, field='hotel_id')
     q = (request.GET.get('q') or '').strip()
@@ -552,7 +552,7 @@ def rooms(request):
 @login_required
 @hotel_scoped
 def room_detail(request, room_id):
-    """FR-003 VIEW Room – full detail profile (photos, features, rate, availability).
+    """FR-003 VIEW Room - full detail profile (photos, features, rate, availability).
 
     Booking opportunities are computed against the customer-selected
     check-in / check-out dates (default: tomorrow for one night).
@@ -653,7 +653,7 @@ def delete_service(request, service_id):
 @manager_required
 @hotel_scoped
 def services(request):
-    """FR-002 Retrieve the Service of the Hotel – search by name, status, hotel."""
+    """FR-002 Retrieve the Service of the Hotel - search by name, status, hotel."""
     qs = Service.objects.select_related('hotel').all()
     qs = scope_qs(request, qs, field='hotel_id')
     q = (request.GET.get('q') or '').strip()
@@ -682,7 +682,7 @@ def services(request):
 @login_required
 @hotel_scoped
 def service_detail(request, service_id):
-    """FR-003/FR-004 View the Services of the Hotel – full details (active for customers)."""
+    """FR-003/FR-004 View the Services of the Hotel - full details (active for customers)."""
     service = get_object_or_404(Service.objects.select_related('hotel'), pk=service_id)
     is_manager = request.user.can_manage_hotels
     if service.status != Service.ServiceStatus.ACTIVE and not is_manager:
@@ -762,7 +762,7 @@ def delete_amenity(request, amenity_id):
 @manager_required
 @hotel_scoped
 def amenities(request):
-    """FR-002 Retrieve Amenities – search by name, status, or hotel."""
+    """FR-002 Retrieve Amenities - search by name, status, or hotel."""
     qs = Amenity.objects.select_related('hotel').all()
     qs = scope_qs(request, qs, field='hotel_id')
     q = (request.GET.get('q') or '').strip()
@@ -791,7 +791,7 @@ def amenities(request):
 @login_required
 @hotel_scoped
 def amenity_detail(request, amenity_id):
-    """FR-004 View Amenity – full details (active only for customers)."""
+    """FR-004 View Amenity - full details (active only for customers)."""
     amenity = get_object_or_404(Amenity.objects.select_related('hotel'), pk=amenity_id)
     is_manager = request.user.can_manage_hotels
     if amenity.status != Amenity.AmenityStatus.ACTIVE and not is_manager:
@@ -1066,15 +1066,15 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                 extra_count = max(0, total_guests - room.capacity)
                 room_amount = room.rate * nights
                 extra_amount = room.additional_guest_charge * extra_count * nights
-                bill_items.append({'label': room.get_room_type_display(), 'description': f'Room {room.room_number} × {nights} night(s)', 'quantity': nights, 'rate': room.rate, 'amount': room_amount})
+                bill_items.append({'label': room.get_room_type_display(), 'description': f'Room {room.room_number} x {nights} night(s)', 'quantity': nights, 'rate': room.rate, 'amount': room_amount})
                 if extra_count:
-                    bill_items.append({'label': 'Additional guest charge', 'description': f'Room {room.room_number}: {extra_count} extra guest(s) × {nights} night(s)', 'quantity': extra_count * nights, 'rate': room.additional_guest_charge, 'amount': extra_amount})
+                    bill_items.append({'label': 'Additional guest charge', 'description': f'Room {room.room_number}: {extra_count} extra guest(s) x {nights} night(s)', 'quantity': extra_count * nights, 'rate': room.additional_guest_charge, 'amount': extra_amount})
                 for service in selected_services:
                     bill_items.append({'label': service.name, 'description': f'Room {room.room_number} hotel service', 'quantity': 1, 'rate': service.rate, 'amount': service.rate})
             total = bill_items_total(bill_items)
             bill = create_bill(service='hotel', customer=user, items=bill_items, booking=booking)
             if pay_later:
-                log_activity(user, 'Placed hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending payment')
+                log_activity(user, 'Placed hotel group booking', f'{booking.booking_reference} - {len(rooms)} room(s) - pending payment')
                 record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference}')
             else:
                 record_payment(customer=user, amount=total, method=method, service='hotel',
@@ -1084,7 +1084,7 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                 # Hotel Booking.balance_due is a read-only derived property;
                 # the bill is the source of truth for the outstanding balance.
                 booking.save(update_fields=['status', 'amount_paid'])
-                log_activity(user, 'Submitted payment for hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending Billing Officer confirmation')
+                log_activity(user, 'Submitted payment for hotel group booking', f'{booking.booking_reference} - {len(rooms)} room(s) - pending Billing Officer confirmation')
                 record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference} payment submitted')
             return booking, None
     except ValueError as exc:
@@ -1184,10 +1184,10 @@ def hotel_group_select_rooms(request, hotel_id):
             messages.error(request, f"Room {room.room_number} is no longer available for those dates.")
             return redirect('hotels:group_start', hotel.id)
 
-      adults_search = int(request.POST.get('adults') or rooms_needed)
-      children_search = int(request.POST.get('children') or 0)
+    adults_search = int(request.POST.get('adults') or rooms_needed)
+    children_search = int(request.POST.get('children') or 0)
 
-      guest_lines, errors = _parse_guest_lines(request, rooms)
+    guest_lines, errors = _parse_guest_lines(request, rooms)
     if errors:
         return _render_room_selection(
             request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
