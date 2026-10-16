@@ -113,21 +113,7 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Payment Method</label>
-                <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-            </div>
-            <label class="checkbox" style="margin-bottom:6px">
-                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
-            </label>
-            <button type="button" class="ag-btn ag-btn-block landtransport-continue" data-booking-continue><i class="fas fa-arrow-right"></i> Continue</button>
+            <button type="button" class="ag-btn ag-btn-block landtransport-continue" data-booking-continue><i class="fas fa-arrow-right"></i> Continue Booking</button>
             <script>
                 function togglePayer() {
                     var same = document.getElementById('payer-same');
@@ -169,7 +155,7 @@
     </div>
 
     <aside class="ag-price-box" data-booking-summary-step hidden>
-        <div class="ag-pb-head" tabindex="-1"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-head" tabindex="-1"><i class="fas fa-file-invoice-dollar"></i> <b>Payment process</b></div>
         <div class="ag-pb-body">
             <div class="ag-pb-prop">
                 <span class="ag-pb-ico"><i class="fas fa-bus"></i></span>
@@ -180,6 +166,21 @@
                 <div class="ag-pb-row"><span>Passengers</span><b><span id="pb-pax">1</span> pax</b></div>
                 <div class="ag-pb-row"><span>Distance</span><b id="pb-distance">Set in form</b></div>
             </div>
+            <div class="form-group" style="margin-top:16px">
+                <label for="transport-payment-method">Payment Method</label>
+                <select name="payment_method" id="transport-payment-method" form="booking-form" class="form-input">
+                    <option value="GCASH">GCash</option>
+                    <option value="MAYA">Maya</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                    <option value="PAYPAL">PayPal</option>
+                    <option value="QR_PH">QR Ph</option>
+                </select>
+            </div>
+            <label class="checkbox" style="margin-bottom:6px">
+                <input type="checkbox" name="pay_later" form="booking-form"> Pay later (booking stays pending)
+            </label>
             <div class="ag-pb-divider"></div>
             <div class="ag-pb-row"><span>Transaction</span><b>1 order / 1 payment</b></div>
             <div class="ag-pb-total"><span>Estimated fare</span><b><span id="pb-fare">—</span></b></div>
@@ -205,8 +206,14 @@
     var summary = document.querySelector('[data-booking-summary-step]');
     var continueButton = document.querySelector('[data-booking-continue]');
     var backButton = document.querySelector('[data-booking-back]');
-    if (!flow || !bookingForm || !summary || !continueButton || !backButton) return;
-    bookingForm.addEventListener('submit', function () {
+    var paymentMethod = document.getElementById('transport-payment-method');
+    if (!flow || !bookingForm || !summary || !continueButton || !backButton || !paymentMethod) return;
+    bookingForm.addEventListener('submit', function (event) {
+        if (!flow.classList.contains('is-summary-step')) {
+            event.preventDefault();
+            continueButton.click();
+            return;
+        }
         var date = bookingForm.querySelector('[data-transport-booking-date]').value;
         var time = bookingForm.querySelector('[data-transport-booking-time]').value;
         bookingForm.querySelector('[data-transport-booking-schedule]').value = date + 'T' + time;
@@ -214,11 +221,13 @@
     continueButton.addEventListener('click', function () {
         if (!bookingForm.reportValidity()) return;
         updateFare();
+        paymentMethod.required = true;
         flow.classList.add('is-summary-step');
         summary.hidden = false;
         summary.querySelector('.ag-pb-head').focus({ preventScroll: true });
     });
     backButton.addEventListener('click', function () {
+        paymentMethod.required = false;
         flow.classList.remove('is-summary-step');
         summary.hidden = true;
         continueButton.focus({ preventScroll: true });
