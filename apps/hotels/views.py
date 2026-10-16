@@ -1081,8 +1081,9 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                                description=f'Hotel group booking {booking.booking_reference}', bill=bill, booking=booking)
                 booking.status = Booking.Status.PENDING
                 booking.amount_paid = bill.amount_paid
-                booking.balance_due = bill.balance_due
-                booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+                # Hotel Booking.balance_due is a read-only derived property;
+                # the bill is the source of truth for the outstanding balance.
+                booking.save(update_fields=['status', 'amount_paid'])
                 log_activity(user, 'Submitted payment for hotel group booking', f'{booking.booking_reference} · {len(rooms)} room(s) · pending Billing Officer confirmation')
                 record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference} payment submitted')
             return booking, None
