@@ -4,6 +4,11 @@
 
 {% block title %}{{ restaurant.name }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261016-restaurant-guest-popup">
+<style>#restaurantGuestInfoModal .rm-modal-card { max-width: 860px; }</style>
+{% endblock %}
+
 {% block content %}
 <div class="ag-results-head">
     <div>
