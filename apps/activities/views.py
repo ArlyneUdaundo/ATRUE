@@ -249,6 +249,12 @@ def book_activity(request, activity_id):
             return render(request, 'activities/book.html', {
                 'activity': activity, 'default_date': default_date, 'remaining': remaining,
             })
+        if activity.schedule_date and when != activity.schedule_date:
+            messages.error(request, f"This activity runs on {activity.schedule_date:%b %d, %Y}.")
+            return render(request, 'activities/book.html', {
+                'activity': activity, 'default_date': activity.schedule_date,
+                'remaining': _slots_remaining(activity, activity.schedule_date),
+            })
         remaining_on_date = _slots_remaining(activity, when)
         if remaining_on_date is not None and (remaining_on_date <= 0 or participants > remaining_on_date):
             messages.error(request, f"This activity has only {remaining_on_date} slot(s) open on that date (BR-067).")

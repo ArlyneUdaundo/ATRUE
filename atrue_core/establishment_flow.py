@@ -1281,7 +1281,9 @@ class ActivityAdapter(BaseAdapter):
     time_label = 'Start time'
 
     def default_date(self, est, fallback):
-        if est.schedule_date and est.schedule_date > fallback:
+        from datetime import date
+
+        if est.schedule_date and est.schedule_date >= date.today():
             return est.schedule_date
         return fallback
 
@@ -1321,7 +1323,17 @@ class ActivityAdapter(BaseAdapter):
         elif act.schedule_date and act.schedule_date != check_in:
             status, bookable = f'Runs {act.schedule_date.strftime("%b %d, %Y")}', False
         else:
-            status, bookable = 'Available', True
+            from activities.models import Booking
+            from django.db.models import Sum
+
+            booked = Booking.objects.filter(
+                activity=act, schedule_date=check_in,
+            ).exclude(status__in=[Booking.Status.CANCELLED, Booking.Status.DECLINED])
+            used = booked.aggregate(total=Sum('participant_count'))['total'] or 0
+            if act.capacity and used >= act.capacity:
+                status, bookable = 'Fully booked', False
+            else:
+                status, bookable = 'Available', True
         rate = _rate_block(act.fee, 1, self.rate_noun(act))
         rate['extra_charge'] = q2(act.additional_fee)
         rate['extra_label'] = 'additional fee'
@@ -1391,6 +1403,16 @@ class ActivityAdapter(BaseAdapter):
                     raise ValueError(f'This activity allows up to {act.capacity} participants.')
                 if participants < act.min_participants:
                     raise ValueError(f'This activity requires at least {act.min_participants} participants.')
+                from django.db.models import Sum
+                existing = Booking.objects.filter(
+                    activity=act, schedule_date=schedule_date,
+                ).exclude(status__in=[Booking.Status.CANCELLED, Booking.Status.DECLINED])
+                used = existing.aggregate(total=Sum('participant_count'))['total'] or 0
+                remaining = max(0, act.capacity - used) if act.capacity else participants
+                if participants > remaining:
+                    raise ValueError(
+                        f'This activity has only {remaining} slot(s) left on that date.'
+                    )
                 booking = Booking.objects.create(
                     customer=user,
                     activity=act,
