@@ -36,58 +36,61 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if host.strip()
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
 
-SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').strip().lower() == 'true'
-SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', str(not DEBUG)).strip().lower() == 'true'
+SECURE_SSL_REDIRECT = (
+    os.getenv("SECURE_SSL_REDIRECT", "False").strip().lower() == "true"
+)
+SESSION_COOKIE_SECURE = (
+    os.getenv("SESSION_COOKIE_SECURE", str(not DEBUG)).strip().lower() == "true"
+)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', str(not DEBUG)).strip().lower() == 'true'
+CSRF_COOKIE_SECURE = (
+    os.getenv("CSRF_COOKIE_SECURE", str(not DEBUG)).strip().lower() == "true"
+)
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # Geographic reference data (GeoNames)
-    'locations',
-
+    "locations",
     # ATRUE Travel and Tours Booking Platform apps
-    'accounts',
-    'hotels',
-    'resorts',
-    'staycations',
-    'restaurants',
-    'airlines',
-    'transportation',
-    'landmarks',
-    'activities',
-    'tour_package',
-    'transactions',
-    'simulation',
-    'records',
-
+    "accounts",
+    "hotels",
+    "resorts",
+    "staycations",
+    "restaurants",
+    "airlines",
+    "transportation",
+    "landmarks",
+    "activities",
+    "tour_package",
+    "transactions",
+    "simulation",
+    "records",
     # Simulation-platform services. ``establishments`` is listed before
     # ``simulation`` because ``simulation``'s tables point at it; ``api`` holds
     # no models at all and only routes to the DRF viewsets.
-    'establishments',
-    'notifications',
-    'audit_logs',
-    'travel_agencies',
-    'billing',
+    "establishments",
+    "notifications",
+    "audit_logs",
+    "travel_agencies",
+    "billing",
 ]
 
 # ``TabSessionMiddleware`` must sit directly below ``SessionMiddleware`` so that
@@ -106,18 +109,18 @@ INSTALLED_APPS = [
 # secret, so signing in on one tab invalidated the tokens already sitting in
 # the other tabs' forms and their next POST failed with HTTP 403.
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'atrue_core.middleware.TabSessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'atrue_core.middleware.ContactNumberValidationMiddleware',
-    'atrue_core.middleware.PaymentMethodValidationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'atrue_core.middleware.StorageUploadErrorMiddleware',
-    'atrue_core.middleware.AdminMoneyFormattingMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "atrue_core.middleware.TabSessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "atrue_core.middleware.ContactNumberValidationMiddleware",
+    "atrue_core.middleware.PaymentMethodValidationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "atrue_core.middleware.StorageUploadErrorMiddleware",
+    "atrue_core.middleware.AdminMoneyFormattingMiddleware",
 ]
 
 # Keep the CSRF secret in the session rather than in a cookie.
@@ -140,29 +143,29 @@ CSRF_USE_SESSIONS = True
 # purely because that tab happened to refresh first. Because
 # ``TabSessionMiddleware`` hands ``MessageMiddleware`` the calling tab's session,
 # ``SessionStorage`` scopes the queue to the tab that raised it.
-MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
-ROOT_URLCONF = 'atrue_core.urls'
+ROOT_URLCONF = "atrue_core.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / "templates"],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'atrue_core.context_processors.notification_count',
-                'atrue_core.context_processors.simulation_task_context',
-                'atrue_core.context_processors.location_tree',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "atrue_core.context_processors.notification_count",
+                "atrue_core.context_processors.simulation_task_context",
+                "atrue_core.context_processors.location_tree",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'atrue_core.wsgi.application'
+WSGI_APPLICATION = "atrue_core.wsgi.application"
 
 
 # Database
@@ -177,49 +180,50 @@ WSGI_APPLICATION = 'atrue_core.wsgi.application'
 # `DB_ENGINE=sqlite` is the single opt-out and exists purely so the project can
 # still be opened on a machine with no PostgreSQL server; production settings
 # refuse to start on it (see _assert_production_database below).
-_database_url = os.getenv('DATABASE_URL', '').strip()
+_database_url = os.getenv("DATABASE_URL", "").strip()
 
 if _database_url:
     import dj_database_url
 
     DATABASES = {
-        'default': dj_database_url.parse(
+        "default": dj_database_url.parse(
             _database_url,
-            conn_max_age=int(os.getenv('DB_CONN_MAX_AGE', '600')),
+            conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "600")),
         )
     }
-elif os.getenv('DB_ENGINE', '').strip().lower() == 'sqlite':
+elif os.getenv("DB_ENGINE", "").strip().lower() == "sqlite":
     # Escape hatch for a machine with no PostgreSQL. See the note above.
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / os.getenv('DB_NAME', 'db.sqlite3'),
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / os.getenv("DB_NAME", "db.sqlite3"),
         }
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'atrue_db'),
-            'USER': os.getenv('DB_USER', 'atrue_user'),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "atrue_db"),
+            "USER": os.getenv("DB_USER", "atrue_user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
             # Row-level contention guards for the transaction engine: claiming
             # and status transitions run inside SELECT ... FOR UPDATE blocks, and
             # PostgreSQL aborts the losing transaction instead of blocking it
             # indefinitely, so a double claim fails loudly (see
             # simulation.engine.claim) instead of silently overwriting.
-            'OPTIONS': {
-                'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', '10')),
+            "OPTIONS": {
+                "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
                 # libpq option rather than a psycopg argument: a student who
                 # clicks "claim" on a request another student is already
                 # claiming waits for the row lock, and this turns that wait into
                 # a prompt, explicit failure instead of a hung request.
-                'options': '-c lock_timeout=%s' % os.getenv('DB_LOCK_TIMEOUT_MS', '5000'),
+                "options": "-c lock_timeout=%s"
+                % os.getenv("DB_LOCK_TIMEOUT_MS", "5000"),
             },
-            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
-            'ATOMIC_REQUESTS': False,
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "600")),
+            "ATOMIC_REQUESTS": False,
         }
     }
 
@@ -227,8 +231,8 @@ else:
 # Render (and any other host that terminates TLS) serves the app behind a proxy.
 # Without this the request scheme stays "http", which makes Django emit
 # http:// CSRF cookies and reject https:// Origin headers.
-if os.getenv('TRUST_PROXY_HEADERS', 'False') == 'True':
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if os.getenv("TRUST_PROXY_HEADERS", "False") == "True":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 def _assert_production_database():
@@ -242,17 +246,16 @@ def _assert_production_database():
     """
     if DEBUG:
         return
-    default = DATABASES['default']
-    if 'postgres' not in default.get('ENGINE', ''):
+    default = DATABASES["default"]
+    if "postgres" not in default.get("ENGINE", ""):
         raise RuntimeError(
             'DATABASES["default"] must use the PostgreSQL backend when DEBUG is '
-            'False. Configure DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT (or '
-            'DATABASE_URL on Render) instead of falling back to SQLite.'
+            "False. Configure DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT (or "
+            "DATABASE_URL on Render) instead of falling back to SQLite."
         )
 
 
 _assert_production_database()
-
 
 
 # Geographic reference data
@@ -266,7 +269,7 @@ _assert_production_database()
 # Change this to serve a different country's tree; 'PH' is the country the
 # platform's listings, validation and overrides are written for.
 
-LOCATION_PRIMARY_COUNTRY = 'PH'
+LOCATION_PRIMARY_COUNTRY = "PH"
 
 
 # Booking rules
@@ -276,13 +279,13 @@ LOCATION_PRIMARY_COUNTRY = 'PH'
 # Sub-day turnover is absorbed on the checkout day itself and never moves a
 # booking to another date; set it to >= 1440 to force a full day of downtime.
 
-ROOM_TURNOVER_MINUTES = int(os.getenv('ROOM_TURNOVER_MINUTES', '60'))
+ROOM_TURNOVER_MINUTES = int(os.getenv("ROOM_TURNOVER_MINUTES", "60"))
 
 
 # Custom User Model
 # https://docs.djangoproject.com/en/6.1/topics/auth/customizing/#substituting-a-custom-user-model
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = "accounts.User"
 
 
 # Password validation
@@ -290,16 +293,16 @@ AUTH_USER_MODEL = 'accounts.User'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -307,9 +310,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'Asia/Manila'
+TIME_ZONE = "Asia/Manila"
 
 USE_I18N = True
 
@@ -319,37 +322,42 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Fingerprinted, pre-compressed assets served with long-lived cache headers in production.
 if not DEBUG:
     STORAGES = {
-        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-        'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
     }
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
-STATICFILES_DIRS = [
-    BASE_DIR / "static"
-]
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Media files (User-uploaded files)
-MEDIA_URL = '/media/'
-MEDIA_ROOT_ENV = os.getenv('MEDIA_ROOT')
+MEDIA_URL = "/media/"
+MEDIA_ROOT_ENV = os.getenv("MEDIA_ROOT")
 # start.sh resolves Render's /var/data mount (or the repository media fallback)
 # before Django starts. Trust that single decision here: os.path.ismount can
 # disagree with mountpoint for some bind-mounted disks, which would make Django
 # write uploads somewhere other than the path preserved by Render.
-MEDIA_ROOT = Path(MEDIA_ROOT_ENV or str(BASE_DIR / 'media'))
-SUPABASE_PUBLIC_STORAGE_CONFIGURED = all(os.getenv(key, '').strip() for key in (
-    'SUPABASE_URL', 'SUPABASE_S3_ENDPOINT', 'SUPABASE_S3_ACCESS_KEY_ID',
-    'SUPABASE_S3_SECRET_ACCESS_KEY', 'SUPABASE_STORAGE_REGION',
-    'SUPABASE_STORAGE_BUCKET',
-))
-SUPABASE_PRIVATE_STORAGE_CONFIGURED = (
-    SUPABASE_PUBLIC_STORAGE_CONFIGURED
-    and bool(os.getenv('SUPABASE_PRIVATE_BUCKET', '').strip())
+MEDIA_ROOT = Path(MEDIA_ROOT_ENV or str(BASE_DIR / "media"))
+SUPABASE_PUBLIC_STORAGE_CONFIGURED = all(
+    os.getenv(key, "").strip()
+    for key in (
+        "SUPABASE_URL",
+        "SUPABASE_S3_ENDPOINT",
+        "SUPABASE_S3_ACCESS_KEY_ID",
+        "SUPABASE_S3_SECRET_ACCESS_KEY",
+        "SUPABASE_STORAGE_REGION",
+        "SUPABASE_STORAGE_BUCKET",
+    )
+)
+SUPABASE_PRIVATE_STORAGE_CONFIGURED = SUPABASE_PUBLIC_STORAGE_CONFIGURED and bool(
+    os.getenv("SUPABASE_PRIVATE_BUCKET", "").strip()
 )
 # Local development may use MEDIA_ROOT. Production must fail closed: accepting
 # uploads into Render's ephemeral filesystem would report success but lose them.
@@ -357,42 +365,50 @@ SUPABASE_STORAGE_CONFIGURED = (
     SUPABASE_PUBLIC_STORAGE_CONFIGURED and SUPABASE_PRIVATE_STORAGE_CONFIGURED
 )
 STORAGES = {
-    'default': {
-        'BACKEND': ('atrue_core.storage_backends.SupabasePublicStorage'
-                    if SUPABASE_PUBLIC_STORAGE_CONFIGURED or not DEBUG
-                    else 'django.core.files.storage.FileSystemStorage'),
+    "default": {
+        "BACKEND": (
+            "atrue_core.storage_backends.SupabasePublicStorage"
+            if SUPABASE_PUBLIC_STORAGE_CONFIGURED or not DEBUG
+            else "django.core.files.storage.FileSystemStorage"
+        ),
     },
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
-    'profile_private': {
-        'BACKEND': ('atrue_core.storage_backends.SupabasePrivateStorage'
-                    if SUPABASE_PRIVATE_STORAGE_CONFIGURED or not DEBUG
-                    else 'django.core.files.storage.FileSystemStorage'),
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+    "profile_private": {
+        "BACKEND": (
+            "atrue_core.storage_backends.SupabasePrivateStorage"
+            if SUPABASE_PRIVATE_STORAGE_CONFIGURED or not DEBUG
+            else "django.core.files.storage.FileSystemStorage"
+        ),
     },
 }
 SERVE_MEDIA_FILES = (
-    os.getenv('SERVE_MEDIA_FILES', 'True').strip().lower() == 'true'
-    or not DEBUG
+    os.getenv("SERVE_MEDIA_FILES", "True").strip().lower() == "true" or not DEBUG
 )
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").strip().lower() == "true"
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
-
 # Brevo transactional email credentials/configuration are supplied by Render.
-BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
-BREVO_SENDER_EMAIL = os.getenv('BREVO_SENDER_EMAIL', '')
-BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', '')
-APP_BASE_URL = os.getenv('APP_BASE_URL', '').rstrip('/')
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "")
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "").rstrip("/")
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp-relay.brevo.com").strip()
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").strip().lower() == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").strip().lower() == "true"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost").strip()
 
 # Send unhandled request exceptions to Render's process logs. With Django's
 # default production logging, HTTP 500 responses may show up only as access-log
@@ -413,3 +429,4 @@ LOGGING = {
             "propagate": False,
         },
     },
+}
