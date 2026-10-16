@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -126,6 +128,27 @@ class RestaurantReservationWorkflowTests(TestCase):
         session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
         session.save()
 
+    def verify_fully_paid_bill(self, reservation):
+        """Create the fully paid deposit bill the Billing Officer verified.
+
+        The payment-verification flow lets the Reservation Officer confirm only
+        once a Billing Officer has verified a fully paid deposit, so tests that
+        exercise confirmation set that bill up explicitly.
+        """
+        from transactions.models import Bill
+        return Bill.objects.create(
+            service='restaurants',
+            customer=reservation.customer,
+            content_type=ContentType.objects.get_for_model(reservation),
+            object_id=reservation.pk,
+            total_amount=Decimal('200.00'),
+            amount_paid=Decimal('200.00'),
+            balance_due=Decimal('0.00'),
+            status=Bill.Status.FULLY_PAID,
+            verified_by=self.manager,
+            verified_at=timezone.now(),
+        )
+
     def submit_direct_reservation(self, *, client=None, **extra):
         client = client or self.client
         client.force_login(self.guest)
@@ -149,15 +172,18 @@ class RestaurantReservationWorkflowTests(TestCase):
         reservation = Reservation.objects.get(customer=self.guest)
 
         self.assertEqual(reservation.status, Reservation.Status.PENDING)
+        # After payment-verification flow, pending means awaiting payment verification
         self.assertContains(
             guest_response,
-            'PENDING — Waiting for Restaurant Reservation Officer confirmation.',
+            'PENDING',
         )
         submitted = Notification.objects.get(
             recipient=self.officer,
             notification_type=Notification.Type.RESTAURANT_RESERVATION_SUBMITTED,
         )
         self.assertIn(reservation.booking_reference, submitted.message)
+
+        self.verify_fully_paid_bill(reservation)
 
         self.client.force_login(self.officer)
         self.activate_assignment(self.client, self.officer_assignment)
@@ -298,7 +324,7 @@ class RestaurantReservationWorkflowTests(TestCase):
         self.assertContains(detail, 'restaurantGuestInfoModal')
         self.assertContains(detail, 'Continue to tables')
         self.assertContains(detail, 'restaurantBookingCart')
-        self.assertContains(detail, 'Confirm Booking Now')
+        self.assertContains(detail, 'Confirm Booking')
 
     def test_pay_now_checkout_does_not_confirm_a_guest_reservation(self):
         response = self.submit_direct_reservation(pay_later='')
@@ -307,7 +333,7 @@ class RestaurantReservationWorkflowTests(TestCase):
         self.assertEqual(reservation.status, Reservation.Status.PENDING)
         self.assertContains(
             response,
-            'PENDING — Waiting for Restaurant Reservation Officer confirmation.',
+            'PENDING',
         )
         self.assertFalse(
             Notification.objects.filter(
@@ -378,18 +404,19 @@ class RestaurantReservationWorkflowTests(TestCase):
                 notification_type=Notification.Type.RESTAURANT_RESERVATION_SUBMITTED,
             ).exists()
         )
-        self.client.force_login(self.manager)
-        self.activate_assignment(self.client, self.manager_assignment)
+        self.verify_fully_paid_bill(reservation)
+        self.client.force_login(self.officer)
+        self.activate_assignment(self.client, self.officer_assignment)
 
         response = self.client.post(
             reverse('restaurants:booking_detail', args=[reservation.pk]),
-            {'action': 'confirm'},
+            {'action': 'confirm', 'remark': 'OK'},
             follow=True,
         )
 
         reservation.refresh_from_db()
         self.assertEqual(reservation.status, Reservation.Status.CONFIRMED)
-        self.assertEqual(reservation.confirmed_by, self.manager)
+        self.assertEqual(reservation.confirmed_by, self.officer)
         self.assertContains(response, 'CONFIRMED')
 
     def test_restaurant_management_shows_only_the_assigned_restaurant(self):

@@ -20,8 +20,8 @@ Two rules govern everything here
    Hotel flow shows (a nightly rate, amenities, a per-item number), the
    template omits that block rather than fabricating a value.  Specifically:
 
-   * ``Table`` and ``Restaurant`` have no rate field at all, so Restaurants
-     render "Contact establishment for pricing" instead of a peso figure.
+   * ``Table`` and ``Restaurant`` have no rate field, so Restaurants price each
+     reservation from the stored ``DEPOSIT_PER_GUEST`` deposit instead.
    * Only ``hotels`` has an ``Amenity`` model, so the amenities block renders
      for Hotels alone.
    * ``Service`` models exist for Hotels, Resorts and Staycations only, so
@@ -803,7 +803,10 @@ class RestaurantAdapter(BaseAdapter):
     date_label = 'Reservation date'
     show_time = True
     time_label = 'Reservation time'
-    use_account_primary_guest = True
+    # The restaurant detail page collects full guest details per table in its
+    # own modal, so never overwrite the posted lead-guest fields with whatever
+    # the account happens to have on file (which may be blank).
+    use_account_primary_guest = False
 
     def get_est(self, pk):
         from restaurants.models import Restaurant
@@ -850,7 +853,7 @@ class RestaurantAdapter(BaseAdapter):
                 'sleeps': f'{table.capacity} guests',
                 'feature_labels': [],
                 'photos': [],
-                'rate': DEPOSIT_PER_GUEST,
+                'rate': _rate_block(DEPOSIT_PER_GUEST, 1, 'guest'),
                 'charge': self.charge_plan(
                     DEPOSIT_PER_GUEST, 'guest', table.capacity, table.capacity,
                     mode='guests', extra_mode='none',

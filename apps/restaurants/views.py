@@ -714,8 +714,8 @@ def booking_detail(request, booking_id):
         action = request.POST.get('action')
         if can_process_checkin and action not in {'checkin', 'checkout'}:
             raise PermissionDenied('Restaurant Front Desk may only check guests in or out.')
-        if reservation_officer and action != 'confirm':
-            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
+        if reservation_officer and action not in {'confirm', 'decline'}:
+            raise PermissionDenied('Reservation Officers may only confirm or reject reservations.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         remark = (request.POST.get('remark') or '').strip()
