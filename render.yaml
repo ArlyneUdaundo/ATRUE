@@ -67,9 +67,9 @@ services:
       - key: SUPABASE_STORAGE_REGION
         sync: false
       - key: SUPABASE_STORAGE_BUCKET
-        value: establishment-images
+        value: establishment_images
       - key: SUPABASE_PRIVATE_BUCKET
-        value: profile-images
+        value: profile_images
 
 databases:
   - name: atrue-performance-staging-db

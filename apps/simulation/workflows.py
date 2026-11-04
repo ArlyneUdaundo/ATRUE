@@ -20,8 +20,6 @@ pages still read them, so leaving them disagreeing would show a student a
 from decimal import Decimal, InvalidOperation
 
 from audit_logs.services import audit
-from notifications.models import Notification
-from notifications.services import notify
 from simulation import engine
 from simulation.models import SimulationTransaction
 
@@ -85,11 +83,6 @@ def submit_booking(*, booking, customer, establishment, session, transaction_typ
     audit(f'{transaction_type}.booking_submitted', actor=customer, transaction=trx,
           details=f'{booking.booking_reference}.',
           new_value=booking.booking_reference)
-
-    notify(customer, Notification.Type.GENERAL,
-           f'Your booking {booking.booking_reference} was received and is now '
-           f'with the reservation desk. Reference {trx.reference}.',
-           transaction=trx, title='Booking received')
 
     return trx
 

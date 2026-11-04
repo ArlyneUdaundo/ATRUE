@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import date, time, timedelta
 from html import unescape
@@ -7,7 +8,7 @@ from zoneinfo import ZoneInfo
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -2765,12 +2766,17 @@ class FlightResultCardTest(TestCase):
     def test_an_airline_logo_is_used_when_one_is_uploaded(self):
         """The reference design leads with the carrier's mark, so it comes from
         the AirlinePhoto already in the database rather than a stock image."""
+        from io import BytesIO
+
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
 
         flight = self._flight('5J-1', 1200, 90)
+        logo = BytesIO()
+        Image.new('RGB', (8, 8), 'blue').save(logo, format='PNG')
         AirlinePhoto.objects.create(
             airline=self.airline, is_primary=True,
-            image=SimpleUploadedFile('logo.png', b'\x89PNG\r\n\x1a\n' + b'0' * 40,
+            image=SimpleUploadedFile('logo.png', logo.getvalue(),
                                      content_type='image/png'))
         photos = self._search().context['airline_logos']
         self.assertEqual(photos[self.airline.pk].airline, self.airline)
@@ -3699,3 +3705,207 @@ class BookingSearchLayoutTests(TestCase):
             'grid-template-columns: repeat(4, minmax(0, 1fr));', body)
         self.assertIn(
             'grid-template-columns: repeat(2, minmax(0, 1fr));', body)
+
+
+class PassengerDetailsPreviewTests(TestCase):
+    """The prototype passenger details page and its query string handling."""
+
+    def test_the_page_renders_the_selected_sample_flight(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'origin': 'MNL',
+            'destination': 'CEB',
+            'index': 0,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-pd-root')
+        self.assertEqual(response.context['selected']['origin_code'], 'MNL')
+        self.assertEqual(response.context['selected']['destination_code'], 'CEB')
+
+    def test_a_domestic_route_opens_on_the_domestic_flight_type(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'origin': 'MNL',
+            'destination': 'CEB',
+        })
+
+        self.assertEqual(response.context['default_flight_type'], 'DOMESTIC')
+
+    def test_a_route_leaving_the_philippines_opens_on_international(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'origin': 'MNL',
+            'destination': 'NRT',
+        })
+
+        self.assertEqual(response.context['default_flight_type'], 'INTERNATIONAL')
+
+    def test_the_traveller_breakdown_arrives_from_the_results_page(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'passengers': 'adult:2,child:1,infant:1',
+        })
+
+        self.assertEqual(
+            response.context['passengers_param'],
+            'adult:2,child:1,infant:1',
+        )
+
+    def test_a_plain_passenger_count_is_read_as_a_number_of_adults(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'passengers': '3',
+        })
+
+        self.assertEqual(
+            response.context['passengers_param'], 'adult:3,child:0,infant:0')
+
+    def test_the_traveller_breakdown_is_capped_at_the_allowed_maximums(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'passengers': 'adult:99,child:-4,infant:77',
+        })
+
+        self.assertEqual(
+            response.context['passengers_param'],
+            'adult:9,child:0,infant:4',
+        )
+
+    def test_there_can_never_be_more_infants_than_adults(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'passengers': 'adult:1,child:0,infant:3',
+        })
+
+        self.assertEqual(
+            response.context['passengers_param'],
+            'adult:1,child:0,infant:1',
+        )
+
+    def test_an_unreadable_passenger_parameter_falls_back_to_one_adult(self):
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'passengers': 'garbage',
+        })
+
+        self.assertEqual(
+            response.context['passengers_param'], 'adult:1,child:0,infant:0')
+
+    def test_no_passenger_parameter_starts_from_one_adult(self):
+        response = self.client.get(reverse('airlines:passenger_details'))
+
+        self.assertEqual(
+            response.context['passengers_param'], 'adult:1,child:0,infant:0')
+
+    def test_the_page_says_that_nothing_is_booked_or_paid(self):
+        response = self.client.get(reverse('airlines:passenger_details'))
+
+        body = response.content.decode()
+        self.assertIn('prototype', body.lower())
+        self.assertIn('no payment is taken', body.lower())
+
+    def test_confirm_details_opens_a_session_backed_ticket_without_creating_a_booking(self):
+        client = Client(enforce_csrf_checks=True)
+        review_page = client.get(reverse('airlines:passenger_details'))
+        csrf_match = re.search(
+            r'name="csrfmiddlewaretoken" value="([^"]+)"',
+            review_page.content.decode(),
+        )
+        self.assertIsNotNone(csrf_match)
+        booking_count = Booking.objects.count()
+        response = client.post(
+            reverse('airlines:confirm_passenger_details'),
+            data={
+                'csrfmiddlewaretoken': csrf_match.group(1),
+                'ticket_payload': json.dumps({
+                    'flight': {
+                        'id': 'FS01',
+                        'origin_code': 'MNL',
+                        'destination_code': 'CEB',
+                    },
+                    'departure_date': '2026-11-15',
+                    'passengers': [{
+                        'name': 'Juan Dela Cruz',
+                        'category': 'adult',
+                        'seat': '7A',
+                    }],
+                    'baggage_kg': 5,
+                    'insurance_key': 'none',
+                }),
+            },
+        )
+
+        self.assertRedirects(response, reverse('airlines:passenger_ticket'))
+        ticket = client.get(reverse('airlines:passenger_ticket'))
+        self.assertEqual(ticket.status_code, 200)
+        self.assertContains(ticket, 'Flight Ticket / E-Ticket')
+        self.assertContains(ticket, 'Juan Dela Cruz')
+        self.assertContains(ticket, '7A')
+        self.assertContains(ticket, '₱8398.00')
+        self.assertContains(ticket, 'Simulation only')
+        self.assertNotContains(ticket, 'QRCode')
+        self.assertEqual(Booking.objects.count(), booking_count)
+
+        refreshed = client.get(reverse('airlines:passenger_ticket'))
+        self.assertEqual(refreshed.status_code, 200)
+        self.assertContains(refreshed, 'Juan Dela Cruz')
+
+    def test_passenger_flow_posts_use_the_tab_session_and_keep_csrf_valid(self):
+        client = Client(enforce_csrf_checks=True)
+        context = 'flight-details-csrf-test'
+        review_page = client.get(
+            reverse('airlines:passenger_details') + f'?ctx={context}')
+        self.assertEqual(review_page.status_code, 200)
+        self.assertContains(review_page, 'atrue_tab_ctx')
+        csrf_match = re.search(
+            r'name="csrfmiddlewaretoken" value="([^\"]+)"',
+            review_page.content.decode(),
+        )
+        self.assertIsNotNone(csrf_match)
+
+        confirmed = client.post(
+            reverse('airlines:confirm_passenger_details'),
+            data={
+                'ctx': context,
+                'csrfmiddlewaretoken': csrf_match.group(1),
+                'ticket_payload': json.dumps({
+                    'flight': {
+                        'id': 'FS01',
+                        'origin_code': 'MNL',
+                        'destination_code': 'CEB',
+                    },
+                    'departure_date': '2026-11-15',
+                    'passengers': [{
+                        'name': 'Juan Dela Cruz',
+                        'category': 'adult',
+                        'seat': '7A',
+                    }],
+                    'baggage_kg': 5,
+                    'insurance_key': 'none',
+                }),
+            },
+        )
+        self.assertEqual(confirmed.status_code, 302)
+        self.assertIn(f'ctx={context}', confirmed['Location'])
+
+        payment_page = client.get(confirmed['Location'])
+        self.assertEqual(payment_page.status_code, 200)
+        self.assertContains(payment_page, 'atrue_tab_ctx')
+        payment_csrf = re.search(
+            r'name="csrfmiddlewaretoken" value="([^\"]+)"',
+            payment_page.content.decode(),
+        )
+        self.assertIsNotNone(payment_csrf)
+        payment = client.post(
+            reverse('airlines:complete_passenger_payment'),
+            data={
+                'ctx': context,
+                'csrfmiddlewaretoken': payment_csrf.group(1),
+                'payment_choice': 'gcash',
+                'payment_validated': '1',
+            },
+        )
+        self.assertEqual(payment.status_code, 302)
+        self.assertIn(f'ctx={context}', payment['Location'])
+
+    def test_review_modal_keeps_back_to_details_and_confirms_directly_to_ticket(self):
+        response = self.client.get(reverse('airlines:passenger_details'))
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        review = body.split('data-pd-review', 1)[1].split('</div>\n</div>', 1)[0]
+        self.assertIn('Back to details', review)
+        self.assertIn('Confirm Details', review)
+        self.assertNotIn('Back to Flight Details', review)

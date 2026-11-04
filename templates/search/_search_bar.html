@@ -25,6 +25,15 @@
         {% endif %}
     </div>
 
+    <div class="bk-search-panel">
+        <div class="bk-tabs" role="tablist" aria-label="Establishment type">
+            {% for cat in categories %}
+                <a class="bk-tab{% if cat.active %} active{% endif %}" href="{{ cat.url }}" role="tab" aria-selected="{% if cat.active %}true{% else %}false{% endif %}">
+                    <i class="fas {{ cat.icon }}"></i>{{ cat.label }}
+                </a>
+            {% endfor %}
+        </div>
+
     <div class="bk-search">
         <!-- Destination autocomplete; establishment add/edit forms keep their cascades. -->
         <div class="bk-field bk-field-big atrue-location-autocomplete" data-location-autocomplete>
@@ -38,23 +47,26 @@
 
         {% if cfg.date_mode == 'range' %}
             <!-- Check-in -->
-            <div class="bk-field">
-                <i class="fas fa-calendar-days"></i>
-                <label for="bkIn">Check-in</label>
-                <input type="date" id="bkIn" name="check_in" value="{{ check_in }}" min="{% now 'Y-m-d' %}">
+            <div class="bk-date-group">
+                <label class="bk-date-label" for="bkIn">Check-in</label>
+                <div class="bk-date-field">
+                    <input type="date" id="bkIn" name="check_in" value="{{ check_in }}" min="{% now 'Y-m-d' %}" aria-label="Check-in">
+                </div>
             </div>
             <!-- Check-out -->
-            <div class="bk-field">
-                <i class="fas fa-calendar-days"></i>
-                <label for="bkOut">Check-out</label>
-                <input type="date" id="bkOut" name="check_out" value="{{ check_out }}" min="{% now 'Y-m-d' %}">
+            <div class="bk-date-group">
+                <label class="bk-date-label" for="bkOut">Check-out</label>
+                <div class="bk-date-field">
+                    <input type="date" id="bkOut" name="check_out" value="{{ check_out }}" min="{% now 'Y-m-d' %}" aria-label="Check-out">
+                </div>
             </div>
         {% else %}
             <!-- Visit date -->
-            <div class="bk-field">
-                <i class="fas fa-calendar-days"></i>
-                <label for="bkDate">Your date</label>
-                <input type="date" id="bkDate" name="date" value="{{ reserve_date }}" min="{% now 'Y-m-d' %}">
+            <div class="bk-date-group">
+                <label class="bk-date-label" for="bkDate">Your date</label>
+                <div class="bk-date-field">
+                    <input type="date" id="bkDate" name="date" value="{{ reserve_date }}" min="{% now 'Y-m-d' %}" aria-label="Your date">
+                </div>
             </div>
             {% if cfg.show_time %}
                 <div class="bk-field">
@@ -290,5 +302,6 @@
         {% for s in dest_suggestions|slice:":8" %}
             <a href="#" class="bk-sug" data-tip="{{ s }}">{{ s }}</a>
         {% endfor %}
+    </div>
     </div>
 </div>

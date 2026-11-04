@@ -1,0 +1,89 @@
+/* ============================================================
+   ATRUE - Shared UI enhancements
+   Submission feedback, inline validation and a11y helpers.
+   ============================================================ */
+
+.atrue-btn-spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    vertical-align: -0.13em;
+    animation: atrue-spin 0.65s linear infinite;
+}
+
+@keyframes atrue-spin {
+    to { transform: rotate(360deg); }
+}
+
+.btn.is-loading,
+.ag-btn.is-loading,
+button.is-loading,
+input.is-loading {
+    cursor: progress;
+    opacity: 0.85;
+}
+
+form[aria-busy="true"] {
+    cursor: progress;
+}
+
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
+/* Keyboard-first skip link */
+/* Hide leading calendar icons in date labels across search forms */
+.bk-field label i.fa-calendar,
+.bk-field label i.fa-calendar-days,
+.bk-field label i.fa-calendar-day,
+.ag-field label i.fa-calendar,
+.ag-field label i.fa-calendar-days,
+.ag-field label i.fa-calendar-day,
+.hm-date-range .hm-date-label i,
+.adp-label-noicon i,
+label.adp-label-noicon > i {
+    display: none !important;
+}
+
+
+
+/* Keep the skip link out of normal page flow, while exposing it on keyboard focus. */
+.skip-link {
+    position: fixed;
+    top: -64px;
+    left: 16px;
+    z-index: 10001;
+    padding: 10px 14px;
+    border: 2px solid #1d4ed8;
+    border-radius: 10px;
+    background: #fff;
+    color: #12345a;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .2);
+    transition: top .18s ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+    top: 12px;
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .atrue-btn-spinner {
+        animation-duration: 1.8s;
+    }
+    .skip-link {
+        transition: none;
+    }
+}

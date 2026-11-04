@@ -74,6 +74,7 @@ def _notify_assigned_officers(reservation):
         message,
         establishment=establishment,
         title='Restaurant Reservation Submitted',
+        related_object=reservation,
     )
 
 
@@ -168,6 +169,7 @@ def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
             ),
             establishment=establishment,
             title='Restaurant Reservation Confirmed',
+            related_object=reservation,
         )
         from atrue_core.services import log_activity
 
@@ -224,6 +226,7 @@ def reject_restaurant_reservation(*, reservation_id, officer, reason, remarks=''
             ),
             establishment=establishment,
             title='Restaurant Reservation Rejected',
+            related_object=reservation,
         )
         from atrue_core.services import log_activity
 

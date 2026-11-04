@@ -122,7 +122,8 @@ def issue_bill(transaction, issued_by, *, items=None, total_amount=None, remarks
         locked.initiator, Notification.Type.BILLING_READY,
         f'{bill.bill_reference} was issued for {bill.establishment.name}: '
         f'{bill.total_amount} due. {SIMULATED_DISCLAIMER}',
-        transaction=locked, title='A bill is waiting for you')
+        transaction=locked, title='A bill is waiting for you',
+        related_object=bill)
 
     audit('billing.issue', actor=issued_by, transaction=locked,
           details=f'{bill.bill_reference} for {bill.total_amount}.',
@@ -192,7 +193,8 @@ def record_payment(bill, recorded_by, amount, *, method=SimulatedPayment.Method.
         (f'{amount} was recorded against {locked.bill_reference}. '
          f'{locked.balance_due} still due. {SIMULATED_DISCLAIMER}') if not settled else
         (f'{locked.bill_reference} is settled in full. {SIMULATED_DISCLAIMER}'),
-        transaction=locked.transaction, title='Simulated payment recorded')
+        transaction=locked.transaction, title='Simulated payment recorded',
+        related_object=locked)
 
     audit('billing.payment', actor=recorded_by, transaction=locked.transaction,
           details=f'{amount} by {method} against {locked.bill_reference}.',
@@ -241,7 +243,8 @@ def _close(bill, actor, status, notification_type, action, remarks):
         locked.customer, notification_type,
         f'{locked.bill_reference} is now {locked.get_status_display().lower()}.'
         + (f' {remarks}' if remarks else ''),
-        transaction=locked.transaction, title='Bill updated')
+        transaction=locked.transaction, title='Bill updated',
+        related_object=locked)
 
     audit(action, actor=actor, transaction=locked.transaction,
           previous_value=previous_status, new_value=status, remarks=remarks)

@@ -1,0 +1,164 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Review &amp; Payment | ATRUE Flights</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/flight-payment.css' %}?v=20261022-3">
+    {% include 'partials/tab_context.html' %}
+</head>
+<body class="fp-body">
+    {% include 'airlines/booking/_payment_navbar.html' %}
+
+    <section class="fp-banner" aria-label="Review and payment">
+        <div class="fp-banner__inner">
+            <div>
+                <div class="fp-breadcrumb"><a href="{% url 'airlines:list' %}">Flights</a><i class="fas fa-chevron-right"></i><span>Review &amp; Payment</span></div>
+                <h1>Review &amp; Payment</h1>
+                <p>Complete your payment to secure your booking.</p>
+            </div>
+            <div class="fp-slogan"><i class="fas fa-plane"></i><span>Same skies, new stories</span></div>
+        </div>
+    </section>
+
+    <nav class="fp-progress" aria-label="Booking progress">
+        <div class="fp-progress__step is-done"><span><i class="fas fa-check"></i></span><b>Search Flights</b></div><i class="fp-progress__line is-done"></i>
+        <div class="fp-progress__step is-done"><span><i class="fas fa-check"></i></span><b>Select Flight</b></div><i class="fp-progress__line is-done"></i>
+        <div class="fp-progress__step is-done"><span><i class="fas fa-check"></i></span><b>Passenger Details</b></div><i class="fp-progress__line is-done"></i>
+        <div class="fp-progress__step is-current"><span>4</span><b>Review &amp; Payment</b></div><i class="fp-progress__line"></i>
+        <div class="fp-progress__step"><span>5</span><b>Confirmation</b></div>
+    </nav>
+
+    <form class="fp-grid" method="post" action="{% url 'airlines:complete_passenger_payment' %}" data-payment-form novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="payment_validated" value="0" data-payment-validated>
+        <section class="fp-card fp-methods" aria-labelledby="fp-methods-title">
+            <header class="fp-card__head">
+                <span class="fp-head-icon"><i class="far fa-credit-card"></i></span>
+                <div><h2 id="fp-methods-title">Payment Methods</h2><p>Choose your preferred payment method.</p></div>
+            </header>
+
+            <div class="fp-method-list">
+                <label class="fp-method is-selected" data-method-card>
+                    <input type="radio" name="payment_choice" value="card" checked>
+                    <span class="fp-radio"></span><span class="fp-method__icon fp-method__icon--cards"><span class="fp-network fp-network--visa">VISA</span><span class="fp-network fp-network--mc"><i></i><i></i></span><span class="fp-network fp-network--amex">AMEX</span></span>
+                    <span class="fp-method__text"><b>Credit / Debit Card</b><small>Pay securely with your credit or debit card.</small></span>
+                </label>
+                <label class="fp-method" data-method-card>
+                    <input type="radio" name="payment_choice" value="gcash">
+                    <span class="fp-radio"></span><img class="fp-method__logo" src="{% static 'img/payment-methods/gcash-icon.png' %}" alt="">
+                    <span class="fp-method__text"><b>GCash</b><small>Pay with your GCash account.</small></span>
+                </label>
+                <label class="fp-method" data-method-card>
+                    <input type="radio" name="payment_choice" value="maya">
+                    <span class="fp-radio"></span><img class="fp-method__logo" src="{% static 'img/payment-methods/maya.svg' %}" alt="">
+                    <span class="fp-method__text"><b>Maya</b><small>Pay with your Maya account.</small></span>
+                </label>
+                <label class="fp-method" data-method-card>
+                    <input type="radio" name="payment_choice" value="bank">
+                    <span class="fp-radio"></span><span class="fp-method__simple-icon"><i class="fas fa-building-columns"></i></span>
+                    <span class="fp-method__text"><b>Online Banking</b><small>Pay through supported banks.</small></span><i class="fas fa-chevron-down fp-method__chevron"></i>
+                </label>
+                <label class="fp-method" data-method-card>
+                    <input type="radio" name="payment_choice" value="paypal">
+                    <span class="fp-radio"></span><img class="fp-method__logo fp-method__logo--paypal" src="{% static 'img/payment-methods/paypal.svg' %}" alt="">
+                    <span class="fp-method__text"><b>PayPal</b><small>Pay with your PayPal account.</small></span>
+                </label>
+                <label class="fp-method" data-method-card>
+                    <input type="radio" name="payment_choice" value="otc">
+                    <span class="fp-radio"></span><span class="fp-method__simple-icon"><i class="fas fa-store"></i></span>
+                    <span class="fp-method__text"><b>Over-the-Counter</b><small>7-Eleven, Bayad Center, and partners.</small></span>
+                </label>
+            </div>
+
+            <div class="fp-security-box"><i class="fas fa-shield-halved"></i><span>This simulation does not send or store payment credentials. A live payment provider would handle them securely.</span></div>
+        </section>
+
+        <section class="fp-card fp-details" aria-labelledby="fp-details-title">
+            <header class="fp-card__head">
+                <span class="fp-head-icon"><i class="far fa-credit-card"></i></span>
+                <div><h2 id="fp-details-title">Payment Details</h2><p>Enter your card information to continue.</p></div>
+            </header>
+
+            <div class="fp-pay-panel" data-payment-panel="card">
+                <div class="fp-panel-head"><b><i class="far fa-credit-card"></i> Credit / Debit Card</b><span><i class="fas fa-lock"></i> Secure Payment</span></div>
+                <div class="fp-form-fields">
+                    <label class="fp-field"><span>Cardholder Name <em>*</em></span><input type="text" autocomplete="cc-name" placeholder="Juan Dela Cruz" data-cardholder><small data-error="cardholder"></small></label>
+                    <label class="fp-field"><span>Card Number <em>*</em></span><span class="fp-input-wrap"><input type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="23" data-card-number><span class="fp-card-network"><b>VISA</b><i class="fp-network fp-network--mc"><i></i><i></i></i><b>AMEX</b></span></span><small data-error="cardNumber"></small></label>
+                    <div class="fp-field-row">
+                        <label class="fp-field"><span>Expiration Date <em>*</em></span><input type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM / YY" maxlength="7" data-expiry><small data-error="expiry"></small></label>
+                        <label class="fp-field"><span>CVV <em>*</em></span><span class="fp-input-wrap"><input type="password" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4" data-cvv><i class="fas fa-circle-info fp-cvv-info" title="3-digit security code on the back of your card" aria-label="Your card security code"></i></span><small data-error="cvv"></small></label>
+                    </div>
+                </div>
+                <div class="fp-inline-security"><i class="fas fa-lock"></i> Your card details stay in this browser and are not sent to our servers.</div>
+            </div>
+
+            <div class="fp-pay-panel" data-payment-panel="gcash" hidden>
+                <div class="fp-provider"><img src="{% static 'img/payment-methods/gcash-icon.png' %}" alt="GCash"><div><h3>Continue with GCash</h3><p>You would continue to GCash to authorize this payment. This prototype will only simulate the payment.</p></div></div>
+            </div>
+            <div class="fp-pay-panel" data-payment-panel="maya" hidden>
+                <div class="fp-provider"><img src="{% static 'img/payment-methods/maya.svg' %}" alt="Maya"><div><h3>Continue with Maya</h3><p>You would continue to Maya to authorize this payment. This prototype will only simulate the payment.</p></div></div>
+            </div>
+            <div class="fp-pay-panel" data-payment-panel="paypal" hidden>
+                <div class="fp-provider"><img src="{% static 'img/payment-methods/paypal.svg' %}" alt="PayPal"><div><h3>Continue with PayPal</h3><p>You would continue to PayPal to authorize this payment. This prototype will only simulate the payment.</p></div></div>
+            </div>
+            <div class="fp-pay-panel" data-payment-panel="bank" hidden>
+                <div class="fp-alt-payment"><h3><i class="fas fa-building-columns"></i> Choose your bank</h3><p>Select a supported bank to see the next step.</p><label class="fp-field"><span>Bank</span><select data-bank><option value="">Select a bank</option><option>BDO</option><option>Bank of the Philippine Islands</option><option>Metrobank</option><option>UnionBank</option><option>Land Bank</option></select></label><small data-error="bank"></small><p class="fp-provider-note">You would be redirected to your bank in a live payment flow. This prototype simulates confirmation only.</p></div>
+            </div>
+            <div class="fp-pay-panel" data-payment-panel="otc" hidden>
+                <div class="fp-alt-payment"><h3><i class="fas fa-store"></i> Over-the-Counter payment</h3><p>A payment reference would be generated for use at 7-Eleven, Bayad Center, and other partner outlets.</p><ol><li>Confirm this simulated payment.</li><li>Use the reference shown on the confirmation page.</li><li>No real payment is collected in this prototype.</li></ol></div>
+            </div>
+
+            <section class="fp-billing">
+                <button type="button" class="fp-billing__toggle" aria-expanded="false" aria-controls="fp-billing-fields" data-billing-toggle><span><i class="fas fa-lock"></i><b>Billing Address (Optional)</b><small>You may provide your billing address for verification purposes.</small></span><i class="fas fa-chevron-down"></i></button>
+                <div class="fp-billing__content" id="fp-billing-fields" hidden>
+                    <div class="fp-field-row"><label class="fp-field"><span>Street Address</span><input type="text" autocomplete="street-address" data-billing-field></label><label class="fp-field"><span>City</span><input type="text" autocomplete="address-level2" data-billing-field></label></div>
+                    <div class="fp-field-row"><label class="fp-field"><span>Province / State</span><input type="text" autocomplete="address-level1" data-billing-field></label><label class="fp-field"><span>Postal Code</span><input type="text" inputmode="numeric" autocomplete="postal-code" data-billing-field></label></div>
+                    <label class="fp-field"><span>Country</span><select autocomplete="country-name" data-billing-field><option value="">Select country</option><option>Philippines</option><option>United States</option><option>Singapore</option><option>Other</option></select></label>
+                    <small data-error="billing"></small>
+                </div>
+            </section>
+
+            <div class="fp-alert" data-payment-error role="alert" hidden></div>
+            <button class="fp-pay-now" type="submit" data-pay-now><i class="fas fa-lock"></i><span>Pay Now — ₱{{ ticket.fare.total|floatformat:2 }}</span></button>
+            <p class="fp-pay-note"><i class="fas fa-shield-halved"></i> This is a secure and encrypted payment process.</p>
+            <p class="fp-simulation-note"><i class="fas fa-circle-info"></i> Simulation only. No real payment will be processed.</p>
+        </section>
+
+        <aside class="fp-card fp-summary" aria-labelledby="fp-summary-title">
+            <header class="fp-card__head"><span class="fp-head-icon"><i class="fas fa-clipboard-list"></i></span><div><h2 id="fp-summary-title">Order Summary</h2></div></header>
+            <article class="fp-flight-box">
+                <div class="fp-flight-airline">
+                    {% if ticket.flight.logo %}<img src="{% static ticket.flight.logo %}" alt="{{ ticket.flight.airline }} logo">{% endif %}
+                    <div><b>{{ ticket.flight.airline }}</b><small>{{ ticket.flight.number }} <span>·</span> {{ ticket.flight.cabin }}</small></div>
+                </div>
+                <div class="fp-route">
+                    <div><strong>{{ ticket.flight.origin_code }}</strong><b>{{ ticket.flight.origin_city }}</b><small>{{ ticket.flight.departure_date }}<br>{{ ticket.flight.departure_time }}</small></div>
+                    <div class="fp-route__line"><i class="fas fa-plane"></i></div>
+                    <div><strong>{{ ticket.flight.destination_code }}</strong><b>{{ ticket.flight.destination_city }}</b><small>{{ ticket.flight.arrival_date }}<br>{{ ticket.flight.arrival_time }}</small></div>
+                </div>
+            </article>
+            <section class="fp-summary-section">
+                <h3>Passengers ({{ ticket.fare.passenger_count }})</h3>
+                {% for passenger in ticket.passengers %}<div class="fp-passenger-row"><span>{{ passenger.name }}</span><b>{{ passenger.seat }}{% if passenger.seat_category %} <small>({{ passenger.seat_category }})</small>{% endif %}</b></div>{% endfor %}
+            </section>
+            <section class="fp-summary-section fp-price-list">
+                <h3>Price Breakdown</h3>
+                <div class="fp-price-row"><span><i class="fas fa-plane"></i><span>Base Fare ({{ ticket.fare.passenger_count }} passenger{{ ticket.fare.passenger_count|pluralize }})</span></span><b>₱{{ ticket.fare.base_fare|floatformat:0 }}</b></div>
+                <div class="fp-price-row"><span><i class="fas fa-receipt"></i><span>Taxes &amp; Fees</span></span><b>₱{{ ticket.fare.taxes|floatformat:0 }}</b></div>
+                {% if ticket.fare.baggage %}<div class="fp-price-row"><span><i class="fas fa-suitcase-rolling"></i><span>Extra Baggage ({{ ticket.extras.extra_baggage_kg }}kg)<small>({{ ticket.fare.passenger_count }} passenger{{ ticket.fare.passenger_count|pluralize }})</small></span></span><b>₱{{ ticket.fare.baggage|floatformat:0 }}</b></div>{% endif %}
+                {% if ticket.fare.insurance %}<div class="fp-price-row"><span><i class="fas fa-shield-halved"></i><span>Travel Insurance ({{ ticket.extras.insurance }})<small>({{ ticket.fare.passenger_count }} passenger{{ ticket.fare.passenger_count|pluralize }})</small></span></span><b>₱{{ ticket.fare.insurance|floatformat:0 }}</b></div>{% endif %}
+                {% if ticket.fare.seats %}<div class="fp-price-row"><span><i class="fas fa-chair"></i><span>Seat Selection<small>({{ ticket.passengers|length }} seat{{ ticket.passengers|length|pluralize }})</small></span></span><b>₱{{ ticket.fare.seats|floatformat:0 }}</b></div>{% endif %}
+            </section>
+            <div class="fp-total"><b>Total Amount</b><strong>₱{{ ticket.fare.total|floatformat:0 }}</strong></div>
+        </aside>
+    </form>
+
+    <script src="{% static 'js/flight-payment.js' %}?v=20261022-1"></script>
+</body>
+</html>

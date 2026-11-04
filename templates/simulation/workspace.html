@@ -4,30 +4,91 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261013-student-view-popup">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261102-guest-progress-2">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
+<link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261026-confirm-modal-1">
 {% endblock %}
 
 {% block content %}
 {% regroup legacy_roles|dictsort:"activity_name" by activity_name as legacy_role_groups %}
-<div class="page-head">
-    <div>
-        {% if is_instructor %}<h1>Simulation Sessions</h1><p>Open a session to review its activities and role assignments.</p>
-        {% else %}<h1>My Roles</h1><p>Roles currently assigned to you for training sessions.</p>{% endif %}
+{% if is_instructor %}
+<header class="sim-dashboard-head">
+    <div class="sim-dashboard-heading">
+        <span class="sim-dashboard-heading-icon"><i class="fas fa-calendar-days" aria-hidden="true"></i></span>
+        <div>
+            <h1>Simulation Sessions</h1>
+            <p>Manage and monitor all simulation sessions, student assignments, and role activities.</p>
+        </div>
     </div>
-    {% if is_instructor %}
     <div class="simulation-workspace-actions">
         <a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a>
-        <a href="{% url 'simulation:role_list' %}" class="btn btn-outline"><i class="fas fa-list"></i> Manage Roles</a>
-        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-clipboard-list"></i> Activity Logs</a>
+        <a href="{% url 'simulation:role_list' %}" class="btn btn-outline"><i class="fas fa-users"></i> Manage Roles</a>
+        <a href="{% url 'simulation:logs' %}" class="btn btn-outline"><i class="fas fa-file-lines"></i> Activity Logs</a>
     </div>
-    {% endif %}
+</header>
+
+<section class="sim-summary-grid" aria-label="Session summary">
+    <article class="sim-summary-card sim-summary-card--blue">
+        <span class="sim-summary-icon sim-summary-icon--blue"><i class="fas fa-calendar-days" aria-hidden="true"></i></span>
+        <div><span class="sim-summary-label">Total Sessions</span><strong>{{ summary.total_sessions }}</strong></div>
+    </article>
+    <article class="sim-summary-card sim-summary-card--green">
+        <span class="sim-summary-icon sim-summary-icon--green"><i class="fas fa-circle-play" aria-hidden="true"></i></span>
+        <div><span class="sim-summary-label">Active Sessions</span><strong>{{ summary.active_sessions }}</strong></div>
+    </article>
+    <article class="sim-summary-card sim-summary-card--purple">
+        <span class="sim-summary-icon sim-summary-icon--purple"><i class="fas fa-users" aria-hidden="true"></i></span>
+        <div><span class="sim-summary-label">Total Students</span><strong>{{ summary.total_students }}</strong></div>
+    </article>
+    <article class="sim-summary-card sim-summary-card--orange">
+        <span class="sim-summary-icon sim-summary-icon--orange"><i class="fas fa-file-lines" aria-hidden="true"></i></span>
+        <div><span class="sim-summary-label">Draft Sessions</span><strong>{{ summary.draft_sessions }}</strong></div>
+    </article>
+</section>
+
+<form class="sim-dashboard-toolbar" method="get" role="search" aria-label="Filter simulation sessions">
+    <label class="sim-toolbar-search">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <span class="visually-hidden">Search sessions</span>
+        <input type="search" name="q" value="{{ q }}" placeholder="Search sessions by name, code, or instructor...">
+    </label>
+    <label class="sim-toolbar-select">
+        <span class="visually-hidden">Filter by status</span>
+        <i class="fas fa-filter" aria-hidden="true"></i>
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label class="sim-toolbar-select">
+        <span class="visually-hidden">Sort sessions</span>
+        <i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i>
+        <select name="sort" onchange="this.form.submit()">
+            <option value="newest"{% if sort == 'newest' %} selected{% endif %}>Newest First</option>
+            <option value="oldest"{% if sort == 'oldest' %} selected{% endif %}>Oldest First</option>
+            <option value="session_date"{% if sort == 'session_date' %} selected{% endif %}>Session Date</option>
+        </select>
+    </label>
+    <button type="submit" class="btn btn-outline sim-toolbar-submit"><i class="fas fa-search" aria-hidden="true"></i> Search</button>
+</form>
+
+<div class="sim-list-heading">
+    <h2>Your Sessions <span class="sim-count-badge">{{ sessions|length }}</span></h2>
 </div>
+{% else %}
+<div class="page-head">
+    <div>
+        <h1>My Roles</h1><p>Roles currently assigned to you for training sessions.</p>
+    </div>
+</div>
+{% endif %}
 
 {% if sessions or legacy_role_groups %}
-<section class="simulation-session-list" aria-label="Simulation sessions">
+<section class="simulation-session-list{% if is_instructor %} sim-dashboard-session-list{% endif %}" aria-label="Simulation sessions">
     {% for session in sessions %}
-    <details class="simulation-session{% if is_instructor %} simulation-session--modal{% endif %}">
+    <details id="session-{{ session.pk }}" class="simulation-session{% if is_instructor %} simulation-session--modal{% endif %}">
         <summary class="simulation-session-summary"
             {% if is_instructor %}
             data-session-open
@@ -38,45 +99,147 @@
             data-session-status="{{ session.get_status_display }}"
             aria-haspopup="dialog"
             {% endif %}>
+            {% if is_instructor %}
+            <span class="simulation-session-icon sim-session-card-icon"><i class="fas fa-layer-group"></i></span>
+            <div class="sim-session-identity">
+                <strong class="sim-session-name">{{ session.name }}</strong>
+                <p class="sim-session-code"><span>{{ session.session_id }}</span>{% if session.description %}<span class="sim-session-description">{{ session.description|truncatechars:90 }}</span>{% endif %}</p>
+            </div>
+            <div class="sim-session-status-wrap">
+                <span class="sim-status-badge sim-status-{{ session.status_class }}">{{ session.get_status_display }}</span>
+                <span class="sim-session-schedule"><i class="far fa-calendar" aria-hidden="true"></i> {{ session.schedule_label }}</span>
+            </div>
+            <div class="sim-session-students">
+                <i class="fas fa-users" aria-hidden="true"></i>
+                <span><strong>{{ session.assigned_student_count }}</strong> student{{ session.assigned_student_count|pluralize }}</span>
+            </div>
+            <div class="sim-session-progress-card">
+                <div class="sim-session-progress-head">
+                    <span>Student Progress</span>
+                    {% if session.has_assigned_students %}<strong>{{ session.student_progress_percent }}%</strong>{% endif %}
+                </div>
+                {% if session.has_assigned_students %}
+                <div class="sim-session-progress-track" role="progressbar" aria-label="Student progress for {{ session.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ session.student_progress_percent }}">
+                    <span style="width: {{ session.student_progress_percent }}%"></span>
+                </div>
+                <small>{{ session.completed_student_count }} of {{ session.assigned_student_count }} student{{ session.assigned_student_count|pluralize }} completed</small>
+                {% else %}
+                <p>No students assigned yet</p>
+                {% endif %}
+            </div>
+            <span class="sim-open-session" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+            {% else %}
             <span class="simulation-session-icon"><i class="fas fa-layer-group"></i></span>
             <span class="simulation-session-copy">
                 <strong>{{ session.name }}</strong>
                 <small>{{ session.session_id }} · {{ session.get_status_display }}</small>
             </span>
-            {% if is_instructor %}
-            <span class="simulation-session-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span>
-            {% else %}
             <span class="simulation-session-count">{{ session.assignments.all|length }} activit{{ session.assignments.all|length|pluralize:"y,ies" }}</span>
-            {% endif %}
             <i class="fas fa-chevron-down simulation-session-chevron" aria-hidden="true"></i>
+            {% endif %}
         </summary>
         <div class="simulation-session-activities">
             {% if is_instructor %}
             <div class="simulation-session-activities-head">
                 <h3>Students <span class="simulation-session-student-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span></h3>
+                <a href="{% url 'simulation:assign' %}?session={{ session.pk }}" class="btn btn-outline btn-sm"><i class="fas fa-plus" aria-hidden="true"></i> Add Activity</a>
             </div>
             {% if session.student_rows %}
             <div class="simulation-student-list" role="list">
                 {% for row in session.student_rows %}
-                <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}">
+                <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}" data-student-status="{{ row.assignment.status|default:'' }}" data-role-display="{{ row.assignment.get_role_display|default:'' }}">
                     <div class="simulation-student-summary">
-                        <strong class="simulation-student-name">{{ row.display_name }}</strong>
-                        <button type="button" class="btn btn-outline btn-sm simulation-student-view" data-student-details-toggle aria-expanded="false" aria-controls="sim-details-{{ session.id }}-{{ row.student.id }}"><i class="fas fa-eye"></i> View</button>
+                        <div class="simulation-student-identity">
+                            <strong class="simulation-student-name">{{ row.display_name }}</strong>
+                            <small class="simulation-student-username">@{{ row.username }}</small>
+                        </div>
+                        {% if row.assignment %}
+                        <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
+                        <span class="simulation-student-task-progress">{% if row.progress.tracked %}{{ row.progress.percent }}% · {{ row.progress.completed }}/{{ row.progress.tracked }} tasks{% else %}No tracked tasks{% endif %}</span>
+                        <span class="simulation-student-status">{{ row.assignment.get_status_display }}</span>
+                        {% else %}
+                        <span class="badge badge-gray">No role assigned</span>
+                        <span class="simulation-student-task-progress">No progress yet</span>
+                        <span class="simulation-student-status">Unassigned</span>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline btn-sm simulation-student-view" data-student-details-toggle aria-expanded="false" aria-controls="sim-details-{{ session.id }}-{{ row.student.id }}"><i class="fas fa-eye"></i> View Details</button>
                     </div>
                     <div class="simulation-student-details" id="sim-details-{{ session.id }}-{{ row.student.id }}" hidden>
                         <div class="simulation-student-detail-grid">
-                            <div class="simulation-student-detail-item"><span>Username</span><strong>@{{ row.username }}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Email</span><strong>{{ row.student.email|default:"Not provided" }}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Contact Number</span><strong>{{ row.student.contact_number|default:"Not provided" }}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Role</span><div class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</div></div>
-                            <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}Not assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}Not assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Status</span><strong class="simulation-student-status-value">{% if row.assignment %}{{ row.assignment.get_status_display }}{% else %}Not assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Schedule</span><strong class="simulation-student-schedule-value">{% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% if row.assignment.start_time and row.assignment.end_time %} · {{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% endif %}{% else %}Not scheduled{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Session</span><strong>{{ session.name }}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}No activity assigned{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}No establishment{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Simulation Date</span><strong class="simulation-student-date-value">{% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% else %}Not scheduled{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Simulation Time</span><strong class="simulation-student-time-value">{% if row.assignment.start_time and row.assignment.end_time %}{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned By</span><strong class="simulation-student-assigned-by-value">{% if row.assignment.assigned_by %}{{ row.assignment.assigned_by.get_full_name|default:row.assignment.assigned_by.username }}{% else %}Not assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned On</span><strong class="simulation-student-assigned-at-value">{% if row.assignment %}{{ row.assignment.assigned_at|date:"M d, Y H:i" }}{% else %}Not assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assignments</span><strong class="simulation-student-assignment-count">{{ row.count }} assignment{{ row.count|pluralize }} in this session</strong></div>
                         </div>
+                        <div class="sim-student-meta">
+                            <h4><i class="fas fa-id-card" aria-hidden="true"></i> Student information</h4>
+                            <div class="simulation-student-detail-grid">
+                                <div class="simulation-student-detail-item"><span>Username</span><strong>@{{ row.username }}</strong></div>
+                                <div class="simulation-student-detail-item"><span>Email</span><strong>{{ row.student.email|default:"Not provided" }}</strong></div>
+                                <div class="simulation-student-detail-item"><span>Contact Number</span><strong>{{ row.student.contact_number|default:"Not provided" }}</strong></div>
+                                <div class="simulation-student-detail-item"><span>Assigned By</span><strong class="simulation-student-assigned-by-value">{% if row.assignment.assigned_by %}{{ row.assignment.assigned_by.get_full_name|default:row.assignment.assigned_by.username }}{% else %}Not assigned{% endif %}</strong></div>
+                                <div class="simulation-student-detail-item"><span>Assigned On</span><strong class="simulation-student-assigned-at-value">{% if row.assignment %}{{ row.assignment.assigned_at|date:"M d, Y H:i" }}{% else %}Not assigned{% endif %}</strong></div>
+                                <div class="simulation-student-detail-item"><span>Assignments</span><strong class="simulation-student-assignment-count">{{ row.count }} assignment{{ row.count|pluralize }} in this session</strong></div>
+                            </div>
+                        </div>
+                        <section class="sim-student-progress sim-progress--{{ row.progress.state }}" data-session-progress
+                            data-progress-url="{% if row.assignment %}{% url 'simulation:assignment_progress' row.assignment.id %}{% else %}{% url 'simulation:session_student_progress' session.id row.student.id %}{% endif %}"
+                            data-progress-state="{{ row.progress.state }}"
+                            aria-label="{{ row.progress.title }}">
+                            <div class="sim-progress-head">
+                                <div>
+                                    <h3><i class="fas fa-list-check" aria-hidden="true"></i> <span data-progress-title>{{ row.progress.title }}</span></h3>
+                                    <p data-progress-subtitle>{{ row.progress.subtitle }}</p>
+                                </div>
+                                {% if row.progress.percent is not None %}<strong class="sim-progress-percent" data-progress-percent>{{ row.progress.percent }}%</strong>{% endif %}
+                            </div>
+                            {% if row.progress.tracked %}
+                            <div class="sim-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.progress.percent }}">
+                                <span style="width: {{ row.progress.percent }}%"></span>
+                            </div>
+                            <div class="sim-progress-caption"><span data-progress-count>{{ row.progress.completed }} of {{ row.progress.tracked }} tasks completed</span><span>{{ row.progress.completed }}/{{ row.progress.tracked }}</span></div>
+                            {% if row.progress.awaiting_message %}<p class="sim-progress-awaiting" data-progress-awaiting><i class="fas fa-clock" aria-hidden="true"></i> {{ row.progress.awaiting_message }}</p>{% endif %}
+                            {% if row.progress.success_message %}
+                            <div class="sim-progress-success" data-progress-success>
+                                <i class="fas fa-circle-check" aria-hidden="true"></i>
+                                <div><strong>{% if row.progress.state == 'done' %}Assignment completed{% else %}Verified tasks are complete{% endif %}</strong><span>{{ row.progress.success_message }}</span></div>
+                            </div>
+                            {% endif %}
+                            {% else %}<p class="sim-progress-message" data-progress-message>{{ row.progress.message }}</p>{% endif %}
+                            <ol class="sim-task-list" data-progress-tasks>
+                                {% for task in row.progress.tasks %}
+                                <li class="sim-task sim-task--{{ task.state }}" data-task-key="{{ task.key }}">
+                                    <span class="sim-task-number">{{ forloop.counter }}</span>
+                                    <span class="sim-task-copy">
+                                        <span class="sim-task-label">{{ task.label }}</span>
+                                        {% if task.description %}<span class="sim-task-description">{{ task.description }}</span>{% endif %}
+                                    </span>
+                                    <span class="sim-task-status">{{ task.status }}</span>
+                                </li>
+                                {% empty %}<li class="sim-progress-empty">{{ row.progress.message }}</li>{% endfor %}
+                            </ol>
+                            {% if row.progress.tracked %}
+                            <div class="sim-progress-legend" data-progress-legend aria-label="Progress legend">
+                                <div class="sim-legend-groups">
+                                    <span class="sim-legend-item sim-legend-item--completed"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Completed</strong><small>Task is finished and verified.</small></span></span>
+                                    <span class="sim-legend-item sim-legend-item--in-progress"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>In Progress</strong><small>Task is currently being done.</small></span></span>
+                                    <span class="sim-legend-item sim-legend-item--awaiting"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Awaiting Confirmation</strong><small>Waiting for another role (e.g., Billing Officer).</small></span></span>
+                                    <span class="sim-legend-item sim-legend-item--pending"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Pending</strong><small>Task has not been started yet.</small></span></span>
+                                    {% if row.progress.untracked %}<span class="sim-legend-item sim-legend-item--untracked"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Not tracked</strong><small>No verified completion rule yet.</small></span></span>{% endif %}
+                                </div>
+                                <p class="sim-legend-note"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Progress is based on actual verified task completion records, not just page visits.</span></p>
+                            </div>
+                            {% endif %}
+                            {% if row.progress.ready_to_mark_done %}
+                            <p class="sim-progress-ready" data-progress-ready><i class="fas fa-circle-check" aria-hidden="true"></i> Ready for Instructor Review</p>
+                            {% endif %}
+                            {% if row.progress.untracked %}<p class="sim-progress-note">{{ row.progress.untracked }} task{{ row.progress.untracked|pluralize }} cannot be verified automatically and are not included in the percentage.</p>{% endif %}
+                        </section>
                         <div class="simulation-student-actions">
                             {% if row.assignment %}
                             {% if row.assignment.status != 'DONE' %}<button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
@@ -92,7 +255,9 @@
                                 data-start="{{ row.assignment.start_time|time:'H:i' }}"
                                 data-end="{{ row.assignment.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
                             {% if row.assignment.status == 'ACTIVE' %}
-                            <a href="{% url 'simulation:unassign' row.assignment.id %}" class="btn btn-outline btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
+                            <form method="post" action="{% url 'simulation:unassign' row.assignment.id %}" data-mark-role-done style="display:inline">
+                                {% csrf_token %}<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
+                            </form>
                             {% elif row.assignment.status == 'DONE' %}
                             <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>
                             {% endif %}
@@ -184,7 +349,9 @@
                         <div class="simulation-role-actions">
                             <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
                             {% if is_instructor and r.status == 'ACTIVE' %}
-                            <a href="{% url 'simulation:unassign' r.id %}" class="btn btn-ghost btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>
+                            <form method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done style="display:inline">
+                                {% csrf_token %}<button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
+                            </form>
                             {% elif not is_instructor and r.status == 'ACTIVE' %}
                             <a href="{% url 'simulation:do_task' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-play"></i> Do the Task</a>
                             {% elif r.status == 'DONE' %}
@@ -227,10 +394,17 @@
     <section class="sim-student-dialog" role="dialog" aria-modal="true"
         aria-labelledby="studentDetailModalTitle" aria-describedby="studentDetailModalMeta"
         tabindex="-1">
-        <header class="sim-session-head">
-            <div>
-                <h2 id="studentDetailModalTitle"></h2>
-                <p class="sim-session-meta" id="studentDetailModalMeta"></p>
+        <header class="sim-student-head">
+            <div class="sim-student-head-main">
+                <span class="sim-student-avatar" id="studentDetailAvatar" aria-hidden="true"></span>
+                <div class="sim-student-head-copy">
+                    <div class="sim-student-head-title">
+                        <h2 id="studentDetailModalTitle"></h2>
+                        <span class="badge badge-blue" id="studentDetailRoleBadge" hidden></span>
+                        <span class="badge badge-gray" id="studentDetailStatusBadge" hidden></span>
+                    </div>
+                    <p class="sim-session-meta" id="studentDetailModalMeta"></p>
+                </div>
             </div>
             <button type="button" class="sim-assign-close" data-student-close
                 aria-label="Close student details"><i class="fas fa-xmark"></i></button>
@@ -325,6 +499,9 @@
     var studentModalBody = document.getElementById('studentDetailModalBody');
     var studentModalTitle = document.getElementById('studentDetailModalTitle');
     var studentModalMeta = document.getElementById('studentDetailModalMeta');
+    var studentModalAvatar = document.getElementById('studentDetailAvatar');
+    var studentModalRoleBadge = document.getElementById('studentDetailRoleBadge');
+    var studentModalStatusBadge = document.getElementById('studentDetailStatusBadge');
     var sessionBody = document.getElementById('sessionStudentModalBody');
     var sessionTitle = document.getElementById('sessionStudentModalTitle');
     var sessionMeta = document.getElementById('sessionStudentModalMeta');
@@ -378,6 +555,34 @@
         );
     }
 
+    function studentInitials(name) {
+        return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2)
+            .map(function (part) { return part.charAt(0); })
+            .join('').toUpperCase();
+    }
+
+    function applyStudentHeader(row, name) {
+        if (studentModalAvatar) {
+            studentModalAvatar.textContent = studentInitials(name);
+        }
+        if (studentModalRoleBadge) {
+            var role = row.dataset.roleDisplay || '';
+            studentModalRoleBadge.textContent = role;
+            studentModalRoleBadge.className = 'badge badge-blue';
+            studentModalRoleBadge.hidden = !role;
+        }
+        if (studentModalStatusBadge) {
+            var status = row.dataset.studentStatus || '';
+            var statusNode = row.querySelector('.simulation-student-status');
+            var label = statusNode ? statusNode.textContent.trim() : '';
+            studentModalStatusBadge.textContent = label;
+            studentModalStatusBadge.className = 'badge '
+                + (status === 'DONE' ? 'badge-green'
+                    : status === 'ACTIVE' ? 'badge-blue' : 'badge-gray');
+            studentModalStatusBadge.hidden = !label;
+        }
+    }
+
     function openStudentDetails(trigger) {
         var row = trigger.closest('.simulation-student-row');
         var details = row && row.querySelector('.simulation-student-details');
@@ -389,15 +594,246 @@
         details.parentNode.insertBefore(studentDetailsPlaceholder, details);
         studentModalBody.appendChild(details);
         details.hidden = false;
-        studentModalTitle.textContent = row.querySelector('.simulation-student-name').textContent.trim();
+        var studentName = row.querySelector('.simulation-student-name').textContent.trim();
+        studentModalTitle.textContent = studentName;
         studentModalMeta.textContent = row.dataset.studentUsername
             ? '@' + row.dataset.studentUsername : 'Student details';
+        applyStudentHeader(row, studentName);
         studentModal.hidden = false;
         trigger.setAttribute('aria-expanded', 'true');
         setBodyLock();
+        refreshProgress(details);
         var closeButton = studentModal.querySelector('[data-student-close]');
         if (closeButton) closeButton.focus();
     }
+
+    function appendLegendItem(parent, state, label, description) {
+        var item = document.createElement('span');
+        item.className = 'sim-legend-item sim-legend-item--' + state;
+        var dot = document.createElement('span');
+        dot.className = 'sim-legend-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        var copy = document.createElement('span');
+        copy.className = 'sim-legend-copy';
+        var title = document.createElement('strong');
+        title.textContent = label;
+        var detail = document.createElement('small');
+        detail.textContent = description;
+        copy.append(title, detail);
+        item.append(dot, copy);
+        parent.appendChild(item);
+    }
+
+    function renderProgress(container, progress) {
+        if (!container || !progress) return;
+        var state = progress.state || 'in_progress';
+        container.className = 'sim-student-progress sim-progress--' + state;
+        container.dataset.progressState = state;
+        container.replaceChildren();
+
+        var head = document.createElement('div');
+        head.className = 'sim-progress-head';
+        var copy = document.createElement('div');
+        var title = document.createElement('h3');
+        var icon = document.createElement('i');
+        icon.className = 'fas fa-list-check';
+        icon.setAttribute('aria-hidden', 'true');
+        var titleText = document.createElement('span');
+        titleText.dataset.progressTitle = '';
+        titleText.textContent = ' ' + (progress.title || 'Session Progress');
+        title.append(icon, titleText);
+        copy.appendChild(title);
+        var hint = document.createElement('p');
+        hint.dataset.progressSubtitle = '';
+        hint.textContent = progress.subtitle
+            || 'Updates only when the student completes a verified task in the simulation.';
+        copy.appendChild(hint);
+        head.appendChild(copy);
+        if (progress.tracked) {
+            var percent = document.createElement('strong');
+            percent.className = 'sim-progress-percent';
+            percent.dataset.progressPercent = '';
+            percent.textContent = progress.percent + '%';
+            head.appendChild(percent);
+        }
+        container.appendChild(head);
+
+        if (progress.tracked) {
+            var track = document.createElement('div');
+            track.className = 'sim-progress-track';
+            track.setAttribute('role', 'progressbar');
+            track.setAttribute('aria-valuemin', '0');
+            track.setAttribute('aria-valuemax', '100');
+            track.setAttribute('aria-valuenow', String(progress.percent));
+            var bar = document.createElement('span');
+            bar.style.width = String(progress.percent) + '%';
+            track.appendChild(bar);
+            container.appendChild(track);
+
+            var caption = document.createElement('div');
+            caption.className = 'sim-progress-caption';
+            var count = document.createElement('span');
+            count.dataset.progressCount = '';
+            count.textContent = progress.completed + ' of ' + progress.tracked + ' tasks completed';
+            caption.appendChild(count);
+            var fraction = document.createElement('span');
+            fraction.textContent = progress.completed + '/' + progress.tracked;
+            caption.appendChild(fraction);
+            container.appendChild(caption);
+
+            if (progress.awaiting_message) {
+                var awaiting = document.createElement('p');
+                awaiting.className = 'sim-progress-awaiting';
+                awaiting.dataset.progressAwaiting = '';
+                var awaitingIcon = document.createElement('i');
+                awaitingIcon.className = 'fas fa-clock';
+                awaitingIcon.setAttribute('aria-hidden', 'true');
+                awaiting.append(awaitingIcon, document.createTextNode(' ' + progress.awaiting_message));
+                container.appendChild(awaiting);
+            }
+            if (progress.success_message) {
+                var success = document.createElement('div');
+                success.className = 'sim-progress-success';
+                success.dataset.progressSuccess = '';
+                var successIcon = document.createElement('i');
+                successIcon.className = 'fas fa-circle-check';
+                successIcon.setAttribute('aria-hidden', 'true');
+                var successCopy = document.createElement('div');
+                var successTitle = document.createElement('strong');
+                successTitle.textContent = state === 'done'
+                    ? 'Assignment completed' : 'Verified tasks are complete';
+                var successText = document.createElement('span');
+                successText.textContent = progress.success_message;
+                successCopy.append(successTitle, successText);
+                success.append(successIcon, successCopy);
+                container.appendChild(success);
+            }
+        } else {
+            var message = document.createElement('p');
+            message.className = 'sim-progress-message';
+            message.dataset.progressMessage = '';
+            message.textContent = progress.message || 'No role tasks have a verified completion rule yet.';
+            container.appendChild(message);
+        }
+
+        var list = document.createElement('ol');
+        list.className = 'sim-task-list';
+        list.dataset.progressTasks = '';
+        (progress.tasks || []).forEach(function (task) {
+            var item = document.createElement('li');
+            item.className = 'sim-task sim-task--' + (task.state || 'pending');
+            item.dataset.taskKey = task.key || '';
+            var number = document.createElement('span');
+            number.className = 'sim-task-number';
+            number.textContent = String(task.number || '');
+            var taskCopy = document.createElement('span');
+            taskCopy.className = 'sim-task-copy';
+            var label = document.createElement('span');
+            label.className = 'sim-task-label';
+            label.textContent = task.label;
+            taskCopy.appendChild(label);
+            if (task.description) {
+                var description = document.createElement('span');
+                description.className = 'sim-task-description';
+                description.textContent = task.description;
+                taskCopy.appendChild(description);
+            }
+            var status = document.createElement('span');
+            status.className = 'sim-task-status';
+            status.textContent = task.status;
+            item.append(number, taskCopy, status);
+            list.appendChild(item);
+        });
+        if (!(progress.tasks || []).length && progress.has_assignment) {
+            var empty = document.createElement('li');
+            empty.className = 'sim-progress-empty';
+            empty.textContent = progress.message || 'No verified role tasks are configured for this assignment.';
+            list.appendChild(empty);
+        }
+        container.appendChild(list);
+
+        if (progress.tracked) {
+            var legend = document.createElement('div');
+            legend.className = 'sim-progress-legend';
+            legend.dataset.progressLegend = '';
+            legend.setAttribute('aria-label', 'Progress legend');
+            var legendGroups = document.createElement('div');
+            legendGroups.className = 'sim-legend-groups';
+            [
+                ['completed', 'Completed', 'Task is finished and verified.'],
+                ['in-progress', 'In Progress', 'Task is currently being done.'],
+                ['awaiting', 'Awaiting Confirmation',
+                 'Waiting for another role (e.g., Billing Officer).'],
+                ['pending', 'Pending', 'Task has not been started yet.']
+            ].forEach(function (entry) {
+                appendLegendItem(legendGroups, entry[0], entry[1], entry[2]);
+            });
+            if (progress.untracked) {
+                appendLegendItem(legendGroups, 'untracked', 'Not tracked',
+                    'No verified completion rule yet.');
+            }
+            legend.appendChild(legendGroups);
+            var legendNote = document.createElement('p');
+            legendNote.className = 'sim-legend-note';
+            var legendNoteIcon = document.createElement('i');
+            legendNoteIcon.className = 'fas fa-circle-info';
+            legendNoteIcon.setAttribute('aria-hidden', 'true');
+            var legendNoteText = document.createElement('span');
+            legendNoteText.textContent = 'Progress is based on actual verified task '
+                + 'completion records, not just page visits.';
+            legendNote.append(legendNoteIcon, legendNoteText);
+            legend.appendChild(legendNote);
+            container.appendChild(legend);
+        }
+
+        if (progress.ready_to_mark_done) {
+            var ready = document.createElement('p');
+            ready.className = 'sim-progress-ready';
+            ready.dataset.progressReady = '';
+            var readyIcon = document.createElement('i');
+            readyIcon.className = 'fas fa-circle-check';
+            readyIcon.setAttribute('aria-hidden', 'true');
+            ready.append(readyIcon, document.createTextNode(' Ready for Instructor Review'));
+            container.appendChild(ready);
+        }
+
+        if (progress.untracked) {
+            var note = document.createElement('p');
+            note.className = 'sim-progress-note';
+            note.textContent = progress.untracked + ' task'
+                + (progress.untracked === 1 ? '' : 's')
+                + ' cannot be verified automatically and are not included in the percentage.';
+            container.appendChild(note);
+        }
+    }
+
+    function refreshProgress(details) {
+        var container = details && details.querySelector('[data-session-progress]');
+        if (!container || !container.dataset.progressUrl) return;
+        fetch(container.dataset.progressUrl, { credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) { if (data && data.ok) renderProgress(container, data.progress); })
+            .catch(function () {});
+    }
+
+    document.addEventListener('simulation-assignment-completed', function (event) {
+        var formNode = event.target.closest('form[data-mark-role-done]');
+        var details = formNode && formNode.closest('.simulation-student-details');
+        if (!details || !event.detail) return;
+        event.preventDefault();
+        var status = details.querySelector('.simulation-student-status-value');
+        if (status) status.textContent = event.detail.status_display || 'Done';
+        var actions = details.querySelector('.simulation-student-actions');
+        if (actions) {
+            actions.replaceChildren();
+            var done = document.createElement('span');
+            done.className = 'btn btn-ghost btn-sm';
+            done.setAttribute('aria-disabled', 'true');
+            done.textContent = '✓ Done';
+            actions.appendChild(done);
+        }
+        renderProgress(details.querySelector('[data-session-progress]'), event.detail.progress);
+    });
 
     function closeStudentDetails() {
         if (!studentModal || studentModal.hidden) return;
@@ -639,19 +1075,22 @@
         var studentDetails = document.getElementById('sim-details-' + currentSessionId + '-' + currentStudentId);
         if (!studentDetails) return;
 
+        row.dataset.roleDisplay = assignment.role_display || '';
+        row.dataset.studentStatus = assignment.status || '';
         studentDetails.querySelector('.simulation-student-role-value').innerHTML = '<span class="badge '
             + statusClass(assignment.status) + '">' + escapeHtml(assignment.role_display) + '</span>';
         studentDetails.querySelector('.simulation-student-activity-value').textContent = assignment.activity_name || 'Not assigned';
         studentDetails.querySelector('.simulation-student-establishment-value').textContent = assignment.establishment || 'Not assigned';
-        studentDetails.querySelector('.simulation-student-status-value').textContent = assignment.status_display;
+        var statusValue = studentDetails.querySelector('.simulation-student-status-value');
+        if (statusValue) statusValue.textContent = assignment.status_display;
         studentDetails.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display || 'Not assigned';
         studentDetails.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display || 'Not assigned';
         var assignmentCount = Number(assignment.assignment_count || 0);
         studentDetails.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
             + ' assignment' + (assignmentCount === 1 ? '' : 's') + ' in this session';
-        studentDetails.querySelector('.simulation-student-schedule-value').textContent = assignment.simulation_date
-            ? assignment.date_display + (assignment.time_display ? ' · ' + assignment.time_display : '')
-            : 'Not scheduled';
+        studentDetails.querySelector('.simulation-student-date-value').textContent = assignment.simulation_date
+            ? assignment.date_display : 'Not scheduled';
+        studentDetails.querySelector('.simulation-student-time-value').textContent = assignment.time_display || 'Not set';
 
         var endpoint = form.getAttribute('action');
         var html = '';
@@ -671,11 +1110,18 @@
                 + ' data-end="' + escapeHtml(assignment.end_time) + '"><i class="fas fa-pen"></i> Edit Assignment</button>';
         }
         if (assignment.status === 'ACTIVE') {
-            html += ' <a href="' + escapeHtml(assignment.unassign_url) + '" class="btn btn-outline btn-sm" data-confirm="Mark this role assignment as done?"><i class="fas fa-circle-check"></i> Mark as Done</a>';
+            html += ' <form method="post" action="' + escapeHtml(assignment.unassign_url) + '" data-mark-role-done style="display:inline">'
+                + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
+                + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
         } else if (assignment.status === 'DONE') {
             html += ' <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>';
         }
         studentDetails.querySelector('.simulation-student-actions').innerHTML = html;
+        var progressNode = studentDetails.querySelector('[data-session-progress]');
+        if (progressNode && assignment.progress_url) {
+            progressNode.dataset.progressUrl = assignment.progress_url;
+        }
+        renderProgress(progressNode, assignment.progress);
     }
 
     form.addEventListener('submit', function (event) {
@@ -803,9 +1249,15 @@
 <div class="card">
     <div class="empty">
         <i class="fas fa-layer-group"></i>
+        {% if q or status_filter %}
+        <h3>No sessions match your filters</h3>
+        <p>Try a different search term or status, or clear the filters to see every session.</p>
+        <div style="margin-top:20px"><a href="{% url 'simulation:workspace' %}" class="btn btn-outline"><i class="fas fa-rotate-left"></i> Clear Filters</a></div>
+        {% else %}
         <h3>No simulation sessions yet</h3>
         <p>Create a session first, then add activities and role assignments inside it.</p>
         <div style="margin-top:20px"><a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a></div>
+        {% endif %}
     </div>
 </div>
 {% else %}
@@ -818,5 +1270,16 @@
 </div>
 {% endif %}
 
-{% block extra_js %}<script src="{% static 'js/role-dropdown.js' %}?v=20261011-1"></script>{% endblock %}
+{% include 'simulation/_mark_done_modal.html' %}
+
+{% block extra_js %}<script src="{% static 'js/role-dropdown.js' %}?v=20261011-1"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var session = location.hash && document.getElementById(location.hash.slice(1));
+    if (session && session.tagName === 'DETAILS') {
+        session.open = true;
+        session.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+});
+</script>{% endblock %}
 {% endblock %}

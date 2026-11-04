@@ -1,0 +1,143 @@
+{% comment %}
+Seat selection modal.
+
+Three columns on a desktop: the aircraft map on the left, the legend and the
+seat prices in the middle, and the passengers with their seats on the right.
+The header, the flight information bar and the footer never scroll away, so
+the map can be used without losing the way out of the modal.
+
+Every value here comes from the page's own booking state: the seats from
+``seat_map``, the flight from ``selected``, the prices from ``fare``.
+{% endcomment %}
+<div class="pd-modal" data-pd-seat-modal hidden aria-hidden="true">
+    <div class="pd-modal__backdrop" data-pd-seat-close></div>
+    <div class="pd-modal__dialog pd-seat-dialog" role="dialog" aria-modal="true" aria-labelledby="pd-seat-modal-title">
+        <header class="pd-modal__head pd-seat-dialog__head">
+            <div class="pd-seat-dialog__heading">
+                <span class="pd-seat-dialog__icon" aria-hidden="true"><i class="fas fa-chair"></i></span>
+                <div>
+                    <h2 id="pd-seat-modal-title">Select Your Seats</h2>
+                    <p class="pd-muted">Choose your preferred seats for a more comfortable journey.</p>
+                </div>
+            </div>
+            <button type="button" class="pd-modal__close" data-pd-seat-close aria-label="Close seat selection"><i class="fas fa-xmark"></i></button>
+        </header>
+
+        <div class="pd-seat-flightbar">
+            <div class="pd-seat-flightbar__cell">
+                <span class="pd-seat-flightbar__label">Airline</span>
+                <span class="pd-seat-flightbar__value">{{ selected.airline }}</span>
+                <span class="pd-seat-flightbar__sub">{{ selected.flight_number }}</span>
+            </div>
+            <div class="pd-seat-flightbar__cell">
+                <span class="pd-seat-flightbar__label">Route</span>
+                <span class="pd-seat-flightbar__value">{{ selected.origin_code }} &rarr; {{ selected.destination_code }}</span>
+                <span class="pd-seat-flightbar__sub">{{ selected.origin_city }} to {{ selected.destination_city }}</span>
+            </div>
+            <div class="pd-seat-flightbar__cell">
+                <span class="pd-seat-flightbar__label">Aircraft</span>
+                <span class="pd-seat-flightbar__value">{{ seat_map.aircraft }}</span>
+                <span class="pd-seat-flightbar__sub">{{ seat_map.layout }} &middot; {{ selected.fare_class_label }}</span>
+            </div>
+            <div class="pd-seat-flightbar__cell">
+                <span class="pd-seat-flightbar__label">Passengers</span>
+                <span class="pd-seat-flightbar__value" data-pd-seat-flightbar-pax>1</span>
+                <span class="pd-seat-flightbar__sub" data-pd-seat-flightbar-cabin>{{ seat_map.cabin }} &middot; pitch {{ seat_map.cabin_pitch }}</span>
+            </div>
+        </div>
+
+        <div class="pd-modal__body pd-seat-dialog__body">
+            <div class="pd-seat-col pd-seat-col--map">
+                <div class="pd-seat-map">
+                    <div class="pd-seat-map__nose" aria-hidden="true">
+                        <span class="pd-seat-map__direction">Front</span>
+                        <i class="fas fa-plane-up"></i>
+                    </div>
+                    <div class="pd-seat-map__grid" data-pd-seat-grid>
+                        <div class="pd-seat-map__headrow">
+                            <span class="pd-seat-map__rowno"></span>
+                            {% for letter in seat_map.letters %}<span class="pd-seat-map__colhead{% if letter in seat_map.aisle_starts %} pd-seat-map__colhead--aisle-gap{% endif %}">{{ letter }}</span>{% endfor %}
+                            <span class="pd-seat-map__rowno"></span>
+                        </div>
+                        {% for row in seat_map.rows %}
+                        {% if row.is_exit %}
+                        <div class="pd-seat-map__exit"><i class="fas fa-person-running"></i> Exit row</div>
+                        {% endif %}
+                        <div class="pd-seat-map__row">
+                            <span class="pd-seat-map__rowno">{{ row.row }}</span>
+                            {% for seat in row.seats %}
+                            <button type="button"
+                                    class="pd-seat pd-seat--{{ seat.position }} pd-seat--cat-{{ seat.category }}{% if seat.aisle_before %} pd-seat--aisle-gap{% endif %}{% if seat.taken %} pd-seat--taken{% endif %}"
+                                    data-seat="{{ seat.number }}" data-position="{{ seat.position }}"
+                                    data-position-label="{{ seat.position_label }}"
+                                    data-category="{{ seat.category }}" data-category-label="{{ seat.category_label }}"
+                                    data-price="{{ seat.price }}"
+                                    {% if seat.taken %}disabled aria-label="Seat {{ seat.number }} unavailable"{% else %}aria-label="Seat {{ seat.number }} available, {{ seat.position_label }} seat, {{ seat.category_label }}, {{ seat.price_text }}"{% endif %}>
+                                <span class="pd-seat__letter">{{ seat.letter }}</span>
+                                <span class="pd-seat__num">{{ seat.number }}</span>
+                            </button>
+                            {% endfor %}
+                            <span class="pd-seat-map__rowno pd-seat-map__rowno--right">{{ row.row }}</span>
+                        </div>
+                        {% endfor %}
+                        <div class="pd-seat-map__tail" aria-hidden="true">
+                            <i class="fas fa-plane-up" style="transform:rotate(180deg);"></i>
+                            <span class="pd-seat-map__direction">Back</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pd-seat-col pd-seat-col--legend">
+                <section class="pd-seat-block">
+                    <h3 class="pd-seat-block__title"><i class="fas fa-key" aria-hidden="true"></i> Seat Legend</h3>
+                    <ul class="pd-legend">
+                        <li><span class="pd-legend__swatch pd-legend__swatch--free"></span> Available seat</li>
+                        <li><span class="pd-legend__swatch pd-legend__swatch--selected"></span> Selected seat</li>
+                        <li><span class="pd-legend__swatch pd-legend__swatch--taken"></span> Unavailable seat</li>
+                    </ul>
+                </section>
+
+                <section class="pd-seat-block">
+                    <h3 class="pd-seat-block__title"><i class="fas fa-tags" aria-hidden="true"></i> Seat Types &amp; Prices</h3>
+                    <ul class="pd-seat-prices">
+                        {% for seat_type in fare.seat_types %}
+                        <li class="pd-seat-price">
+                            <span class="pd-seat-price__dot pd-seat-price__dot--{{ seat_type.key }}" aria-hidden="true"></span>
+                            <span class="pd-seat-price__name">{{ seat_type.label }}</span>
+                            <span class="pd-seat-price__amount">{{ seat_type.price_text }}{% if seat_type.price %} <small>per seat</small>{% endif %}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="pd-field__hint">{{ fare.seat_pricing_note }}</p>
+                </section>
+            </div>
+
+            <div class="pd-seat-col pd-seat-col--pax">
+                <section class="pd-seat-block">
+                    <h3 class="pd-seat-block__title"><i class="fas fa-users" aria-hidden="true"></i> Passengers</h3>
+                    <p class="pd-field__hint pd-seat-block__hint">Select a passenger, then choose a seat on the map.</p>
+                    <ul class="pd-seat-panel__list" data-pd-seat-pax-list></ul>
+                    <p class="pd-field__hint" data-pd-seat-panel-hint role="status" aria-live="polite"></p>
+                </section>
+
+                <section class="pd-seat-block pd-seat-summary-panel">
+                    <h3 class="pd-seat-block__title"><i class="fas fa-receipt" aria-hidden="true"></i> Seat Selection Summary</h3>
+                    <ul class="pd-seat-summary-panel__list" data-pd-seat-modal-summary></ul>
+                    <div class="pd-seat-summary-panel__total">
+                        <span>Total Seat Selection</span>
+                        <strong data-pd-seat-modal-total>&#8369;0.00</strong>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <footer class="pd-modal__foot pd-seat-dialog__foot">
+            <p class="pd-field__hint" data-pd-seat-modal-hint>0 of 0 seats selected.</p>
+            <div class="pd-modal__actions">
+                <button type="button" class="pd-btn pd-btn--outline" data-pd-seat-close><i class="fas fa-xmark"></i> Cancel</button>
+                <button type="button" class="pd-btn pd-btn--primary" data-pd-confirm-seats><i class="fas fa-check"></i> Confirm Seats</button>
+            </div>
+        </footer>
+    </div>
+</div>

@@ -1,0 +1,80 @@
+<div class="pd-card pd-section" id="pd-services">
+    <div class="pd-section__head">
+        <h2><i class="fas fa-briefcase"></i> Additional Services</h2>
+        <p>Baggage and insurance are optional. Prices update the fare summary right away.</p>
+    </div>
+
+    <div class="pd-service">
+        <div class="pd-service__head">
+            <h3><i class="fas fa-suitcase-rolling"></i> Extra Baggage</h3>
+            <span class="pd-chip pd-chip--soft">per 5&nbsp;kg</span>
+        </div>
+        <label class="pd-field">
+            <span class="pd-field__label">Extra Baggage (per 5 kg)</span>
+            <select data-pd-baggage>
+                {% for opt in fare.baggage_options %}
+                <option value="{{ opt.kg }}" data-price="{{ opt.price }}">{{ opt.label }} &mdash; {{ opt.price_text }}{% if opt.kg %} {% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <p class="pd-field__hint">
+            {% if fare.baggage_basis == 'per_passenger' %}
+            Charged <b>per passenger</b>. The total below multiplies the price by the number of travellers.
+            {% else %}
+            Charged <b>once per booking</b> regardless of the number of travellers.
+            {% endif %}
+            Sample prices; the airline sets real baggage prices by route and fare class. These are prototype prices that can be configured by an administrator.
+        </p>
+    </div>
+
+    <div class="pd-service">
+        <div class="pd-service__head">
+            <h3><i class="fas fa-shield-heart"></i> Travel Insurance (Optional)</h3>
+            <span class="pd-chip pd-chip--soft">optional</span>
+        </div>
+        <label class="pd-field">
+            <span class="pd-field__label">Insurance Category</span>
+            <select data-pd-insurance>
+                {% for plan in fare.insurance_plans %}
+                <option value="{{ plan.key }}" data-price="{{ plan.price }}">{{ plan.name }} &mdash; {{ plan.price_text }}{% if plan.price %} per passenger{% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <div class="pd-insurance-info" data-pd-insurance-info>
+            <p class="pd-insurance-info__summary" data-pd-insurance-summary></p>
+            <div class="pd-insurance-info__cols">
+                <div>
+                    <h4><i class="fas fa-circle-check"></i> May cover</h4>
+                    <ul data-pd-insurance-covers></ul>
+                </div>
+                <div>
+                    <h4><i class="fas fa-circle-xmark"></i> Not covered</h4>
+                    <ul data-pd-insurance-excludes></ul>
+                </div>
+            </div>
+            <p class="pd-muted">Coverage may include eligible unexpected medical emergencies,
+            trip interruption or cancellation, depending on the policy. Not every cancellation
+            is refundable. A claim must meet the policy&rsquo;s conditions and exclusions.</p>
+        </div>
+
+        <button type="button" class="pd-link" data-pd-insurance-toggle aria-expanded="false">
+            <i class="fas fa-chevron-down"></i> <span data-pd-insurance-toggle-text>View Coverage & Exclusions</span>
+        </button>
+        <div class="pd-insurance-terms" data-pd-insurance-terms hidden>
+            <h4>Coverage & Exclusions, Terms, Conditions & Claim Requirements</h4>
+            <p><strong>Covered events:</strong> Emergency medical expenses, trip cancellation for covered reasons, trip interruption, loss of checked baggage (where applicable).</p>
+            <p><strong>Coverage limits:</strong> Vary by plan - Basic (up to ₱500,000 medical), Standard (up to ₱1,500,000), Premium (up to ₱3,000,000).</p>
+            <p><strong>Exclusions:</strong> Pre-existing medical conditions (unless declared and accepted), cancellation due to change of mind, adventure sports not listed, travel against medical/government advice.</p>
+            <p><strong>Required supporting documents:</strong> Medical certificate (for medical emergencies), proof of event, booking reference, receipts.</p>
+            <p><strong>Claim submission instructions:</strong> Submit claim with supporting documents within the time limit specified in policy. Claims assessed separately from airline refunds.</p>
+            <p><strong>Insurance provider details & applicable terms:</strong> Insurance is provided for this prototype only as a sample. A real policy is issued by the insurer, states its own coverage limits, exclusions and claim requirements. Airline refunds and insurance claims are handled separately.</p>
+        </div>
+
+        <label class="pd-ack" style="margin-top: 12px;">
+            <input type="checkbox" data-pd-insurance-ack>
+            <span>I have read and understand the insurance terms and conditions.</span>
+        </label>
+        <span class="pd-field__err" data-pd-err="insurance_ack" role="alert"></span>
+    </div>
+</div>

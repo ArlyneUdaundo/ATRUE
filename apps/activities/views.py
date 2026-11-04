@@ -1,4 +1,4 @@
-﻿from datetime import date, time
+from datetime import date, time
 
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos, validate_image_upload
 from atrue_core.services import (
     bill_for_booking,
     bill_items_total,
@@ -19,7 +19,7 @@ from atrue_core.services import (
     log_activity,
     record_payment,
 )
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models.deletion import ProtectedError
 from django.db.models import Sum
 from accounts.roles import can_create_establishment, effective_role_keys
@@ -107,6 +107,16 @@ def manage(request):
 
 
 def _save_activity(request, provider, instance=None):
+    image = request.FILES.get('image')
+    if image:
+        validate_image_upload(image)
+    delete_ids = request.POST.getlist('delete_photos')
+    delete_count = instance.photos.filter(pk__in=delete_ids).count() if instance else 0
+    images = validate_establishment_photos(
+        request.FILES.getlist('photos'),
+        existing_count=instance.photos.count() if instance else 0,
+        delete_count=delete_count,
+    )
     data = {
         'name': request.POST.get('name'),
         'description': request.POST.get('description', ''),
@@ -136,11 +146,9 @@ def _save_activity(request, provider, instance=None):
     else:
         instance = Activity.objects.create(provider=provider, **data)
 
-    image = request.FILES.get('image')
-    if image and is_valid_image(image):
+    if image:
         instance.image = image
         instance.save(update_fields=['image'])
-    images = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
     for image in images:
         ActivityPhoto.objects.create(activity=instance, image=image, is_primary=not instance.photos.exists())
     for photo in instance.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -172,7 +180,11 @@ def add_activity(request):
         if provider is None:
             return render(request, 'activities/activity_form.html', {
                 'activity': None, 'providers': providers, 'selected_provider': None})
-        activity = _save_activity(request, provider)
+        try:
+            activity = _save_activity(request, provider)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'activities/activity_form.html', {'activity': None, 'providers': providers, 'selected_provider': provider}, status=400)
         log_activity(request.user, "Created activity", activity.name)
         messages.success(request, f"Activity '{activity.name}' created.")
         return redirect('activities:manage')
@@ -192,7 +204,11 @@ def update_activity(request, activity_id):
         pk=activity_id,
     )
     if request.method == 'POST':
-        _save_activity(request, activity.provider, instance=activity)
+        try:
+            _save_activity(request, activity.provider, instance=activity)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'activities/activity_form.html', {'activity': activity}, status=400)
         log_activity(request.user, "Updated activity", activity.name)
         messages.success(request, "Activity updated.")
         return redirect('activities:manage')
@@ -278,6 +294,8 @@ def book_activity(request, activity_id):
         bill = create_bill(service='activity', customer=request.user, items=items, booking=booking)
         booking.total_bill = total
         booking.save(update_fields=['total_bill'])
+        from notifications.services import notify_service_booking
+        notify_service_booking(booking, 'submitted', request.user)
 
         from simulation.completion import complete_guest_booking
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -393,10 +411,15 @@ def booking_detail(request, booking_id):
             if not reservation_officer:
                 raise PermissionDenied('Only the Activity Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
+            if booking.status == Booking.Status.CONFIRMED:
+                from notifications.services import notify_service_booking
+                notify_service_booking(booking, 'confirmed', request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             decline_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'rejected', request.user)
         elif action == 'attend':
             if booking.status != Booking.Status.CONFIRMED:
                 raise PermissionDenied('Only confirmed activity bookings may be checked in.')
@@ -410,6 +433,9 @@ def booking_detail(request, booking_id):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
         elif action == 'modify':
             when = _parse_date(request.POST.get('schedule_date'), booking.schedule_date)
             remaining_on_date = _slots_remaining(booking.activity, when, exclude_id=booking.id)
@@ -422,8 +448,12 @@ def booking_detail(request, booking_id):
             booking.special_requests = request.POST.get('special_requests', booking.special_requests)
             booking.status = Booking.Status.MODIFIED
             booking.save()
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'updated', request.user)
         elif action == 'cancel':
             cancel_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'cancelled', request.user)
         elif action == 'pay':
             record_payment(
                 customer=request.user if request.user == booking.customer else booking.customer,
@@ -560,6 +590,9 @@ def operate(request):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Activity booking completed", str(booking.pk))
         elif action == 'update_status':
             authorized_ids = assigned_activity_ids_for_roles(request, {'ACTIVITY_OPERATOR'})

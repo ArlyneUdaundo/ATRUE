@@ -209,6 +209,14 @@
             var guestButton = card.querySelector('[data-guest-open]');
             if (guestButton) guestButton.hidden = !picked;
         }
+        Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (el) {
+            if (Number(el.getAttribute('data-compare-book')) !== Number(roomId)) return;
+            el.classList.toggle('is-on', picked);
+            el.setAttribute('aria-pressed', picked ? 'true' : 'false');
+            el.innerHTML = picked
+                ? '<i class="fas fa-check"></i> Selected'
+                : '<i class="fas fa-circle-check"></i> Select';
+        });
         if (roomCountPanel) roomCountPanel.textContent = SELECTED.length + ' selected';
         if (pbRoomsSelected) pbRoomsSelected.textContent = SELECTED.length;
         if (btn) {
@@ -241,6 +249,14 @@
                 gbtn.setAttribute('aria-label', 'Guest information for room ' +
                     (metaOf(id).room_number || id));
             }
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (el) {
+            var picked = findIndex(el.getAttribute('data-compare-book')) !== -1;
+            el.classList.toggle('is-on', picked);
+            el.setAttribute('aria-pressed', picked ? 'true' : 'false');
+            el.innerHTML = picked
+                ? '<i class="fas fa-check"></i> Selected'
+                : '<i class="fas fa-circle-check"></i> Select';
         });
     }
 
@@ -830,15 +846,10 @@
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
                 if (guestModalOpen()) syncFromDom();
-                // Selecting a room keeps the live sidebar visible. Open guest
-                // details only when the guest selects an already-added room
-                // or uses its dedicated Guest info button.
-                if (findIndex(roomId) !== -1) {
-                    guestOpener = b;
-                    openGuestModal(roomId);
-                    return;
-                }
-                addRoom(roomId);
+                // Match the resort picker: the selection control toggles the
+                // room in and out, while Guest info stays a separate action.
+                if (findIndex(roomId) !== -1) removeRoom(roomId);
+                else addRoom(roomId);
                 updateRoomSelection(roomId);
             });
         });
@@ -870,12 +881,8 @@
         b.addEventListener('click', function () {
             var roomId = Number(b.getAttribute('data-compare-book'));
             if (guestModalOpen()) syncFromDom();
-            if (findIndex(roomId) !== -1) {
-                guestOpener = b;
-                openGuestModal(roomId);
-                return;
-            }
-            addRoom(roomId);
+            if (findIndex(roomId) !== -1) removeRoom(roomId);
+            else addRoom(roomId);
             updateRoomSelection(roomId);
         });
     });

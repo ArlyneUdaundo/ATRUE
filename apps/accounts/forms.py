@@ -1,4 +1,6 @@
 from django import forms
+from atrue_core.image_utils import MAX_PHOTO_UPLOAD_BYTES, validate_image_upload
+import logging
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserCreationForm
 from django.contrib.auth import authenticate
 import re
@@ -11,6 +13,7 @@ SUFFIX_CHOICES = [('', '— Select suffix —')] + [
 ]
 
 CONTACT_RE = re.compile(r'^\d{11}$')
+logger = logging.getLogger(__name__)
 
 # FR-001 Create User Account INPUT order (ATRUE_FR.md module 1).
 FR_FIELD_ORDER = (
@@ -196,23 +199,24 @@ class ProfilePhotoForm(forms.Form):
     also edits identity and contact fields that an administrator controls. Only
     the owner ever gets this form, so it carries no permission logic of its own.
 
-    Django's own ``ClearableFileInput`` supplies the "remove" affordance; the
-    checkbox posts ``profile_photo-clear`` and clears the field on save.
+    The profile panel supplies explicit replace and remove controls; the remove
+    button posts ``profile_picture-clear`` and clears the field on save.
     """
 
-    #: A profile photo is decoration, not a document. Anything larger is almost
-    #: certainly a phone camera original rather than something chosen for a
-    #: 160px avatar, and it would be served on every authenticated page.
-    MAX_BYTES = 2 * 1024 * 1024
+    MAX_BYTES = MAX_PHOTO_UPLOAD_BYTES
 
-    profile_picture = forms.ImageField(
+    profile_picture = forms.FileField(
         required=False,
         # ``id`` is in ``attrs``, not a widget keyword: the header's camera button
         # opens this input by id, and Django's default ``id_profile_picture`` would
         # tie the template to the field name. The same attr is set per instance in
         # ``__init__`` so an unbound form still renders it.
-        widget=forms.ClearableFileInput(attrs={'accept': 'image/*'}),
-        help_text='JPEG or PNG, up to 2 MB. A square image looks best.',
+        widget=forms.ClearableFileInput(attrs={
+            'accept': '.jpg,.jpeg,.png,image/jpeg,image/png', 'data-photo-upload': '',
+            'data-photo-kind': 'profile', 'data-max-count': '1',
+        }),
+        help_text='JPG, JPEG, or PNG, up to 5 MB. A clear, well-lit profile photo is recommended.',
+        error_messages={'invalid': 'Please upload a valid JPG, JPEG, or PNG image.'},
     )
 
     #: Overrides the rendered ``id`` of the file input, which the profile header's
@@ -224,35 +228,47 @@ class ProfilePhotoForm(forms.Form):
         self.fields['profile_picture'].widget.attrs['id'] = self.input_id
 
     def clean_profile_picture(self):
-        """Reject an oversized upload.
-
-        Whether the file is really an image is already settled: ``ImageField``
-        runs Pillow over it while cleaning, so a text file renamed to ``.png``
-        never reaches this method.
-        """
+        """Require a JPEG or PNG extension and matching content within the size limit."""
         photo = self.cleaned_data.get('profile_picture')
-        if photo and photo.size > self.MAX_BYTES:
-            raise forms.ValidationError(
-                'That image is %.1f MB. Please choose one under 2 MB.'
-                % (photo.size / (1024 * 1024)))
+        if photo:
+            validate_image_upload(photo)
         return photo
 
     def save(self, user):
         """Apply the upload or the clear to ``user`` and persist it."""
         photo = self.cleaned_data.get('profile_picture')
+        old_photo = user.profile_picture
+        old_storage = old_photo.storage if old_photo else None
+        old_name = old_photo.name if old_photo else ''
         # ``data.get('profile_picture-clear')`` rather than the field's own
         # ``value``: that is the flag Django sets when the remove box is ticked,
         # and it must win over a simultaneously chosen file.
         if self.data.get(self.add_prefix('profile_picture-clear')):
-            user.profile_picture.delete(save=False)
             user.profile_picture = None
         elif photo:
-            # Assigning replaces the field, and the old file is left on disk
-            # unless it is deleted, so a replaced photo does not accumulate.
-            if user.profile_picture:
-                user.profile_picture.delete(save=False)
             user.profile_picture = photo
-        user.save(update_fields=['profile_picture'])
+        try:
+            user.save(update_fields=['profile_picture'])
+        except Exception:
+            # A FileField write happens before the row update. If the update
+            # fails, remove the newly stored object rather than leaving an
+            # unreferenced file behind.
+            new_name = getattr(user.profile_picture, 'name', '')
+            new_storage = getattr(user.profile_picture, 'storage', None)
+            if photo and new_storage and new_name and new_name != old_name:
+                try:
+                    new_storage.delete(new_name)
+                except Exception:
+                    logger.exception('Could not remove failed profile photo upload %s', new_name)
+            raise
+        # Remove the old object only after the new field value has been saved.
+        # That keeps the existing profile photo available if storage rejects or
+        # fails to persist the replacement.
+        if old_storage and old_name and old_name != getattr(user.profile_picture, 'name', ''):
+            try:
+                old_storage.delete(old_name)
+            except Exception:
+                logger.exception('Could not remove replaced profile photo %s', old_name)
         return user
 
 
@@ -290,10 +306,17 @@ class UserAccountForm(forms.ModelForm):
         for name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-input'
         if 'profile_picture' in self.fields:
-            self.fields['profile_picture'].widget.attrs['accept'] = 'image/*'
+            self.fields['profile_picture'].widget.attrs.update({
+                'accept': '.jpg,.jpeg,.png,image/jpeg,image/png',
+                'data-photo-upload': '',
+                'data-photo-kind': 'profile',
+                'data-max-count': '1',
+            })
+            self.fields['profile_picture'].error_messages['invalid_image'] = (
+                'Please upload a valid JPG, JPEG, or PNG image.'
+            )
             self.fields['profile_picture'].help_text = (
-                'Upload an image for the blue avatar beside your name. '
-                'Select Clear to remove the current picture.'
+                'JPG, JPEG, or PNG, up to 5 MB. Clear, well-lit profile photos are recommended.'
             )
         self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
@@ -308,6 +331,36 @@ class UserAccountForm(forms.ModelForm):
         if value and value > date.today():
             raise forms.ValidationError('Birthdate cannot be in the future.')
         return value
+
+    def save(self, commit=True):
+        old_picture = self.instance.profile_picture
+        old_storage = old_picture.storage if old_picture else None
+        old_name = old_picture.name if old_picture else ''
+        try:
+            user = super().save(commit=commit)
+        except Exception:
+            new_name = getattr(self.instance.profile_picture, 'name', '')
+            new_storage = getattr(self.instance.profile_picture, 'storage', None)
+            if (commit and 'profile_picture' in self.cleaned_data
+                    and new_storage and new_name and new_name != old_name):
+                try:
+                    new_storage.delete(new_name)
+                except Exception:
+                    logger.exception('Could not remove failed profile photo upload %s', new_name)
+            raise
+        new_name = getattr(user.profile_picture, 'name', '')
+        if commit and old_storage and old_name and old_name != new_name:
+            try:
+                old_storage.delete(old_name)
+            except Exception:
+                logger.exception('Could not remove replaced profile photo %s', old_name)
+        return user
+
+    def clean_profile_picture(self):
+        photo = self.cleaned_data.get('profile_picture')
+        if photo and hasattr(photo, 'chunks'):
+            validate_image_upload(photo)
+        return photo
 
     def clean_email(self):
         email = (self.cleaned_data.get('email') or '').strip().casefold()

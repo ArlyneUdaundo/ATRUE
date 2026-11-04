@@ -3,12 +3,28 @@
 import os
 from urllib.parse import urlparse
 
-from django.core.exceptions import ImproperlyConfigured
-from django.core.files.storage import FileSystemStorage, storages
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.files.storage import FileSystemStorage
 from django.utils.deconstruct import deconstructible
 from storages.backends.s3 import S3Storage
 
-from atrue_core.image_utils import InvalidImageUpload, is_valid_image
+from atrue_core.image_utils import InvalidImageUpload, validate_image_upload
+
+
+def _supabase_project_netloc(endpoint):
+    """Return the project host even when SUPABASE_URL is only a project ref."""
+    configured = os.getenv('SUPABASE_URL', '').strip().rstrip('/')
+    host = ''
+    if configured:
+        parsed = urlparse(configured if '://' in configured else f'https://{configured}')
+        host = parsed.hostname or ''
+    if not host:
+        host = urlparse(endpoint).hostname or ''
+    if host.endswith('.storage.supabase.co'):
+        host = host[:-len('.storage.supabase.co')] + '.supabase.co'
+    elif host and '.' not in host:
+        host = f'{host}.supabase.co'
+    return host
 
 
 class _SupabaseS3Storage(S3Storage):
@@ -41,23 +57,22 @@ class _SupabaseS3Storage(S3Storage):
         kwargs.setdefault('querystring_auth', self.private)
         kwargs.setdefault('querystring_expire', 3600)
         if not self.private:
-            parsed = urlparse(os.getenv('SUPABASE_URL', endpoint))
-            if not parsed.hostname:
-                parsed = urlparse(endpoint)
-            kwargs.setdefault(
-                'custom_domain',
-                f'{parsed.netloc}/storage/v1/object/public/{bucket}',
-            )
+            netloc = _supabase_project_netloc(endpoint)
+            if netloc:
+                kwargs.setdefault(
+                    'custom_domain',
+                    f'{netloc}/storage/v1/object/public/{bucket}',
+                )
             kwargs.setdefault('url_protocol', 'https:')
         super().__init__(**kwargs)
 
     def _save(self, name, content):
-        # Enforce the upload rules at the storage boundary too, so Django admin
-        # and any future ImageField handler cannot bypass the view validation.
-        if not is_valid_image(content):
-            raise InvalidImageUpload(
-                'Upload a valid JPEG, PNG, or WebP image no larger than 10 MB.'
-            )
+        # Every ImageField uses this backend, so enforce the same contract at the
+        # storage boundary for direct model/admin saves that bypass a form.
+        try:
+            validate_image_upload(content, filename=name)
+        except ValidationError as exc:
+            raise InvalidImageUpload(exc.messages[0]) from exc
         return super()._save(name, content)
 
 
@@ -99,6 +114,10 @@ class ProfilePictureStorage(FileSystemStorage):
         return storage
 
     def save(self, name, content, max_length=None):
+        try:
+            validate_image_upload(content, filename=name)
+        except ValidationError as exc:
+            raise InvalidImageUpload(exc.messages[0]) from exc
         remote = self._remote
         return (remote.save(name, content, max_length=max_length) if remote
                 else super().save(name, content, max_length=max_length))

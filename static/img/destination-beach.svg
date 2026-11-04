@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Tropical island beach with turquoise water">
+    <defs>
+        <linearGradient id="beachSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7ec8ee"/>
+            <stop offset="0.55" stop-color="#bfe7f6"/>
+            <stop offset="1" stop-color="#ffe6bd"/>
+        </linearGradient>
+        <linearGradient id="beachSea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2fb3c9"/>
+            <stop offset="0.5" stop-color="#3fd0c9"/>
+            <stop offset="1" stop-color="#bff0e0"/>
+        </linearGradient>
+        <linearGradient id="beachSand" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fbe3b8"/>
+            <stop offset="1" stop-color="#f4d194"/>
+        </linearGradient>
+        <radialGradient id="beachSun" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fff7d6"/>
+            <stop offset="1" stop-color="#ffe29a" stop-opacity="0"/>
+        </radialGradient>
+    </defs>
+
+    <rect width="480" height="270" fill="url(#beachSky)"/>
+    <circle cx="352" cy="82" r="58" fill="url(#beachSun)"/>
+    <circle cx="352" cy="82" r="24" fill="#fff6d8" opacity="0.9"/>
+
+    <g fill="#ffffff" opacity="0.55">
+        <ellipse cx="120" cy="66" rx="52" ry="12"/>
+        <ellipse cx="162" cy="60" rx="30" ry="9"/>
+        <ellipse cx="66" cy="58" rx="26" ry="8"/>
+        <ellipse cx="398" cy="44" rx="38" ry="9"/>
+    </g>
+
+    <path d="M0 148 L0 270 L480 270 L480 132 Q360 150 240 152 Q110 154 0 148 Z" fill="url(#beachSea)"/>
+    <path d="M0 170 Q140 182 246 176 Q372 168 480 178 L480 270 L0 270 Z" fill="#2fbfb6" opacity="0.35"/>
+    <g stroke="#ffffff" stroke-width="2" opacity="0.5" fill="none" stroke-linecap="round">
+        <path d="M62 196 q18 -6 36 0"/>
+        <path d="M150 208 q22 -6 44 0"/>
+        <path d="M262 194 q20 -6 40 0"/>
+        <path d="M352 214 q22 -6 44 0"/>
+    </g>
+
+    <path d="M262 150 q28 -14 58 -4 q26 8 44 4 l-6 8 q-40 6 -96 -8 Z" fill="#1f7f6e" opacity="0.8"/>
+    <path d="M300 140 q10 -16 28 -20 q-4 14 -14 22 Z" fill="#1f7f6e" opacity="0.7"/>
+    <path d="M322 133 q14 -10 30 -8 q-8 10 -22 14 Z" fill="#1f7f6e" opacity="0.6"/>
+
+    <path d="M0 216 Q96 204 178 220 Q262 236 340 232 Q410 228 480 240 L480 270 L0 270 Z" fill="url(#beachSand)"/>
+    <path d="M0 244 Q120 236 220 246 Q330 256 480 250 L480 270 L0 270 Z" fill="#ecc27f" opacity="0.55"/>
+
+    <g>
+        <path d="M74 246 q6 -46 12 -74" stroke="#7c5a37" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M84 176 q-30 -18 -50 -8 q20 2 34 12 Z" fill="#2f8f5b"/>
+        <path d="M86 172 q26 -24 52 -16 q-24 4 -38 20 Z" fill="#37a566"/>
+        <path d="M85 176 q-2 -26 12 -40 q2 22 -4 42 Z" fill="#2f8f5b"/>
+        <path d="M84 180 q22 -8 40 6 q-20 -2 -34 2 Z" fill="#37a566"/>
+    </g>
+
+    <g>
+        <path d="M356 178 l10 6 h24 l10 -6 Z" fill="#f8fafc"/>
+        <path d="M380 162 l0 16" stroke="#f8fafc" stroke-width="2"/>
+        <path d="M380 162 l12 12 h-12 Z" fill="#fff7e4"/>
+    </g>
+
+    <g fill="#ffffff" opacity="0.75">
+        <circle cx="60" cy="120" r="2"/>
+        <circle cx="120" cy="102" r="1.6"/>
+        <circle cx="210" cy="92" r="1.8"/>
+    </g>
+</svg>

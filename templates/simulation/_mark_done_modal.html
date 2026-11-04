@@ -1,0 +1,15 @@
+{% load static %}
+<dialog class="mark-done-modal" id="markRoleDoneModal" aria-labelledby="markRoleDoneTitle" aria-describedby="markRoleDoneMessage">
+    <section class="mark-done-modal__panel">
+        <button type="button" class="mark-done-modal__close" id="closeMarkRoleDone" aria-label="Close confirmation">&times;</button>
+        <div class="mark-done-modal__icon" aria-hidden="true"><i class="fas fa-circle-check"></i></div>
+        <h2 id="markRoleDoneTitle">Mark as Done?</h2>
+        <p id="markRoleDoneMessage">Are you sure you want to mark this assignment as done? You can still view it later if needed.</p>
+        <p class="mark-done-modal__error" id="markRoleDoneError" role="alert" hidden></p>
+        <div class="mark-done-modal__actions">
+            <button type="button" class="btn btn-outline" id="cancelMarkRoleDone">Cancel</button>
+            <button type="button" class="btn btn-brand" id="confirmMarkRoleDone">Mark as Done</button>
+        </div>
+    </section>
+</dialog>
+<script src="{% static 'js/simulation-mark-done.js' %}?v=20261029-session-progress" defer></script>

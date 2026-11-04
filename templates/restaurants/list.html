@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Available Restaurants</h2>
+        <h1>Available Restaurants</h1>
         <p>{{ restaurants|length }} restaurant{% if restaurants|length != 1 %}s{% endif %} found · Find a restaurant, inspect its tables and reserve ahead</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -15,10 +15,10 @@
 
 <div class="cards">
     {% for r in restaurants %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo"><img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=75" alt="Restaurants photo"></div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in r.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ r.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-utensils"></i><span>No photos yet</span></div>{% endfor %}</div>{% if r.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge badge-green">{{ r.get_status_display }}</span>
             </div>
             <div class="mono" style="font-size:12px;color:var(--slate-500)">{{ r.restaurant_id }}</div>

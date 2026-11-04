@@ -1,0 +1,47 @@
+{% load static %}
+<div class="pd-card pd-flight">
+    <div class="pd-flight__airline">
+        {% if selected.airline_logo %}
+        <img src="{% static selected.airline_logo %}" alt="{{ selected.airline }}" class="pd-flight__logo">
+        {% else %}
+        <span class="pd-flight__logo pd-flight__logo--fallback" aria-hidden="true"><i class="fas fa-plane"></i></span>
+        {% endif %}
+        <div>
+            <h2 class="pd-flight__name">{{ selected.airline }}</h2>
+            <span class="pd-chip">{{ selected.fare_class_label }}</span>
+        </div>
+    </div>
+
+    <div class="pd-flight__route">
+        <div class="pd-endpoint">
+            <span class="pd-endpoint__time">{{ selected.depart_time }}</span>
+            <span class="pd-endpoint__code">{{ selected.origin_code }}</span>
+            <span class="pd-endpoint__place">{{ selected.origin_city }}</span>
+            <span class="pd-endpoint__date">{{ departure_date|default:"Oct 25, 2025" }}</span>
+            <span class="pd-endpoint__terminal">{{ selected.origin_terminal }}</span>
+        </div>
+        <div class="pd-flight__path">
+            <span class="pd-flight__duration">{{ selected.duration_text }}</span>
+            <span class="pd-flight__line" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            <span class="pd-flight__stops">{{ selected.stops_label }}</span>
+        </div>
+        <div class="pd-endpoint pd-endpoint--right">
+            <span class="pd-endpoint__time">{{ selected.arrive_time }}{% if selected.overnight %} <sup>+1</sup>{% endif %}</span>
+            <span class="pd-endpoint__code">{{ selected.destination_code }}</span>
+            <span class="pd-endpoint__place">{{ selected.destination_city }}</span>
+            <span class="pd-endpoint__date">{{ return_date|default:"Oct 25, 2025" }}</span>
+            <span class="pd-endpoint__terminal">{{ selected.destination_terminal }}</span>
+        </div>
+    </div>
+
+    <dl class="pd-flight__meta">
+        <div><dt><i class="fas fa-hashtag"></i> Flight</dt><dd>{{ selected.flight_number }}</dd></div>
+        <div><dt><i class="fas fa-plane-up"></i> Aircraft</dt><dd>{{ selected.aircraft }}</dd></div>
+        <div><dt><i class="fas fa-suitcase-rolling"></i> Checked baggage</dt><dd>{{ selected.checked_baggage }}</dd></div>
+        <div><dt><i class="fas fa-bag-shopping"></i> Cabin baggage</dt><dd>{{ selected.cabin_baggage }}</dd></div>
+        <div><dt><i class="fas fa-utensils"></i> Meal</dt><dd>{{ selected.meal_label }}</dd></div>
+        <div><dt><i class="fas fa-wifi"></i> Wi-Fi</dt><dd>{{ selected.wifi_label }}</dd></div>
+    </dl>
+
+    <p class="pd-flight__note"><i class="fas fa-circle-info"></i> Sample schedule. Times are local to each airport.</p>
+</div>

@@ -1,0 +1,98 @@
+<div class="pd-card pd-pax" data-pd-pax data-pd-index="__INDEX__">
+    <div class="pd-pax__head">
+        <h3 class="pd-pax__title"><i class="fas fa-user"></i> Passenger <span data-pd-pax-label>__LABEL__</span>
+            <span class="pd-chip pd-chip--soft" data-pd-pax-cat>__CAT_LABEL__</span></h3>
+        <button type="button" class="pd-pax__remove" data-pd-remove hidden aria-label="Remove this passenger"><i class="fas fa-trash-can"></i></button>
+    </div>
+
+    <div class="pd-grid">
+        <label class="pd-field pd-field--wide">
+            <span class="pd-field__label">Full name <span class="pd-req">*</span></span>
+            <input type="text" name="pax___INDEX___full_name" data-pd-field="full_name" autocomplete="name"
+                   placeholder="As shown on your government-issued ID or passport" aria-required="true">
+            <span class="pd-field__err" data-pd-err="full_name" role="alert"></span>
+        </label>
+
+        <label class="pd-field">
+            <span class="pd-field__label">Email address <span class="pd-req">*</span></span>
+            <input type="email" name="pax___INDEX___email" data-pd-field="email" autocomplete="email"
+                   placeholder="name@example.com" aria-required="true">
+            <span class="pd-field__err" data-pd-err="email" role="alert"></span>
+        </label>
+
+        <label class="pd-field">
+            <span class="pd-field__label">Phone number <span class="pd-req">*</span></span>
+            <span class="pd-phone">
+                <select data-pd-field="phone_code" aria-label="Country code">
+                    <option value="+63">PH +63</option>
+                    <option value="+65">SG +65</option>
+                    <option value="+60">MY +60</option>
+                    <option value="+62">ID +62</option>
+                    <option value="+66">TH +66</option>
+                    <option value="+84">VN +84</option>
+                    <option value="+852">HK +852</option>
+                    <option value="+971">AE +971</option>
+                    <option value="+1">US +1</option>
+                    <option value="+44">GB +44</option>
+                    <option value="+81">JP +81</option>
+                    <option value="+82">KR +82</option>
+                    <option value="+61">AU +61</option>
+                </select>
+                <input type="tel" data-pd-field="phone" autocomplete="tel" placeholder="9123456789" maxlength="11" pattern="[0-9]{11}" aria-required="true">
+            </span>
+            <span class="pd-field__err" data-pd-err="phone" role="alert"></span>
+        </label>
+
+        <label class="pd-field">
+            <span class="pd-field__label">Date of birth <span class="pd-req">*</span></span>
+            <input type="date" data-pd-field="dob" aria-required="true">
+            <span class="pd-field__err" data-pd-err="dob" role="alert"></span>
+        </label>
+
+        <label class="pd-field">
+            <span class="pd-field__label">Gender <span class="pd-req">*</span></span>
+            <select data-pd-field="gender" aria-required="true">
+                <option value="">Select gender</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+                <option value="undisclosed">Prefer not to say</option>
+            </select>
+            <span class="pd-field__err" data-pd-err="gender" role="alert"></span>
+        </label>
+
+        <label class="pd-field">
+            <span class="pd-field__label">Nationality <span class="pd-req">*</span></span>
+            <select data-pd-field="nationality" aria-required="true">
+                <option value="">Select nationality</option>
+                <option value="Philippines" selected>Philippines</option>
+                <option value="Singapore">Singapore</option>
+                <option value="Malaysia">Malaysia</option>
+                <option value="Indonesia">Indonesia</option>
+                <option value="Thailand">Thailand</option>
+                <option value="Vietnam">Vietnam</option>
+                <option value="Hong Kong">Hong Kong</option>
+                <option value="United Arab Emirates">United Arab Emirates</option>
+                <option value="United States">United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Japan">Japan</option>
+                <option value="South Korea">South Korea</option>
+                <option value="Australia">Australia</option>
+            </select>
+            <span class="pd-field__err" data-pd-err="nationality" role="alert"></span>
+        </label>
+
+        <label class="pd-field pd-field--wide" data-pd-passport>
+            <span class="pd-field__label">Passport number <span class="pd-req" data-pd-passport-req>*</span></span>
+            <input type="text" data-pd-field="passport" autocomplete="off"
+                   placeholder="e.g. P1234567A" aria-required="false">
+            <span class="pd-field__hint" data-pd-passport-hint>Required for international flights.</span>
+            <span class="pd-field__err" data-pd-err="passport" role="alert"></span>
+        </label>
+    </div>
+
+    <div class="pd-pax__seat" data-pd-pax-seat>
+        <i class="fas fa-couch"></i>
+        <span>Seat: <b data-pd-pax-seat-value>Not selected</b></span>
+    </div>
+</div>

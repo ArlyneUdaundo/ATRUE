@@ -49,7 +49,8 @@
     </div>
     <div class="form-group">
         <label>Photos</label>
-        <input type="file" name="photos" class="form-input" accept="image/*" {% if not unit %}multiple{% else %}multiple{% endif %}>
+        <input type="file" name="photos" class="form-input" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple>
+        <div class="meta" style="margin-top:6px">JPG, JPEG, or PNG, up to 5 MB each.</div>
         {% if unit %}
             {% for photo in unit.photos.all %}
             <div style="display:flex;align-items:center;gap:10px;margin-top:8px">

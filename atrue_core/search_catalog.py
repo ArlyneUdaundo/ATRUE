@@ -1095,9 +1095,16 @@ def build_search_context(request, category_key, items):
         request.user, module_by_category.get(category_key, "")
     )
 
+    is_authenticated = bool(
+        getattr(request, "user", None) is not None
+        and request.user.is_authenticated
+    )
     context = {
         "category": category_key,
         "cfg": cfg,
+        # Signed-in visitors browse the catalogue inside the dashboard shell;
+        # anonymous visitors keep the public site layout.
+        "search_layout": "dashboard_base.html" if is_authenticated else "base.html",
         "categories": categories_nav,
         "things": cards,
         "total": total_results,

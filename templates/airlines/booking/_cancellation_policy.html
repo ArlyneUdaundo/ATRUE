@@ -1,0 +1,61 @@
+<div class="pd-card pd-section pd-policy" id="pd-policy">
+    <div class="pd-section__head">
+        <h2><i class="fas fa-file-shield"></i> Flight Cancellation &amp; Refund Policy</h2>
+        <p>Flight cancellation and refund eligibility depend on the airline&rsquo;s fare rules, the reason for cancellation, the timing of the request, and any applicable insurance policy. Insurance claims are assessed separately under the purchased policy.</p>
+    </div>
+
+    <ol class="pd-steps-list">
+        {% for step in refund.steps %}
+        <li>
+            <span class="pd-steps-list__no">{{ forloop.counter }}</span>
+            <div>
+                <h3>{{ step.title }}</h3>
+                <p>{{ step.body }}</p>
+            </div>
+        </li>
+        {% endfor %}
+    </ol>
+
+    <div class="pd-policy__statuses">
+        <h3>Possible request statuses</h3>
+        <div class="pd-policy__chips">
+            {% for status in refund.statuses %}
+            <span class="pd-chip pd-chip--status">{{ status }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="pd-callout pd-callout--warn">
+        <i class="fas fa-triangle-exclamation"></i>
+        <p>Travel insurance does <b>not</b> automatically guarantee a refund. A claim must meet the
+        purchased policy&rsquo;s coverage conditions and exclusions. Airline refunds and insurance
+        claims are handled separately. A request is never approved automatically just because a
+        reason was entered.</p>
+    </div>
+
+    <button type="button" class="pd-link" data-pd-refund-toggle aria-expanded="false">
+        <i class="fas fa-chevron-down"></i> <span data-pd-refund-toggle-text>Learn More About Refunds</span>
+    </button>
+    <div class="pd-insurance-terms" data-pd-refund-more hidden>
+        <h4>Step-by-step process</h4>
+        <ol>
+            <li>The passenger submits a cancellation request from their booking.</li>
+            <li>The passenger provides the reason for cancellation and relevant supporting documents.</li>
+            <li>The system checks the applicable airline cancellation rules and insurance coverage.</li>
+            <li>An authorized administrator, airline representative, or insurance claims handler reviews the request.</li>
+            <li>The passenger receives an eligibility decision and an explanation of any applicable refund or fees.</li>
+            <li>Approved refunds or insurance claims proceed through the appropriate payment or claims process.</li>
+        </ol>
+        <p>Fare rules decide whether a fare is refundable, partly refundable or non-refundable.
+        Taxes and carrier surcharges may be refundable even when the fare is not. Where a refund is
+        approved, fees may be deducted according to the fare conditions. All refund rules in this
+        prototype are samples and, in the live system, are configurable and subject to the selected
+        airline&rsquo;s actual terms.</p>
+    </div>
+
+    <label class="pd-ack">
+        <input type="checkbox" data-pd-policy-ack>
+        <span>I have read and understand the flight cancellation and refund policy.</span>
+    </label>
+    <span class="pd-field__err" data-pd-err="policy" role="alert"></span>
+</div>

@@ -10,6 +10,7 @@ from django.views.static import serve
 
 from accounts import views as accounts_views
 from atrue_core import views as atrue_views
+from atrue_core import dashboard_views
 from atrue_core.destinations import (
     DESTINATIONS,
     destination_detail,
@@ -81,9 +82,7 @@ def home(request):
 
     if request.GET.get('search_submit') == '1':
         flight_origin_airport = (request.GET.get('origin_airport') or '').strip()
-        flight_destination_airport = (
-            request.GET.get('destination_airport') or ''
-        ).strip()
+        flight_destination_airport = (request.GET.get('destination_airport') or '').strip()
         check_in = (request.GET.get('check_in') or '').strip()
         check_out = (request.GET.get('check_out') or '').strip()
         reservation_time = (request.GET.get('reservation_time') or '').strip()
@@ -105,8 +104,6 @@ def home(request):
                 return None
 
         if tab == 'flights':
-            # The home page only asks for a destination airport; the departure
-            # airport is optional and can be chosen on the flight results page.
             if not flight_destination_airport.isdigit():
                 search_errors.append('Select a flying-to airport.')
             elif not Airport.objects.filter(
@@ -120,92 +117,53 @@ def home(request):
                     pk=flight_origin_airport, status=Airport.Status.ACTIVE
                 ).exists():
                     search_errors.append('Select a valid flying-from airport.')
-            if (
-                flight_origin_airport.isdigit()
-                and flight_destination_airport.isdigit()
-                and int(flight_origin_airport) == int(flight_destination_airport)
-            ):
-                search_errors.append('Flying-from and flying-to airports must be different.')
-            departure = parsed_date(check_in, 'Departure date')
-            if departure and departure < date.today():
-                search_errors.append('Departure date cannot be in the past.')
-            if trip_type not in {'ONE_WAY', 'ROUND_TRIP'}:
-                search_errors.append('Choose a valid trip type.')
-            if fare_class not in {value for value, _ in FARE_CLASS_CHOICES}:
-                search_errors.append('Choose a valid flight class.')
-            if trip_type == 'ROUND_TRIP':
-                return_date = parsed_date(check_out, 'Return date')
-                if departure and return_date and return_date < departure:
-                    search_errors.append('Return date cannot be earlier than departure.')
-            try:
-                passenger_count = int(request.GET.get('guests') or '2')
-                if not 1 <= passenger_count <= 9:
-                    raise ValueError
-            except (TypeError, ValueError):
-                passenger_count = 2
-                search_errors.append('Passenger count must be between 1 and 9.')
-        else:
-            if not q:
-                search_errors.append('Enter a destination or property to search.')
-            start_date = parsed_date(
-                check_in,
-                'Reservation date' if tab == 'restaurants' else
-                'Tour date' if tab == 'tours' else
-                'Activity date' if tab == 'activities' else
-                'Visit date' if tab == 'landmarks' else
-                'Travel date' if tab == 'landtransportation' else 'Check-in date',
-                required=tab != 'all',
-            )
-            end_date = None
-            if tab in {'hotels', 'resorts', 'staycations'}:
-                end_date = parsed_date(check_out, 'Check-out date')
-                if start_date and end_date and end_date <= start_date:
-                    search_errors.append('Check-out must be after check-in.')
-            if start_date and start_date < date.today():
-                search_errors.append('The selected date cannot be in the past.')
-            try:
-                adult_count = int(adults)
-                child_count = int(children)
-                if adult_count < 1 or child_count < 0:
-                    raise ValueError
-            except (TypeError, ValueError):
-                adult_count, child_count = 2, 0
-                if tab != 'restaurants':
-                    search_errors.append('Enter between 1 and 9 guests.')
-            if tab == 'restaurants':
-                # The restaurant search uses the Guests & Tables selector: a
-                # single guest count plus a table count. Adults/children/rooms
-                # remain hotel concepts.
-                guest_q = (request.GET.get('guests') or '').strip()
-                if guest_q.isdigit():
-                    guest_count = int(guest_q)
-                    if not 1 <= guest_count <= 30:
-                        guest_count = max(1, adult_count + child_count)
-                        search_errors.append('Enter between 1 and 30 guests.')
-                else:
-                    guest_count = max(1, adult_count + child_count)
-                try:
-                    tables_count = int(request.GET.get('tables') or '1')
-                    if not 1 <= tables_count <= 20:
-                        raise ValueError
-                except (TypeError, ValueError):
-                    tables_count = 1
-                    search_errors.append('Table count must be between 1 and 20.')
-                adult_count, child_count = guest_count, 0
-                room_count = tables_count
+            if not check_in:
+                search_errors.append('Select a departure date.')
             else:
-                if adult_count + child_count > 9:
-                    adult_count, child_count = 2, 0
-                    search_errors.append('Enter between 1 and 9 guests.')
-                try:
-                    room_count = int(rooms)
-                    if room_count < 1 or room_count > 9:
-                        raise ValueError
-                except (TypeError, ValueError):
-                    room_count = 1
-                    if tab in {'hotels', 'resorts'}:
-                        search_errors.append('Room count must be between 1 and 9.')
-            if tab == 'restaurants':
+                dep = parsed_date(check_in, 'Departure date')
+                if dep:
+                    if trip_type == 'ROUND_TRIP':
+                        if not check_out:
+                            search_errors.append('Select a return date.')
+                        else:
+                            ret = parsed_date(check_out, 'Return date')
+                            if ret and ret < dep:
+                                search_errors.append('The return date cannot be earlier than the departure date.')
+                    elif trip_type == 'ONE_WAY' and dep < date.today():
+                        search_errors.append('The departure date cannot be in the past.')
+            if not adults.isdigit() or int(adults) < 1:
+                search_errors.append('Select the number of adults.')
+            if not children.isdigit() or int(children) < 0:
+                search_errors.append('Select the number of children.')
+            if not fare_class:
+                fare_class = 'ECONOMY'
+        else:
+            if not check_in:
+                search_errors.append('Select a check-in date.')
+            else:
+                ci = parsed_date(check_in, 'Check-in date')
+                if ci and ci < date.today():
+                    search_errors.append('The check-in date cannot be in the past.')
+            if not adults.isdigit() or int(adults) < 1:
+                search_errors.append('Select the number of guests.')
+            if not rooms.isdigit() or int(rooms) < 1:
+                search_errors.append('Select the number of rooms.')
+            if tab in {'hotels', 'resorts', 'staycations'}:
+                if not check_out:
+                    search_errors.append('Select a check-out date.')
+                else:
+                    co = parsed_date(check_out, 'Check-out date')
+                    if co and 'ci' in locals() and co <= ci:
+                        search_errors.append('The check-out date must be after the check-in date.')
+            elif tab == 'landtransportation':
+                if not reservation_time:
+                    search_errors.append('Select a travel time.')
+                else:
+                    try:
+                        time.fromisoformat(reservation_time)
+                    except ValueError:
+                        search_errors.append('Enter a valid travel time.')
+            elif tab == 'restaurants':
                 if not reservation_time:
                     search_errors.append('Select a reservation time.')
                 else:
@@ -215,180 +173,152 @@ def home(request):
                         search_errors.append('Enter a valid reservation time.')
 
         if not search_errors:
-            params = {}
+            params = {'search_submit': '1', 'tab': tab, 'destination': selected_destination}
+            if q:
+                params['q'] = q
+            if flight_origin_airport:
+                params['origin_airport'] = flight_origin_airport
+            if flight_destination_airport:
+                params['destination_airport'] = flight_destination_airport
+            if check_in:
+                params['check_in'] = check_in
+            if check_out:
+                params['check_out'] = check_out
+            if reservation_time:
+                params['reservation_time'] = reservation_time
+            if trip_type:
+                params['trip_type'] = trip_type
+            if fare_class:
+                params['fare_class'] = fare_class
+            if adults:
+                params['adults'] = adults
+            if children:
+                params['children'] = children
+            if rooms:
+                params['rooms'] = rooms
             if tab == 'flights':
-                params = {
-                    'search_submit': '1',
-                    'destination_airport': flight_destination_airport,
-                    'departure_date': check_in,
-                    'trip_type': trip_type,
-                    'fare_class': fare_class,
-                    'passengers': passenger_count,
-                }
-                if flight_origin_airport:
-                    params['origin_airport'] = flight_origin_airport
-                if trip_type == 'ROUND_TRIP':
-                    params['return_date'] = check_out
-                target = 'airlines:list'
-            elif tab in {'all', 'tours'}:
-                params = {
-                    'tab': tab,
-                    'q': q,
-                    'guests': adult_count + child_count,
-                    'adults': adult_count,
-                    'children': child_count,
-                }
-                if check_in:
-                    params['check_in'] = check_in
-                if check_out:
-                    params['check_out'] = check_out
-                return HttpResponseRedirect(
-                    reverse('home') + '?' + urlencode(params) + '#live'
-                )
-            else:
-                params = {
-                    'q': q,
-                    'guests': adult_count + child_count,
-                    'adults': adult_count,
-                    'children': child_count,
-                }
-                if tab in {'restaurants', 'tours', 'activities', 'landmarks'}:
-                    params['date'] = check_in
-                if check_in:
-                    params['check_in'] = check_in
-                if check_out:
-                    params['check_out'] = check_out
-                if tab in {'hotels', 'resorts'}:
-                    params['rooms'] = room_count
-                if tab == 'restaurants':
-                    params['tables'] = room_count
-                if tab == 'restaurants':
-                    params['time'] = reservation_time
-                    target = 'restaurants:list'
-                elif tab == 'hotels':
-                    target = 'hotels:list'
-                elif tab == 'resorts':
-                    target = 'resorts:list'
-                elif tab == 'staycations':
-                    target = 'staycations:list'
-                elif tab == 'activities':
-                    target = 'activities:list'
-                elif tab == 'landmarks':
-                    target = 'landmarks:list'
-                elif tab == 'landtransportation':
-                    params['schedule'] = check_in + 'T09:00'
-                    target = 'transportation:list'
-                else:
-                    target = 'tour_package:list'
-            return HttpResponseRedirect(
-                reverse(target) + '?' + urlencode(params)
+                return HttpResponseRedirect(f"{reverse('airlines:search_results')}?{urlencode(params)}")
+            if tab == 'hotels':
+                return HttpResponseRedirect(f"{reverse('hotels:list')}?{urlencode(params)}")
+            if tab == 'resorts':
+                return HttpResponseRedirect(f"{reverse('resorts:list')}?{urlencode(params)}")
+            if tab == 'staycations':
+                return HttpResponseRedirect(f"{reverse('staycations:list')}?{urlencode(params)}")
+            if tab == 'restaurants':
+                return HttpResponseRedirect(f"{reverse('restaurants:list')}?{urlencode(params)}")
+            if tab == 'landmarks':
+                return HttpResponseRedirect(f"{reverse('landmarks:list')}?{urlencode(params)}")
+            if tab == 'activities':
+                return HttpResponseRedirect(f"{reverse('activities:list')}?{urlencode(params)}")
+            if tab == 'tours':
+                return HttpResponseRedirect(f"{reverse('tour_package:list')}?{urlencode(params)}")
+            if tab == 'landtransportation':
+                return HttpResponseRedirect(f"{reverse('transportation:list')}?{urlencode(params)}")
+
+    # Build featured listings
+    def limit_qs(qs, n=6):
+        try:
+            return list(qs[:n])
+        except Exception:
+            return list(qs)
+
+    hero_images = [
+        {'src': 'img/hero-beach.jpg', 'alt': 'Tropical beach resort'},
+        {'src': 'img/hero-mountains.jpg', 'alt': 'Mountain resort landscape'},
+        {'src': 'img/hero-city.jpg', 'alt': 'City skyline'},
+        {'src': 'img/hero-island.jpg', 'alt': 'Island getaway'},
+    ]
+    try:
+        import random
+        random.seed()
+        hero_images = random.sample(hero_images, k=min(3, len(hero_images)))
+    except Exception:
+        pass
+
+    show = {'all','flights','hotels','resorts','staycations','restaurants','landmarks','activities','tours','landtransportation'}
+    if tab != 'all':
+        show = {tab}
+
+    hotels_qs = Hotel.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Hotel, 'objects') else []
+    resorts_qs = Resort.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Resort, 'objects') else []
+    stay_qs = Staycation.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Staycation, 'objects') else []
+    rest_qs = Restaurant.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Restaurant, 'objects') else []
+    lm_qs = Landmark.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Landmark, 'objects') else []
+    act_qs = Activity.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Activity, 'objects') else []
+    pkg_qs = TourPackage.objects.filter(status='ACTIVE').order_by('-id') if hasattr(TourPackage, 'objects') else []
+    flights_qs = Flight.objects.all().order_by('-id') if hasattr(Flight, 'objects') else []
+
+    country = (request.GET.get('country') or request.COOKIES.get('atrue_loc_country') or '').strip()
+    province = (request.GET.get('province') or request.COOKIES.get('atrue_loc_province') or '').strip()
+    municipality = (request.GET.get('municipality') or request.COOKIES.get('atrue_loc_municipality') or '').strip()
+    barangay = (request.GET.get('barangay') or request.COOKIES.get('atrue_loc_barangay') or '').strip()
+    loc_country, loc_province = country, province
+    loc_municipality, loc_barangay = municipality, barangay
+    country_keys = country_province_keys(country) if country else None
+    if q:
+        from atrue_core.search_catalog import _item_loc
+
+        def match_text(category_key, obj):
+            loc = _item_loc(category_key, obj)
+            return location_matches(
+                loc, loc_province, loc_municipality, loc_barangay,
+                loc_text=loc.get("loc_text"),
+                country=loc_country, country_provinces=country_keys,
             )
 
-    loc_country = (request.GET.get('loc_country') or '').strip()
-    loc_province = (request.GET.get('loc_province') or '').strip()
-    loc_municipality = (request.GET.get('loc_municipality') or '').strip()
-    loc_barangay = (request.GET.get('loc_barangay') or '').strip()
+        try:
+            hotels_qs = [h for h in hotels_qs if match_text("hotel", h)]
+        except Exception:
+            pass
 
-    flights_qs = Flight.objects.select_related('airline', 'aircraft').prefetch_related('airline__photos').exclude(status__in=['CANCELLED','COMPLETED'])
-    hotels_qs = Hotel.objects.filter(status='ACTIVE').prefetch_related('photos','rooms').annotate(from_rate=Min('rooms__rate'))
-    resorts_qs = Resort.objects.filter(status='ACTIVE').prefetch_related('photos', 'units').annotate(from_rate=Min('units__rate'))
-    staycations_qs = Staycation.objects.filter(status='ACTIVE').prefetch_related('photos')
-    restaurants_qs = Restaurant.objects.filter(status='ACTIVE')
-    # Public destination browsing now focuses on landmarks; tourist spot rows
-    # remain intact for ticket history and management records.
-    spots_qs = Landmark.objects.filter(status='ACTIVE', category='LANDMARK').prefetch_related('photos')
-    activities_qs = Activity.objects.select_related('provider').filter(status='ACTIVE', provider__status='ACTIVE')
-    packages_qs = TourPackage.objects.filter(status='ACTIVE').prefetch_related('photos')
+    def apply_loc(qs):
+        try:
+            return qs.filter(location__icontains=q) if q and hasattr(qs, 'filter') else qs
+        except Exception:
+            try:
+                return [x for x in qs if q.lower() in (getattr(x,'location','') or '').lower()]
+            except Exception:
+                return qs
 
-    if q:
-        flights_qs = flights_qs.filter(Q(origin__icontains=q) | Q(destination__icontains=q)
-                                       | Q(origin_country__icontains=q) | Q(origin_province__icontains=q)
-                                       | Q(origin_municipality__icontains=q) | Q(destination_country__icontains=q)
-                                       | Q(destination_province__icontains=q) | Q(destination_municipality__icontains=q))
-        hotels_qs = hotels_qs.filter(Q(name__icontains=q) | Q(country__icontains=q) | Q(province__icontains=q) | Q(municipality__icontains=q) | Q(barangay__icontains=q))
-        resorts_qs = resorts_qs.filter(Q(name__icontains=q) | Q(country__icontains=q) | Q(province__icontains=q) | Q(municipality__icontains=q) | Q(barangay__icontains=q))
-        staycations_qs = staycations_qs.filter(Q(name__icontains=q) | Q(country__icontains=q) | Q(province__icontains=q) | Q(municipality__icontains=q) | Q(barangay__icontains=q))
-        restaurants_qs = restaurants_qs.filter(Q(name__icontains=q) | Q(location__icontains=q) | Q(cuisine_type__icontains=q))
-        spots_qs = spots_qs.filter(Q(name__icontains=q) | Q(country__icontains=q) | Q(region__icontains=q) | Q(province__icontains=q) | Q(municipality__icontains=q) | Q(barangay__icontains=q) | Q(description__icontains=q))
-        activities_qs = activities_qs.filter(
-            Q(name__icontains=q) | Q(description__icontains=q)
-            | Q(location__icontains=q) | Q(location_province__icontains=q)
-            | Q(location_municipality__icontains=q)
-            | Q(location_barangay__icontains=q)
-            | Q(provider__name__icontains=q)
-        )
-        packages_qs = packages_qs.filter(Q(name__icontains=q) | Q(description__icontains=q) | Q(destination_name__icontains=q) | Q(destination_city__icontains=q) | Q(destination_province__icontains=q))
+    hotels_qs = apply_loc(hotels_qs)
+    resorts_qs = apply_loc(resorts_qs)
+    stay_qs = apply_loc(stay_qs)
+    rest_qs = apply_loc(rest_qs)
+    lm_qs = apply_loc(lm_qs)
+    act_qs = apply_loc(act_qs)
+    pkg_qs = apply_loc(pkg_qs)
 
-    if loc_country or loc_province or loc_municipality or loc_barangay:
-        # Resolved once, not per item: listings store no country, so a
-        # country-only selection is matched through the country's provinces.
-        country_keys = country_province_keys(loc_country) if loc_country else None
-        def match(item, p='province', m='municipality', b='barangay'):
-            return location_matches({'province':[getattr(item,p,'') or ''], 'municipality':[getattr(item,m,'') or ''], 'barangay':[getattr(item,b,'') or ''], 'loc_text':''}, loc_province, loc_municipality, loc_barangay, '', country=loc_country, country_provinces=country_keys)
-        hotels_qs=[x for x in hotels_qs if match(x)]
-        resorts_qs=[x for x in resorts_qs if match(x)]
-        staycations_qs=[x for x in staycations_qs if match(x)]
-        spots_qs=[x for x in spots_qs if match(x)]
-        activities_qs=[x for x in activities_qs if match(x,'location_province','location_municipality','location_barangay')]
-        packages_qs=[x for x in packages_qs if location_matches({'province':[x.destination_province or ''],'municipality':[x.destination_city or ''],'barangay':[],'loc_text':''},loc_province,loc_municipality,loc_barangay,'',country=loc_country,country_provinces=country_keys)]
-        # A flight touches a place if either endpoint is there.
-        def flight_match(f):
-            origin_ok = location_matches(
-                {'province': [f.origin_province or ''], 'municipality': [f.origin_municipality or ''],
-                 'barangay': [], 'loc_text': ''},
-                loc_province, loc_municipality, loc_barangay, '',
-                country=loc_country, country_provinces=country_keys)
-            dest_ok = location_matches(
-                {'province': [f.destination_province or ''], 'municipality': [f.destination_municipality or ''],
-                 'barangay': [], 'loc_text': ''},
-                loc_province, loc_municipality, loc_barangay, '',
-                country=loc_country, country_provinces=country_keys)
-            return origin_ok or dest_ok
-        flights_qs = [x for x in flights_qs if flight_match(x)]
-        # Restaurants keep a single free-text location, so the selection is
-        # matched against that blob instead of separate columns. Going through
-        # location_matches (rather than substring tests) is what makes the
-        # barangay level work here too, and keeps the home page consistent with
-        # the catalogue search.
-        restaurants_qs=[x for x in restaurants_qs if location_matches({}, loc_province, loc_municipality, loc_barangay, x.location or '', country=loc_country)]
-
-    groups={
-        'flights':['flights'],'hotels':['hotels'],'resorts':['resorts'],'staycations':['staycations'],
-        'restaurants':['restaurants'],'landmarks':[],'activities':['activities'],'landtransportation':[],'packages':['packages'],
-        'tours':['packages','activities'],
-        'all':['flights','hotels','resorts','staycations','restaurants','activities','packages'],
+    home_destinations = destination_options()[:12]
+    shown = {
+        'flights': limit_qs(flights_qs, 6),
+        'hotels': limit_qs(hotels_qs, 6),
+        'resorts': limit_qs(resorts_qs, 6),
+        'staycations': limit_qs(stay_qs, 6),
+        'restaurants': limit_qs(rest_qs, 6),
+        'landmarks': limit_qs(lm_qs, 6),
+        'activities': limit_qs(act_qs, 6),
+        'packages': limit_qs(pkg_qs, 6),
+        'landtransportation': [],
     }
-    show=groups.get(tab,groups['all'])
-    active=bool(q or loc_country or loc_province or loc_municipality or loc_barangay)
-    featured=lambda qs: qs if active else qs[:3]
-    shown={'flights':flights_qs,'hotels':hotels_qs,'resorts':resorts_qs,'staycations':staycations_qs,'restaurants':restaurants_qs,'activities':activities_qs,'packages':packages_qs}
+    if 'flights' in show:
+        try:
+            shown['flights'] = list(Flight.objects.all().select_related('airline').annotate(min_price=Min('itineraries__price')).order_by('-id')[:6])
+        except Exception:
+            shown['flights'] = limit_qs(flights_qs, 6)
 
-    home_destinations = destination_options()
-    hero_images = []
-    for source in (
-        Resort.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
-        Staycation.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
-    ):
-        for establishment in source:
-            photo = next((item for item in establishment.photos.all() if item.is_primary), None)
-            photo = photo or next(iter(establishment.photos.all()), None)
-            if photo and photo.image:
-                try:
-                    hero_images.append({'url': photo.image.url, 'name': establishment.name})
-                except (OSError, ValueError, NotImplementedError):
-                    continue
-            if len(hero_images) >= 4:
-                break
-        if len(hero_images) >= 4:
-            break
-    return render(request,'home.html',{
-        'featured_flights':featured(flights_qs), 'featured_hotels':featured(hotels_qs),
-        'featured_resorts':featured(resorts_qs), 'featured_staycations':featured(staycations_qs),
-        'featured_restaurants':featured(restaurants_qs), 'featured_spots':featured(spots_qs),
-        'featured_activities':featured(activities_qs), 'featured_packages':featured(packages_qs),
-        'search_active':active,'search_query':q,'search_tab':tab,
-        'search_reservation_time':request.GET.get('reservation_time',''),
-        'search_errors':search_errors,
+    return render(request, 'home.html', {
+        'active_tab': tab,
+        'search_q': q,
+        'search_errors': search_errors,
+        'hotels': shown['hotels'],
+        'resorts': shown['resorts'],
+        'staycations': shown['staycations'],
+        'restaurants': shown['restaurants'],
+        'landmarks': shown['landmarks'],
+        'activities': shown['activities'],
+        'packages': shown['packages'],
+        'flights': shown['flights'],
+        'show': show,
         'selected_destination':selected_destination,
         'search_today':date.today().isoformat(),
         'loc_country':loc_country,'loc_province':loc_province,'loc_municipality':loc_municipality,'loc_barangay':loc_barangay,
@@ -397,27 +327,32 @@ def home(request):
             (tuple(show), q.casefold(), loc_country.casefold(),
              loc_province.casefold(), loc_municipality.casefold(),
              loc_barangay.casefold()),
-            [shown[k] for k in show],
+            [
+                source for key, source in (
+                    ('flights', flights_qs),
+                    ('hotels', hotels_qs),
+                    ('resorts', resorts_qs),
+                    ('staycations', stay_qs),
+                    ('restaurants', rest_qs),
+                    ('landmarks', lm_qs),
+                    ('activities', act_qs),
+                    ('packages', pkg_qs),
+                )
+                if key in show or 'all' in show or (key == 'packages' and 'tours' in show)
+            ],
         ),
         'search_check_in':request.GET.get('check_in',''),'search_check_out':request.GET.get('check_out',''),'search_guests':request.GET.get('guests','2'),
         'search_trip_type':request.GET.get('trip_type','ONE_WAY'),
-        'search_flight_class':request.GET.get(
-            'fare_class', request.GET.get('class', 'ECONOMY')),
+        'search_flight_class':request.GET.get('fare_class', request.GET.get('class', 'ECONOMY')),
         'flight_class_choices':FARE_CLASS_CHOICES,
         'airports_api_url':reverse('airlines:airports_api'),
         'search_flight_origin_airport': (
-            Airport.objects.filter(
-                pk=request.GET.get('origin_airport')
-            ).first()
-            if (request.GET.get('origin_airport') or '').isdigit()
-            else None
+            Airport.objects.filter(pk=request.GET.get('origin_airport')).first()
+            if (request.GET.get('origin_airport') or '').isdigit() else None
         ),
         'search_flight_airport': (
-            Airport.objects.filter(
-                pk=request.GET.get('destination_airport')
-            ).first()
-            if (request.GET.get('destination_airport') or '').isdigit()
-            else None
+            Airport.objects.filter(pk=request.GET.get('destination_airport')).first()
+            if (request.GET.get('destination_airport') or '').isdigit() else None
         ),
         'hero_images': hero_images,
         'destination_options': home_destinations,
@@ -429,26 +364,35 @@ def home(request):
         'show_activities':'activities' in show,'show_packages':'packages' in show,
     })
 
-urlpatterns=[
-    path('',home,name='home'),
-    path('destinations/<slug:slug>/',destination_detail,name='destination_detail'),
-    path('locations/api/',atrue_views.location_api,name='location_api'),
-    path('locations/api/search/',atrue_views.location_search_api,name='location_search_api'),
-    path('locations/api/barangays/',atrue_views.location_barangays_api,name='location_barangays_api'),
-    path('dashboard/',accounts_views.dashboard,name='dashboard'),
-    path('admin/',admin.site.urls),
-    path('accounts/',include('accounts.urls')), path('flights/',include('airlines.urls')), path('simulation/',include('simulation.urls')),
-    path('hotels/',include('hotels.urls')), path('resorts/',include('resorts.urls')), path('staycations/',include('staycations.urls')),
-    path('restaurants/',include('restaurants.urls')), path('transportation/',include('transportation.urls')), path('landmarks/',include('landmarks.urls')),
-    path('activities/',include('activities.urls')), path('packages/',include('tour_package.urls')), path('transactions/',include('transactions.urls')),
+
+urlpatterns = [
+    path('', home, name='home'),
+    path('destinations/<slug:slug>/', destination_detail, name='destination_detail'),
+    path('locations/api/', atrue_views.location_api, name='location_api'),
+    path('locations/api/search/', atrue_views.location_search_api, name='location_search_api'),
+    path('locations/api/barangays/', atrue_views.location_barangays_api, name='location_barangays_api'),
+    path('dashboard/', accounts_views.dashboard, name='dashboard'),
+    path('admin/', admin.site.urls),
+    path('accounts/', include(('accounts.urls', 'accounts'), namespace='accounts')),
+    path('flights/', include(('airlines.urls', 'airlines'), namespace='airlines')),
+    path('simulation/', include(('simulation.urls', 'simulation'), namespace='simulation')),
+    path('notifications/', include(('notifications.urls', 'notifications'), namespace='notifications')),
+    path('hotels/', include(('hotels.urls', 'hotels'), namespace='hotels')),
+    path('resorts/', include(('resorts.urls', 'resorts'), namespace='resorts')),
+    path('staycations/', include(('staycations.urls', 'staycations'), namespace='staycations')),
+    path('restaurants/', include(('restaurants.urls', 'restaurants'), namespace='restaurants')),
+    path('transportation/', include(('transportation.urls', 'transportation'), namespace='transportation')),
+    path('landmarks/', include(('landmarks.urls', 'landmarks'), namespace='landmarks')),
+    path('activities/', include(('activities.urls', 'activities'), namespace='activities')),
+    path('packages/', include(('tour_package.urls', 'tour_package'), namespace='tour_package')),
+    path('transactions/', include(('transactions.urls', 'transactions'), namespace='transactions')),
 ]
+try:
+    from django.urls import include
+    urlpatterns.append(path('establishments/', include(('establishments.urls', 'establishments'), namespace='establishments')))
+except Exception:
+    pass
 if settings.SERVE_MEDIA_FILES:
-    # django.conf.urls.static.static() intentionally returns no route when
-    # DEBUG=False, so use the serving view directly for Render's public media.
     urlpatterns += [
-        re_path(
-            r'^media/(?P<path>.*)$',
-            serve,
-            {'document_root': settings.MEDIA_ROOT},
-        ),
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     ]

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Available Staycations</h2>
+        <h1>Available Staycations</h1>
         <p>{{ staycations|length }} staycation{% if staycations|length != 1 %}s{% endif %} found · Homes, add-ons and schedules</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -15,10 +15,10 @@
 
 <div class="cards">
     {% for s in staycations %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=75" alt="Staycations photo"></div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in s.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ s.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-house"></i><span>No photos yet</span></div>{% endfor %}</div>{% if s.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge badge-green">{{ s.get_status_display }}</span>
             </div>
             <h3><a href="{% url 'staycations:detail' s.slug %}" style="color:inherit;text-decoration:none">{{ s.name }}</a></h3>

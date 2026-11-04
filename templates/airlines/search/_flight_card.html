@@ -1,0 +1,71 @@
+{% load static %}
+{# One sample flight result: summary row plus collapsed detail panel. #}
+<article class="fs-card" data-fs-card
+         data-id="{{ row.id }}"
+         data-rank="{{ row.id }}"
+         data-flight="{{ row.flight_number }}"
+         data-origin="{{ row.origin_code }}"
+         data-destination="{{ row.destination_code }}"
+         data-airline-name="{{ row.airline }}"
+         data-price="{{ row.price }}"
+         data-duration="{{ row.duration_minutes }}"
+         data-stops="{{ row.stops_bucket }}"
+         data-band="{{ row.band }}"
+         data-airline="{{ row.airline_group }}"
+         data-duration-bucket="{{ row.duration_bucket }}"
+         data-emissions="{{ row.emissions }}"
+         data-depart="{{ row.depart_minutes }}">
+    <div class="fs-card__summary">
+        <div class="fs-card__airline">
+            {% if row.airline_logo %}
+            <img class="fs-logo" src="{% static row.airline_logo %}" alt="{{ row.airline }} logo">
+            {% else %}
+            <span class="fs-logo fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            {% endif %}
+            <span class="fs-card__airline-name">{{ row.airline }}</span>
+            <span class="fs-card__flightno">{{ row.flight_number }}</span>
+        </div>
+
+        <div class="fs-card__point">
+            <span class="fs-card__code" data-fs-code>{{ row.origin_code }}</span>
+            <span class="fs-card__location">{{ row.origin_city }}{% if row.origin_country %}, {{ row.origin_country }}{% endif %}</span>
+            <span class="fs-card__time">{{ row.depart_time }}</span>
+            <span class="fs-card__chips">
+                <span class="fs-chip{% if row.wifi == 'none' %} is-off{% endif %}" title="{{ row.wifi_label }}"><i class="fas fa-wifi" aria-hidden="true"></i> {{ row.wifi_label }}</span>
+                <span class="fs-chip" title="{{ row.checked_baggage }} checked baggage"><i class="fas fa-suitcase-rolling" aria-hidden="true"></i> {{ row.checked_baggage }}</span>
+            </span>
+        </div>
+
+        <div class="fs-card__route">
+            <span class="fs-card__duration">{{ row.duration_text }}</span>
+            <span class="fs-card__line" aria-hidden="true"><span></span><i class="fas fa-plane"></i><span></span></span>
+            <span class="fs-card__stops">{{ row.stops_label }}</span>
+        </div>
+
+        <div class="fs-card__point fs-card__point--arrive">
+            <span class="fs-card__code" data-fs-code>{{ row.destination_code }}</span>
+            <span class="fs-card__location">{{ row.destination_city }}{% if row.destination_country %}, {{ row.destination_country }}{% endif %}</span>
+            <span class="fs-card__time">{{ row.arrive_time }}{% if row.overnight %}<sup>+1</sup>{% endif %}</span>
+            <span class="fs-card__chips">
+                <span class="fs-chip{% if row.meal == 'purchase' %} is-off{% endif %}" title="{{ row.meal_label }}"><i class="fas fa-utensils" aria-hidden="true"></i> {{ row.meal_label }}</span>
+            </span>
+        </div>
+
+        <div class="fs-card__price">
+            <span class="fs-card__amount">&#8369;{{ row.price_text }}</span>
+            <span class="fs-card__per">per person</span>
+            <div class="fs-card__actions">
+                <button type="button" class="fs-btn fs-btn--primary" data-fs-select>Select Flight</button>
+                <button type="button" class="fs-card__chevron" data-fs-toggle
+                        aria-expanded="false" aria-controls="{{ row.id }}-details"
+                        aria-label="Show flight details for {{ row.flight_number }}">
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fs-card__details" id="{{ row.id }}-details" data-fs-details hidden>
+        {% include 'airlines/search/_flight_details.html' %}
+    </div>
+</article>

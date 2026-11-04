@@ -26,8 +26,10 @@
 <link rel="stylesheet" href="{% static 'css/establishment-modal.css' %}?v=20261010-5">
 <link rel="stylesheet" href="{% static 'css/location-cascade.css' %}?v=20261012-location-popup-layer">
     <link rel="stylesheet" href="{% static 'css/delete-confirm-modal.css' %}?v=20261015-delete-pending-status">
+    <link rel="stylesheet" href="{% static 'css/ui-enhancements.css' %}?v=20261026-skip-link-focus-1">
 </head>
 <body class="{% block body_class %}{% endblock %}">
+    <a class="skip-link" href="#main">Skip to main content</a>
 
     <!-- Loading state -->
     <div id="preloader" role="status" aria-label="Loading ATRUE. Preparing your next adventure.">
@@ -40,7 +42,7 @@
     <header class="navbar" id="navbar">
         <div class="container nav-inner">
             <a href="{% url 'home' %}" class="brand">
-                    <span class="brand-mark"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
+                <span class="brand-mark"><img src="{% static 'img/atrue-logo-transparent.png' %}?v=20261012-transparent-3" alt="ATRUE logo"></span>
                 <span class="brand-text">
                     <b>ATRUE</b>
                     <small>Travel &amp; Tours</small>
@@ -48,41 +50,45 @@
             </a>
 
             <nav class="nav-links">
-                <a href="{% url 'home' %}" class="nav-link active">Home<span class="dot"></span></a>
-                <div class="has-dropdown">
-                    <span class="nav-link" role="button" tabindex="0">Establishments <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
+                <a href="{% url 'home' %}" data-nav-home class="nav-link{% if request.resolver_match.url_name == 'home' %} active{% endif %}">Home<span class="dot"></span></a>
+                <div class="has-dropdown{% if '/hotels/' in request.path or '/resorts/' in request.path or '/staycations/' in request.path or '/restaurants/' in request.path or '/activities/' in request.path or '/landmarks/' in request.path or '/packages/' in request.path %} active{% endif %}">
+                    <span class="nav-link{% if '/hotels/' in request.path or '/resorts/' in request.path or '/staycations/' in request.path or '/restaurants/' in request.path or '/activities/' in request.path or '/landmarks/' in request.path or '/packages/' in request.path %} active{% endif %}" role="button" tabindex="0">Establishments <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
                     <div class="dropdown">
-                        <a href="{% url 'hotels:list' %}" class="dropdown-item di-hotels">
+                        <a href="{% url 'hotels:list' %}" class="dropdown-item di-hotels{% if '/hotels/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-hotel"></i></span>
                             <span class="di-txt"><b>Hotels</b><small>Rooms &amp; suites</small></span>
                         </a>
-                        <a href="{% url 'resorts:list' %}" class="dropdown-item di-resorts">
+                        <a href="{% url 'resorts:list' %}" class="dropdown-item di-resorts{% if '/resorts/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-umbrella-beach"></i></span>
                             <span class="di-txt"><b>Resorts</b><small>Villas &amp; cabanas</small></span>
                         </a>
-                        <a href="{% url 'staycations:list' %}" class="dropdown-item di-staycation">
+                        <a href="{% url 'staycations:list' %}" class="dropdown-item di-staycation{% if '/staycations/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-couch"></i></span>
                             <span class="di-txt"><b>Staycations</b><small>Cozy getaways</small></span>
                         </a>
-                        <a href="{% url 'restaurants:list' %}" class="dropdown-item di-restaurants">
+                        <a href="{% url 'restaurants:list' %}" class="dropdown-item di-restaurants{% if '/restaurants/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-utensils"></i></span>
                             <span class="di-txt"><b>Restaurants</b><small>Table reservations</small></span>
                         </a>
-                        <a href="{% url 'activities:list' %}" class="dropdown-item di-activities">
+                        <a href="{% url 'activities:list' %}" class="dropdown-item di-activities{% if '/activities/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-hiking"></i></span>
                             <span class="di-txt"><b>Activities</b><small>Adventure &amp; tours</small></span>
                         </a>
-                        <a href="{% url 'tour_package:list' %}" class="dropdown-item di-tour">
+                        <a href="{% url 'landmarks:list' %}" class="dropdown-item di-landmarks{% if '/landmarks/' in request.path %} active{% endif %}">
+                            <span class="di-ico"><i class="fas fa-landmark"></i></span>
+                            <span class="di-txt"><b>Landmarks</b><small>Tourist spots &amp; tickets</small></span>
+                        </a>
+                        <a href="{% url 'tour_package:list' %}" class="dropdown-item di-tour{% if '/packages/' in request.path %} active{% endif %}">
                             <span class="di-ico"><i class="fas fa-suitcase-rolling"></i></span>
                             <span class="di-txt"><b>Tour Packages</b><small>Curated travel bundles</small></span>
                         </a>
                     </div>
                 </div>
-                <div class="has-dropdown">
-                    <span class="nav-link" role="button" tabindex="0">Travel Transport <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
+                <div class="has-dropdown{% if '/flights/' in request.path or '/transportation/' in request.path %} active{% endif %}">
+                    <span class="nav-link{% if '/flights/' in request.path or '/transportation/' in request.path %} active{% endif %}" role="button" tabindex="0">Travel Transport <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px"></i></span>
                     <div class="dropdown">
-                        <a href="{% url 'airlines:list' %}" class="dropdown-item di-airlines"><span class="di-ico"><i class="fas fa-plane"></i></span><span class="di-txt"><b>Flights</b><small>Domestic &amp; international bookings</small></span></a>
-                        <a href="{% url 'transportation:list' %}" class="dropdown-item di-transport"><span class="di-ico"><i class="fas fa-bus"></i></span><span class="di-txt"><b>Land Transportation</b><small>Vans, buses &amp; cars</small></span></a>
+                        <a href="{% url 'airlines:list' %}" class="dropdown-item di-airlines{% if '/flights/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-plane"></i></span><span class="di-txt"><b>Flights</b><small>Domestic &amp; international bookings</small></span></a>
+                        <a href="{% url 'transportation:list' %}" class="dropdown-item di-transport{% if '/transportation/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-bus"></i></span><span class="di-txt"><b>Land Transportation</b><small>Vans, buses &amp; cars</small></span></a>
                     </div>
                 </div>
                 <a href="{% url 'home' %}#about" class="nav-link">About<span class="dot"></span></a>
@@ -93,7 +99,9 @@
             <div class="nav-actions">
                 <div class="auth-group">
                     {% if user.is_authenticated %}
+                        {% if request.resolver_match.url_name != 'home' %}
                         <a href="{% url 'dashboard' %}" class="btn btn-ghost"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                        {% endif %}
                         <a href="{% url 'accounts:logout' %}" class="btn btn-ghost">Sign Out</a>
                     {% else %}
                         {% if request.resolver_match.url_name == 'login' %}
@@ -120,6 +128,17 @@
         <a href="{% url 'home' %}#about">About</a>
         <a href="{% url 'home' %}#simulation">Roles</a>
         <a href="{% url 'home' %}#contact">Contact</a>
+        <div class="md-title">Establishments</div>
+        <a href="{% url 'hotels:list' %}"><i class="fas fa-hotel"></i> Hotels</a>
+        <a href="{% url 'resorts:list' %}"><i class="fas fa-umbrella-beach"></i> Resorts</a>
+        <a href="{% url 'staycations:list' %}"><i class="fas fa-couch"></i> Staycations</a>
+        <a href="{% url 'restaurants:list' %}"><i class="fas fa-utensils"></i> Restaurants</a>
+        <a href="{% url 'activities:list' %}"><i class="fas fa-hiking"></i> Activities</a>
+        <a href="{% url 'landmarks:list' %}"><i class="fas fa-landmark"></i> Landmarks</a>
+        <a href="{% url 'tour_package:list' %}"><i class="fas fa-suitcase-rolling"></i> Tour Packages</a>
+        <div class="md-title">Travel</div>
+        <a href="{% url 'airlines:list' %}"><i class="fas fa-plane"></i> Flights</a>
+        <a href="{% url 'transportation:list' %}"><i class="fas fa-bus"></i> Land Transportation</a>
         <div class="md-title">Account</div>
         {% if user.is_authenticated %}
         <a href="{% url 'dashboard' %}">Dashboard</a>
@@ -133,13 +152,13 @@
         {% endif %}
     </aside>
 
-    <main>
+    <main id="main">
         {% if messages %}
         <div class="container" style="margin-top:24px">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}" style="padding:14px 18px;border-radius:12px;margin-bottom:10px;
+            <div class="alert alert-{{ message.tags }}" role="{% if message.tags == 'error' or message.tags == 'danger' %}alert{% else %}status{% endif %}" style="padding:14px 18px;border-radius:12px;margin-bottom:10px;
                 {% if message.tags == 'success' %}background:#eff6ff;color:#1e40af;{% elif message.tags == 'error' or message.tags == 'danger' %}background:#fef2f2;color:#991b1b;{% else %}background:#eff6ff;color:#1e40af;{% endif %}">
-                <i class="fas fa-check-circle"></i> {{ message }}
+                {% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>{% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-circle-exclamation"></i>{% elif message.tags == 'warning' %}<i class="fas fa-triangle-exclamation"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %} {{ message }}
             </div>
             {% endfor %}
         </div>
@@ -170,6 +189,10 @@
                         <li><a href="{% url 'hotels:list' %}">Hotel Bookings</a></li>
                         <li><a href="{% url 'airlines:list' %}">Flight Reservations</a></li>
                         <li><a href="{% url 'resorts:list' %}">Resort Bookings</a></li>
+                        <li><a href="{% url 'staycations:list' %}">Staycations</a></li>
+                        <li><a href="{% url 'restaurants:list' %}">Restaurant Reservations</a></li>
+                        <li><a href="{% url 'activities:list' %}">Activities</a></li>
+                        <li><a href="{% url 'landmarks:list' %}">Landmarks</a></li>
                         <li><a href="{% url 'tour_package:list' %}">Tour Packages</a></li>
                         <li><a href="{% url 'transportation:list' %}">Transportation</a></li>
                     </ul>
@@ -249,5 +272,6 @@
 <script src="{% static 'js/location-cascade.js' %}?v=20261012"></script>
 <script src="{% static 'js/establishment-modal.js' %}?v=20261015-hotel-form-modal-fix-1"></script>
     <script src="{% static 'js/delete-confirm-modal.js' %}?v=20261015-confirm-button-fix-2"></script>
+    <script src="{% static 'js/form-loading.js' %}?v=20261024-form-loading-1"></script>
 </body>
 </html>

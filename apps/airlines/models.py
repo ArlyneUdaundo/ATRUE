@@ -1604,3 +1604,39 @@ class Booking(BookingFieldsMixin):
 
     def __str__(self):
         return f"Booking {self.booking_reference}"
+
+
+class FlightOfferSnapshot(models.Model):
+    """A persisted copy of a provider flight offer shown in ATRUE search.
+
+    It records what the provider returned and when. It is not airline inventory
+    and does not reserve seats or create a provider booking.
+    """
+
+    provider = models.CharField(max_length=30, default='duffel', db_index=True)
+    mode = models.CharField(max_length=10, default='test', db_index=True)
+    offer_id = models.CharField(max_length=100)
+    origin_code = models.CharField(max_length=8, db_index=True)
+    destination_code = models.CharField(max_length=8, db_index=True)
+    departure_date = models.DateField(db_index=True)
+    return_date = models.DateField(null=True, blank=True)
+    passenger_count = models.PositiveSmallIntegerField(default=1)
+    cabin_class = models.CharField(max_length=20, default='economy')
+    total_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=3, blank=True, default='')
+    expires_at = models.DateTimeField(null=True, blank=True)
+    retrieved_at = models.DateTimeField(default=timezone.now, db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-retrieved_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['provider', 'mode', 'offer_id'],
+                name='unique_flight_offer_snapshot',
+            ),
+        ]
+
+    def __str__(self):
+        return (f"{self.provider} {self.offer_id} "
+                f"{self.origin_code}-{self.destination_code} {self.departure_date}")

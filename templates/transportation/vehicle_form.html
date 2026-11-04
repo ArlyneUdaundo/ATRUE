@@ -7,6 +7,7 @@
 
 <form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:720px" enctype="multipart/form-data" data-submit-loading>
     {% csrf_token %}
+    {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
     <div class="form-grid">
         <div class="form-group">
             <label>Vehicle Type</label>
@@ -45,10 +46,10 @@
         </div>
         {% endif %}
         <div class="vehicle-photo-picker">
-            <input id="vehiclePhotoInput" type="file" name="image" class="form-input" accept="image/*" data-vehicle-photo-input>
+            <input id="vehiclePhotoInput" type="file" name="image" class="form-input" accept=".jpg,.jpeg,.png,image/jpeg,image/png" data-vehicle-photo-input>
             <div class="agency-photo-preview" data-vehicle-photo-preview aria-live="polite"></div>
         </div>
-        <small class="meta">{% if vehicle %}Choose a new photo to replace the current one; leave empty to keep it.{% else %}Choose a clear photo of this vehicle.{% endif %}</small>
+        <small class="meta">{% if vehicle %}Choose a new JPG, JPEG, or PNG up to 5 MB to replace the current one; leave empty to keep it.{% else %}Choose a clear JPG, JPEG, or PNG photo of this vehicle, up to 5 MB.{% endif %}</small>
     </div>
     <div class="form-group">
         <label>Rate per Kilometer (₱)</label>

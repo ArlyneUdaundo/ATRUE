@@ -1,0 +1,31 @@
+<details class="pd-card pd-section pd-travellers-dropdown" open>
+    <summary class="pd-section__head pd-travellers-dropdown__summary">
+        <span class="pd-travellers-dropdown__copy">
+            <h2><i class="fas fa-users"></i> Travellers</h2>
+            <p>Choose how many people are travelling. A form is created for each one.</p>
+        </span>
+        <i class="fas fa-chevron-down pd-travellers-dropdown__chevron" aria-hidden="true"></i>
+    </summary>
+    <div class="pd-travellers-dropdown__content">
+
+    <div class="pd-counter-grid">
+        {% for cat in fare.passenger_categories %}
+        <div class="pd-counter" data-pd-counter="{{ cat.key }}">
+            <button type="button" class="pd-stepper__btn" data-pd-step="-1" data-pd-target="{{ cat.key }}" aria-label="Decrease {{ cat.label }} count"><i class="fas fa-minus"></i></button>
+            <input id="pd-count-{{ cat.key }}" class="pd-counter__value" type="number" min="0"
+                   max="{% if cat.key == 'adult' %}{{ fare.max_adults }}{% elif cat.key == 'child' %}{{ fare.max_children }}{% else %}{{ fare.max_infants }}{% endif %}"
+                   value="{% if cat.key == 'adult' %}1{% else %}0{% endif %}"
+                   data-pd-count="{{ cat.key }}" inputmode="numeric" aria-label="{{ cat.label }} count">
+            <label for="pd-count-{{ cat.key }}">
+                <span class="pd-counter__label">{{ cat.label }}</span>
+                <span class="pd-counter__hint">{{ cat.hint }}</span>
+            </label>
+            <button type="button" class="pd-stepper__btn" data-pd-step="1" data-pd-target="{{ cat.key }}" aria-label="Increase {{ cat.label }} count"><i class="fas fa-plus"></i></button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="pd-total-note">Total travellers: <b data-pd-pax-total>1</b>
+        <span class="pd-muted">(infants travel on an adult&rsquo;s lap and do not occupy a seat)</span></p>
+    </div>
+</details>

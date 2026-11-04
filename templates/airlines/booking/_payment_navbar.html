@@ -1,0 +1,25 @@
+{% load static %}
+<header class="fp-nav">
+    <div class="fp-nav__inner">
+        <a class="fp-nav__brand" href="{% url 'home' %}">
+            <img src="{% static 'img/atrue-logo-symbol.png' %}" alt="">
+            <span><b>ATRUE</b><small>Travel &amp; Tours</small></span>
+        </a>
+        <nav class="fp-nav__links" aria-label="Main navigation">
+            <a href="{% url 'home' %}"><i class="fas fa-house"></i>Home</a>
+            <a href="{% url 'hotels:list' %}"><i class="fas fa-hotel"></i>Hotels</a>
+            <a class="is-active" aria-current="page" href="{% url 'airlines:list' %}"><i class="fas fa-plane"></i>Flights</a>
+            <a href="{% url 'tour_package:list' %}"><i class="fas fa-suitcase-rolling"></i>Tours</a>
+            <a href="{% url 'transportation:list' %}"><i class="fas fa-car-side"></i>Car Rental</a>
+            <a href="{% url 'restaurants:list' %}"><i class="fas fa-utensils"></i>Restaurants</a>
+        </nav>
+        <details class="fp-nav__mobile">
+            <summary aria-label="Open navigation menu"><i class="fas fa-bars"></i><span>Menu</span></summary>
+            <nav aria-label="Mobile navigation">
+                <a href="{% url 'home' %}">Home</a><a href="{% url 'hotels:list' %}">Hotels</a>
+                <a class="is-active" href="{% url 'airlines:list' %}">Flights</a><a href="{% url 'tour_package:list' %}">Tours</a>
+                <a href="{% url 'transportation:list' %}">Car Rental</a><a href="{% url 'restaurants:list' %}">Restaurants</a>
+            </nav>
+        </details>
+    </div>
+</header>

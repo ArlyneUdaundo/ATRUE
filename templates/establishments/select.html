@@ -49,27 +49,26 @@ same markup, and any block with no real data behind it is simply not rendered.
     </div>
 </div>
 
-{% if item_noun != 'Villa' and item_noun != 'Stay' and item_noun != 'Table' and item_noun != 'Entry Pass' %}
 {% comment %}Date / time bar. A GET form so changing the date never loses the page.{% endcomment %}
-<form method="get" action="{{ select_url }}" class="ag-search" style="margin-bottom:22px">
+<form method="get" action="{{ select_url }}" class="ag-search establishment-search{% if show_end_date %} has-end-date{% endif %}{% if show_time %} has-time{% endif %}" style="margin-bottom:22px">
     <div class="ag-search-tabs">
         <a href="{{ list_url }}" class="btn btn-ghost btn-sm"><i class="fas {{ adapter.icon }}"></i> {{ category_label }}</a>
         <span class="badge badge-blue" style="align-self:center"><i class="fas fa-basket-shopping"></i> {{ item_noun_plural }}</span>
         {% if services %}<a href="{{ detail_url }}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Services</a>{% endif %}
         {% if amenities %}<a href="{{ detail_url }}" class="btn btn-ghost btn-sm"><i class="fas fa-swimming-pool"></i> Amenities</a>{% endif %}
     </div>
-    <div class="ag-search-fields" {% if show_end_date and show_time %}style="grid-template-columns:1.4fr 1fr 1fr 1fr auto"{% elif show_end_date or show_time %}style="grid-template-columns:1.4fr 1fr 1fr auto"{% else %}style="grid-template-columns:1.4fr 1fr auto"{% endif %}>
+    <div class="ag-search-fields">
         <div class="ag-field">
             <label><i class="fas fa-location-dot"></i> {{ category_label }}</label>
             <input type="text" value="{{ est_name }}" readonly>
         </div>
         <div class="ag-field">
-            <label><i class="fas fa-calendar-day"></i> {{ date_label }}</label>
+            <label>{{ date_label }}</label>
             <input type="date" name="check_in" id="searchCheckIn" value="{{ check_in|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required>
         </div>
         {% if show_end_date %}
         <div class="ag-field">
-            <label><i class="fas fa-calendar-day"></i> {{ end_date_label }}</label>
+            <label>{{ end_date_label }}</label>
             <input type="date" name="check_out" id="searchCheckOut" value="{{ check_out|date:'Y-m-d' }}" min="{% now 'Y-m-d' %}" required>
         </div>
         {% endif %}
@@ -82,8 +81,6 @@ same markup, and any block with no real data behind it is simply not rendered.
         <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Update</button>
     </div>
 </form>
-
-{% endif %}
 
 <form method="post" action="{{ select_url }}" id="bookingForm" novalidate>
 {% csrf_token %}

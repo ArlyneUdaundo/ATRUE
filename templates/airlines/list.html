@@ -1,334 +1,146 @@
 {% extends 'dashboard_base.html' %}
-{% load flight_cards %}
+{% load static %}
 
-{% block title %}Flights{% endblock %}
+{% block title %}Flights from {{ search_defaults.origin_label }} to {{ search_defaults.destination_label }}{% endblock %}
+
+{% block content_class %}fs-dashboard-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/flight-search.css' %}?v=20261024-searchbar-reference-1">
+<link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261023-airport-empty-overlay-1">
+{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div>
-        <h2>Available Flights</h2>
-        <p>{{ flights|length }} flight{% if flights|length != 1 %}s{% endif %} found · {% if request.user.is_airline_booking_restricted %}Review flight information and remaining seats{% else %}See remaining seats and book your trip{% endif %}</p>
-    </div>
-    {% if can_add_flight %}<a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>{% endif %}
-</div>
+{% include 'airlines/search/_hero_banner.html' %}
 
-{% if search_errors %}
-<div class="alert alert-error" role="alert">
-    <ul style="margin:0;padding-left:20px">{% for error in search_errors %}<li>{{ error }}</li>{% endfor %}</ul>
-</div>
-{% endif %}
-<div class="alert alert-error" data-flight-validation-message role="alert" hidden></div>
-
-<form method="get" class="ag-search mb" style="width:100%;margin-left:0" data-flight-search>
-    <input type="hidden" name="search_submit" value="1">
-    {% if origin and not origin_airport %}<input type="hidden" name="origin" value="{{ origin }}">{% endif %}
-    {% if destination and not destination_airport %}<input type="hidden" name="destination" value="{{ destination }}">{% endif %}
-    <div class="ag-search-fields filter-grid" style="grid-template-columns:minmax(180px,1.2fr) auto minmax(180px,1.2fr) auto auto">
-        <div class="ag-field" data-flight-origin>
-            <label><i class="fas fa-plane-departure"></i> From <span style="font-weight:400">(worldwide)</span></label>
-            {% include 'search/_airport_field.html' with field_name='origin_airport' airport=origin_airport_object placeholder='Search origin airports' compact=True %}
-        </div>
-        <button type="button" class="btn btn-outline" data-flight-swap aria-label="Swap flying from and flying to" title="Swap airports"><i class="fas fa-right-left"></i></button>
-        <div class="ag-field" data-flight-destination>
-            <label><i class="fas fa-plane-arrival"></i> To <span style="font-weight:400">(worldwide)</span></label>
-            {% include 'search/_airport_field.html' with field_name='destination_airport' airport=destination_airport_object placeholder='Search destination airports' compact=True %}
-        </div>
-        <div class="ag-field" style="min-width:150px">
-            <label><i class="fas fa-route"></i> Trip Type</label>
-            <select name="trip_type" id="trip-type">
-                <option value="ONE_WAY" {% if trip_type != 'ROUND_TRIP' %}selected{% endif %}>One-Way</option>
-                <option value="ROUND_TRIP" {% if trip_type == 'ROUND_TRIP' %}selected{% endif %}>Round-Trip</option>
-            </select>
-        </div>
-        <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Search</button>
+<div class="fs-main" id="fsMain">
+    <div class="fs-shell fs-search-wrap">
+        {% include 'airlines/search/_search_form.html' %}
     </div>
-    <div class="ag-search-fields filter-grid" style="grid-template-columns:repeat(3,minmax(130px,1fr));margin-top:12px">
-        <div class="ag-field">
-            <label><i class="fas fa-calendar-day"></i> Departure Date</label>
-            <input type="date" name="departure_date" value="{{ departure_date }}" min="{{ search_today }}" required data-flight-departure>
-        </div>
-        <div class="ag-field" id="return-date-field" data-flight-return-field style="{% if trip_type != 'ROUND_TRIP' %}display:none{% endif %}">
-            <label><i class="fas fa-calendar-check"></i> Return Date</label>
-            <input type="date" name="return_date" id="return-date" value="{{ return_date }}" min="{{ departure_date|default:search_today }}" data-flight-return {% if trip_type != 'ROUND_TRIP' %}disabled{% else %}required{% endif %}>
-        </div>
-        <div class="ag-field">
-            <div class="flight-passenger-picker" data-flight-passenger-picker>
-                <label class="flight-passenger-label"><i class="fas fa-user-group"></i> Passengers &amp; Class</label>
-                <button type="button" class="flight-passenger-trigger" data-flight-passenger-trigger
-                        aria-haspopup="dialog" aria-expanded="false" aria-label="Choose passengers and class">
-                    <span class="flight-passenger-summary">
-                        <strong data-passenger-summary>{{ passengers }} Adult{% if passengers != 1 %}s{% endif %}</strong>
-                        <strong data-fare-summary>{% if fare_class %}{% for value, label in fare_class_choices %}{% if fare_class == value %}{% if value == 'PREMIUM_ECONOMY' %}Premium economy{% elif value == 'BUSINESS' %}Business{% elif value == 'FIRST_CLASS' %}First{% else %}Economy{% endif %}{% endif %}{% endfor %}{% else %}Any cabin{% endif %}</strong>
-                    </span>
-                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
-                </button>
-                <input type="hidden" name="passengers" value="{{ passengers }}" data-passenger-value>
-                <input type="hidden" name="fare_class" value="{{ fare_class }}" data-fare-value>
-                <div class="flight-passenger-popover" data-flight-passenger-popover role="dialog"
-                     aria-label="Passengers and class" hidden>
-                    <div class="flight-passenger-counts">
-                        <div class="flight-passenger-row">
-                            <button type="button" data-passenger-change="adults" data-delta="-1" aria-label="Remove adult">−</button>
-                            <span data-passenger-count="adults">{{ passengers }}</span>
-                            <span class="flight-passenger-type"><strong>Adults</strong><small>12 yrs and above</small></span>
-                            <button type="button" data-passenger-change="adults" data-delta="1" aria-label="Add adult">+</button>
-                        </div>
-                        <div class="flight-passenger-row">
-                            <button type="button" data-passenger-change="children" data-delta="-1" aria-label="Remove child" disabled>−</button>
-                            <span data-passenger-count="children">0</span>
-                            <span class="flight-passenger-type"><strong>Children</strong><small>2-11 yrs</small></span>
-                            <button type="button" data-passenger-change="children" data-delta="1" aria-label="Add child">+</button>
-                        </div>
-                        <div class="flight-passenger-row">
-                            <button type="button" data-passenger-change="infants" data-delta="-1" aria-label="Remove infant" disabled>−</button>
-                            <span data-passenger-count="infants">0</span>
-                            <span class="flight-passenger-type"><strong>Infants</strong><small>Below 2 yrs</small></span>
-                            <button type="button" data-passenger-change="infants" data-delta="1" aria-label="Add infant">+</button>
-                        </div>
-                    </div>
-                    <div class="flight-fare-options" aria-label="Fare class">
-                        <button type="button" data-flight-fare="ECONOMY">Economy</button>
-                        <button type="button" data-flight-fare="PREMIUM_ECONOMY">Premium economy</button>
-                        <button type="button" data-flight-fare="BUSINESS">Business</button>
-                        <button type="button" data-flight-fare="FIRST_CLASS">First</button>
-                        <button type="button" class="flight-fare-any" data-flight-fare="">Any cabin</button>
-                    </div>
-                </div>
+
+    {% if search_errors %}
+    <div class="fs-shell">
+        <div class="fs-alert fs-alert--warning" role="alert">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <div>
+                <strong>We could not use that search.</strong>
+                <ul>{% for error in search_errors %}<li>{{ error }}</li>{% endfor %}</ul>
             </div>
         </div>
     </div>
-</form>
-
-{% if is_round_trip_search %}
-<section class="flight-journey-section" aria-labelledby="outbound-results-title">
-    <h3 id="outbound-results-title">Outbound flights <span>{{ flights|length }} option{% if flights|length != 1 %}s{% endif %}</span></h3>
-    <div class="flight-results">
-        {% for f in flights %}{% include 'airlines/_flight_result_card.html' with flight=f display_fare=f.outbound_search_fare is_round_trip_search=True is_return_card=False %}{% endfor %}
-    </div>
-</section>
-<section class="flight-journey-section flight-return-section" data-return-section hidden aria-labelledby="return-results-title">
-    <h3 id="return-results-title">Return flights <span>Select the return for your chosen outbound</span></h3>
-    <div class="flight-results">
-        {% for rf in return_rows %}{% include 'airlines/_flight_result_card.html' with flight=rf display_fare=rf.search_fare is_round_trip_search=True is_return_card=True %}{% endfor %}
-    </div>
-</section>
-<div class="flight-trip-selection" data-trip-selection hidden>
-    <span>Combined round-trip price <strong data-combined-price></strong><small>/ passenger</small></span>
-    <a class="btn btn-brand fcard-select" data-book-selected-flight href="#">Continue to booking</a>
-</div>
-{% else %}
-<section class="flight-journey-section" aria-label="Available flights">
-    <div class="flight-results">
-        {% for f in flights %}{% include 'airlines/_flight_result_card.html' with flight=f display_fare=f.search_fare is_round_trip_search=False is_return_card=False %}{% endfor %}
-    </div>
-</section>
-{% endif %}
-    {% for row in itinerary_rows %}{% include 'airlines/_itinerary_result_card.html' with itin=row.itinerary row=row %}{% endfor %}
-
-    {% if not flights and not itinerary_rows %}
-    <div class="card"><div class="empty"><i class="fas fa-plane"></i><h3>No flights found</h3><p>Try adjusting your filters.</p></div></div>
     {% endif %}
+
+    {% if messages %}
+    <div class="fs-shell">
+        {% for message in messages %}
+        <div class="fs-alert fs-alert--info" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i><div>{{ message }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="fs-shell fs-layout">
+        {% include 'airlines/search/_filter_sidebar.html' %}
+
+        <section class="fs-results" id="fsResults" aria-labelledby="fsResultsTitle">
+            <div class="fs-results__meta">
+                <div>
+                    <h2 class="fs-results__title" id="fsResultsTitle">Flight options across multiple destinations</h2>
+                    <p class="fs-results__sub" data-fs-results-sub>{{ search_defaults.departure_label }}{% if search_defaults.trip_type == 'round' %} &ndash; {{ search_defaults.return_label }}{% endif %} &middot; {{ search_defaults.passengers }} traveler{% if search_defaults.passengers != 1 %}s{% endif %}</p>
+                    <p class="fs-results__tags">
+                        <span class="fs-tag fs-tag--type" data-fs-tag-type><i class="fas {% if flight_type == 'INTERNATIONAL' %}fa-earth-asia{% else %}fa-map-location-dot{% endif %}" aria-hidden="true"></i> <span data-fs-tag-type-text>{{ flight_type_label }}</span></span>
+                        <span class="fs-tag" data-fs-tag-trip><i class="fas fa-route" aria-hidden="true"></i> <span data-fs-tag-trip-text>{% if is_multicity_search %}Multi-City{% elif search_defaults.trip_type == 'round' %}Round Trip{% else %}One Way{% endif %}</span></span>
+                        {% if is_multicity_search and multi_city_legs %}
+                        <span class="fs-tag"><i class="fas fa-layer-group" aria-hidden="true"></i> {{ multi_city_legs|length }} segments</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <button type="button" class="fs-btn fs-btn--outline fs-filters-toggle" data-fs-filters-toggle aria-controls="fsFilters" aria-expanded="false">
+                    <i class="fas fa-sliders" aria-hidden="true"></i> Filters
+                </button>
+            </div>
+
+            {% include 'airlines/search/_sorting_bar.html' %}
+
+            <p class="fs-notice" role="note">
+                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                Mixed sample routes for this preview: schedules and fares are indicative and cannot be booked here.
+            </p>
+
+            <div class="fs-cards" data-fs-cards>
+                {% for row in sample_flights %}
+                {% include 'airlines/search/_flight_card.html' with row=row %}
+                {% endfor %}
+            </div>
+
+            <div class="fs-empty" data-fs-empty hidden>
+                <span class="fs-empty__icon" aria-hidden="true"><i class="fas fa-plane-slash"></i></span>
+                <h3>No flights match your filters</h3>
+                <p>Try widening the price range or removing a filter.</p>
+                <button type="button" class="fs-btn fs-btn--primary" data-fs-clear-all>Clear all filters</button>
+            </div>
+
+            <div class="fs-selection fs-selection--modal" data-fs-selection hidden role="dialog" aria-modal="true" aria-labelledby="fsSelectionDialogTitle" tabindex="-1" style="position:fixed;inset:0;z-index:120000;box-sizing:border-box;margin:0;padding:18px;border:0;border-radius:0;background:rgba(15,23,42,.58);box-shadow:none;backdrop-filter:blur(4px)">
+                <div class="fs-selection__dialog" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,100%);max-height:calc(100dvh - 36px);overflow:auto;box-sizing:border-box;padding:26px;border:1px solid #dbe7ff;border-radius:20px;background:#fff;box-shadow:0 28px 80px rgba(15,23,42,.28)">
+                    <button type="button" class="fs-selection__close" data-fs-selection-close aria-label="Close flight selection" style="position:absolute;top:16px;right:16px;display:grid;width:38px;height:38px;place-items:center;border:0;border-radius:12px;background:#f1f5f9;color:#172033;font-size:17px;cursor:pointer"><i class="fas fa-times" aria-hidden="true"></i></button>
+                    <h2 class="fs-selection__heading" id="fsSelectionDialogTitle" style="margin:0;padding-right:44px;color:#172033;font-size:20px;font-weight:800">Your flight selection</h2>
+                <div class="fs-selection__step" data-fs-selection-step="picked">
+                    <span class="fs-selection__icon" aria-hidden="true"><i class="fas fa-plane-circle-check"></i></span>
+                    <div class="fs-selection__info">
+                        <strong data-fs-selection-title>Flight selected</strong>
+                        <span data-fs-selection-meta></span>
+                    </div>
+                    <div class="fs-selection__actions">
+                        <button type="button" class="fs-btn fs-btn--ghost" data-fs-selection-change>Change selection</button>
+                        <button type="button" class="fs-btn fs-btn--primary" data-fs-selection-continue>Confirm selection</button>
+                    </div>
+                </div>
+                <div class="fs-selection__step" data-fs-selection-step="confirmed" hidden>
+                    <span class="fs-selection__icon fs-selection__icon--ok" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
+                    <div class="fs-selection__info">
+                        <strong>Selection confirmed</strong>
+                        <span data-fs-selection-confirm-meta></span>
+                        <small>This is a preview: no reservation was created and no payment is due.</small>
+                    </div>
+                    <div class="fs-selection__actions">
+                        <button type="button" class="fs-btn fs-btn--ghost" data-fs-selection-back>Back to results</button>
+                        <a class="fs-btn fs-btn--primary" data-fs-selection-passenger
+                           href="{% url 'airlines:passenger_details' %}">Continue to Passenger Details</a>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="fs-side">
+            {% include 'airlines/search/_trip_summary.html' %}
+            {% include 'airlines/search/_booking_benefits.html' %}
+            {% include 'airlines/search/_promotional_banner.html' %}
+        </aside>
+    </div>
+
+    <div class="fs-shell">
+        <p class="fs-disclaimer">
+            <i class="fas fa-flask" aria-hidden="true"></i>
+            ATRUE flight search preview &mdash; results are sample data, not live airline inventory.
+        </p>
+    </div>
 </div>
 
-<div class="flight-booking-modal" data-flight-booking-modal hidden>
-    <section class="flight-booking-modal__panel" role="dialog" aria-modal="true" aria-labelledby="flightBookingModalTitle">
-        <header class="flight-booking-modal__head">
-            <h2 id="flightBookingModalTitle">Complete your flight booking</h2>
-            <button type="button" class="flight-booking-modal__close" data-flight-booking-close aria-label="Close booking">&times;</button>
-        </header>
-        <iframe class="flight-booking-modal__frame" data-flight-booking-frame title="Flight booking form"></iframe>
-    </section>
-</div>
+<footer class="fs-footer">
+    <div class="fs-shell fs-footer__inner">
+        <span>&copy; {% now "Y" %} ATRUE Travel</span>
+        <nav aria-label="Footer">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'hotels:list' %}">Hotels</a>
+            <a href="{% url 'airlines:list' %}">Flights</a>
+            <a href="{% url 'transactions:booking_list' %}">My Bookings</a>
+        </nav>
+    </div>
+</footer>
 
-<script>
-(function () {
-    var passengerPicker = document.querySelector('[data-flight-passenger-picker]');
-    if (passengerPicker) {
-        var passengerTrigger = passengerPicker.querySelector('[data-flight-passenger-trigger]');
-        var passengerPopover = passengerPicker.querySelector('[data-flight-passenger-popover]');
-        var passengerValue = passengerPicker.querySelector('[data-passenger-value]');
-        var fareValue = passengerPicker.querySelector('[data-fare-value]');
-        var passengerSummary = passengerPicker.querySelector('[data-passenger-summary]');
-        var fareSummary = passengerPicker.querySelector('[data-fare-summary]');
-        var passengerCounts = {adults: Number(passengerValue.value) || 1, children: 0, infants: 0};
-        var fareNames = {ECONOMY: 'Economy', PREMIUM_ECONOMY: 'Premium economy', BUSINESS: 'Business', FIRST_CLASS: 'First', '': 'Any cabin'};
+{{ airport_choices|json_script:"fsAirports" }}
+{% endblock %}
 
-        function syncPassengerPicker() {
-            var total = passengerCounts.adults + passengerCounts.children + passengerCounts.infants;
-            passengerPicker.querySelectorAll('[data-passenger-count]').forEach(function (item) {
-                item.textContent = passengerCounts[item.dataset.passengerCount];
-            });
-            passengerValue.value = String(total);
-            var summary = [
-                passengerCounts.adults + ' ' + (passengerCounts.adults === 1 ? 'Adult' : 'Adults'),
-                passengerCounts.children ? passengerCounts.children + ' ' + (passengerCounts.children === 1 ? 'Child' : 'Children') : '',
-                passengerCounts.infants ? passengerCounts.infants + ' ' + (passengerCounts.infants === 1 ? 'Infant' : 'Infants') : ''
-            ].filter(Boolean).join(', ');
-            passengerSummary.textContent = summary;
-            fareSummary.textContent = fareNames[fareValue.value] || 'Any cabin';
-            passengerPicker.querySelectorAll('[data-passenger-change]').forEach(function (button) {
-                var key = button.dataset.passengerChange;
-                var next = passengerCounts[key] + Number(button.dataset.delta);
-                button.disabled = button.dataset.delta === '-1' ? next < (key === 'adults' ? 1 : 0) : total >= 9;
-            });
-            passengerPicker.querySelectorAll('[data-flight-fare]').forEach(function (button) {
-                button.classList.toggle('is-selected', button.dataset.flightFare === fareValue.value);
-            });
-        }
-
-        function positionPassengerPopover() {
-            if (passengerPopover.hidden) return;
-            var rect = passengerTrigger.getBoundingClientRect();
-            var width = Math.min(500, window.innerWidth - 24);
-            var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-            passengerPopover.style.position = 'fixed';
-            passengerPopover.style.left = left + 'px';
-            passengerPopover.style.width = width + 'px';
-            passengerPopover.style.maxHeight = Math.min(window.innerHeight * .72, 520) + 'px';
-            var height = Math.min(passengerPopover.scrollHeight, Math.min(window.innerHeight * .72, 520));
-            var below = window.innerHeight - rect.bottom - 12;
-            passengerPopover.style.top = (below >= height + 8 ? rect.bottom + 8 : Math.max(12, rect.top - height - 8)) + 'px';
-        }
-
-        function closePassengerPicker(returnFocus) {
-            passengerPopover.hidden = true;
-            passengerTrigger.setAttribute('aria-expanded', 'false');
-            if (returnFocus) passengerTrigger.focus();
-        }
-
-        passengerTrigger.addEventListener('click', function () {
-            var open = passengerPopover.hidden;
-            passengerPopover.hidden = !open;
-            passengerTrigger.setAttribute('aria-expanded', String(open));
-            if (open) positionPassengerPopover();
-        });
-        passengerPicker.querySelectorAll('[data-passenger-change]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var key = button.dataset.passengerChange;
-                var next = passengerCounts[key] + Number(button.dataset.delta);
-                var total = passengerCounts.adults + passengerCounts.children + passengerCounts.infants;
-                if (next >= (key === 'adults' ? 1 : 0) && (Number(button.dataset.delta) < 0 || total < 9)) {
-                    passengerCounts[key] = next;
-                    syncPassengerPicker();
-                }
-            });
-        });
-        passengerPicker.querySelectorAll('[data-flight-fare]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                fareValue.value = button.dataset.flightFare;
-                syncPassengerPicker();
-            });
-        });
-        document.addEventListener('click', function (event) {
-            if (!passengerPicker.contains(event.target) && !passengerPopover.contains(event.target)) closePassengerPicker(false);
-        });
-        document.addEventListener('keydown', function (event) {
-            if (!passengerPopover.hidden && event.key === 'Escape') closePassengerPicker(true);
-        });
-        window.addEventListener('resize', positionPassengerPopover);
-        window.addEventListener('scroll', positionPassengerPopover, true);
-        syncPassengerPicker();
-    }
-
-    var cards = document.querySelectorAll('.fcard');
-    cards.forEach(function (card) {
-        var toggle = card.querySelector('.fcard-summary-toggle, .fcard-head');
-        var body = card.querySelector('.fcard-body');
-        if (!toggle || !body) return;
-        toggle.addEventListener('click', function () {
-            var open = card.classList.toggle('is-open');
-            body.hidden = !open;
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
-    });
-
-    var returnSection = document.querySelector('[data-return-section]');
-    var selection = document.querySelector('[data-trip-selection]');
-    var combinedPrice = document.querySelector('[data-combined-price]');
-    var bookingLink = document.querySelector('[data-book-selected-flight]');
-    var selectedOutbound = null;
-    var bookingModal = document.querySelector('[data-flight-booking-modal]');
-    var bookingFrame = document.querySelector('[data-flight-booking-frame]');
-    var bookingClose = document.querySelector('[data-flight-booking-close]');
-    var bookingTrigger = null;
-
-    function closeBookingModal() {
-        if (!bookingModal) return;
-        bookingModal.hidden = true;
-        document.body.classList.remove('flight-booking-modal-open');
-        if (bookingFrame) bookingFrame.src = 'about:blank';
-        if (bookingTrigger) bookingTrigger.focus();
-        bookingTrigger = null;
-    }
-
-    function openBookingModal(url, trigger) {
-        if (!bookingModal || !bookingFrame || !url) return;
-        bookingTrigger = trigger;
-        bookingFrame.src = url;
-        bookingModal.hidden = false;
-        document.body.classList.add('flight-booking-modal-open');
-        bookingClose?.focus();
-    }
-
-    bookingFrame?.addEventListener('load', function () {
-        try {
-            var doc = bookingFrame.contentDocument;
-            if (!doc || doc.location.href === 'about:blank' || doc.getElementById('flight-booking-embed-style')) return;
-            var style = doc.createElement('style');
-            style.id = 'flight-booking-embed-style';
-            style.textContent = '.site-header{display:none!important}.dash,.main{min-height:0!important}.content{width:100%!important;max-width:none!important;padding:18px!important;animation:none!important;transform:none!important}';
-            doc.head.appendChild(style);
-        } catch (error) {
-            // Keep the booking link usable if the browser disallows frame access.
-        }
-    });
-
-    bookingClose?.addEventListener('click', closeBookingModal);
-    bookingModal?.addEventListener('click', function (event) {
-        if (event.target === bookingModal) closeBookingModal();
-    });
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && bookingModal && !bookingModal.hidden) closeBookingModal();
-    });
-    document.addEventListener('click', function (event) {
-        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        var link = event.target.closest && event.target.closest('.fcard-select[href*="/book/"], [data-book-selected-flight]');
-        if (!link || !link.href || link.getAttribute('href') === '#') return;
-        event.preventDefault();
-        openBookingModal(link.href, link);
-    });
-
-    var outboundButtons = document.querySelectorAll('.js-select-outbound');
-    outboundButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-            selectedOutbound = button.dataset.flightId;
-            document.querySelectorAll('.js-select-outbound').forEach(function (other) {
-                other.closest('.fcard').classList.toggle('is-selected', other === button);
-            });
-            document.querySelectorAll('[data-return-card]').forEach(function (card) {
-                var match = card.dataset.outboundId === selectedOutbound;
-                card.hidden = !match;
-                card.classList.remove('is-selected');
-                var select = card.querySelector('.js-select-return');
-                if (select) select.textContent = 'Select return';
-            });
-            if (returnSection) returnSection.hidden = false;
-            if (selection) selection.hidden = true;
-        });
-    });
-    document.querySelectorAll('.js-select-return').forEach(function (button) {
-        button.addEventListener('click', function () {
-            if (!selectedOutbound || button.dataset.outboundId !== selectedOutbound) return;
-            var card = button.closest('.fcard');
-            card.classList.add('is-selected');
-            button.textContent = 'Return selected';
-            var outbound = document.querySelector('.js-select-outbound[data-flight-id="' + selectedOutbound + '"]');
-            if (!outbound) return;
-            if (combinedPrice) combinedPrice.textContent = '₱' + Number(outbound.dataset.total).toLocaleString('en-PH', {maximumFractionDigits: 0});
-            if (bookingLink) bookingLink.href = outbound.dataset.bookUrl;
-            if (selection) selection.hidden = false;
-        });
-    });
-})();
-</script>
+{% block extra_js %}
+<script src="{% static 'js/flight-results.js' %}?v=20261023-mixed-routes-1"></script>
 {% endblock %}

@@ -46,15 +46,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
-    min-height: 36px;
-    padding: 8px 12px;
-    border: 1.5px solid #e3e9f2;
-    border-radius: 11px;
-    background: #fbfdff;
-    color: inherit;
+    min-height: 46px;
+    padding: 9px 12px 9px 16px;
+    border: 1px solid #dbe3f0;
+    border-radius: 12px;
+    background: #fff;
+    color: #0f172a;
     font-family: var(--adp-font);
     font-size: 14px;
     font-weight: 600;
@@ -66,18 +66,18 @@
 
 .adp-trigger:hover,
 .adp-trigger:focus-visible {
-    border-color: var(--adp-accent);
+    border-color: #2563eb;
     background: #ffffff;
 }
 
 .adp-trigger:focus-visible {
-    box-shadow: 0 0 0 4px rgba(10, 88, 202, 0.12);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 
 .adp-trigger:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    background: #f1f4f8;
+    background: #f8fafc;
 }
 
 .adp-trigger.adp-invalid {
@@ -92,10 +92,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    text-align: left;
 }
 
 .adp-trigger .adp-trigger-placeholder {
-    color: var(--adp-muted);
+    color: #94a3b8;
     font-weight: 500;
     opacity: 0.95;
 }
@@ -105,23 +106,23 @@
 }
 
 .adp-trigger .adp-trigger-icon {
-    flex: none;
-    color: var(--adp-accent);
-    font-size: 13px;
+    flex: 0 0 auto;
+    color: #1d4ed8;
+    font-size: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 7px;
-    background: var(--adp-accent-soft);
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #eff6ff;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .adp-trigger:hover .adp-trigger-icon,
 .adp-trigger:focus-visible .adp-trigger-icon {
-    background: var(--adp-accent);
-    color: #ffffff;
+    background: #dbeafe;
+    color: #1d4ed8;
 }
 
 /* ---- inline validity message ---- */
@@ -296,7 +297,18 @@
     color: #c8d2e0;
 }
 
-/* ---- calendar grid ---- */
+.adp-label-noicon i,
+label.adp-label-noicon > i,
+label.adp-label-noicon .fa-calendar,
+label.adp-label-noicon .fa-calendar-day,
+label.adp-label-noicon .fa-calendar-alt,
+label.adp-label-noicon .fa-calendar-days,
+label.adp-label-noicon .fa-calendar-check,
+label.adp-label-noicon .fa-calendar-xmark,
+label.adp-label-noicon .fa-calendar-minus {
+    display: none !important;
+}
+
 .adp-months {
     display: grid;
     grid-template-columns: 1fr 1fr;

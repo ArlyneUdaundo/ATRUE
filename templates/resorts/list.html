@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Available Resorts</h2>
+        <h1>Available Resorts</h1>
         <p>{{ resorts|length }} resort{% if resorts|length != 1 %}s{% endif %} found · Browse villas, cabanas and services</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -15,10 +15,10 @@
 
 <div class="cards">
     {% for r in resorts %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo"><img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=800&q=75" alt="Resorts photo"></div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in r.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ r.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-umbrella-beach"></i><span>No photos yet</span></div>{% endfor %}</div>{% if r.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge badge-green">{{ r.get_status_display }}</span>
             </div>
             <h3><a href="{% url 'resorts:detail' r.slug %}" style="color:inherit;text-decoration:none">{{ r.name }} <small style="color:var(--slate-500);font-size:12px">{{ r.resort_id }}</small></a></h3>

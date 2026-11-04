@@ -1,0 +1,90 @@
+{% load static %}
+{# Expanded flight information: terminals, timeline, amenities, fare rules. #}
+<div class="fs-details">
+    <div class="fs-details__head">
+        {% if row.airline_logo %}
+        <img class="fs-logo fs-logo--lg" src="{% static row.airline_logo %}" alt="{{ row.airline }} logo">
+        {% else %}
+        <span class="fs-logo fs-logo--lg fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>
+        {% endif %}
+        <div class="fs-details__id">
+            <strong>{{ row.airline }}</strong>
+            <span>Flight {{ row.flight_number }} &middot; {{ row.aircraft }}</span>
+        </div>
+        <span class="fs-tag fs-tag--sample"><i class="fas fa-flask" aria-hidden="true"></i> Sample schedule</span>
+    </div>
+
+    <div class="fs-details__grid">
+        <div class="fs-leg">
+            <p class="fs-leg__label">Departure</p>
+            <p class="fs-leg__airport">{{ row.origin_city }}{% if row.origin_country %}, {{ row.origin_country }}{% endif %} ({{ row.origin_code }})</p>
+            <p class="fs-leg__name">{{ row.origin_airport }}</p>
+            {% if row.origin_address %}<p class="fs-leg__meta fs-leg__address">{{ row.origin_address }}</p>{% endif %}
+            <p class="fs-leg__meta">{{ row.origin_terminal }} &middot; {{ row.depart_time }}</p>
+        </div>
+
+        <div class="fs-timeline">
+            <div class="fs-timeline__row">
+                <span class="fs-timeline__time">{{ row.depart_time }}</span>
+                <span class="fs-timeline__line"><span class="fs-timeline__dash"></span><i class="fas fa-plane" aria-hidden="true"></i><span class="fs-timeline__dash"></span></span>
+                <span class="fs-timeline__time{% if row.overnight %} fs-timeline__time--next{% endif %}">{{ row.arrive_time }}{% if row.overnight %}<sup>+1</sup>{% endif %}</span>
+            </div>
+            <div class="fs-timeline__meta">
+                <span>{{ row.origin_code }}</span>
+                <span>{{ row.duration_text }} &middot; {{ row.stops_label }}</span>
+                <span>{{ row.destination_code }}</span>
+            </div>
+        </div>
+
+        <div class="fs-leg fs-leg--right">
+            <p class="fs-leg__label">Arrival</p>
+            <p class="fs-leg__airport">{{ row.destination_city }}{% if row.destination_country %}, {{ row.destination_country }}{% endif %} ({{ row.destination_code }})</p>
+            <p class="fs-leg__name">{{ row.destination_airport }}</p>
+            {% if row.destination_address %}<p class="fs-leg__meta fs-leg__address">{{ row.destination_address }}</p>{% endif %}
+            <p class="fs-leg__meta">{{ row.destination_terminal }} &middot; {{ row.arrive_time }}{% if row.overnight %} (+1 day){% endif %}</p>
+        </div>
+    </div>
+
+    <ul class="fs-amenities">
+        <li class="fs-amenity{% if row.wifi == 'none' %} is-off{% endif %}">
+            <i class="fas fa-wifi" aria-hidden="true"></i> {{ row.wifi_label }}
+        </li>
+        <li class="fs-amenity">
+            <i class="fas fa-suitcase-rolling" aria-hidden="true"></i> {{ row.checked_baggage }} checked baggage
+        </li>
+        <li class="fs-amenity">
+            <i class="fas fa-briefcase" aria-hidden="true"></i> {{ row.cabin_baggage }} cabin baggage
+        </li>
+        <li class="fs-amenity{% if row.meal == 'purchase' %} is-off{% endif %}">
+            <i class="fas fa-utensils" aria-hidden="true"></i> {{ row.meal_label }}
+        </li>
+        <li class="fs-amenity">
+            <i class="fas fa-leaf" aria-hidden="true"></i> {{ row.emissions }} kg CO<sub>2</sub> per passenger
+        </li>
+    </ul>
+
+    <div class="fs-disclosures">
+        <div class="fs-disc">
+            <button type="button" class="fs-disc__btn" data-fs-disc aria-expanded="false" aria-controls="{{ row.id }}-rules">
+                <span><i class="fas fa-receipt" aria-hidden="true"></i> Fare Rules</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+            </button>
+            <div class="fs-disc__panel" id="{{ row.id }}-rules" hidden>
+                <ul>
+                    {% for rule in row.fare_rules %}<li>{{ rule }}</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="fs-disc">
+            <button type="button" class="fs-disc__btn" data-fs-disc aria-expanded="false" aria-controls="{{ row.id }}-cancel">
+                <span><i class="fas fa-calendar-xmark" aria-hidden="true"></i> Cancellation &amp; Changes</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+            </button>
+            <div class="fs-disc__panel" id="{{ row.id }}-cancel" hidden>
+                <ul>
+                    {% for rule in row.change_rules %}<li>{{ rule }}</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

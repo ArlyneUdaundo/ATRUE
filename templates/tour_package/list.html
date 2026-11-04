@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Tour Packages</h2>
+        <h1>Tour Packages</h1>
         <p>{{ packages|length }} package{% if packages|length != 1 %}s{% endif %} available · All-in bundles with headcount billing</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -16,10 +16,10 @@
 
 <div class="cards">
     {% for p in packages %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                {% with package_image=p.photos.all|photo_cover:'' %}{% if package_image %}<div class="scard-photo"><img src="{{ package_image }}" alt="{{ p.name }} photo"></div>{% endif %}{% endwith %}
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in p.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ p.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-suitcase-rolling"></i><span>No photos yet</span></div>{% endfor %}</div>{% if p.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge badge-green">Valid</span>
             </div>
             <h3><a href="{% url 'tour_package:detail' p.slug %}" style="color:inherit;text-decoration:none">{{ p.name }}</a></h3>

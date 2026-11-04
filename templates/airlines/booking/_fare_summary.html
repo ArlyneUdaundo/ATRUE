@@ -1,0 +1,49 @@
+<div class="pd-card pd-fare" id="pd-fare">
+    <h2 class="pd-fare__title"><i class="fas fa-receipt"></i> Fare Summary</h2>
+
+    <ul class="pd-fare__lines">
+        <li>
+            <span>Base Fare <small data-pd-fare-base-note></small></span>
+            <span data-pd-fare-base>₱0.00</span>
+        </li>
+        <li>
+            <span>Taxes & Fees <small data-pd-fare-tax-note></small></span>
+            <span data-pd-fare-taxes>₱0.00</span>
+        </li>
+        <li>
+            <span>Passengers</span>
+            <span data-pd-fare-pax>1</span>
+        </li>
+        <li>
+            <span>Extra Baggage <small data-pd-fare-bag-note></small></span>
+            <span data-pd-fare-baggage>₱0.00</span>
+        </li>
+        <li>
+            <span>Travel Insurance <small data-pd-fare-ins-note></small></span>
+            <span data-pd-fare-insurance>₱0.00</span>
+        </li>
+        <li>
+            <span>Seat Selection</span>
+            <span data-pd-fare-seat>₱0.00</span>
+        </li>
+    </ul>
+
+    <div class="pd-fare__total">
+        <span>Total amount</span>
+        <strong data-pd-fare-total>₱0.00</strong>
+    </div>
+    <p class="pd-fare__per" data-pd-fare-per></p>
+
+    <button type="button" class="pd-btn pd-btn--primary pd-btn--wide" data-pd-continue>
+        Continue to Review <i class="fas fa-arrow-right"></i>
+    </button>
+    <a class="pd-btn pd-btn--ghost pd-btn--wide" href="{% url 'airlines:list' %}">
+        <i class="fas fa-arrow-left"></i> Back to Flight Details
+    </a>
+
+    <div class="pd-secure">
+        <i class="fas fa-shield-halved"></i>
+        <p><b>Secure booking.</b> Your details are protected. This prototype does not take payment
+        and does not confirm a booking.</p>
+    </div>
+</div>

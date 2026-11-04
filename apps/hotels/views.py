@@ -7,7 +7,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.core.validators import validate_email
@@ -18,7 +18,7 @@ from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
     assigned_hotel_ids, hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
 )
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
 from atrue_core.services import (
     bill_for_booking,
@@ -119,9 +119,11 @@ def _location_errors(province, municipality, barangay="", country=""):
 # -- Establishment CRUD ---------------------------------------------------------
 
 def hotel_list(request):
-    hotels = Hotel.objects.filter(status=Hotel.Status.ACTIVE).prefetch_related(
+    hotels = Hotel.objects.prefetch_related(
         'photos', 'rooms', 'rooms__photos', 'services', 'amenities'
     )
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        hotels = hotels.filter(status=Hotel.Status.ACTIVE)
 
     # The landing-page search passes dates/guest counts here. Filter hotels by
     # rooms that are actually usable for the requested stay instead of merely
@@ -229,6 +231,10 @@ def add_hotel(request):
                 'fd': fd,
                 'error': ' '.join(errors),
             })
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            return render(request, 'hotels/form.html', {'hotel': None, 'fd': fd, 'error': ' '.join(exc.messages)}, status=400)
         hotel = Hotel.objects.create(
             name=name,
             created_by=request.user,
@@ -240,7 +246,6 @@ def add_hotel(request):
             email=request.POST.get('email', ''),
             operating_schedule=request.POST.get('operating_schedule', ''),
         )
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for index, image in enumerate(photos):
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created hotel", f"{hotel.name} ({hotel.establishment_id})")
@@ -280,6 +285,12 @@ def update_hotel(request, hotel_id):
                 'fd': fd,
                 'error': ' '.join(errors),
             })
+        delete_ids = request.POST.getlist('delete_photos')
+        delete_count = hotel.photos.filter(pk__in=delete_ids).count()
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'), existing_count=hotel.photos.count(), delete_count=delete_count)
+        except ValidationError as exc:
+            return render(request, 'hotels/form.html', {'hotel': hotel, 'fd': fd, 'error': ' '.join(exc.messages)}, status=400)
         hotel.name = name
         hotel.country = country
         hotel.province = province
@@ -290,7 +301,6 @@ def update_hotel(request, hotel_id):
         hotel.operating_schedule = fd['operating_schedule']
         hotel.status = fd['status']
         hotel.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=not hotel.photos.exists())
         for photo in hotel.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -377,6 +387,24 @@ def hotel_detail(request, hotel_id):
 
 # -- Room CRUD -----------------------------------------------------------------
 
+def _record_room_management_task(request, hotel):
+    """Record the room-management task after a room save succeeds."""
+    try:
+        from establishments.models import establishment_for_instance
+        from simulation.completion import record_actor_task_event
+        from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+        establishment = establishment_for_instance(hotel, create=False)
+        record_actor_task_event(
+            request.user, 'HOTEL_ROOM_SAVED', establishment=establishment,
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        )
+    except Exception:
+        logger.exception(
+            'Hotel room saved but simulation task completion could not be recorded '
+            '(hotel_id=%s, user_id=%s)', hotel.pk, request.user.pk,
+        )
+
 @manager_required
 @hotel_scoped
 def add_room(request, hotel_id):
@@ -394,7 +422,15 @@ def add_room(request, hotel_id):
         extra_charge, extra_err = pricing.parse_money(
             request.POST.get('additional_guest_charge'),
             pricing.standard_extra_guest_charge(room_type))
-        if rate_err or extra_err:
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            photos, image_error = [], ' '.join(exc.messages)
+        else:
+            image_error = None
+        if image_error:
+            error = image_error
+        elif rate_err or extra_err:
             error = rate_err or extra_err
         elif Room.objects.filter(hotel=hotel, room_number=room_number).exists():
             error = f"Room {room_number} already exists in '{hotel.name}'. Choose a different room number."
@@ -412,9 +448,9 @@ def add_room(request, hotel_id):
                 description=request.POST.get('description', ''),
                 status=request.POST.get('status', Room.RoomStatus.AVAILABLE),
             )
-            for image in request.FILES.getlist('photos'):
-                if is_valid_image(image):
-                    RoomPhoto.objects.create(room=room, image=image)
+            for image in photos:
+                RoomPhoto.objects.create(room=room, image=image)
+            _record_room_management_task(request, hotel)
             log_activity(request.user, "Added hotel room",
                          f"{room.room_id} ({room.room_number}) in {hotel.name}")
             messages.success(request, f"Room {room.room_number} added (ID: {room.room_id}).")
@@ -438,7 +474,20 @@ def update_room(request, room_id):
         extra_charge, extra_err = pricing.parse_money(
             request.POST.get('additional_guest_charge'), room.additional_guest_charge)
         duplicate = Room.objects.filter(hotel=room.hotel, room_number=room_number).exclude(pk=room.pk).exists()
-        if rate_err or extra_err:
+        delete_ids = request.POST.getlist('delete_photos')
+        try:
+            photos = validate_establishment_photos(
+                request.FILES.getlist('photos'),
+                existing_count=room.photos.count(),
+                delete_count=room.photos.filter(pk__in=delete_ids).count(),
+            )
+        except ValidationError as exc:
+            photos, image_error = [], ' '.join(exc.messages)
+        else:
+            image_error = None
+        if image_error:
+            error = image_error
+        elif rate_err or extra_err:
             error = rate_err or extra_err
         elif duplicate:
             error = f"Room {room_number} already exists in '{room.hotel.name}'. Choose a different room number."
@@ -456,11 +505,11 @@ def update_room(request, room_id):
             room.description = request.POST.get('description', room.description)
             room.status = request.POST.get('status', room.status)
             room.save()
-            for image in request.FILES.getlist('photos'):
-                if is_valid_image(image):
-                    RoomPhoto.objects.create(room=room, image=image)
-            for photo in room.photos.filter(pk__in=request.POST.getlist('delete_photos')):
+            for image in photos:
+                RoomPhoto.objects.create(room=room, image=image)
+            for photo in room.photos.filter(pk__in=delete_ids):
                 delete_image_record(photo)
+            _record_room_management_task(request, room.hotel)
             log_activity(request.user, "Updated hotel room",
                          f"{room.room_id} ({room.room_number}) in {room.hotel.name}")
             messages.success(request, "Room updated.")
@@ -1349,14 +1398,14 @@ def hotel_group_payment(request):
     if create_error:
         messages.error(request, create_error)
         return redirect('hotels:group_start', hotel.id)
-    from simulation.completion import complete_guest_booking
+    from simulation.completion import record_hotel_guest_booking
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
     try:
-        complete_guest_booking(
+        record_hotel_guest_booking(
             request.user,
+            booking,
             task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
-            booking_reference=booking.booking_reference,
         )
     except Exception:
         logger.exception(
@@ -1505,6 +1554,9 @@ def booking_detail(request, booking_id):
             for room in booking.rooms.all():
                 room.status = Room.RoomStatus.AVAILABLE
                 room.save(update_fields=['status'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Guest checked out", str(booking.pk))
             messages.success(request, "Guest checked out.")
         elif action == 'modify':

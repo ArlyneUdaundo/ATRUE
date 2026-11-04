@@ -1,0 +1,15 @@
+{% load static %}
+<header class="pd-header">
+    <div class="pd-header__inner">
+        <a class="pd-brand" href="{% url 'airlines:list' %}">
+            <span class="pd-brand__mark" role="img" aria-label="ATRUE Travel &amp; Tours" style="width:60px;height:64px;flex:0 0 60px;display:block;overflow:hidden;border:0;border-radius:0;background:none;box-shadow:none">
+                <img src="{% static 'img/atrue-logo-mark.png' %}?v=20261022-flight-brand-1" alt="" style="display:block;width:60px;height:64px;object-fit:contain">
+            </span>
+            <span class="pd-brand__text" style="display:flex;flex-direction:column;gap:2px;color:#172b45;font-size:24px;font-weight:800;letter-spacing:.02em;line-height:1">ATRUE<span class="pd-brand__sub" style="margin:0;color:#8291a7;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;line-height:1.15">Travel &amp;<br>Tours</span></span>
+        </a>
+        <nav class="pd-header__links" aria-label="Booking help">
+            <a href="#pd-policy"><i class="fas fa-file-shield"></i> Refund policy</a>
+            <span class="pd-header__secure"><i class="fas fa-lock"></i> Secure booking</span>
+        </nav>
+    </div>
+</header>

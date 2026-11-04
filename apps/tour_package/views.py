@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     _load,
@@ -22,7 +22,7 @@ from atrue_core.services import (
     log_activity,
     record_payment,
 )
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from accounts.roles import can_create_establishment
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
@@ -101,9 +101,9 @@ def _components_bookable(package):
 
 
 def package_list(request):
-    packages = TourPackage.objects.filter(
-        status=TourPackage.Status.ACTIVE,
-    ).prefetch_related('photos')
+    packages = TourPackage.objects.prefetch_related('photos')
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        packages = packages.filter(status=TourPackage.Status.ACTIVE)
     return render_search_page(request, 'package', packages)
 
 
@@ -175,6 +175,13 @@ def _save_package(request, instance=None):
     activity_ids = [int(v) for v in request.POST.getlist('activities')]
     restaurant_ids = [int(v) for v in request.POST.getlist('restaurants')]
     transport_ids = [int(v) for v in request.POST.getlist('transport')]
+    delete_ids = request.POST.getlist('delete_photos')
+    delete_count = instance.photos.filter(pk__in=delete_ids).count() if instance else 0
+    images = validate_establishment_photos(
+        request.FILES.getlist('photos'),
+        existing_count=instance.photos.count() if instance else 0,
+        delete_count=delete_count,
+    )
 
     if instance:
         for field, value in data.items():
@@ -199,7 +206,6 @@ def _save_package(request, instance=None):
         package.included_restaurants.set(Restaurant.objects.filter(pk__in=restaurant_ids))
     if 'transport' in request.POST:
         package.included_transport.set(Agency.objects.filter(pk__in=transport_ids))
-    images = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
     for image in images:
         TourPackagePhoto.objects.create(package=package, image=image, is_primary=not package.photos.exists())
     for photo in package.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -216,7 +222,11 @@ def add_package(request):
     if not can_create_establishment(request.user, 'tour_package'):
         raise PermissionDenied('You are not authorised to create tour packages.')
     if request.method == 'POST':
-        package = _save_package(request)
+        try:
+            package = _save_package(request)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'tour_package/form.html', _component_context(None), status=400)
         log_activity(request.user, "Created tour package", package.name)
         messages.success(request, f"Package '{package.name}' created.")
         return redirect('tour_package:manage')
@@ -232,7 +242,11 @@ def update_package(request, package_id):
     if not may_manage_package(request, package.pk):
         raise PermissionDenied('Only an assigned Tour Package Manager may update this package.')
     if request.method == 'POST':
-        _save_package(request, instance=package)
+        try:
+            _save_package(request, instance=package)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'tour_package/form.html', _component_context(package), status=400)
         log_activity(request.user, "Updated tour package", package.name)
         messages.success(request, "Package updated.")
         return redirect('tour_package:manage')
@@ -462,6 +476,9 @@ def booking_detail(request, booking_id):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
         elif action == 'modify':
             booking.travel_date = _parse_date(request.POST.get('travel_date'), booking.travel_date)
             booking.number_of_travelers = int(request.POST.get('travelers') or booking.number_of_travelers)
@@ -581,6 +598,9 @@ def operate(request):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Package booking completed", str(booking.pk))
         elif action == 'update_status':
             new_status = request.POST.get('status')

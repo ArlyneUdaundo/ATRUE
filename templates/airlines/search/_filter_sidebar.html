@@ -1,0 +1,43 @@
+{# Left filter sidebar: price range plus checkbox groups over the sample set. #}
+<aside class="fs-filters" id="fsFilters" data-fs-filters aria-label="Filter results">
+    <div class="fs-filters__head">
+        <h2><i class="fas fa-sliders" aria-hidden="true"></i> Filters</h2>
+        <button type="button" class="fs-filters__clear" data-fs-clear>Clear all</button>
+    </div>
+
+    <section class="fs-fgroup">
+        <h3 class="fs-fgroup__title">Price Range</h3>
+        <div class="fs-range" data-fs-range>
+            <div class="fs-range__track">
+                <span class="fs-range__fill" data-fs-range-fill></span>
+                <input type="range" min="1000" max="15000" step="500" value="1000"
+                       data-fs-price-min aria-label="Minimum price">
+                <input type="range" min="1000" max="15000" step="500" value="15000"
+                       data-fs-price-max aria-label="Maximum price">
+            </div>
+            <div class="fs-range__labels">
+                <span data-fs-price-min-label>&#8369;1,000</span>
+                <span data-fs-price-max-label>&#8369;15,000+</span>
+            </div>
+        </div>
+    </section>
+
+    {% for group in filter_groups %}
+    <section class="fs-fgroup">
+        <div class="fs-fgroup__head">
+            <h3 class="fs-fgroup__title">{{ group.title }}</h3>
+            {% if group.select_all %}
+            <button type="button" class="fs-fgroup__all" data-fs-all="{{ group.key }}">Select all</button>
+            {% endif %}
+        </div>
+        {% for item in group.items %}
+        <label class="fs-check">
+            <input type="checkbox" data-fs-filter="{{ group.key }}" value="{{ item.value }}">
+            <span class="fs-check__box" aria-hidden="true"></span>
+            <span class="fs-check__label">{{ item.label }}{% if item.hint %}<small>{{ item.hint }}</small>{% endif %}</span>
+            <span class="fs-check__count" data-fs-facet="{{ group.key }}:{{ item.value }}">{{ item.count }}</span>
+        </label>
+        {% endfor %}
+    </section>
+    {% endfor %}
+</aside>

@@ -67,7 +67,7 @@ rather than one undifferentiated grid of fields.
     <div class="profile-photo-modal" id="profilePhotoPanel"
          {% if not show_photo_editor %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}>
     <section class="profile-panel" aria-label="Profile photo">
-        <form method="post" enctype="multipart/form-data" class="profile-photo-form">
+        <form method="post" enctype="multipart/form-data" class="profile-photo-form" data-submit-loading>
             {% csrf_token %}
             <div class="profile-panel-head">
                 <h2 class="profile-section-title"><i class="fas fa-image"></i> Profile Photo</h2>
@@ -86,7 +86,7 @@ rather than one undifferentiated grid of fields.
             {% endif %}
 
             <div class="profile-photo-row">
-                <div class="profile-photo profile-photo-sm{% if not account.profile_picture %} profile-photo-empty{% endif %}">
+                <div class="profile-photo profile-photo-sm{% if not account.profile_picture %} profile-photo-empty{% endif %}" data-profile-live-preview>
                     {% if account.profile_picture %}
                     <img src="{{ account.profile_picture.url }}" alt="">
                     {% else %}
@@ -95,12 +95,19 @@ rather than one undifferentiated grid of fields.
                 </div>
 
                 <div class="profile-photo-fields">
-                    {{ photo_form.profile_picture }}
-                    <p class="profile-photo-hint">
-                        {% if not account.profile_picture %}
-                            No photo yet. Choose an image to use as your profile picture.
-                        {% endif %}
-                    </p>
+                    <label class="photo-upload-drop photo-upload-profile" data-photo-drop>
+                        <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i>
+                        <strong>Choose a profile photo</strong>
+                        <span>Click to browse or drag a JPG, JPEG, or PNG here</span>
+                        {{ photo_form.profile_picture }}
+                    </label>
+                    <p class="photo-upload-error" data-photo-error role="alert" hidden></p>
+                    <ul class="photo-upload-rules">
+                        <li>File type: JPG, JPEG, or PNG.</li>
+                        <li>Maximum size: 5 MB.</li>
+                        <li>Recommended image: clear, well-lit profile photo.</li>
+                    </ul>
+                    <div class="photo-upload-selected" data-photo-preview aria-live="polite"></div>
                     <div class="profile-photo-buttons">
                         <button type="submit" class="btn btn-brand">
                             <i class="fas fa-check"></i> Save Photo
@@ -111,6 +118,9 @@ rather than one undifferentiated grid of fields.
                             <i class="fas fa-trash"></i> Remove Photo
                         </button>
                         {% endif %}
+                        <button type="button" class="btn btn-outline" data-photo-clear-selection hidden>
+                            <i class="fas fa-xmark"></i> Clear selected photo
+                        </button>
                     </div>
                 </div>
             </div>
@@ -368,7 +378,7 @@ rather than one undifferentiated grid of fields.
             <h2 id="profileEditTitle">Edit Profile</h2>
             <button type="button" class="profile-edit-modal__close" aria-label="Close">&times;</button>
         </div>
-        <form method="post" enctype="multipart/form-data" class="profile-edit-modal__form">
+        <form method="post" enctype="multipart/form-data" class="profile-edit-modal__form" data-submit-loading>
             {% csrf_token %}
             <input type="hidden" name="profile_update" value="1">
             {% if edit_form.non_field_errors %}<div class="alert alert-error">{{ edit_form.non_field_errors.0 }}</div>{% endif %}

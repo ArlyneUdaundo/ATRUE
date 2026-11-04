@@ -24,7 +24,8 @@ def make_reference(prefix="ATR"):
     return f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
 
 
-def log_activity(user, action, details="", session=None, establishment=None, role=None):
+def log_activity(user, action, details="", session=None, establishment=None, role=None,
+                 role_assignment=None):
     """Persist an action to the simulation activity log (BR-085)."""
     if user and user.is_authenticated:
         sim_role = role
@@ -40,6 +41,7 @@ def log_activity(user, action, details="", session=None, establishment=None, rol
             simulation_role=sim_role or '',
             session=session,
             establishment=establishment,
+            role_assignment=role_assignment,
         )
 
 
@@ -376,12 +378,16 @@ def confirm_booking(booking, user, notify=True, session=None, establishment=None
     # CONFIRMED. Resolution is establishment-scoped, so a student who does not
     # actually hold this establishment's role is never credited.
     from simulation.completion import (complete_reservation_confirmation,
-                                       establishment_for_booking)
+                                       establishment_for_booking,
+                                       record_guest_reservation_confirmed)
     resolved_establishment = establishment or establishment_for_booking(booking)
     if resolved_establishment is not None:
         complete_reservation_confirmation(
             user, establishment=resolved_establishment, session=session,
             booking_reference=getattr(booking, 'booking_reference', '') or '')
+    record_guest_reservation_confirmed(
+        booking, session=session,
+        actor=user)
     # Send the system-generated ticket only after status and payment checks pass.
     from notifications.email_service import queue_booking_confirmation
     queue_booking_confirmation(booking)

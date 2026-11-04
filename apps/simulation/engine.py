@@ -634,12 +634,13 @@ def transition(transaction, actor, action, *, stage=None, remarks='', **extra_fi
           details=(f'Moved to {trx.get_status_display().lower()} at the '
                    f'{trx.get_stage_display().lower()} stage.'))
 
-    # Confirming a request is the reservation officer's/manager's required
-    # action; closing it out is the manager's. Either way the acting student's
-    # own assignment is completed - never a classmate's.
+    # Confirming a request or closing it out records the acting student's
+    # verified role task. The assignment itself remains ACTIVE until its
+    # instructor reviews the checklist and uses Mark as Done.
     if assignment is not None:
         from .completion import (complete_reservation_completion,
-                                 complete_reservation_confirmation)
+                                 complete_reservation_confirmation,
+                                 record_guest_reservation_confirmed)
         booking_reference = ''
         try:
             subject = trx.subject
@@ -652,6 +653,13 @@ def transition(transaction, actor, action, *, stage=None, remarks='', **extra_fi
             complete_reservation_confirmation(
                 actor, assignment=assignment, session=trx.session,
                 booking_reference=booking_reference)
+            try:
+                subject = trx.subject
+            except Exception:
+                subject = None
+            if subject is not None:
+                record_guest_reservation_confirmed(
+                    subject, session=trx.session, actor=actor)
         elif (action in ('fulfil', 'complete')
                 and to_status == SimulationTransaction.Status.COMPLETED):
             complete_reservation_completion(

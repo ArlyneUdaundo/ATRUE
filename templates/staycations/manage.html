@@ -128,7 +128,7 @@
                 <div class="form-group"><label>Total Guest Capacity</label><input type="number" name="capacity" class="form-input" value="{{ s.capacity }}" min="1"></div>
                 <div class="form-group"><label>Rate per Night (₱)</label><input type="number" name="rate" step="0.01" class="form-input" value="{{ s.rate }}" required></div>
             </div>
-            <div class="form-group"><label>Staycation Photos</label><input type="file" name="photos" class="form-input" accept="image/*" multiple></div>
+            <div class="form-group"><label>Staycation Photos</label><input type="file" name="photos" class="form-input" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple><div class="meta" style="margin-top:6px">JPG, JPEG, or PNG, up to 5 MB each.</div></div>
             {% if s.photos.all %}<div class="form-group"><label>Existing Photos</label><div class="staycation-photo-list">{% for photo in s.photos.all %}<label><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:s.name }}"><span><input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Delete</span></label>{% endfor %}</div></div>{% endif %}
             <div class="form-group"><label>House Rules / Operating Schedule</label><textarea name="house_rules" class="form-input" rows="3">{{ s.house_rules }}</textarea></div>
             <div class="form-group"><label>Status</label><select name="status" class="form-input">{% for value,label in status_choices %}<option value="{{ value }}" {% if s.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>

@@ -989,6 +989,36 @@ body.flight-booking-modal-open { overflow: hidden; }
 .scard:hover::before { opacity: 1; }
 .scard:active { transform: scale(.98); }
 .scard-body { padding: 22px; flex: 1; }
+.establishment-list-card .scard-body:has(> .scard-top) { padding-top: 0; }
+.establishment-list-card .scard-top { position: relative; display: block; margin: 0 -22px 16px; }
+.establishment-list-card .scard-top > .badge { position: absolute; top: 14px; right: 14px; z-index: 3; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
+.establishment-list-card .scard-photo { width: 100%; height: 250px; min-height: 250px; position: relative; overflow: hidden; border-radius: var(--r) var(--r) 0 0; background: #eef2f7; }
+.establishment-list-card .scard-photo > img { display: block; width: 100%; height: 100%; min-height: 250px; object-fit: cover; }
+.establishment-list-card .scard-photo.agoda-gallery, .establishment-list-card .scard-photo.agoda-gallery .agoda-gallery-track,
+.establishment-list-card .scard-photo.agoda-gallery .agoda-gallery-image, .establishment-list-card .scard-photo.agoda-gallery .agoda-gallery-placeholder { min-height: 250px; height: 250px; }
+.hotel-listing-gallery { position:relative; flex:0 0 280px; width:280px; height:200px; overflow:hidden; border-radius:12px; background:#eef2f7; }
+.hotel-listing-gallery .agoda-gallery-track, .hotel-listing-gallery .agoda-gallery-image, .hotel-listing-gallery .agoda-gallery-placeholder { min-height:200px; height:200px; }
+.hotel-listing-gallery .agoda-gallery-image { width:100%; object-fit:cover; }
+.scard-body:has(> .scard-top) { padding-top: 0; }
+.scard-top { position: relative; display: block; margin: 0 -22px 16px; }
+.scard-top > .badge { position: absolute; top: 14px; right: 14px; z-index: 3; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
+.scard-photo { width: 100%; height: 250px; min-height: 250px; position: relative; overflow: hidden; border-radius: var(--r) var(--r) 0 0; background: #eef2f7; }
+.scard-photo > img { display: block; width: 100%; height: 100%; min-height: 250px; object-fit: cover; }
+.scard-photo.agoda-gallery, .scard-photo.agoda-gallery .agoda-gallery-track,
+.scard-photo.agoda-gallery .agoda-gallery-image, .scard-photo.agoda-gallery .agoda-gallery-placeholder { min-height: 250px; height: 250px; }
+.hotel-listing-gallery { position:relative; flex:0 0 280px; width:280px; height:200px; overflow:hidden; border-radius:12px; background:#eef2f7; }
+.hotel-listing-gallery .agoda-gallery-track, .hotel-listing-gallery .agoda-gallery-image, .hotel-listing-gallery .agoda-gallery-placeholder { min-height:200px; height:200px; }
+.hotel-listing-gallery .agoda-gallery-image { width:100%; object-fit:cover; }
+.scard-body:has(> .scard-top) { padding-top: 0; }
+.scard-top { position: relative; display: block; margin: 0 -22px 16px; }
+.scard-top > .badge { position: absolute; top: 14px; right: 14px; z-index: 3; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
+.scard-photo { width: 100%; height: 250px; min-height: 250px; position: relative; overflow: hidden; border-radius: var(--r) var(--r) 0 0; background: #eef2f7; }
+.scard-photo > img { display: block; width: 100%; height: 100%; min-height: 250px; object-fit: cover; }
+.scard-photo.agoda-gallery, .scard-photo.agoda-gallery .agoda-gallery-track,
+.scard-photo.agoda-gallery .agoda-gallery-image, .scard-photo.agoda-gallery .agoda-gallery-placeholder { min-height: 250px; height: 250px; }
+.hotel-listing-gallery { position:relative; flex:0 0 280px; width:280px; height:200px; overflow:hidden; border-radius:12px; background:#eef2f7; }
+.hotel-listing-gallery .agoda-gallery-track, .hotel-listing-gallery .agoda-gallery-image, .hotel-listing-gallery .agoda-gallery-placeholder { min-height:200px; height:200px; }
+.hotel-listing-gallery .agoda-gallery-image { width:100%; object-fit:cover; }
 .scard-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .scard-ico { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; font-size: 20px; transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s; }
 .scard:hover .scard-ico { transform: scale(1.1) rotate(-4deg); box-shadow: 0 8px 20px -6px rgba(37,99,235,.35); }
@@ -2222,3 +2252,19 @@ body.flight-booking-modal-open { overflow: hidden; }
 .tour-package-modal__head h2 { margin:0; font-size:20px; }
 .tour-package-modal__actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--slate-100); }
 @media (max-width:640px) { .tour-package-modal-form { padding:18px; } }
+
+/* Keep the four primary navbar icons optically aligned in the same 20px box. */
+.top-nav .nav-link > .nav-icon {
+    display: inline-flex;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 18px;
+    line-height: 1;
+    color: #2563EB;
+}
+.top-nav .nav-link.nav-my-roles.active > .nav-icon {
+    color: #fff;
+}

@@ -98,10 +98,10 @@
                 <td class="col-activity"><span class="meta" style="display:block">{{ row.log.action }}</span></td>
                 <td class="col-details"><span class="meta" style="display:block">{{ row.log.details|default:"—" }}</span></td>
                 <td class="col-status">
-                    {% if row.status != '—' %}
-                    <span class="badge {% if row.status == 'Active' %}badge-blue{% else %}badge-gray{% endif %}">{{ row.status }}</span>
+                    {% if row.status != '-' %}
+                    <span class="badge {% if row.status == 'In Progress' %}badge-blue{% elif row.status == 'Completed' %}badge-green{% else %}badge-gray{% endif %}">{{ row.status }}</span>
                     {% else %}
-                    —
+                    -
                     {% endif %}
                 </td>
             </tr>

@@ -105,21 +105,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- Active nav link -----
     const sections = document.querySelectorAll('section[id]');
-    const navLinks = document.querySelectorAll('.nav-link');
+    const navLinks = Array.from(document.querySelectorAll('.nav-link'));
+    const hashNavLinks = navLinks.filter(l => (l.getAttribute('href') || '').indexOf('#') === 0);
+    const homeNavLink = document.querySelector('[data-nav-home]');
+    // Only run the landing-page scrollspy when anchor sections exist, so
+    // server-rendered active states on other pages are not cleared on scroll.
+    if (sections.length) {
     window.addEventListener('scroll', () => {
         let cur = '';
         sections.forEach(s => {
             if (window.scrollY >= s.offsetTop - 140) cur = s.getAttribute('id');
         });
-        navLinks.forEach(l => {
-            const href = l.getAttribute('href') || '';
-            l.classList.toggle('active', href === '#' + cur);
+        hashNavLinks.forEach(l => {
+            l.classList.toggle('active', l.getAttribute('href') === '#' + cur);
         });
-        // home stays active when at top
-        if (window.scrollY < 100) {
-            navLinks.forEach(l => l.classList.toggle('active', (l.getAttribute('href') || '').length <= 6 && (l.getAttribute('href')||'').includes('home')));
-        }
+        if (homeNavLink) homeNavLink.classList.toggle('active', window.scrollY < 100);
     }, { passive: true });
+    }
 
     // ----- Smooth scroll for anchors -----
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {

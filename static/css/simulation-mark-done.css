@@ -1,0 +1,51 @@
+.mark-done-modal {
+    width: min(440px, calc(100% - 32px));
+    max-width: 440px;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 18px;
+    color: #0f172a;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+}
+.mark-done-modal::backdrop { background: rgba(15, 23, 42, .55); }
+.mark-done-modal__panel { position: relative; padding: 32px; text-align: center; }
+.mark-done-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    color: #64748b;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+}
+.mark-done-modal__close:hover { color: #0f172a; background: #f1f5f9; }
+.mark-done-modal__icon {
+    display: grid;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    place-items: center;
+    border-radius: 50%;
+    color: #2563eb;
+    background: #eff6ff;
+    font-size: 26px;
+}
+.mark-done-modal h2 { margin: 0 0 9px; font-size: 22px; font-weight: 800; }
+.mark-done-modal__panel > p:not(.mark-done-modal__error) { margin: 0; color: #475569; font-size: 14px; line-height: 1.55; }
+.mark-done-modal__error { margin: 12px 0 0; color: #b91c1c; font-size: 13px; }
+.mark-done-modal__actions { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
+.mark-done-modal__actions button { min-width: 130px; }
+@media (max-width: 480px) {
+    .mark-done-modal__panel { padding: 28px 20px 22px; }
+    .mark-done-modal__actions { flex-direction: column-reverse; }
+    .mark-done-modal__actions button { width: 100%; }
+}

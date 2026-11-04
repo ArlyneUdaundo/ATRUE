@@ -4,86 +4,82 @@
 
 {% block extra_css %}
 <style>
-    .booking-search-form .booking-search-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        align-items: end;
-        gap: 12px;
-    }
-    .booking-search-form .booking-search-grid .form-group { margin-bottom: 0; }
-    .booking-search-form .booking-search-submit {
-        justify-self: start;
-        margin-bottom: 0;
-    }
-    @media (max-width: 640px) {
-        .booking-search-form .booking-search-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
+    .air-bookings-page{--ab-line:#e5eaf1;--ab-muted:#64748b;--ab-ink:#172b4d;--ab-blue:#1b4dff}
+    .air-bookings-page .page-head{margin-bottom:20px}
+    .air-bookings-page .booking-search-form{margin-bottom:16px;border:1px solid var(--ab-line);border-radius:12px}
+    .air-bookings-page .booking-search-grid{display:grid;grid-template-columns:minmax(210px,1.5fr) repeat(3,minmax(145px,1fr));align-items:end;gap:14px}
+    .air-bookings-page .booking-search-grid .form-group{min-width:0;margin:0}
+    .air-bookings-page .booking-search-grid .form-input{width:100%;min-width:0}
+    .air-bookings-page .booking-filter-actions{grid-column:1/-1;display:flex;align-items:center;gap:9px;padding-top:2px}
+    .air-bookings-page .booking-filter-reset{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 13px;border:1px solid var(--ab-line);border-radius:8px;color:#475569;text-decoration:none;font-size:12px;font-weight:650;background:#fff}
+    .air-bookings-page .booking-filter-reset:hover{background:#f8fafc;border-color:#cbd5e1}
+    .air-bookings-page .booking-table-card{overflow:hidden;border:1px solid var(--ab-line);border-radius:12px;background:#fff}
+    .air-bookings-page .booking-table-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--ab-line)}
+    .air-bookings-page .booking-table-heading h2{margin:0;color:var(--ab-ink);font-size:15px;font-weight:750}
+    .air-bookings-page .booking-table-heading p{margin:4px 0 0;color:var(--ab-muted);font-size:12px}
+    .air-bookings-page .booking-count{flex:0 0 auto;padding:6px 10px;border-radius:20px;background:#eff6ff;color:#1e40af;font-size:11px;font-weight:700}
+    .air-bookings-page .table-wrap{overflow-x:auto}
+    .air-bookings-page .table{min-width:1080px;border-collapse:separate;border-spacing:0}
+    .air-bookings-page .table th{padding:12px 14px;color:#64748b;background:#f8fafc;font-size:10px;letter-spacing:.055em;white-space:nowrap}
+    .air-bookings-page .table td{padding:13px 14px;border-bottom:1px solid #edf1f5;color:#334155;font-size:12px;white-space:nowrap}
+    .air-bookings-page .table tbody tr:last-child td{border-bottom:0}
+    .air-bookings-page .table tbody tr:hover td{background:#f8fbff}
+    .air-bookings-page .booking-ref{color:#1d4ed8;font-weight:750}
+    .air-bookings-page .booking-passenger{font-weight:650;color:#1e293b}
+    .air-bookings-page .booking-flight{font-weight:700;color:#1e3a8a}
+    .air-bookings-page .booking-route{color:#475569}
+    .air-bookings-page .booking-view{min-width:58px;text-align:center}
+    .air-bookings-page .booking-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-top:1px solid var(--ab-line);color:var(--ab-muted);font-size:11px}
+    .air-bookings-page .booking-pagination__controls{display:flex;align-items:center;gap:5px}
+    .air-bookings-page .booking-pagination__controls a,.air-bookings-page .booking-pagination__controls span{min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;padding:0 8px;border:1px solid var(--ab-line);border-radius:7px;background:#fff;color:#475569;text-decoration:none;font-weight:650}
+    .air-bookings-page .booking-pagination__controls .is-current{border-color:var(--ab-blue);background:var(--ab-blue);color:#fff}
+    .air-bookings-page .booking-pagination__controls .is-disabled{color:#a0acbb;background:#f8fafc}
+    @media(max-width:1000px){.air-bookings-page .booking-search-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:640px){.air-bookings-page .booking-search-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.air-bookings-page .booking-search-grid .booking-search-wide{grid-column:1/-1}.air-bookings-page .booking-filter-actions{grid-column:1/-1}.air-bookings-page .booking-table-heading{padding:14px}.air-bookings-page .booking-pagination{align-items:flex-start;flex-direction:column}.air-bookings-page .booking-pagination__controls{flex-wrap:wrap}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>Flight Bookings</h1><p>Search and manage flight bookings.</p></div></div>
+<div class="air-bookings-page">
+    <div class="page-head"><div><h1>Flight Bookings</h1><p>Search and manage flight bookings.</p></div></div>
 
-<form method="get" class="card card-pad booking-search-form" style="margin-bottom:18px">
-    <div class="form-grid booking-search-grid">
-        <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Reference, passenger or flight"></div>
-        <div class="form-group">
-            <label>Status</label>
-            <select name="status" class="form-input">
-                <option value="">All statuses</option>
-                <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option>
-                <option value="CONFIRMED" {% if status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
-                <option value="CHECKED_IN" {% if status == 'CHECKED_IN' %}selected{% endif %}>Checked-In</option>
-                <option value="CHECKED_OUT" {% if status == 'CHECKED_OUT' %}selected{% endif %}>Travelled</option>
-                <option value="MODIFIED" {% if status == 'MODIFIED' %}selected{% endif %}>Modified</option>
-                <option value="DECLINED" {% if status == 'DECLINED' %}selected{% endif %}>Declined</option>
-                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
-            </select>
+    <form method="get" class="card card-pad booking-search-form">
+        <div class="booking-search-grid">
+            <div class="form-group booking-search-wide"><label for="booking-q">Search</label><input id="booking-q" type="text" name="q" class="form-input" value="{{ q }}" placeholder="Reference, passenger or flight"></div>
+            <div class="form-group"><label for="booking-status">Status</label><select id="booking-status" name="status" class="form-input">
+                <option value="">All statuses</option><option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option><option value="CONFIRMED" {% if status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option><option value="CHECKED_IN" {% if status == 'CHECKED_IN' %}selected{% endif %}>Checked-In</option><option value="CHECKED_OUT" {% if status == 'CHECKED_OUT' %}selected{% endif %}>Travelled</option><option value="MODIFIED" {% if status == 'MODIFIED' %}selected{% endif %}>Modified</option><option value="DECLINED" {% if status == 'DECLINED' %}selected{% endif %}>Declined</option><option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+            </select></div>
+            <div class="form-group"><label for="booking-trip-type">Trip Type</label><select id="booking-trip-type" name="trip_type" class="form-input"><option value="">All trip types</option>{% for value, label in trip_type_choices %}<option value="{{ value }}" {% if trip_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label for="booking-flight">Flight</label><select id="booking-flight" name="flight" class="form-input"><option value="">All flights</option>{% for f in flights %}<option value="{{ f.id }}" {% if flight == f.id|stringformat:'s' %}selected{% endif %}>{{ f.flight_number }} · {{ f.origin }}-{{ f.destination }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label for="booking-date-from">From</label><input id="booking-date-from" type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
+            <div class="form-group"><label for="booking-date-to">To</label><input id="booking-date-to" type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
+            <div class="booking-filter-actions"><button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Search</button><a class="booking-filter-reset" href="{% url 'airlines:bookings' %}"><i class="fas fa-rotate-left"></i> Reset</a></div>
         </div>
-        <div class="form-group">
-            <label>Trip Type</label>
-            <select name="trip_type" class="form-input">
-                <option value="">All trip types</option>
-                {% for value, label in trip_type_choices %}<option value="{{ value }}" {% if trip_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Flight</label>
-            <select name="flight" class="form-input">
-                <option value="">All flights</option>
-                {% for f in flights %}<option value="{{ f.id }}" {% if flight == f.id|stringformat:'s' %}selected{% endif %}>{{ f.flight_number }} · {{ f.origin }}-{{ f.destination }}</option>{% endfor %}
-            </select>
-        </div>
-        <div class="form-group"><label>From</label><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
-        <div class="form-group"><label>To</label><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
-        <button type="submit" class="btn btn-brand btn-sm booking-search-submit"><i class="fas fa-search"></i> Filter</button>
-    </div>
-</form>
+    </form>
 
-<div class="card">
-    <div class="table-wrap">
-        <table class="table">
-            <thead><tr><th>Reference</th><th>Passenger</th><th>Flight</th><th>Route</th><th>Trip Type</th><th>Departure</th><th>Pax</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+    <section class="booking-table-card" aria-labelledby="air-bookings-title">
+        <div class="booking-table-heading"><div><h2 id="air-bookings-title">Booking Records</h2><p>Airline reservations and current status</p></div><span class="booking-count">{{ bookings_page.paginator.count }} total</span></div>
+        <div class="table-wrap"><table class="table">
+            <thead><tr><th>Booking Reference</th><th>Passenger</th><th>Flight</th><th>Route</th><th>Trip Type</th><th>Departure</th><th>Passengers</th><th>Total Bill</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
-                {% for b in bookings %}
-                <tr>
-                    <td class="mono">{{ b.booking_reference }}</td>
-                    <td>{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td>
-                    <td>{{ b.flight.flight_number }}</td>
-                    <td>{{ b.flight.origin }} → {{ b.flight.destination }}</td>
-                    <td><span class="badge {% if b.trip_type == 'ROUND_TRIP' %}badge-blue{% else %}badge-gray{% endif %}" style="font-size:11px">{{ b.get_trip_type_display }}</span>{% if b.return_date %}<div class="meta" style="font-size:11px">Ret: {{ b.return_date|date:"M d, Y" }}</div>{% endif %}</td>
-                    <td>{{ b.flight.departure_time|date:"M d, H:i" }}</td>
-                    <td>{{ b.passengers_count }}</td>
-                    <td>₱ {{ b.total_bill }}</td>
+                {% for b in bookings %}<tr>
+                    <td class="mono booking-ref">{{ b.booking_reference }}</td><td class="booking-passenger">{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td><td class="booking-flight">{{ b.flight.flight_number }}</td><td class="booking-route">{{ b.flight.origin }} <i class="fas fa-arrow-right" aria-hidden="true"></i> {{ b.flight.destination }}</td>
+                    <td><span class="badge {% if b.trip_type == 'ROUND_TRIP' %}badge-blue{% else %}badge-gray{% endif %}">{{ b.get_trip_type_display }}</span>{% if b.return_date %}<div class="meta" style="font-size:11px">Return: {{ b.return_date|date:"M d, Y" }}</div>{% endif %}</td>
+                    <td>{{ b.flight.departure_time|date:"M d, Y · H:i" }}</td><td>{{ b.passengers_count }}</td><td>₱ {{ b.total_bill }}</td>
                     <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' or b.status == 'DECLINED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% elif b.status == 'CHECKED_OUT' %}badge-green{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
-                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="10"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings</h3></div></td></tr>
-                {% endfor %}
+                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm booking-view">View</a></td>
+                </tr>{% empty %}<tr><td colspan="10"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings found</h3><p>Try adjusting your search or filters.</p></div></td></tr>{% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+        {% if bookings_page.paginator.count %}
+        <nav class="booking-pagination" aria-label="Booking pages">
+            <span>Showing {{ bookings_page.start_index }}–{{ bookings_page.end_index }} of {{ bookings_page.paginator.count }}</span>
+            <div class="booking-pagination__controls">
+                {% if bookings_page.has_previous %}<a aria-label="Previous page" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ bookings_page.previous_page_number }}"><i class="fas fa-chevron-left"></i></a>{% else %}<span class="is-disabled" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>{% endif %}
+                {% for page_number in bookings_page.paginator.page_range %}{% if page_number == bookings_page.number %}<span class="is-current" aria-current="page">{{ page_number }}</span>{% elif page_number >= bookings_page.number|add:'-2' and page_number <= bookings_page.number|add:'2' %}<a href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page_number }}">{{ page_number }}</a>{% endif %}{% endfor %}
+                {% if bookings_page.has_next %}<a aria-label="Next page" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ bookings_page.next_page_number }}"><i class="fas fa-chevron-right"></i></a>{% else %}<span class="is-disabled" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>{% endif %}
+            </div>
+        </nav>{% endif %}
+    </section>
 </div>
 {% endblock %}

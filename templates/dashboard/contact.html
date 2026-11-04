@@ -1,0 +1,24 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Contact{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Contact</h1>
+        <p>Get in touch with the team.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-pad">
+        <h2 style="margin-top:0">Contact Information</h2>
+        <div style="display:grid;gap:12px;max-width:520px">
+            <div style="display:flex;gap:12px;align-items:center"><i class="fas fa-map-marker-alt" style="color:#2563eb"></i><div><strong>Address</strong><br>Saint Joseph College of Baggao, Baggao, Cagayan, Philippines</div></div>
+            <div style="display:flex;gap:12px;align-items:center"><i class="fas fa-envelope" style="color:#2563eb"></i><div><strong>Email</strong><br>info@atrue.ph</div></div>
+            <div style="display:flex;gap:12px;align-items:center"><i class="fas fa-phone" style="color:#2563eb"></i><div><strong>Phone</strong><br>+63 (000) 000-0000</div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

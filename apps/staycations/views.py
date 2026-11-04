@@ -4,7 +4,7 @@ from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import JsonResponse
@@ -12,7 +12,7 @@ from django.utils import timezone
 from accounts.roles import can_create_establishment
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
@@ -43,8 +43,11 @@ def _parse_date(value, fallback):
 
 
 def staycation_list(request):
-    staycations = Staycation.objects.prefetch_related('services', 'blocked_dates', 'photos').filter(status=Staycation.Status.ACTIVE)
-    staycations = [s for s in staycations if resource_is_bookable(s)]
+    staycations = Staycation.objects.prefetch_related('services', 'blocked_dates', 'photos')
+    is_platform_manager = request.user.is_authenticated and request.user.is_platform_manager
+    if not is_platform_manager:
+        staycations = staycations.filter(status=Staycation.Status.ACTIVE)
+        staycations = [s for s in staycations if resource_is_bookable(s)]
     return render_search_page(request, 'staycation', staycations)
 
 
@@ -91,6 +94,11 @@ def manage(request):
 @staycation_scope.decorator()
 def add_staycation(request):
     if request.method == 'POST':
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'staycations/form.html', {'staycation': None}, status=400)
         staycation = Staycation.objects.create(
             name=request.POST.get('name'),
             country=request.POST.get('country', ''),
@@ -106,7 +114,6 @@ def add_staycation(request):
             rate=request.POST.get('rate') or 0,
             status=request.POST.get('status', Staycation.Status.ACTIVE),
         )
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for index, image in enumerate(photos):
             StaycationPhoto.objects.create(staycation=staycation, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created staycation",
@@ -121,6 +128,16 @@ def add_staycation(request):
 def update_staycation(request, staycation_id):
     staycation = get_object_or_404(Staycation, pk=staycation_id)
     if request.method == 'POST':
+        delete_ids = request.POST.getlist('delete_photos')
+        delete_count = staycation.photos.filter(pk__in=delete_ids).count()
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'), existing_count=staycation.photos.count(), delete_count=delete_count)
+        except ValidationError as exc:
+            message = ' '.join(exc.messages)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'ok': False, 'error': message}, status=400)
+            messages.error(request, message)
+            return render(request, 'staycations/form.html', {'staycation': staycation}, status=400)
         for field in ('name', 'country', 'province', 'municipality', 'barangay', 'contact_number', 'email',
                       'house_rules', 'rate', 'status'):
             setattr(staycation, field, request.POST.get(field) or getattr(staycation, field))
@@ -130,7 +147,6 @@ def update_staycation(request, staycation_id):
             except (TypeError, ValueError):
                 pass
         staycation.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
             StaycationPhoto.objects.create(staycation=staycation, image=image, is_primary=not staycation.photos.exists())
         for photo in staycation.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -187,7 +203,7 @@ def delete_staycation(request, staycation_id):
 
 
 def staycation_detail(request, staycation_id):
-    """FR-003 VIEW Staycation – full detail profile (capacity, services, house rules)."""
+    """FR-003 VIEW Staycation â€“ full detail profile (capacity, services, house rules)."""
     staycation = get_object_by_slug_or_404(
         Staycation.objects.prefetch_related('services', 'blocked_dates', 'photos'),
         staycation_id,
@@ -243,7 +259,7 @@ def update_service(request, service_id):
 @manager_required
 @staycation_scope.decorator()
 def services(request):
-    """FR-002 Retrieve the Service of the Staycation – search by name, status, establishment."""
+    """FR-002 Retrieve the Service of the Staycation â€“ search by name, status, establishment."""
     qs = Service.objects.select_related('staycation').all()
     qs = staycation_scope.scope_qs(request, qs, field='staycation_id')
     q = (request.GET.get('q') or '').strip()
@@ -266,7 +282,7 @@ def services(request):
 
 @login_required
 def service_detail(request, service_id):
-    """FR-003/FR-004 View the Services of the Staycation – full details (active for customers)."""
+    """FR-003/FR-004 View the Services of the Staycation â€“ full details (active for customers)."""
     service = get_object_or_404(Service.objects.select_related('staycation'), pk=service_id)
     is_manager = request.user.is_staff or request.user.account_type in ('ADMIN', 'INSTRUCTOR')
     if service.status != Service.ServiceStatus.ACTIVE and not is_manager:
@@ -424,6 +440,9 @@ def book_staycation(request, staycation_id):
         reservation.total_bill = total
         reservation.save(update_fields=['total_bill'])
 
+        from notifications.services import notify_service_booking
+        notify_service_booking(reservation, 'submitted', request.user)
+
         if request.POST.get('book_and_add') == '1':
             try:
                 add_establishment_booking(request, reservation)
@@ -556,10 +575,15 @@ def booking_detail(request, booking_id):
             if not reservation_officer:
                 raise PermissionDenied('Only the Staycation Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
+            if booking.status == Reservation.Status.CONFIRMED:
+                from notifications.services import notify_service_booking
+                notify_service_booking(booking, 'confirmed', request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             decline_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'rejected', request.user)
         elif action == 'checkin' or action == 'self_checkin':
             booking.status = Reservation.Status.CHECKED_IN
             booking.checked_in_at = timezone.now()
@@ -571,6 +595,9 @@ def booking_detail(request, booking_id):
             booking.status = Reservation.Status.CHECKED_OUT
             booking.checked_out_at = timezone.now()
             booking.save(update_fields=['status', 'checked_out_at'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Guest checked out" + (" (self)" if action == 'self_checkout' else ""),
                          booking.booking_reference)
             messages.success(request, "Checked out." if action == 'self_checkout' else "Guest checked out.")
@@ -582,8 +609,12 @@ def booking_detail(request, booking_id):
             booking.special_requests = request.POST.get('special_requests', booking.special_requests)
             booking.status = Reservation.Status.MODIFIED
             booking.save()
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'updated', request.user)
         elif action == 'cancel':
             cancel_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'cancelled', request.user)
         elif action == 'pay':
             record_payment(
                 customer=request.user if request.user == booking.customer else booking.customer,

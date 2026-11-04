@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Landmarks &amp; Tourist Spots</h2>
+        <h1>Landmarks &amp; Tourist Spots</h1>
         <p>Destinations across the region · Buy entry tickets ahead of time</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -17,10 +17,10 @@
 <h3 style="margin-bottom:14px;font-size:17px;font-weight:800"><i class="fas fa-hiking" style="color:var(--indigo)"></i> Tourist Spots</h3>
 <div class="cards">
     {% for t in tourist_spots %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo">{% with photo=t.photos.all|first %}{% if photo %}<img src="{{ photo.image.url }}" alt="{{ t.name }}" loading="lazy">{% else %}<img src="{% static 'img/landmark-placeholder.svg' %}" alt="{{ t.name }}" loading="lazy">{% endif %}{% endwith %}</div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in t.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ t.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<img class="agoda-gallery-image is-active" src="{% static 'img/landmark-placeholder.svg' %}" alt="{{ t.name }}" loading="lazy">{% endfor %}</div>{% if t.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge {% if t.status == 'ACTIVE' %}badge-green{% else %}badge-gray{% endif %}">{{ t.get_status_display }}</span>
             </div>
             <h3>{{ t.name }}</h3>
@@ -44,10 +44,10 @@
 <h3 style="margin-bottom:14px;font-size:17px;font-weight:800"><i class="fas fa-landmark" style="color:var(--indigo)"></i> Landmarks</h3>
 <div class="cards">
     {% for l in landmarks %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo">{% with photo=l.photos.all|first %}{% if photo %}<img src="{{ photo.image.url }}" alt="{{ l.name }}" loading="lazy">{% else %}<img src="{% static 'img/landmark-placeholder.svg' %}" alt="{{ l.name }}" loading="lazy">{% endif %}{% endwith %}</div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in l.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ l.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<img class="agoda-gallery-image is-active" src="{% static 'img/landmark-placeholder.svg' %}" alt="{{ l.name }}" loading="lazy">{% endfor %}</div>{% if l.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge {% if l.status == 'ACTIVE' %}badge-green{% else %}badge-gray{% endif %}">{{ l.get_status_display }}</span>
             </div>
             <h3>{{ l.name }}</h3>

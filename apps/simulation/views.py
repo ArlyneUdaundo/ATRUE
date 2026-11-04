@@ -5,7 +5,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Prefetch, Q
-from django.http import HttpResponseForbidden, JsonResponse
+from django.db import transaction
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,7 +17,8 @@ from atrue_core.decorators import manager_required
 from atrue_core.services import is_manager, log_activity
 
 from .models import (
-    ActivityLog, BILLING_OFFICER_ROLE_CODES, Role, SimulationRoleAssignment,
+    ActivityLog, BILLING_OFFICER_ROLE_CODES, Role, SimulationAssignmentTaskCompletion,
+    SimulationRoleAssignment,
     SimulationSession,
 )
 from .role_catalogue import (
@@ -29,9 +31,21 @@ from .role_catalogue import (
 from .task_routing import (
     TASK_ASSIGNMENT_SESSION_KEY,
     GUEST_MODULES,
+    GUEST_ROLE_ALIASES,
     operation_with_urls,
     task_operation_for,
+    assignment_tasks_for,
 )
+
+
+def _notify_assignment(assignment, actor, *, modified=False):
+    from notifications.services import notify_role_assignment
+    notify_role_assignment(assignment, actor, modified=modified)
+
+
+def _notify_assignment_ended(assignment, actor):
+    from notifications.services import notify_role_assignment
+    notify_role_assignment(assignment, actor, removed=True)
 
 
 def _is_instructor(user):
@@ -66,12 +80,30 @@ def do_task(request, assignment_id):
     request.session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
     operation = operation_with_urls(assignment, operation)
 
-    log_activity(
-        request.user, "Started simulation task",
-        f"{assignment.get_role_display()} at "
-        f"{assignment.establishment.name if assignment.establishment_id else assignment.hotel.name if assignment.hotel_id else 'n/a'}",
-        session=assignment.session,
-    )
+    # Starting is idempotent across refreshes and concurrent opens. The
+    # assignment timestamp is the durable state; the linked ActivityLog is its
+    # history entry.
+    with transaction.atomic():
+        assignment = get_object_or_404(
+            SimulationRoleAssignment.objects.select_for_update(of=('self',)).select_related(
+                'hotel', 'establishment', 'role_ref', 'session'),
+            pk=assignment.pk,
+            student=request.user,
+            status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+        )
+        if assignment.started_at is None:
+            assignment.started_at = timezone.now()
+            assignment.save(update_fields=['started_at'])
+            place = (assignment.establishment.name if assignment.establishment_id
+                     else assignment.hotel.name if assignment.hotel_id else 'n/a')
+            log_activity(
+                request.user, "Started simulation task",
+                f"Started {assignment.get_role_display()} at {place}.",
+                session=assignment.session,
+                establishment=assignment.establishment,
+                role=assignment.role,
+                role_assignment=assignment,
+            )
     return render(request, 'simulation/task_operations.html', {
         'assignment': assignment,
         'operation': operation,
@@ -82,12 +114,37 @@ def do_task(request, assignment_id):
 def workspace(request):
     is_instructor = _is_instructor(request.user)
     modal_context = {}
+    summary = {}
+    q = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    sort = request.GET.get('sort', 'newest').strip()
 
     if is_instructor:
         roles = SimulationRoleAssignment.objects.select_related(
             'student', 'assigned_by', 'session', 'hotel',
         ).all()
-        sessions = list(SimulationSession.objects.prefetch_related(Prefetch(
+        base_sessions = SimulationSession.objects.all()
+        summary = _session_summary(base_sessions)
+        sessions_qs = base_sessions
+        if q:
+            sessions_qs = sessions_qs.filter(
+                Q(name__icontains=q)
+                | Q(session_id__icontains=q)
+                | Q(description__icontains=q)
+                | Q(instructor__first_name__icontains=q)
+                | Q(instructor__last_name__icontains=q)
+                | Q(instructor__username__icontains=q)
+            )
+        if status_filter in SimulationSession.Status.values:
+            sessions_qs = sessions_qs.filter(status=status_filter)
+        if sort == 'oldest':
+            sessions_qs = sessions_qs.order_by('created_at', 'pk')
+        elif sort == 'session_date':
+            sessions_qs = sessions_qs.order_by('start_date', 'created_at', 'pk')
+        else:
+            sort = 'newest'
+            sessions_qs = sessions_qs.order_by('-created_at', '-pk')
+        sessions = list(sessions_qs.prefetch_related(Prefetch(
             'assignments',
             queryset=SimulationRoleAssignment.objects.select_related(
                 'student', 'assigned_by', 'hotel', 'role_ref',
@@ -131,6 +188,11 @@ def workspace(request):
         'sessions': sessions,
         'is_instructor': is_instructor,
         'can_manage_all_sessions': is_manager(request.user),
+        'summary': summary,
+        'status_choices': SimulationSession.Status.choices,
+        'q': q,
+        'status_filter': status_filter,
+        'sort': sort or 'newest',
         **modal_context,
     })
 
@@ -250,6 +312,29 @@ def update_session(request, session_id):
                 'status_values': SimulationSession.Status.values,
             })
         log_activity(request.user, 'Updated simulation session', session.name, session=session)
+        if previous_status != session.status:
+            from notifications.models import Notification
+            from notifications.services import notify_many
+
+            if session.status == SimulationSession.Status.ACTIVE:
+                notice_type = Notification.Type.SESSION_ACTIVATED
+                title = 'Session opened'
+            elif session.status == SimulationSession.Status.COMPLETED:
+                notice_type = Notification.Type.SESSION_COMPLETED
+                title = 'Session completed'
+            else:
+                notice_type = Notification.Type.GENERAL
+                title = 'Session status updated'
+            notify_many(
+                session.participants().exclude(pk=session.instructor_id),
+                notice_type,
+                f'Session {session.name} ({session.session_id}) is now '
+                f'{session.get_status_display()}.',
+                title=title,
+                session=session,
+                actor=request.user,
+                related_object=session,
+            )
         messages.success(request, f'{session.name} updated.')
         return redirect('simulation:workspace')
 
@@ -450,6 +535,50 @@ def _initials(student):
     return initials.upper()
 
 
+def _session_summary(sessions):
+    """Actual counts for the dashboard cards, before any list filtering."""
+    return {
+        'total_sessions': sessions.count(),
+        'active_sessions': sessions.filter(
+            status=SimulationSession.Status.ACTIVE).count(),
+        'draft_sessions': sessions.filter(
+            status=SimulationSession.Status.DRAFT).count(),
+        'total_students': (
+            SimulationRoleAssignment.objects
+            .filter(session__in=sessions)
+            .values('student_id').distinct().count()
+        ),
+    }
+
+
+def _session_schedule_label(session, assignments):
+    """Session dates plus the real clock range of its assignments, if any."""
+    start, end = session.start_date, session.end_date
+    if start and end:
+        if start == end:
+            date_label = f"{start:%b} {start.day}, {start.year}"
+        else:
+            date_label = (f"{start:%b} {start.day}, {start.year} – "
+                          f"{end:%b} {end.day}, {end.year}")
+    elif start:
+        date_label = f"{start:%b} {start.day}, {start.year}"
+    elif end:
+        date_label = f"Ends {end:%b} {end.day}, {end.year}"
+    else:
+        date_label = ''
+    starts = [a.start_time for a in assignments if a.start_time]
+    ends = [a.end_time for a in assignments if a.end_time]
+    time_label = ''
+    if starts and ends:
+        time_label = (f"{min(starts):%I:%M %p}".lstrip('0') + ' – '
+                      + f"{max(ends):%I:%M %p}".lstrip('0'))
+    elif starts:
+        time_label = 'From ' + f"{min(starts):%I:%M %p}".lstrip('0')
+    elif ends:
+        time_label = 'Until ' + f"{max(ends):%I:%M %p}".lstrip('0')
+    return ' · '.join(part for part in (date_label, time_label) if part) or 'Schedule not set'
+
+
 def _attach_session_student_rows(sessions, students):
     """Give every session a row per student for the expandable class list.
 
@@ -464,17 +593,20 @@ def _attach_session_student_rows(sessions, students):
     students = list(students)
     by_session = {}
     counts = {}
+    session_assignments = {}
     if sessions:
         assignments = (
             SimulationRoleAssignment.objects
             .filter(session__in=sessions)
             .select_related('establishment', 'hotel', 'role_ref')
+            .prefetch_related('task_completions')
             .order_by('assigned_at', 'pk')
         )
         priority = {'ACTIVE': 3, 'DONE': 2, 'INACTIVE': 1}
         for assignment in assignments:
             key = (assignment.session_id, assignment.student_id)
             counts[key] = counts.get(key, 0) + 1
+            session_assignments.setdefault(assignment.session_id, []).append(assignment)
             current = by_session.setdefault(assignment.session_id, {}).get(assignment.student_id)
             if (current is None
                     or priority.get(assignment.status, 0)
@@ -482,10 +614,26 @@ def _attach_session_student_rows(sessions, students):
                 by_session[assignment.session_id][assignment.student_id] = assignment
     for session in sessions:
         bucket = by_session.get(session.pk, {})
+        session_assignments_for_card = session_assignments.get(session.pk, [])
+        assigned_students = {
+            assignment.student_id for assignment in session_assignments_for_card}
+        completed_students = {
+            assignment.student_id for assignment in session_assignments_for_card
+            if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE}
+        session.assigned_student_count = len(assigned_students)
+        session.completed_student_count = len(completed_students)
+        session.has_assigned_students = bool(assigned_students)
+        session.student_progress_percent = (
+            round(len(completed_students) * 100 / len(assigned_students))
+            if assigned_students else None)
+        session.status_class = session.status.lower()
+        session.schedule_label = _session_schedule_label(
+            session, session_assignments_for_card)
         session.student_rows = [
             {
                 'student': student,
                 'assignment': bucket.get(student.pk),
+                'progress': assignment_progress_data(bucket.get(student.pk)),
                 'count': counts.get((session.pk, student.pk), 0),
                 'initials': _initials(student),
                 'display_name': _student_display_name(student),
@@ -495,6 +643,203 @@ def _attach_session_student_rows(sessions, students):
         ]
         session.student_count = len(students)
     return sessions
+
+
+_TASK_STATE_LABELS = {
+    'completed': 'Completed',
+    'in_progress': 'In Progress',
+    'awaiting': 'Awaiting Confirmation',
+    'pending': 'Pending',
+    'pending_verification': 'Pending verification',
+    'untracked': 'Not tracked',
+}
+
+
+_BOOKING_MODELS = {
+    'HOTEL': ('hotels', 'Booking', 'customer'),
+    'RESORT': ('resorts', 'Reservation', 'customer'),
+    'RESTAURANT': ('restaurants', 'Reservation', 'customer'),
+    'STAYCATION': ('staycations', 'Reservation', 'customer'),
+    'LANDMARK': ('landmarks', 'Ticket', 'customer'),
+    'AIRLINE': ('airlines', 'Booking', 'passenger'),
+    'TRANSPORTATION': ('transportation', 'Booking', 'customer'),
+    'ACTIVITY': ('activities', 'Booking', 'customer'),
+    'TOUR_PACKAGE': ('tour_package', 'Booking', 'customer'),
+}
+
+
+def _booking_model(establishment_type):
+    from django.apps import apps
+
+    spec = _BOOKING_MODELS.get(establishment_type)
+    if spec is None:
+        return None, None
+    app_label, model_name, customer_field = spec
+    return apps.get_model(app_label, model_name), customer_field
+
+
+def _assignment_booking_type(assignment):
+    if assignment.establishment_type:
+        return assignment.establishment_type
+    if assignment.role_ref_id and assignment.role_ref.establishment_type:
+        return assignment.role_ref.establishment_type
+    guest = GUEST_MODULES.get(
+        GUEST_ROLE_ALIASES.get(assignment.role, assignment.role))
+    return guest['establishment_type'] if guest else None
+
+
+def _booking_for_assignment(assignment, completions):
+    """Return only a booking explicitly linked to this assignment's events."""
+    booking_type = _assignment_booking_type(assignment)
+    model, _customer_field = _booking_model(booking_type)
+    if model is None:
+        return None
+    references = [
+        completion.booking_reference
+        for completion in completions.values()
+        if completion.booking_reference
+    ]
+    if references:
+        booking = (
+            model._default_manager.filter(booking_reference__in=references)
+            .order_by('-pk')
+            .first()
+        )
+        if booking is not None:
+            return booking
+    # Never infer from a student's latest booking. Concurrent sessions and
+    # ordinary bookings must not leak state into this assignment's checklist.
+    return None
+
+
+def _booking_awaiting_payment(booking):
+    """Whether a submitted payment is still waiting for verification."""
+    if booking is None:
+        return False
+    from atrue_core.services import bill_for_booking
+    from transactions.models import Bill, Payment
+
+    bill = bill_for_booking(booking)
+    if bill is None:
+        return False
+    if bill.payments.filter(status=Payment.Status.PENDING).exists():
+        return True
+    return bill.status == Bill.Status.FULLY_PAID and not bill.verified_at
+
+
+def _guest_task_state(task, completion, booking, awaiting_payment):
+    """Derive one guest task state from verified events and booking data."""
+    if completion is not None:
+        return 'completed'
+    key = task['key']
+    if key.endswith('payment_verification'):
+        return 'awaiting' if awaiting_payment else 'pending'
+    if key.endswith('reservation_confirmation') and booking is not None:
+        if getattr(booking, 'status', '') == 'CONFIRMED':
+            return 'completed'
+    return 'pending'
+
+
+def assignment_progress_data(assignment):
+    """Build verified task progress scoped to one role assignment."""
+    if assignment is None:
+        return {
+            'has_assignment': False, 'tasks': [], 'tracked': 0,
+            'completed': 0, 'percent': None, 'untracked': 0,
+            'role': '', 'role_display': '',
+            'ready_to_mark_done': False, 'is_complete': False,
+            'state': 'empty', 'title': 'Session Progress',
+            'subtitle': 'Updates only when the student completes a verified task in the simulation.',
+            'success_message': '', 'awaiting_message': '',
+            'assignment_status': '', 'assignment_status_display': '',
+            'message': 'Assign a role to see session progress.',
+        }
+    tasks = assignment_tasks_for(assignment)
+    completions = {item.task_key: item for item in assignment.task_completions.all()}
+    role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
+    is_hotel_guest = role_code == 'GUEST_HOTEL'
+    guest_workflow_code = GUEST_ROLE_ALIASES.get(role_code, role_code)
+    is_guest = guest_workflow_code in GUEST_MODULES or role_code == 'PASSENGER_AIRLINE'
+    booking = (
+        _booking_for_assignment(assignment, completions)
+        if is_guest and role_code != 'PASSENGER_AIRLINE' else None)
+    awaiting_payment = _booking_awaiting_payment(booking) if booking else False
+    tracked = completed = untracked = 0
+    rendered = []
+    for index, task in enumerate(tasks, 1):
+        trackable = bool(task.get('completion_events'))
+        completion = completions.get(task['key'])
+        if not trackable:
+            state = 'untracked'
+            untracked += 1
+        else:
+            tracked += 1
+            if is_guest and role_code != 'PASSENGER_AIRLINE':
+                state = _guest_task_state(
+                    task, completion, booking, awaiting_payment)
+            elif completion is not None:
+                state = 'completed'
+            elif assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
+                state = 'pending_verification'
+            else:
+                state = 'pending'
+            if state == 'completed':
+                completed += 1
+        rendered.append({
+            'key': task['key'], 'label': task['label'],
+            'description': task.get('description', ''),
+            'status': _TASK_STATE_LABELS[state], 'state': state,
+            'icon': task.get('icon', ''), 'number': index,
+            'tracked': trackable,
+        })
+    percent = round(completed * 100 / tracked) if tracked else None
+    is_complete = bool(tracked and completed == tracked)
+    if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
+        state = 'done'
+    elif is_complete:
+        state = 'complete'
+    elif any(item['state'] == 'awaiting' for item in rendered):
+        state = 'awaiting'
+    elif tracked:
+        state = 'in_progress'
+    else:
+        state = 'empty'
+
+    success_message = ''
+    awaiting_message = ''
+    if state == 'awaiting':
+        awaiting_message = 'Waiting for the Billing Officer to confirm the payment.'
+    if state == 'complete':
+        success_message = (
+            'Verified tasks are complete; review the remaining untracked tasks before marking this assignment done.'
+            if untracked else
+            'All required tasks have verified completion and are ready for instructor review.')
+    elif state == 'done':
+        success_message = (
+            'Assignment completed. The instructor has marked this role as done.'
+            if is_complete else
+            'This assignment was marked as done by the instructor.')
+
+    return {
+        'has_assignment': True, 'tasks': rendered, 'tracked': tracked,
+        'completed': completed, 'percent': percent, 'untracked': untracked,
+        'role': role_code, 'role_display': assignment.role_label,
+        'ready_to_mark_done': bool(
+            tracked and completed == tracked
+            and assignment.status == SimulationRoleAssignment.AssignmentStatus.ACTIVE),
+        'is_complete': is_complete, 'state': state,
+        'title': 'Hotel Booking Progress' if is_hotel_guest else 'Role Task Progress',
+        'subtitle': (
+            'Track each verified step of the hotel guest workflow.'
+            if is_hotel_guest else
+            f'Track verified completion for {assignment.role_label}.'),
+        'success_message': success_message,
+        'awaiting_message': awaiting_message,
+        'assignment_status': assignment.status,
+        'assignment_status_display': assignment.get_status_display(),
+        'message': ('Progress reflects verified tasks only.' if tracked else
+                    f'No role tasks for {assignment.role_label} have a verified completion rule yet.'),
+    }
 
 
 def _student_roles_map(students):
@@ -595,6 +940,8 @@ def _assignment_json(assignment):
         ).count(),
         'view_url': reverse('simulation:role_detail', args=[assignment.pk]),
         'unassign_url': reverse('simulation:unassign', args=[assignment.pk]),
+        'progress_url': reverse('simulation:assignment_progress', args=[assignment.pk]),
+        'progress': assignment_progress_data(assignment),
     }
 
 
@@ -765,17 +1112,19 @@ def assign_role(request):
                     instructor=request.user,
                 )
 
-        assignment = SimulationRoleAssignment.objects.create(
-            student=student,
-            assigned_by=request.user,
-            role=role,
-            role_ref=role_row,
-            activity_name=activity_name,
-            session=selected_session,
-            establishment=establishment,
-            hotel=hotel,
-            **schedule,
-        )
+        with transaction.atomic():
+            assignment = SimulationRoleAssignment.objects.create(
+                student=student,
+                assigned_by=request.user,
+                role=role,
+                role_ref=role_row,
+                activity_name=activity_name,
+                session=selected_session,
+                establishment=establishment,
+                hotel=hotel,
+                **schedule,
+            )
+            _notify_assignment(assignment, request.user)
         role_label = SimulationRoleAssignment(role=role).get_role_display()
         log_activity(request.user, f"Assigned {role} role",
                      f"{activity_name} — {role_label}",
@@ -847,21 +1196,52 @@ def _assign_page(request, selected_session):
 
 @login_required
 def unassign_role(request, assignment_id):
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
     if not _is_instructor(request.user):
+        if is_ajax:
+            return JsonResponse(
+                {'ok': False, 'message': 'You are not authorised to complete this assignment.'},
+                status=403,
+            )
+        messages.warning(request, 'You are not authorised to complete this assignment.')
         return redirect('simulation:workspace')
-    assignment = get_object_or_404(SimulationRoleAssignment, pk=assignment_id)
-    if assignment.status != SimulationRoleAssignment.AssignmentStatus.ACTIVE:
-        messages.info(request, "Only active role assignments can be marked as done.")
-        return redirect('simulation:workspace')
-    assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
-    assignment.completed_at = timezone.now()
-    assignment.save(update_fields=['status', 'completed_at'])
-    log_activity(request.user, "Marked simulation role as done",
-                 f"{assignment.get_role_display()} for {assignment.student.get_full_name()}",
-                 session=assignment.session)
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return JsonResponse({'ok': True, 'status': 'DONE', 'message': 'Role marked as done.'})
-    messages.success(request, "Role marked as done.")
+
+    with transaction.atomic():
+        assignment = get_object_or_404(
+            SimulationRoleAssignment.objects.select_for_update(of=('self',)).select_related(
+                'student', 'session', 'establishment'),
+            pk=assignment_id,
+        )
+        if assignment.status != SimulationRoleAssignment.AssignmentStatus.ACTIVE:
+            message = 'Only active role assignments can be marked as done.'
+            if is_ajax:
+                return JsonResponse({'ok': False, 'message': message}, status=409)
+            messages.info(request, message)
+            return redirect('simulation:workspace')
+
+        assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
+        assignment.completed_at = timezone.now()
+        assignment.save(update_fields=['status', 'completed_at'])
+        _notify_assignment_ended(assignment, request.user)
+        log_activity(
+            request.user,
+            'Marked simulation role as done',
+            f'{assignment.get_role_display()} for '
+            f'{assignment.student.get_full_name() or assignment.student.username}',
+            session=assignment.session,
+        )
+
+    messages.success(request, 'Role marked as done.')
+    if is_ajax:
+        return JsonResponse({
+            'ok': True,
+            'status': 'DONE',
+            'status_display': assignment.get_status_display(),
+            'progress': assignment_progress_data(assignment),
+            'message': 'Role marked as done.',
+        })
     return redirect('simulation:workspace')
 
 
@@ -988,17 +1368,19 @@ def session_assignment(request, session_id):
         )
 
     if existing is None:
-        assignment = SimulationRoleAssignment.objects.create(
-            student=student,
-            assigned_by=request.user,
-            role=role,
-            role_ref=role_row,
-            activity_name=session.name,
-            session=session,
-            establishment=establishment,
-            hotel=hotel,
-            **schedule,
-        )
+        with transaction.atomic():
+            assignment = SimulationRoleAssignment.objects.create(
+                student=student,
+                assigned_by=request.user,
+                role=role,
+                role_ref=role_row,
+                activity_name=session.name,
+                session=session,
+                establishment=establishment,
+                hotel=hotel,
+                **schedule,
+            )
+            _notify_assignment(assignment, request.user)
         action = 'assign'
         log_activity(request.user, f"Assigned {role} role",
                      f"{session.name} — {role_row.name}", session=session)
@@ -1011,6 +1393,10 @@ def session_assignment(request, session_id):
                 session=session,
             )
     else:
+        old_values = (
+            existing.role, existing.establishment_id, existing.session_id,
+            existing.simulation_date, existing.start_time, existing.end_time,
+        )
         old_role = existing.get_role_display()
         old_establishment = existing.establishment.name if existing.establishment_id else None
         # ``save`` re-derives role_ref/hotel/establishment_type from these, so the
@@ -1025,6 +1411,12 @@ def session_assignment(request, session_id):
         existing.save()
         assignment = existing
         action = 'edit'
+        new_values = (
+            assignment.role, assignment.establishment_id, assignment.session_id,
+            assignment.simulation_date, assignment.start_time, assignment.end_time,
+        )
+        if old_values != new_values:
+            _notify_assignment(assignment, request.user, modified=True)
         detail = f"{old_role} → {existing.get_role_display()}"
         new_establishment = establishment.name if establishment is not None else None
         if old_establishment != new_establishment:
@@ -1036,6 +1428,52 @@ def session_assignment(request, session_id):
         'ok': True,
         'action': action,
         'assignment': _assignment_json(assignment),
+    })
+
+
+@login_required
+def session_student_progress(request, session_id, student_id):
+    """Return the latest selected assignment progress for a session row."""
+    if request.method != 'GET':
+        return JsonResponse({'ok': False}, status=405)
+    session = get_object_or_404(SimulationSession, pk=session_id)
+    if not _is_instructor(request.user):
+        return JsonResponse({'ok': False}, status=403)
+    if session.instructor_id != request.user.id and not is_manager(request.user):
+        return JsonResponse({'ok': False}, status=403)
+    assignment = SimulationRoleAssignment.objects.filter(
+        session=session, student_id=student_id,
+    ).select_related('role_ref').prefetch_related('task_completions').order_by(
+        'assigned_at', 'pk')
+    priority = {'ACTIVE': 3, 'DONE': 2, 'INACTIVE': 1}
+    selected = None
+    for candidate in assignment:
+        if selected is None or priority.get(candidate.status, 0) >= priority.get(selected.status, 0):
+            selected = candidate
+    return JsonResponse({'ok': True, 'progress': assignment_progress_data(selected)})
+
+
+@login_required
+def assignment_progress(request, assignment_id):
+    """Return progress for exactly one role assignment, never a sibling row."""
+    if request.method != 'GET':
+        return JsonResponse({'ok': False}, status=405)
+    if not _is_instructor(request.user):
+        return JsonResponse({'ok': False}, status=403)
+    assignment = get_object_or_404(
+        SimulationRoleAssignment.objects.select_related(
+            'session', 'role_ref', 'establishment', 'hotel')
+        .prefetch_related('task_completions'),
+        pk=assignment_id,
+    )
+    if (assignment.session_id is None
+            or (assignment.session.instructor_id != request.user.id
+                and not is_manager(request.user))):
+        return JsonResponse({'ok': False}, status=403)
+    return JsonResponse({
+        'ok': True,
+        'assignment_id': assignment.pk,
+        'progress': assignment_progress_data(assignment),
     })
 
 
@@ -1087,14 +1525,29 @@ def role_list(request):
 def role_detail(request, assignment_id):
     """FR View Simulation Role – owner and instructor/instructor views (FR-036)."""
     assignment = get_object_or_404(
-        SimulationRoleAssignment.objects.select_related('establishment'),
+        SimulationRoleAssignment.objects.select_related(
+            'establishment', 'session', 'session__instructor', 'assigned_by',
+            'role_ref', 'hotel'),
         pk=assignment_id,
     )
     if assignment.student != request.user and not is_manager(request.user):
         messages.error(request, "You may only view your own role assignments.")
         return redirect('simulation:workspace')
+    task_operation = task_operation_for(assignment)
+    if task_operation is not None:
+        task_operation = operation_with_urls(assignment, task_operation)
+    if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
+        task_status = 'Completed'
+    elif assignment.status != SimulationRoleAssignment.AssignmentStatus.ACTIVE:
+        task_status = assignment.get_status_display()
+    elif assignment.started_at:
+        task_status = 'In Progress'
+    else:
+        task_status = 'Not Started'
     return render(request, 'simulation/role_detail.html', {
         'assignment': assignment,
+        'task_operation': task_operation,
+        'task_status': task_status,
         'permissions': assignment.role_permissions(),
         'is_manager': is_manager(request.user),
         'can_manage': _is_instructor(request.user),
@@ -1204,6 +1657,7 @@ def role_update(request, assignment_id):
     old_role = assignment.get_role_display()
     old_establishment = (assignment.establishment.name
                          if assignment.establishment_id else None)
+    changed = assignment.role != new_role or assignment.establishment_id != getattr(establishment, 'pk', None)
     assignment.role = new_role
     assignment.role_ref = role_row
     assignment.establishment = establishment
@@ -1218,6 +1672,8 @@ def role_update(request, assignment_id):
     assignment.save(update_fields=[
         'role', 'role_ref', 'hotel', 'establishment', 'establishment_type',
         'establishment_required'])
+    if changed:
+        _notify_assignment(assignment, request.user, modified=True)
 
     detail = f"{old_role} → {assignment.get_role_display()}"
     new_establishment = establishment.name if establishment is not None else None
@@ -1259,7 +1715,7 @@ def _match_assignment(log, assignments):
 def _row_context(log, assignments):
     """Build a display row: the log itself plus student/role/establishment
     context resolved from the session's role assignments."""
-    assignment = _match_assignment(log, assignments)
+    assignment = log.role_assignment or _match_assignment(log, assignments)
 
     role_label = '-'
     if log.simulation_role:
@@ -1288,7 +1744,7 @@ def _row_context(log, assignments):
 
     status = '-'
     if assignment is not None:
-        status = assignment.get_status_display()
+        status = assignment.activity_status
 
     return {
         'log': log,
@@ -1388,7 +1844,9 @@ def session_logs(request, session_id):
                 'You do not have access to this session’s activity logs.')
 
     logs = ActivityLog.objects.filter(session=session).select_related(
-        'user', 'establishment').order_by('-timestamp')
+        'user', 'establishment', 'role_assignment',
+        'role_assignment__establishment',
+        'role_assignment__hotel').order_by('-timestamp')
     if not can_view_all:
         logs = logs.filter(user=request.user)
 

@@ -17,7 +17,7 @@ Usage:
 <div class="atrue-airport-wrap atrue-airport-field{% if compact %} atrue-airport-field-sm{% endif %}"
      data-airport-picker>
     <label class="atrue-airport-control">
-        <i class="fas fa-plane-departure" aria-hidden="true"></i>
+        <i class="fas {{ icon|default:'fa-plane-departure' }}" aria-hidden="true"></i>
         <input type="text" class="atrue-airport-input" data-airport-input
                placeholder="{{ placeholder|default:'Search airport name, code, city or address' }}"
                autocomplete="off"{% if required %} required{% endif %}>
@@ -31,5 +31,6 @@ Usage:
            data-airport-address="{{ airport.address|default:'' }}"
            data-airport-code="{{ airport.code|default:'' }}"
            data-airport-city="{{ airport.city|default:'' }}"
-           data-airport-country="{{ airport.country|default:'' }}">
+           data-airport-country="{{ airport.country|default:'' }}"
+           data-airport-country-code="{{ airport.country_code|default:'' }}">
 </div>

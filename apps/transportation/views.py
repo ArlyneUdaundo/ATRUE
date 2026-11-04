@@ -9,10 +9,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction as db_transaction
 from django.db.models import Q
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from atrue_core.decorators import manager_required, student_booking_required
 from accounts.roles import can_create_establishment
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import (
+    delete_image_record,
+    validate_establishment_photos,
+    validate_image_upload,
+)
 from atrue_core.services import (
     bill_for_booking,
     bill_items_total,
@@ -82,8 +86,9 @@ def _vehicle_photo_url(agency, vehicle):
 
 def _store_vehicle_image(vehicle, uploaded_image):
     """Save replacement photos under unique paths to avoid stale cached images."""
-    if not uploaded_image or not is_valid_image(uploaded_image):
+    if not uploaded_image:
         return False
+    validate_image_upload(uploaded_image)
     suffix = uploaded_image.name.rsplit('.', 1)[-1].lower() if '.' in uploaded_image.name else 'jpg'
     suffix = ''.join(ch for ch in suffix if ch.isalnum())[:8] or 'jpg'
     vehicle.image.save(f'{uuid4().hex}.{suffix}', uploaded_image, save=False)
@@ -100,7 +105,9 @@ def transportation_list(request):
     default_schedule = timezone.now() + timedelta(hours=3)
     schedule = _parse_datetime(request.GET.get('schedule'), default_schedule)
     search_query = (request.GET.get('q') or '').strip()
-    agencies = Agency.objects.prefetch_related('photos', 'vehicles', 'drivers').filter(status=Agency.Status.ACTIVE)
+    agencies = Agency.objects.prefetch_related('photos', 'vehicles', 'drivers')
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        agencies = agencies.filter(status=Agency.Status.ACTIVE)
     if search_query:
         agencies = agencies.filter(
             Q(name__icontains=search_query) | Q(address__icontains=search_query)
@@ -157,6 +164,11 @@ def add_agency(request):
     if not can_create_establishment(request.user, 'transportation'):
         raise PermissionDenied('You are not authorised to add transport agencies.')
     if request.method == 'POST':
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'transportation/agency_form.html', {'agency': None}, status=400)
         agency = Agency.objects.create(
             name=request.POST.get('name'),
             contact_number=request.POST.get('contact_number', ''),
@@ -169,7 +181,6 @@ def add_agency(request):
             operating_hours=request.POST.get('operating_hours', ''),
             status=request.POST.get('status', Agency.Status.ACTIVE),
         )
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for index, image in enumerate(photos):
             AgencyPhoto.objects.create(agency=agency, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created transport agency", agency.name)
@@ -183,11 +194,17 @@ def update_agency(request, agency_id):
     agency = get_object_or_404(
         scope_agencies(request, Agency.objects.prefetch_related('photos')), pk=agency_id)
     if request.method == 'POST':
+        delete_ids = request.POST.getlist('delete_photos')
+        delete_count = agency.photos.filter(pk__in=delete_ids).count()
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'), existing_count=agency.photos.count(), delete_count=delete_count)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'transportation/agency_form.html', {'agency': agency}, status=400)
         for field in ('name', 'contact_number', 'email', 'address', 'country', 'barangay', 'municipality', 'province',
                       'operating_hours', 'status'):
             setattr(agency, field, request.POST.get(field) or getattr(agency, field))
         agency.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         if photos:
             # The first newly uploaded image becomes the cover photo. Existing
             # primary photos remain in the gallery but no longer mask it.
@@ -209,6 +226,7 @@ def update_agency(request, agency_id):
 @manager_required
 def add_vehicle(request, agency_id):
     agency = get_object_or_404(scope_agencies(request, Agency.objects.all()), pk=agency_id)
+    error = None
     if request.method == 'POST':
         vehicle = Vehicle(
             agency=agency,
@@ -220,14 +238,17 @@ def add_vehicle(request, agency_id):
             status=request.POST.get('status', Vehicle.VehicleStatus.AVAILABLE),
         )
         uploaded_image = request.FILES.get('image')
-        if uploaded_image:
+        try:
             _store_vehicle_image(vehicle, uploaded_image)
-        elif request.POST.get('remove_image') and vehicle.image:
-            vehicle.image.delete(save=False)
-        vehicle.save()
-        messages.success(request, "Vehicle added.")
-        return redirect('transportation:update_agency', agency.id)
-    return render(request, 'transportation/vehicle_form.html', {'agency': agency, 'vehicle': None})
+        except ValidationError as exc:
+            error = ' '.join(exc.messages)
+        if error is None:
+            vehicle.save()
+            messages.success(request, "Vehicle added.")
+            return redirect('transportation:update_agency', agency.id)
+    return render(request, 'transportation/vehicle_form.html', {
+        'agency': agency, 'vehicle': None, 'error': error,
+    })
 
 
 @manager_required
@@ -237,17 +258,26 @@ def update_vehicle(request, vehicle_id):
     if allowed is not None and vehicle.agency_id not in allowed:
         raise PermissionDenied(
             'You can only manage the vehicles of the agencies you are assigned to.')
+    error = None
     if request.method == 'POST':
         for field in ('vehicle_type', 'vehicle_name', 'plate_number', 'capacity', 'rate_per_km', 'status'):
             value = request.POST.get(field)
             if field == 'capacity':
                 value = int(value or vehicle.capacity)
             setattr(vehicle, field, value or getattr(vehicle, field))
-        _store_vehicle_image(vehicle, request.FILES.get('image'))
-        vehicle.save()
-        messages.success(request, "Vehicle updated.")
-        return redirect('transportation:update_agency', vehicle.agency_id)
-    return render(request, 'transportation/vehicle_form.html', {'agency': vehicle.agency, 'vehicle': vehicle})
+        try:
+            _store_vehicle_image(vehicle, request.FILES.get('image'))
+        except ValidationError as exc:
+            error = ' '.join(exc.messages)
+        if error is None:
+            if request.POST.get('remove_image') and vehicle.image:
+                vehicle.image.delete(save=False)
+            vehicle.save()
+            messages.success(request, "Vehicle updated.")
+            return redirect('transportation:update_agency', vehicle.agency_id)
+    return render(request, 'transportation/vehicle_form.html', {
+        'agency': vehicle.agency, 'vehicle': vehicle, 'error': error,
+    })
 
 
 @manager_required
@@ -545,6 +575,9 @@ def booking_detail(request, booking_id):
             booking.save(update_fields=['status'])
             booking.vehicle.status = 'AVAILABLE'
             booking.vehicle.save(update_fields=['status'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Drop-off completed", str(booking.pk))
         elif action == 'modify':
             booking.schedule = _parse_datetime(request.POST.get('schedule'), booking.schedule)

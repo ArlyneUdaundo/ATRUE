@@ -4,15 +4,6 @@
 <div class="bk-page">
 
     <form class="bk-search-form" method="get" action="">
-        <!-- Category tabs -->
-        <div class="bk-tabs" role="tablist">
-            {% for cat in categories %}
-                <a class="bk-tab{% if cat.active %} active{% endif %}" href="{{ cat.url }}" role="tab" aria-selected="{% if cat.active %}true{% else %}false{% endif %}">
-                    <i class="fas {{ cat.icon }}"></i>{{ cat.label }}
-                </a>
-            {% endfor %}
-        </div>
-
         {% include 'search/_search_bar.html' %}
 
         <div class="bk-body">

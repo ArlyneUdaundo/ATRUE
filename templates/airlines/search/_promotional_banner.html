@@ -1,0 +1,10 @@
+{% load static %}
+{# Promotional banner closing the right sidebar. #}
+<aside class="fs-promo">
+    <img class="fs-promo__art" src="{% static 'img/promo-sunset.svg' %}" alt="">
+    <div class="fs-promo__body">
+        <p class="fs-promo__eyebrow">Explore more</p>
+        <h2 class="fs-promo__title">Your Next Destination Awaits</h2>
+        <a class="fs-btn fs-btn--light" href="{% url 'hotels:list' %}"><i class="fas fa-compass" aria-hidden="true"></i> Explore More</a>
+    </div>
+</aside>

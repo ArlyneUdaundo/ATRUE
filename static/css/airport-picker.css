@@ -143,11 +143,22 @@
 }
 
 .atrue-airport-empty {
+  position: absolute;
+  box-sizing: border-box;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9001;
   padding: 24px 10px;
   text-align: center;
   color: #98a2b3;
   font-size: 13.5px;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(15, 35, 65, .2);
 }
+.atrue-airport-empty[hidden] { display: none; }
 
 .atrue-airport-loading {
   padding: 20px 10px;

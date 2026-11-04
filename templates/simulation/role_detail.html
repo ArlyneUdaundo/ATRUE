@@ -30,6 +30,40 @@
     </div>
 </div>
 
+<div class="card" style="margin-bottom:20px;border:1px solid var(--slate-200);box-shadow:0 12px 28px rgba(15,23,42,.07)">
+    <div class="card-pad" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+        <div style="min-width:240px;flex:1">
+            <div class="meta" style="margin:0 0 6px"><i class="fas fa-play-circle"></i> Assigned task</div>
+            <h2 style="margin:0 0 8px;color:var(--slate-900)">{{ task_operation.label|default:assignment.get_role_display }}</h2>
+            <p style="margin:0;color:var(--slate-600)">
+                Complete the assigned {{ assignment.get_role_display|lower }} work using the listed operations.
+                {% if assignment.establishment %}Work is scoped to {{ assignment.establishment.name }}.{% elif assignment.hotel %}Work is scoped to {{ assignment.hotel.name }}.{% endif %}
+            </p>
+            {% if task_operation.tasks %}
+            <ul style="display:flex;gap:8px 18px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none;color:var(--slate-700);font-size:13px">
+                {% for task in task_operation.tasks %}<li><i class="fas {{ task.icon }}" style="color:var(--indigo);margin-right:5px"></i>{{ task.label }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--slate-600)">
+                <span><b>Status:</b> {{ task_status }}</span>
+                {% if assignment.started_at %}<span><b>Started:</b> {{ assignment.started_at|date:"M d, Y H:i" }}</span>{% endif %}
+                {% if assignment.completed_at %}<span><b>Completed:</b> {{ assignment.completed_at|date:"M d, Y H:i" }}</span>{% endif %}
+            </div>
+        </div>
+        <div>
+            {% if assignment.status == 'ACTIVE' and task_operation %}
+            <a href="{% url 'simulation:do_task' assignment.id %}" class="btn btn-brand" style="min-height:48px;padding:12px 22px;font-weight:700"><i class="fas fa-play"></i> {% if assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</a>
+            {% elif assignment.status == 'DONE' %}
+            <span class="badge badge-green" style="padding:10px 14px"><i class="fas fa-check-circle"></i> Task Completed</span>
+            {% elif assignment.status != 'ACTIVE' %}
+            <span class="badge badge-gray" style="padding:10px 14px">{{ assignment.get_status_display }}</span>
+            {% else %}
+            <span class="badge badge-gray" style="padding:10px 14px">Task workflow unavailable</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <div class="grid-2">
     <div class="card">
         <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
@@ -47,6 +81,8 @@
                 <div><div class="meta" style="margin:0"><i class="fas fa-tasks"></i> Simulation Activity</div><b style="font-size:14px">{{ assignment.activity_name|default:'—' }}</b></div>
                 <div><div class="meta" style="margin:0"><i class="fas fa-user-cog"></i> Assigned By</div><b style="font-size:14px">{{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username|default:"—" }}</b></div>
                 <div><div class="meta" style="margin:0"><i class="fas fa-building"></i> Establishment</div><b style="font-size:14px">{{ assignment.establishment.name|default:'—' }}</b></div>
+                <div><div class="meta" style="margin:0"><i class="fas fa-layer-group"></i> Session</div><b style="font-size:14px">{% if assignment.session %}{{ assignment.session.name }}{% if assignment.session.session_id %} ({{ assignment.session.session_id }}){% endif %}{% else %}{{ assignment.activity_name|default:'—' }}{% endif %}</b></div>
+                {% if assignment.session %}<div><div class="meta" style="margin:0"><i class="fas fa-chalkboard-teacher"></i> Session Instructor</div><b style="font-size:14px">{{ assignment.session.instructor.get_full_name|default:assignment.session.instructor.username }}</b></div>{% endif %}
                 <div><div class="meta" style="margin:0"><i class="fas fa-calendar"></i> Simulation Date</div><b style="font-size:14px">{% if assignment.simulation_date %}{{ assignment.simulation_date|date:"M d, Y" }}{% else %}—{% endif %}</b></div>
                 <div><div class="meta" style="margin:0"><i class="fas fa-clock"></i> Time</div><b style="font-size:14px">{% if assignment.start_time and assignment.end_time %}{{ assignment.start_time|time:"g:i A" }} – {{ assignment.end_time|time:"g:i A" }}{% else %}—{% endif %}</b></div>
                 <div><div class="meta" style="margin:0"><i class="fas fa-calendar"></i> Assigned On</div><b style="font-size:14px">{{ assignment.assigned_at|date:"M d, Y H:i" }}</b></div>

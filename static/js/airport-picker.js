@@ -11,8 +11,7 @@
             var input = wrap.querySelector('[data-airport-input]');
             var list = wrap.querySelector('[data-airport-list]');
             var empty = wrap.querySelector('[data-airport-empty]');
-            var text = wrap.querySelector('.atrue-airport-text');
-            if (!input || !list || !empty) return;
+            var text = wrap.querySelector('.atrue-airport-text');            if (!input || !list || !empty) return;
 
             if (!list.id) list.id = 'airport-options-' + Math.random().toString(36).slice(2, 10);
             list.setAttribute('role', 'listbox');
@@ -83,6 +82,7 @@
                             hidden.dataset.airportCode = airport.code || code;
                             hidden.dataset.airportCity = airport.city || '';
                             hidden.dataset.airportCountry = airport.country || '';
+                            hidden.dataset.airportCountryCode = airport.country_code || '';
                             hidden.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                         input.value = [airport.name, code ? '(' + code + ')' : '', airport.city].filter(Boolean).join(' ');
@@ -99,7 +99,10 @@
                 if (request) request.abort();
                 request = new XMLHttpRequest();
                 var xhr = request;
-                xhr.open('GET', API_SRC + '?q=' + encodeURIComponent(query), true);
+                var scope = (wrap.dataset.airportCountry || '').trim();
+                var url = API_SRC + '?q=' + encodeURIComponent(query);
+                if (scope) url += '&country=' + encodeURIComponent(scope);
+                xhr.open('GET', url, true);
                 xhr.onload = function () {
                     if (request !== xhr) return;
                     request = null;

@@ -1,0 +1,24 @@
+<div class="pd-review" data-pd-review hidden aria-hidden="true" tabindex="-1">
+    <div class="pd-review__dialog" role="dialog" aria-modal="true" aria-labelledby="pd-review-title">
+        <header class="pd-review__head">
+            <h2 id="pd-review-title"><i class="fas fa-clipboard-check"></i> Review your booking</h2>
+            <button type="button" class="pd-modal__close" data-pd-review-close aria-label="Close review"><i class="fas fa-xmark"></i></button>
+        </header>
+
+        <div class="pd-review__body" data-pd-review-body></div>
+
+        <div class="pd-callout pd-callout--info">
+            <i class="fas fa-circle-info"></i>
+            <p>Continue to the payment preview to complete this simulated booking. No real payment will be processed.</p>
+        </div>
+
+        <footer class="pd-review__foot">
+            <button type="button" class="pd-btn pd-btn--ghost" data-pd-review-close><i class="fas fa-arrow-left"></i> Back to details</button>
+            <form method="post" action="{% url 'airlines:confirm_passenger_details' %}" data-pd-ticket-form>
+                {% csrf_token %}
+                <input type="hidden" name="ticket_payload" data-pd-ticket-payload>
+                <button type="submit" class="pd-btn pd-btn--primary"><i class="fas fa-check"></i> Confirm Details</button>
+            </form>
+        </footer>
+    </div>
+</div>

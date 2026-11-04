@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Aircraft wing above clouds at sunset">
+    <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0.35" y2="1">
+            <stop offset="0" stop-color="#0a2358"/>
+            <stop offset="0.42" stop-color="#2257b8"/>
+            <stop offset="0.72" stop-color="#5c93dd"/>
+            <stop offset="1" stop-color="#bcd8f5"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="0.78" cy="0.58" r="0.55">
+            <stop offset="0" stop-color="#ffe9c2" stop-opacity="0.95"/>
+            <stop offset="0.45" stop-color="#ffd79a" stop-opacity="0.35"/>
+            <stop offset="1" stop-color="#ffd79a" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="wing" x1="0" y1="0" x2="0.6" y2="1">
+            <stop offset="0" stop-color="#152a4f"/>
+            <stop offset="1" stop-color="#0a1830"/>
+        </linearGradient>
+        <linearGradient id="wingEdge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#8fb4e8" stop-opacity="0.85"/>
+            <stop offset="1" stop-color="#8fb4e8" stop-opacity="0"/>
+        </linearGradient>
+        <radialGradient id="cloudShade" cx="0.35" cy="0.3" r="0.85">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="1" stop-color="#c9dcf3"/>
+        </radialGradient>
+        <filter id="soft" x="-20%" y="-40%" width="140%" height="180%">
+            <feGaussianBlur stdDeviation="7"/>
+        </filter>
+        <filter id="haze" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="18"/>
+        </filter>
+    </defs>
+
+    <rect width="1600" height="520" fill="url(#sky)"/>
+    <rect width="1600" height="520" fill="url(#glow)"/>
+
+    <g fill="#ffffff" opacity="0.5" filter="url(#haze)">
+        <ellipse cx="420" cy="410" rx="360" ry="46"/>
+        <ellipse cx="1150" cy="435" rx="420" ry="52"/>
+        <ellipse cx="820" cy="330" rx="300" ry="26"/>
+    </g>
+
+    <g fill="url(#cloudShade)" opacity="0.92">
+        <g>
+            <ellipse cx="180" cy="392" rx="118" ry="34"/>
+            <ellipse cx="268" cy="372" rx="86" ry="30"/>
+            <ellipse cx="94" cy="368" rx="66" ry="24"/>
+        </g>
+        <g opacity="0.8">
+            <ellipse cx="530" cy="330" rx="96" ry="24"/>
+            <ellipse cx="606" cy="318" rx="64" ry="20"/>
+            <ellipse cx="468" cy="316" rx="52" ry="16"/>
+        </g>
+        <g opacity="0.9">
+            <ellipse cx="1300" cy="300" rx="140" ry="28"/>
+            <ellipse cx="1404" cy="286" rx="94" ry="22"/>
+            <ellipse cx="1214" cy="288" rx="62" ry="18"/>
+        </g>
+        <g opacity="0.75">
+            <ellipse cx="960" cy="452" rx="210" ry="40"/>
+            <ellipse cx="1090" cy="436" rx="140" ry="30"/>
+            <ellipse cx="850" cy="440" rx="100" ry="24"/>
+        </g>
+        <g opacity="0.55" filter="url(#soft)">
+            <ellipse cx="200" cy="256" rx="120" ry="16"/>
+            <ellipse cx="380" cy="238" rx="70" ry="11"/>
+            <ellipse cx="760" cy="268" rx="150" ry="14"/>
+        </g>
+    </g>
+
+    <circle cx="1248" cy="292" r="54" fill="#fff3d6" opacity="0.75" filter="url(#soft)"/>
+
+    <g opacity="0.35" fill="#ffffff">
+        <rect x="0" y="470" width="1600" height="2"/>
+    </g>
+
+    <g>
+        <path d="M-40 520 L250 520 L620 384 L470 372 Z" fill="url(#wing)"/>
+        <path d="M-40 520 L250 520 L620 384 L610 372 L300 470 Z" fill="#0d1f3c"/>
+        <path d="M250 520 L620 384 L618 376 L246 500 Z" fill="url(#wingEdge)" opacity="0.55"/>
+        <path d="M604 386 L668 366 L662 352 L600 372 Z" fill="#0a1830"/>
+        <path d="M600 372 L662 352 L660 348 L598 368 Z" fill="#9dbdea" opacity="0.5"/>
+        <path d="M330 424 L468 382" stroke="#2c4a7d" stroke-width="2" opacity="0.8"/>
+        <path d="M150 478 L300 434" stroke="#2c4a7d" stroke-width="2" opacity="0.6"/>
+    </g>
+
+    <circle cx="640" cy="300" r="3" fill="#ffffff" opacity="0.8"/>
+    <circle cx="742" cy="212" r="2" fill="#ffffff" opacity="0.6"/>
+    <circle cx="880" cy="248" r="2.5" fill="#ffffff" opacity="0.7"/>
+</svg>

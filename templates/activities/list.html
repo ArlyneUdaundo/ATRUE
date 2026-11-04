@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Activities</h2>
+        <h1>Activities</h1>
         <p>{{ activities|length }} activit{% if activities|length == 1 %}y{% else %}ies{% endif %} available · Book available activity slots</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -15,10 +15,10 @@
 
 <div class="cards">
     {% for a in activities %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo"><img src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=75" alt="Activities photo"></div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in a.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ a.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}{% if a.image %}<img class="agoda-gallery-image is-active" src="{{ a.image.url }}" alt="{{ a.name }}" loading="lazy">{% else %}<div class="agoda-gallery-placeholder"><i class="fas fa-person-hiking"></i><span>No photos yet</span></div>{% endif %}{% endfor %}</div>{% if a.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
                 <span class="badge badge-blue">{{ a.get_category_display }}</span>
             </div>
             <h3>{{ a.name }}</h3>

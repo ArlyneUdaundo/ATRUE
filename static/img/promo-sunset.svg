@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sunset over a tropical bay">
+    <defs>
+        <linearGradient id="sunsetSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#33245e"/>
+            <stop offset="0.38" stop-color="#8a4a86"/>
+            <stop offset="0.66" stop-color="#e0705f"/>
+            <stop offset="0.86" stop-color="#f6a45c"/>
+            <stop offset="1" stop-color="#ffd18a"/>
+        </linearGradient>
+        <linearGradient id="sunsetSea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c76a63"/>
+            <stop offset="0.45" stop-color="#7d4a72"/>
+            <stop offset="1" stop-color="#33245e"/>
+        </linearGradient>
+        <radialGradient id="sunOrb" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fff3c4"/>
+            <stop offset="0.55" stop-color="#ffc873"/>
+            <stop offset="1" stop-color="#ff9a5b" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="sunsetBlur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="6"/>
+        </filter>
+    </defs>
+
+    <rect width="480" height="320" fill="url(#sunsetSky)"/>
+    <circle cx="330" cy="172" r="86" fill="url(#sunOrb)"/>
+    <circle cx="330" cy="172" r="34" fill="#ffe6a6"/>
+
+    <g fill="#ffffff" opacity="0.28" filter="url(#sunsetBlur)">
+        <ellipse cx="140" cy="96" rx="110" ry="10"/>
+        <ellipse cx="300" cy="122" rx="90" ry="8"/>
+        <ellipse cx="90" cy="146" rx="70" ry="7"/>
+        <ellipse cx="400" cy="84" rx="80" ry="9"/>
+    </g>
+
+    <path d="M0 196 L480 188 L480 320 L0 320 Z" fill="url(#sunsetSea)"/>
+    <g stroke="#ffd9a3" stroke-linecap="round" opacity="0.55">
+        <path d="M270 210 h120" stroke-width="3"/>
+        <path d="M296 224 h84" stroke-width="2.5"/>
+        <path d="M310 238 h52" stroke-width="2"/>
+        <path d="M288 252 h96" stroke-width="1.6" opacity="0.6"/>
+        <path d="M160 216 h56" stroke-width="2" opacity="0.35"/>
+        <path d="M92 236 h44" stroke-width="1.6" opacity="0.3"/>
+    </g>
+
+    <g fill="#2a1c47">
+        <path d="M0 196 q26 -16 58 -10 q22 4 30 14 L88 196 Z" opacity="0.85"/>
+        <path d="M0 210 q20 -8 40 -2 l-4 6 q-18 4 -36 -0 Z" opacity="0.7"/>
+        <path d="M0 260 q0 -24 0 -40 q14 10 18 26 q4 10 8 14 Z" opacity="0.9"/>
+        <path d="M480 196 q-24 -14 -52 -8 q-18 4 -26 12 l0 2 q60 4 78 0 Z" opacity="0.8"/>
+        <path d="M480 320 l0 -68 q-26 12 -44 34 q-8 12 -10 34 Z" opacity="0.92"/>
+    </g>
+
+    <g fill="#241840" opacity="0.9">
+        <path d="M98 320 q4 -54 10 -84 q4 -20 2 -38 q-12 -12 -18 -30 q14 8 20 20 q2 -20 -2 -34 q10 12 12 32 q6 -14 18 -22 q-6 18 -14 30 q8 6 12 16 q-10 -2 -16 2 q-2 22 2 40 q6 30 10 80 Z"/>
+        <path d="M150 320 q3 -36 6 -56 q2 -14 0 -26 q-8 -8 -12 -20 q10 6 14 14 q1 -14 -1 -24 q7 8 8 22 q4 -10 12 -16 q-4 12 -10 20 q6 4 8 11 q-7 -1 -11 1 q-1 15 1 27 q4 20 7 47 Z" opacity="0.85"/>
+    </g>
+
+    <g stroke="#f7c98f" stroke-width="2" opacity="0.6" fill="none" stroke-linecap="round">
+        <path d="M186 108 q8 -6 16 0"/>
+        <path d="M206 100 q7 -5 14 0"/>
+    </g>
+</svg>

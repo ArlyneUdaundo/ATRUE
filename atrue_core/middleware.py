@@ -81,8 +81,8 @@ class StorageUploadErrorMiddleware:
         )
         if isinstance(exception, (BotoCoreError, ClientError)) or missing_storage_config:
             return HttpResponse(
-                'Image storage is unavailable. The image was not saved; please '
-                'try again later or contact an administrator.',
+                'The image could not be uploaded. Please try again. If the '
+                'problem continues, contact an administrator.',
                 status=503,
                 content_type='text/plain; charset=utf-8',
             )

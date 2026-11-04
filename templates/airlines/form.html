@@ -26,8 +26,8 @@
         <div style="display:flex;align-items:center;gap:16px">
             {% include 'airlines/_airline_logo.html' with airline=airline logo_class='airline-logo airline-logo--lg' %}
             <div style="flex:1;min-width:0">
-                <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="form-input">
-                <div class="meta" style="margin-top:6px">PNG, JPG, WebP or SVG. A square image with a transparent background looks best.</div>
+                <input type="file" name="logo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="form-input">
+                <div class="meta" style="margin-top:6px">JPG, JPEG, or PNG, up to 5 MB. A square image looks best.</div>
                 {% if airline.logo_photo %}
                 <label class="meta" style="display:block;margin-top:8px"><input type="checkbox" name="remove_logo" value="1"> Remove current logo</label>
                 {% endif %}

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models.deletion import ProtectedError
 from django.db import transaction as db_transaction
 from django.db.models import Q
@@ -12,7 +12,7 @@ from django.utils import timezone
 from accounts.roles import can_create_establishment, effective_role_keys, owner_role_keys
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
@@ -78,9 +78,9 @@ def _assigned_resort_ids(request):
 
 
 def resort_list(request):
-    resorts = Resort.objects.filter(status=Resort.Status.ACTIVE).prefetch_related(
-        'photos', 'units', 'units__photos', 'services'
-    )
+    resorts = Resort.objects.prefetch_related('photos', 'units', 'units__photos', 'services')
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        resorts = resorts.filter(status=Resort.Status.ACTIVE)
     return render_search_page(request, 'resort', resorts)
 
 
@@ -129,6 +129,11 @@ def add_resort(request):
     if not can_create_establishment(request.user, 'resorts'):
         raise PermissionDenied('You are not authorised to add resorts.')
     if request.method == 'POST':
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'resorts/form.html', {'resort': None, 'status_choices': Resort.Status.choices}, status=400)
         resort = Resort.objects.create(
             name=request.POST.get('name'),
             country=request.POST.get('country', ''),
@@ -140,7 +145,6 @@ def add_resort(request):
             operating_schedule=request.POST.get('operating_schedule', ''),
         )
         resort.refresh_from_db()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for index, image in enumerate(photos):
             ResortPhoto.objects.create(resort=resort, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created resort", f"{resort.name} ({resort.resort_id})")
@@ -156,11 +160,17 @@ def add_resort(request):
 def update_resort(request, resort_id):
     resort = get_object_or_404(Resort, pk=resort_id)
     if request.method == 'POST':
+        delete_ids = request.POST.getlist('delete_photos')
+        delete_count = resort.photos.filter(pk__in=delete_ids).count()
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'), existing_count=resort.photos.count(), delete_count=delete_count)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'resorts/form.html', {'resort': resort, 'status_choices': Resort.Status.choices}, status=400)
         for field in ('name', 'country', 'province', 'municipality', 'barangay',
                       'contact_number', 'email', 'operating_schedule', 'status'):
             setattr(resort, field, request.POST.get(field, getattr(resort, field)))
         resort.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
             ResortPhoto.objects.create(resort=resort, image=image, is_primary=not resort.photos.exists())
         for photo in resort.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -222,7 +232,15 @@ def add_unit(request, resort_id):
     error = None
     if request.method == 'POST':
         unit_number = (request.POST.get('unit_number') or '').strip()
-        if not unit_number:
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            photos, image_error = [], ' '.join(exc.messages)
+        else:
+            image_error = None
+        if image_error:
+            error = image_error
+        elif not unit_number:
             error = "Unit number is required."
         elif len(unit_number) > 100:
             error = "Unit number must be 100 characters or fewer."
@@ -241,9 +259,8 @@ def add_unit(request, resort_id):
                 description=request.POST.get('description', ''),
                 status=request.POST.get('status', RoomVilla.Status.AVAILABLE),
             )
-            for image in request.FILES.getlist('photos'):
-                if is_valid_image(image):
-                    UnitPhoto.objects.create(unit=unit, image=image)
+            for image in photos:
+                UnitPhoto.objects.create(unit=unit, image=image)
             log_activity(request.user, "Added resort unit",
                          f"{unit.unit_id} ({unit.unit_number}) in {resort.name}")
             messages.success(request, f"Unit {unit.unit_number} added (ID: {unit.unit_id}).")
@@ -268,7 +285,20 @@ def update_unit(request, unit_id):
     if request.method == 'POST':
         unit_number = (request.POST.get('unit_number') or unit.unit_number).strip()
         duplicate = RoomVilla.objects.filter(resort=unit.resort, unit_number=unit_number).exclude(pk=unit.pk).exists()
-        if not unit_number:
+        delete_ids = request.POST.getlist('delete_photos')
+        try:
+            photos = validate_establishment_photos(
+                request.FILES.getlist('photos'),
+                existing_count=unit.photos.count(),
+                delete_count=unit.photos.filter(pk__in=delete_ids).count(),
+            )
+        except ValidationError as exc:
+            photos, image_error = [], ' '.join(exc.messages)
+        else:
+            image_error = None
+        if image_error:
+            error = image_error
+        elif not unit_number:
             error = "Unit number is required."
         elif len(unit_number) > 100:
             error = "Unit number must be 100 characters or fewer."
@@ -285,10 +315,9 @@ def update_unit(request, unit_id):
             unit.description = request.POST.get('description', unit.description)
             unit.status = request.POST.get('status', unit.status)
             unit.save()
-            for image in request.FILES.getlist('photos'):
-                if is_valid_image(image):
-                    UnitPhoto.objects.create(unit=unit, image=image)
-            for photo in unit.photos.filter(pk__in=request.POST.getlist('delete_photos')):
+            for image in photos:
+                UnitPhoto.objects.create(unit=unit, image=image)
+            for photo in unit.photos.filter(pk__in=delete_ids):
                 delete_image_record(photo)
             log_activity(request.user, "Updated resort unit",
                          f"{unit.unit_id} ({unit.unit_number}) in {unit.resort.name}")
@@ -649,6 +678,8 @@ def resort_group_review(request):
                     reservation.total_bill = amount
                     reservation.balance_due = amount
                     reservation.save(update_fields=['total_bill', 'balance_due'])
+                    from notifications.services import notify_service_booking
+                    notify_service_booking(reservation, 'submitted', request.user)
 
                 from simulation.completion import complete_guest_booking
                 from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -800,6 +831,8 @@ def book_resort(request, unit_id):
         reservation.amount_paid = 0
         reservation.balance_due = total
         reservation.save(update_fields=['total_bill', 'amount_paid', 'balance_due'])
+        from notifications.services import notify_service_booking
+        notify_service_booking(reservation, 'submitted', request.user)
 
         from simulation.completion import complete_guest_booking
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -938,6 +971,9 @@ def booking_detail(request, booking_id):
             if remark:
                 booking.save(update_fields=['manager_remarks'])
             confirm_booking(booking, request.user)
+            if booking.status == Reservation.Status.CONFIRMED:
+                from notifications.services import notify_service_booking
+                notify_service_booking(booking, 'confirmed', request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
             else:
@@ -962,6 +998,9 @@ def booking_detail(request, booking_id):
             booking.save(update_fields=['status', 'checked_out_at'])
             booking.unit.status = 'AVAILABLE'
             booking.unit.save(update_fields=['status'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Guest checked out", str(booking.pk))
         elif action == 'modify':
             new_in = _parse_date(request.POST.get('check_in'), booking.check_in)
@@ -998,6 +1037,8 @@ def booking_detail(request, booking_id):
             booking.special_requests = request.POST.get('special_requests', booking.special_requests)
             booking.status = Reservation.Status.MODIFIED
             booking.save()
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'updated', request.user)
             items = compute_resort_bill(
                 booking.unit, booking.nights,
                 services=booking.services.select_related().all(),
@@ -1024,6 +1065,8 @@ def booking_detail(request, booking_id):
                          f"{booking.booking_reference} - new total ₱{total}")
         elif action == 'cancel':
             cancel_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'cancelled', request.user)
             booking.unit.status = 'AVAILABLE'
             booking.unit.save(update_fields=['status'])
             log_activity(booking.customer, "Resort reservation cancelled",

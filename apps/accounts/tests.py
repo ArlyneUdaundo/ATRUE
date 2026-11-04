@@ -802,6 +802,7 @@ class ActivityAndTourPackageRoleAccessTests(TestCase):
                 self.assertContains(dashboard, label)
 
 
+@override_settings(DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False)
 class UserProfilePictureTests(TestCase):
     def setUp(self):
         self.media_dir = tempfile.TemporaryDirectory()
@@ -816,15 +817,15 @@ class UserProfilePictureTests(TestCase):
             account_type='STUDENT',
         )
         self.client.force_login(self.user)
-        self.update_url = reverse('accounts:account_update', args=[self.user.pk])
+        self.update_url = reverse('accounts:account_detail', args=[self.user.pk])
 
     def png_upload(self, name, color):
         from PIL import Image
 
         image = Image.new('RGB', (3, 2), color=color)
         image_bytes = BytesIO()
-        image.save(image_bytes, format='PNG')
-        return SimpleUploadedFile(name, image_bytes.getvalue(), content_type='image/png')
+        image.save(image_bytes, format='JPEG')
+        return SimpleUploadedFile(name.replace('.png', '.jpg'), image_bytes.getvalue(), content_type='image/jpeg')
 
     def test_upload_appears_in_the_existing_avatar_and_persists_after_login(self):
         response = self.client.post(self.update_url, {
@@ -935,6 +936,7 @@ class UserInitialsTests(TestCase):
         self.assertTrue(user.initials, 'an avatar with no letter looks broken')
 
 
+@override_settings(DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False)
 class ProfileHeaderLayoutTests(TestCase):
     """The profile header's structure: photo, then name, then handle, then actions."""
 
@@ -953,13 +955,13 @@ class ProfileHeaderLayoutTests(TestCase):
         self.client.force_login(self.user)
         self.detail_url = reverse('accounts:account_detail', args=[self.user.pk])
 
-    def png_upload(self, name='photo.png', color='red'):
+    def png_upload(self, name='photo.jpg', color='red'):
         from PIL import Image
 
         image = Image.new('RGB', (8, 8), color=color)
         buffer = BytesIO()
-        image.save(buffer, format='PNG')
-        return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/png')
+        image.save(buffer, format='JPEG')
+        return SimpleUploadedFile(name.replace('.png', '.jpg'), buffer.getvalue(), content_type='image/jpeg')
 
     def test_header_places_the_photo_above_the_name_username_and_actions(self):
         response = self.client.get(self.detail_url)
@@ -1032,10 +1034,11 @@ class ProfileHeaderLayoutTests(TestCase):
         self.assertEqual(response.status_code, 200)
         # The panel has to be open, or the error is invisible to the user.
         self.assertContains(response, 'aria-labelledby')
-        self.assertContains(response, 'not an image or a corrupted image')
+        self.assertContains(response, 'Please upload a valid JPG, JPEG, or PNG image.')
         self.assertFalse(self.user.profile_picture)
 
 
+@override_settings(DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False)
 class ProfilePhotoUploadTests(TestCase):
     """Upload, preview, change, remove, save -- from the profile page itself."""
 
@@ -1053,13 +1056,13 @@ class ProfilePhotoUploadTests(TestCase):
         self.detail_url = reverse('accounts:account_detail', args=[self.user.pk])
         self.remove_url = reverse('accounts:account_photo_remove', args=[self.user.pk])
 
-    def png_upload(self, name='photo.png', color='red', size=(8, 8)):
+    def png_upload(self, name='photo.jpg', color='red', size=(8, 8)):
         from PIL import Image
 
         image = Image.new('RGB', size, color=color)
         buffer = BytesIO()
-        image.save(buffer, format='PNG')
-        return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/png')
+        image.save(buffer, format='JPEG')
+        return SimpleUploadedFile(name.replace('.png', '.jpg'), buffer.getvalue(), content_type='image/jpeg')
 
     def upload(self, **overrides):
         data = {'profile_picture': self.png_upload()}
@@ -1148,27 +1151,39 @@ class ProfilePhotoUploadTests(TestCase):
                 'resume.pdf', b'%PDF-1.4 not an image', content_type='application/pdf'),
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'not an image or a corrupted image')
+        self.assertContains(response, 'Please upload a valid JPG, JPEG, or PNG image.')
         self.user.refresh_from_db()
         self.assertFalse(self.user.profile_picture)
 
-    def test_an_oversized_photo_is_rejected(self):
-        # A flat colour compresses to almost nothing, so the pixels are random:
-        # the point is the *uploaded* byte count, not the image dimensions.
-        from PIL import Image
-
-        image = Image.frombytes(
-            'RGB', (1400, 1400), os.urandom(1400 * 1400 * 3))
-        buffer = BytesIO()
-        image.save(buffer, format='PNG')
-        oversized = SimpleUploadedFile(
-            'huge.png', buffer.getvalue(), content_type='image/png')
-        self.assertGreater(oversized.size, ProfilePhotoForm.MAX_BYTES)
-
-        response = self.client.post(
-            self.detail_url, {'profile_picture': oversized})
+    def test_failed_replacement_keeps_the_saved_profile_photo(self):
+        self.upload()
+        original_url = self.saved_url()
+        original_path = self.stored_path()
+        response = self.client.post(self.detail_url, {
+            'profile_picture': SimpleUploadedFile(
+                'replacement.jpg', b'not actually a JPEG', content_type='image/jpeg'),
+        })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Please choose one under 2 MB')
+        self.assertContains(response, 'Please upload a valid JPG, JPEG, or PNG image.')
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile_picture.url, original_url)
+        self.assertTrue(os.path.exists(original_path))
+
+    def test_an_oversized_photo_is_rejected(self):
+        # Use a realistic large JPEG and lower the helper limit for this test so
+        # the actual oversize path is exercised without allocating 5 MB.
+        from PIL import Image
+        from unittest.mock import patch
+
+        image = Image.frombytes('RGB', (256, 256), os.urandom(256 * 256 * 3))
+        buffer = BytesIO()
+        image.save(buffer, format='JPEG', quality=100)
+        oversized = SimpleUploadedFile(
+            'huge.jpg', buffer.getvalue(), content_type='image/jpeg')
+        with patch('atrue_core.image_utils.MAX_PHOTO_UPLOAD_BYTES', 100):
+            response = self.client.post(self.detail_url, {'profile_picture': oversized})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Image size must not exceed 5 MB.')
         self.user.refresh_from_db()
         self.assertFalse(self.user.profile_picture)
 
@@ -1202,6 +1217,7 @@ class ProfilePhotoUploadTests(TestCase):
         self.assertNotContains(response, 'Save Photo')
 
 
+@override_settings(DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False)
 class NavigationAvatarTests(TestCase):
     """The top-right account area shows the photo, or the initials."""
 
@@ -1221,11 +1237,11 @@ class NavigationAvatarTests(TestCase):
 
         image = Image.new('RGB', (8, 8), color='red')
         buffer = BytesIO()
-        image.save(buffer, format='PNG')
+        image.save(buffer, format='JPEG')
         self.client.force_login(self.user)
         self.client.post(reverse('accounts:account_detail', args=[self.user.pk]), {
             'profile_picture': SimpleUploadedFile(
-                'nav.png', buffer.getvalue(), content_type='image/png'),
+                'nav.jpg', buffer.getvalue(), content_type='image/jpeg'),
         })
         self.user.refresh_from_db()
 

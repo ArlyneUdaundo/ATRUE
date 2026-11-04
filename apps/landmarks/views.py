@@ -4,13 +4,13 @@ from decimal import Decimal, InvalidOperation
 from transactions.cart import add_booking_to_cart
 from transactions.establishment_flow import add_booking as add_establishment_booking
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.services import (
     bill_for_booking,
     bill_items_total,
@@ -61,9 +61,11 @@ def _capacity_remaining(destination, visit_date, destination_type, exclude_id=No
 
 def landmark_list(request):
     destinations = Landmark.objects.prefetch_related('photos').filter(
-        status=Landmark.Status.ACTIVE,
         category=Landmark.Category.LANDMARK,
-    ).order_by('name')
+    )
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        destinations = destinations.filter(status=Landmark.Status.ACTIVE)
+    destinations = destinations.order_by('name')
     return render_search_page(request, 'landmark', destinations)
 
 
@@ -131,8 +133,10 @@ def _save_attraction(category, request, instance=None, key=''):
     except (InvalidOperation, ValueError):
         raise ValueError('Fees must be valid non-negative amounts.')
     images = request.FILES.getlist('photos')
-    if any(not is_valid_image(image) for image in images):
-        raise ValueError('Upload valid JPEG, PNG, or WebP image files no larger than 10 MB.')
+    delete_ids = request.POST.getlist('delete_photos')
+    existing_count = instance.photos.count() if instance else 0
+    delete_count = instance.photos.filter(pk__in=delete_ids).count() if instance else 0
+    images = validate_establishment_photos(images, existing_count=existing_count, delete_count=delete_count)
     if instance:
         for field, value in data.items():
             setattr(instance, field, value)
@@ -155,7 +159,11 @@ def _save_attraction(category, request, instance=None, key=''):
 @landmark_scope.decorator()
 def add_spot(request):
     if request.method == 'POST':
-        spot = _save_attraction(Landmark.Category.TOURIST_SPOT, request)
+        try:
+            spot = _save_attraction(Landmark.Category.TOURIST_SPOT, request)
+        except (ValueError, ValidationError) as exc:
+            messages.error(request, ' '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc))
+            return render(request, 'landmarks/spot_form.html', {'spot': None, 'title': 'Tourist Spot'}, status=400)
         log_activity(request.user, "Created tourist spot", spot.name)
         messages.success(request, f"Tourist spot '{spot.name}' created.")
         return redirect('landmarks:manage')
@@ -195,7 +203,11 @@ def update_spot(request, spot_id):
 @landmark_scope.decorator()
 def add_landmark(request):
     if request.method == 'POST':
-        landmark = _save_attraction(Landmark.Category.LANDMARK, request)
+        try:
+            landmark = _save_attraction(Landmark.Category.LANDMARK, request)
+        except (ValueError, ValidationError) as exc:
+            messages.error(request, ' '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc))
+            return render(request, 'landmarks/landmark_form.html', {'landmark': None, 'title': 'Landmark'}, status=400)
         log_activity(request.user, "Created landmark", landmark.name)
         messages.success(request, f"Landmark '{landmark.name}' created.")
         return redirect('landmarks:manage')
@@ -328,6 +340,8 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
         bill = create_bill(service='ticket', customer=request.user, items=items, booking=ticket)
         ticket.total_bill = total
         ticket.save(update_fields=['total_bill'])
+        from notifications.services import notify_service_booking
+        notify_service_booking(ticket, 'submitted', request.user)
 
         from simulation.completion import complete_guest_booking
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -469,6 +483,9 @@ def booking_detail(request, booking_id):
                 messages.error(request, "Only the landmark reservation officer can confirm this ticket.")
                 return redirect('landmarks:booking_detail', booking.id)
             confirm_booking(booking, request.user)
+            if booking.status == Ticket.Status.CONFIRMED:
+                from notifications.services import notify_service_booking
+                notify_service_booking(booking, 'confirmed', request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
@@ -476,12 +493,17 @@ def booking_detail(request, booking_id):
                 messages.error(request, "Only the landmark reservation officer can decline this ticket.")
                 return redirect('landmarks:booking_detail', booking.id)
             decline_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'rejected', request.user)
         elif action == 'use':
             if not can_checkin:
                 messages.error(request, "Only the landmark front desk officer can check this ticket in.")
                 return redirect('landmarks:booking_detail', booking.id)
             booking.status = Ticket.Status.USED
             booking.save(update_fields=['status'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Ticket checked in", str(booking.pk))
         elif action == 'modify':
             booking.number_of_visitors = int(request.POST.get('visitors') or booking.number_of_visitors)
@@ -489,8 +511,12 @@ def booking_detail(request, booking_id):
             booking.special_requests = request.POST.get('special_requests', booking.special_requests)
             booking.status = Ticket.Status.MODIFIED
             booking.save()
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'updated', request.user)
         elif action == 'cancel':
             cancel_booking(booking, request.user)
+            from notifications.services import notify_service_booking
+            notify_service_booking(booking, 'cancelled', request.user)
         elif action == 'pay':
             record_payment(
                 customer=request.user if request.user == booking.customer else booking.customer,

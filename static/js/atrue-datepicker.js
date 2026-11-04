@@ -763,6 +763,17 @@
         anchor.appendChild(input);
         anchor.appendChild(trigger);
 
+        // Keep only the picker trigger icon; hide calendar icons in labels.
+        var formGroup = anchor.closest('.form-group, .field, .ag-field, .hm-field, .fs-field, .adp-wrap');
+        var lbl = formGroup ? formGroup.querySelector('label') : null;
+        if (!lbl) {
+            var sib = anchor.previousElementSibling;
+            while (sib && sib.nodeType === 3) sib = sib.previousElementSibling;
+            if (sib && sib.tagName === 'LABEL') lbl = sib;
+        }
+        if (!lbl) lbl = input.closest('label');
+        if (lbl) lbl.classList.add('adp-label-noicon');
+
         trigger.addEventListener('click', function (e) {
             e.stopPropagation();
             if (controller.popup && controller.popup.classList.contains('is-open') && controller.openedBy === anchor) {

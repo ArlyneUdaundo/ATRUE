@@ -1,6 +1,11 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Simulation Roles{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261026-confirm-modal-1">
+{% endblock %}
 
 {% block content %}
 <style>
@@ -116,16 +121,16 @@
                     <td class="role-col-actions" style="text-align:right;white-space:nowrap">
                         <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm role-view-btn"><i class="fas fa-eye"></i> View</a>
                         {% if r.status != 'DONE' %}<a href="{% url 'simulation:role_detail' r.id %}#update-role" class="btn btn-outline btn-sm role-secondary-action"><i class="fas fa-edit"></i> Edit</a>{% endif %}
-                        <form class="role-secondary-action" method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done="Mark this role assignment as done?" style="display:inline">
+                        {% if r.status == 'ACTIVE' %}
+                        <form class="role-secondary-action" method="post" action="{% url 'simulation:unassign' r.id %}" data-mark-role-done style="display:inline">
                             {% csrf_token %}
-                            {% if r.status == 'ACTIVE' %}
                             <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
-                            {% elif r.status == 'DONE' %}
-                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
-                            {% else %}
-                            <span class="btn btn-ghost btn-sm" style="cursor:not-allowed">Inactive</span>
-                            {% endif %}
                         </form>
+                        {% elif r.status == 'DONE' %}
+                        <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
+                        {% else %}
+                        <span class="btn btn-ghost btn-sm" style="cursor:not-allowed">Inactive</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -136,71 +141,5 @@
     <div class="empty"><i class="fas fa-user-tag"></i><h3>No role assignments found</h3><p>Try adjusting your search or filters.</p></div>
     {% endif %}
 </div>
-<dialog id="markRoleDoneModal" style="width:min(420px,calc(100% - 32px));border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
-    <div style="padding:24px">
-        <h3 style="margin:0 0 8px">Mark role as done?</h3>
-        <p id="markRoleDoneMessage" style="margin:0;color:var(--slate-600)">This will mark the assignment as completed.</p>
-        <p id="markRoleDoneError" role="alert" style="margin:10px 0 0;color:#b91c1c;display:none"></p>
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px">
-            <button type="button" class="btn btn-outline" id="cancelMarkRoleDone">Cancel</button>
-            <button type="button" class="btn btn-brand" id="confirmMarkRoleDone">Mark as Done</button>
-        </div>
-    </div>
-</dialog>
-<script>
-(function () {
-    const modal = document.getElementById('markRoleDoneModal');
-    if (!modal) return;
-    const message = document.getElementById('markRoleDoneMessage');
-    const error = document.getElementById('markRoleDoneError');
-    const confirmButton = document.getElementById('confirmMarkRoleDone');
-    let pendingForm = null;
-
-    document.addEventListener('submit', function (event) {
-        const form = event.target.closest('form[data-mark-role-done]');
-        if (!form) return;
-        event.preventDefault();
-        pendingForm = form;
-        message.textContent = form.dataset.markRoleDone;
-        error.style.display = 'none';
-        modal.showModal();
-    });
-
-    document.getElementById('cancelMarkRoleDone').addEventListener('click', function () {
-        modal.close();
-        pendingForm = null;
-    });
-
-    confirmButton.addEventListener('click', async function () {
-        if (!pendingForm) return;
-        confirmButton.disabled = true;
-        try {
-            const response = await fetch(pendingForm.action, {
-                method: 'POST',
-                body: new FormData(pendingForm),
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
-                credentials: 'same-origin'
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || 'Could not mark this assignment as done.');
-
-            const row = pendingForm.closest('tr');
-            row.querySelector('.role-assignment-status').textContent = 'Done';
-            row.querySelector('a[href*="#update-role"]')?.remove();
-            pendingForm.outerHTML = '<span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>';
-            if (new URLSearchParams(window.location.search).get('status')
-                    && new URLSearchParams(window.location.search).get('status') !== 'DONE') {
-                row.remove();
-            }
-            modal.close();
-            pendingForm = null;
-        } catch (requestError) {
-            error.textContent = requestError.message;
-            error.style.display = '';
-        } finally {
-            confirmButton.disabled = false;
-        }
-    });
-})();
-</script>
+{% include 'simulation/_mark_done_modal.html' %}
 {% endblock %}

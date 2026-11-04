@@ -1,0 +1,37 @@
+{% extends 'dashboard_base.html' %}
+{% block title %}Travel Request {{ travel_request.request_reference }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Travel Request</h1>
+        <p>{{ travel_request.request_reference }} · {{ travel_request.get_decision_display }}</p>
+    </div>
+    <a class="btn btn-ghost" href="{% url 'notifications:list' %}">Back to Notifications</a>
+</div>
+
+<div class="card card-pad" style="margin-bottom:18px">
+    <h2 style="margin-top:0">{{ travel_request.origin|default:'Origin not specified' }} to {{ travel_request.destination }}</h2>
+    <p>{{ notification.message }}</p>
+    <div class="dashboard-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px">
+        <div><small>Agency</small><strong style="display:block">{{ travel_request.establishment.name }}</strong></div>
+        <div><small>Travel date</small><strong style="display:block">{{ travel_request.travel_date|date:'M d, Y'|default:'Not specified' }}</strong></div>
+        <div><small>Return date</small><strong style="display:block">{{ travel_request.return_date|date:'M d, Y'|default:'Not specified' }}</strong></div>
+        <div><small>Travelers</small><strong style="display:block">{{ travel_request.party_size }}</strong></div>
+        <div><small>Budget</small><strong style="display:block">{{ travel_request.budget }}</strong></div>
+    </div>
+    {% if travel_request.requirements %}<h3>Requirements</h3><p>{{ travel_request.requirements|linebreaksbr }}</p>{% endif %}
+</div>
+
+{% if quotation %}
+<div class="card card-pad">
+    <h2 style="margin-top:0">Latest quotation · {{ quotation.quotation_reference }}</h2>
+    <p>Status: {{ quotation.get_status_display }} · Total: {{ quotation.total }}</p>
+    {% if quotation.terms %}<p>{{ quotation.terms|linebreaksbr }}</p>{% endif %}
+    {% for day in travel_request.itineraries.all %}
+        {% if day.version == quotation.version %}
+        <div style="padding:10px 0;border-top:1px solid #e2e8f0"><strong>Day {{ day.day_number }}: {{ day.title }}</strong><div>{{ day.activity }}</div>{% if day.destination %}<small>{{ day.destination }}</small>{% endif %}</div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

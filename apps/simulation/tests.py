@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from establishments.models import establishment_for_instance
 from hotels.models import Hotel
+from notifications.models import Notification
 from simulation.models import ActivityLog, SimulationRoleAssignment
 
 User = get_user_model()
@@ -63,6 +64,50 @@ class AssignSimulationRoleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Name the activity.')
         self.assertFalse(SimulationRoleAssignment.objects.filter(student=self.student).exists())
+        self.assertFalse(Notification.objects.filter(recipient=self.student).exists())
+
+    def test_successful_assignment_notifies_only_the_assigned_student(self):
+        other = User.objects.create_user(
+            'other-student', password='pw', account_type=User.AccountType.STUDENT)
+        assignment = self.assign(role=SimulationRoleAssignment.Role.HOTEL_RESERVATION_OFFICER)
+        notification = Notification.objects.get(recipient=self.student)
+        self.assertFalse(Notification.objects.filter(recipient=other).exists())
+        self.assertEqual(notification.notification_type, Notification.Type.ROLE_ASSIGNED)
+        self.assertEqual(notification.assignment, assignment)
+        self.assertEqual(notification.session, assignment.session)
+        self.assertEqual(notification.establishment, self.establishment)
+        self.assertEqual(notification.role, assignment.role_ref)
+        self.assertEqual(notification.actor, self.instructor)
+        self.assertIn('Hotel Reservation Officer', notification.message)
+        self.assertIn('ABC Grand Hotel', notification.message)
+        self.assertIn('Activity 1', notification.message)
+
+    def test_notification_open_marks_read_and_opens_only_the_owned_assignment(self):
+        assignment = self.assign()
+        notification = Notification.objects.get(recipient=self.student)
+        self.client.force_login(self.student)
+        response = self.client.post(reverse('notifications:open', args=[notification.pk]))
+        self.assertRedirects(response, reverse('simulation:role_detail', args=[assignment.pk]))
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_read)
+        self.assertIsNotNone(notification.read_at)
+        self.assertEqual(Notification.objects.filter(recipient=self.student).count(), 1)
+        details = self.client.get(response.url)
+        self.assertEqual(details.status_code, 200)
+        self.assertContains(details, assignment.get_role_display())
+        self.assertContains(details, 'Do the Task')
+        self.assertContains(details, reverse('simulation:do_task', args=[assignment.pk]))
+
+    def test_student_cannot_open_another_students_notification(self):
+        self.assign()
+        notification = Notification.objects.get(recipient=self.student)
+        other = User.objects.create_user(
+            'other-student', password='pw', account_type=User.AccountType.STUDENT)
+        self.client.force_login(other)
+        response = self.client.post(reverse('notifications:open', args=[notification.pk]))
+        self.assertEqual(response.status_code, 404)
+        notification.refresh_from_db()
+        self.assertFalse(notification.is_read)
 
     def test_predefined_general_training_is_not_forced(self):
         self.assign(activity_name='Activity 1')

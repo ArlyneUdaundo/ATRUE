@@ -18,10 +18,10 @@
 {% for h in hotels %}
 <div class="card card-pad" style="margin-bottom:18px">
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        {% with hotel_image=h.photos.all|usable_urls|first %}
-        {% if hotel_image %}<img src="{{ hotel_image }}" alt="{{ h.name }}" loading="lazy" style="width:120px;height:88px;object-fit:cover;border-radius:12px;flex:none">
-        {% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ h.name }}" loading="lazy" style="width:120px;height:88px;object-fit:cover;border-radius:12px;flex:none">{% endif %}
-        {% endwith %}
+        <div class="hotel-listing-gallery agoda-gallery" data-gallery>
+            <div class="agoda-gallery-track">{% for photo in h.photos.all %}{% if photo.image %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ h.name }} photo {{ forloop.counter }}" loading="lazy">{% endif %}{% empty %}<img class="agoda-gallery-image is-active" src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ h.name }}" loading="lazy">{% endfor %}</div>
+            {% if h.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}
+        </div>
         <div style="flex:1">
             <h3 style="margin:0">{{ h.name }}</h3>
             <div class="meta" style="margin-top:4px"><i class="fas fa-map-marker-alt"></i> {{ h.location }}</div>

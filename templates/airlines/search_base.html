@@ -1,0 +1,22 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Flight Search Results{% endblock %} | ATRUE</title>
+    <meta name="description" content="Search and compare ATRUE flight results: filters, sorting, schedules and baggage details.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/flight-search.css' %}?v=20261023-flight-layout-2">
+    <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261023-airport-empty-overlay-1">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    {% block page %}{% endblock %}
+    <script src="{% static 'js/airport-picker.js' %}?v=20261021-3"></script>
+    <script src="{% static 'js/flight-results.js' %}?v=20261023-mixed-routes-1"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

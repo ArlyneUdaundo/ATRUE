@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,6 +22,15 @@ from atrue_core.services import (
 from simulation.models import BILLING_OFFICER_ROLE_CODES
 
 from .models import AdditionalTransaction, Bill, Payment, Receipt
+
+
+def _has_stored_field(instance, name):
+    """True when ``name`` is a real column, not a read-only derived property."""
+    try:
+        instance._meta.get_field(name)
+    except FieldDoesNotExist:
+        return False
+    return True
 
 
 @login_required
@@ -111,17 +120,17 @@ def payment_review(request):
                         linked_bill.verified_at = timezone.now()
                         linked_bill.save(update_fields=[
                             'amount_paid', 'balance_due', 'status', 'verified_by', 'verified_at'])
-                    if hasattr(order_booking, 'amount_paid'):
+                    if _has_stored_field(order_booking, 'amount_paid'):
                         order_booking.amount_paid = linked_bill.total_amount if linked_bill else bill.amount_paid
                         update_fields = ['amount_paid']
-                        if hasattr(order_booking, 'balance_due'):
+                        if _has_stored_field(order_booking, 'balance_due'):
                             order_booking.balance_due = linked_bill.balance_due if linked_bill else 0
                             update_fields.append('balance_due')
                         order_booking.save(update_fields=update_fields)
-            elif hasattr(booking, 'amount_paid'):
+            elif _has_stored_field(booking, 'amount_paid'):
                 booking.amount_paid = bill.amount_paid
                 update_fields = ['amount_paid']
-                if hasattr(booking, 'balance_due'):
+                if _has_stored_field(booking, 'balance_due'):
                     booking.balance_due = bill.balance_due
                     update_fields.append('balance_due')
                 booking.save(update_fields=update_fields)
@@ -139,6 +148,15 @@ def payment_review(request):
                         booking_establishment = establishment
                     _notify_reservation_officers(
                         confirmed_booking, booking_establishment, assignment, bill)
+                    from simulation.completion import (
+                        record_guest_payment_verified,
+                    )
+                    record_guest_payment_verified(
+                        confirmed_booking,
+                        session=assignment.session if assignment else None,
+                        actor=request.user,
+                        task_assignment_id=assignment.pk if assignment else None,
+                    )
                 messages.success(
                     request,
                     f'Payment confirmed for {bill.bill_reference}. The booking is now awaiting Reservation Officer confirmation.',
@@ -175,11 +193,17 @@ def payment_review(request):
             bill.verified_by = request.user
             bill.verified_at = timezone.now()
             bill.save(update_fields=['verified_by', 'verified_at'])
-            from atrue_core.services import log_activity
             log_activity(
                 request.user, 'Payment verified', bill.bill_reference,
                 session=assignment.session if assignment else None,
                 establishment=establishment,
+            )
+            from simulation.completion import record_guest_payment_verified
+            record_guest_payment_verified(
+                booking,
+                session=assignment.session if assignment else None,
+                actor=request.user,
+                task_assignment_id=assignment.pk if assignment else None,
             )
             if booking.status == 'PENDING':
                 _notify_reservation_officers(booking, establishment, assignment, bill)
@@ -231,6 +255,7 @@ def _notify_reservation_officers(booking, establishment, assignment, bill):
         'Review and confirm the reservation.',
         session=assignment.session if assignment else None,
         establishment=establishment,
+        related_object=booking,
     )
 
 

@@ -28,7 +28,7 @@ from airlines.tests import make_aircraft, make_airline
 from establishments.models import Establishment, establishment_for_instance
 from hotels.models import Booking, BookingRoom, Hotel, Room
 from locations.models import CityMunicipality, Country, Province, Region
-from simulation.models import Role as RoleModel
+from simulation.models import ActivityLog, Role as RoleModel
 from simulation.models import SimulationRoleAssignment, SimulationSession
 from simulation.role_catalogue import ROLE_CATALOGUE
 from simulation.task_routing import _OPERATIONS, _RESTAURANT_OPERATIONS, task_operation_for
@@ -120,6 +120,78 @@ class AssignmentFlowTestCase(TestCase):
             booking=booking, room=room, check_in=date.today(),
             check_out=date.today() + timedelta(days=2), number_of_adults=1)
         return booking
+
+
+class MarkRoleDoneConfirmationTests(AssignmentFlowTestCase):
+    def setUp(self):
+        super().setUp()
+        self.assignment = self.assign(
+            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
+            activity_name='Completion Modal Session')
+        self.other_assignment = self.assign(
+            self.angela, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Completion Modal Session')
+        self.client.force_login(self.instructor)
+
+    def test_workspace_and_role_list_use_the_completion_confirmation(self):
+        expected_message = (
+            'Are you sure you want to mark this assignment as done? '
+            'You can still view it later if needed.')
+        for url in (reverse('simulation:workspace'), reverse('simulation:role_list')):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, '<h2 id="markRoleDoneTitle">Mark as Done?</h2>', html=True)
+            self.assertContains(response, expected_message)
+            self.assertContains(
+                response,
+                f'action="{reverse("simulation:unassign", args=[self.assignment.pk])}"',
+            )
+            self.assertContains(response, 'method="post"')
+            self.assertNotContains(response, 'data-confirm="Mark this role assignment as done?"')
+            self.assertNotContains(response, 'Are you sure you want to remove this assignment?')
+
+    def test_get_does_not_complete_an_assignment(self):
+        response = self.client.get(reverse('simulation:unassign', args=[self.assignment.pk]))
+        self.assertEqual(response.status_code, 405)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
+
+    def test_confirmed_post_completes_only_the_selected_assignment_once(self):
+        response = self.client.post(
+            reverse('simulation:unassign', args=[self.assignment.pk]),
+            {'csrfmiddlewaretoken': 'test-token'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'DONE')
+        self.assignment.refresh_from_db()
+        self.other_assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, SimulationRoleAssignment.AssignmentStatus.DONE)
+        self.assertIsNotNone(self.assignment.completed_at)
+        self.assertEqual(self.other_assignment.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
+        self.assertEqual(
+            ActivityLog.objects.filter(action='Marked simulation role as done').count(), 1)
+
+        repeated = self.client.post(
+            reverse('simulation:unassign', args=[self.assignment.pk]),
+            {'csrfmiddlewaretoken': 'test-token'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(repeated.status_code, 409)
+        self.assertEqual(
+            ActivityLog.objects.filter(action='Marked simulation role as done').count(), 1)
+
+    def test_student_cannot_complete_an_assignment(self):
+        self.client.force_login(self.arlyne)
+        response = self.client.post(
+            reverse('simulation:unassign', args=[self.assignment.pk]),
+            {'csrfmiddlewaretoken': 'test-token'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
+        self.assertFalse(ActivityLog.objects.filter(action='Marked simulation role as done').exists())
 
 
 class TaskOperationsRouteTests(TestCase):
@@ -600,9 +672,13 @@ class AdminAssignmentTests(AssignmentFlowTestCase):
 
     def test_admin_deactivates_an_assignment(self):
         a = self.assign(self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est)
-        self.client.post(reverse('simulation:unassign', args=[a.id]))
+        response = self.client.post(
+            reverse('simulation:unassign', args=[a.id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
         a.refresh_from_db()
-        self.assertEqual(a.status, SimulationRoleAssignment.AssignmentStatus.INACTIVE)
+        self.assertEqual(a.status, SimulationRoleAssignment.AssignmentStatus.DONE)
 
 
 class RoleDetailEstablishmentDisplayTests(AssignmentFlowTestCase):
@@ -1004,6 +1080,41 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         self.assertContains(response, 'Session 1')
         self.assertLess(body.index('simulation-session-list'), body.index('Activities and roles'))
         self.assertContains(response, reverse('simulation:do_task', args=[self.assignment.id]))
+
+    def test_role_detail_shows_session_task_state_and_task_entry(self):
+        session = SimulationSession.objects.create(
+            name='Role Detail Session', instructor=self.instructor,
+        )
+        self.assignment.session = session
+        self.assignment.activity_name = session.name
+        self.assignment.save(update_fields=['session', 'activity_name'])
+
+        response = self.client.get(
+            reverse('simulation:role_detail', args=[self.assignment.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.assignment.get_role_display())
+        self.assertContains(response, 'Sunrise Hotel')
+        self.assertContains(response, session.session_id)
+        self.assertContains(response, 'Not Started')
+        self.assertContains(response, reverse('simulation:do_task', args=[self.assignment.pk]))
+        self.assertContains(response, 'Do the Task')
+
+    def test_task_start_timestamp_and_activity_log_are_written_once(self):
+        url = reverse('simulation:do_task', args=[self.assignment.pk])
+
+        first = self.client.get(url)
+        self.assignment.refresh_from_db()
+        first_started_at = self.assignment.started_at
+        second = self.client.get(url)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertIsNotNone(first_started_at)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.started_at, first_started_at)
+        self.assertEqual(ActivityLog.objects.filter(
+            role_assignment=self.assignment, action='Started simulation task').count(), 1)
 
     def test_do_the_task_shows_the_assigned_hotel_operations_entry(self):
         response = self.client.get(reverse('simulation:do_task', args=[self.assignment.id]))

@@ -34,14 +34,16 @@ def image_upload(image_format='PNG', name=None):
 
 
 class ImageValidationTests(SimpleTestCase):
-    def test_accepts_jpeg_png_and_webp_image_bytes(self):
-        self.assertEqual(ALLOWED_IMAGE_FORMATS, {'JPEG', 'PNG', 'WEBP'})
-        for image_format in ('JPEG', 'PNG', 'WEBP'):
+    def test_accepts_jpeg_and_png_image_bytes(self):
+        self.assertEqual(ALLOWED_IMAGE_FORMATS, {'JPEG', 'PNG'})
+        for image_format in ('JPEG', 'PNG'):
             with self.subTest(image_format=image_format):
                 self.assertTrue(is_valid_image(image_upload(image_format)))
 
-    def test_rejects_gif_and_non_image_bytes(self):
-        self.assertFalse(is_valid_image(image_upload('GIF')))
+    def test_rejects_webp_gif_and_non_image_bytes(self):
+        for image_format in ('WEBP', 'GIF'):
+            with self.subTest(image_format=image_format):
+                self.assertFalse(is_valid_image(image_upload(image_format)))
         self.assertFalse(is_valid_image(SimpleUploadedFile(
             'not-an-image.png', b'not image bytes', content_type='image/png')))
 
@@ -58,7 +60,7 @@ class ImageValidationTests(SimpleTestCase):
             'SUPABASE_S3_ACCESS_KEY_ID': 'test-access',
             'SUPABASE_S3_SECRET_ACCESS_KEY': 'test-secret',
             'SUPABASE_STORAGE_REGION': 'ap-southeast-1',
-            'SUPABASE_STORAGE_BUCKET': 'establishment-images',
+            'SUPABASE_STORAGE_BUCKET': 'establishment_images',
         }
         with patch.dict('os.environ', storage_env, clear=False):
             storage = SupabasePublicStorage()
@@ -71,7 +73,7 @@ class ImageValidationTests(SimpleTestCase):
             response = storage.process_exception(
                 None, ImproperlyConfigured('Configure SUPABASE credentials'))
         self.assertEqual(response.status_code, 503)
-        self.assertIn(b'image storage is unavailable', response.content.lower())
+        self.assertIn(b'the image could not be uploaded', response.content.lower())
 
 
 class ImageUploadIntegrationTests(TestCase):
@@ -94,13 +96,30 @@ class ImageUploadIntegrationTests(TestCase):
             'SUPABASE_S3_ACCESS_KEY_ID': 'test-access',
             'SUPABASE_S3_SECRET_ACCESS_KEY': 'test-secret',
             'SUPABASE_STORAGE_REGION': 'ap-southeast-1',
-            'SUPABASE_STORAGE_BUCKET': 'establishment-images',
+            'SUPABASE_STORAGE_BUCKET': 'establishment_images',
         }
         with patch.dict('os.environ', storage_env, clear=False):
             url = SupabasePublicStorage().url(photo.image.name)
-        self.assertIn('/establishment-images/hotel_photos/unique-test.png', url)
+        self.assertIn('/establishment_images/hotel_photos/unique-test.png', url)
         self.assertTrue(url.startswith('https://project.supabase.co/'))
         storage.save.assert_called_once()
+
+    def test_public_url_is_built_from_a_bare_project_ref(self):
+        storage_env = {
+            'SUPABASE_URL': 'project-ref',
+            'SUPABASE_S3_ENDPOINT': 'https://project-ref.storage.supabase.co/storage/v1/s3',
+            'SUPABASE_S3_ACCESS_KEY_ID': 'test-access',
+            'SUPABASE_S3_SECRET_ACCESS_KEY': 'test-secret',
+            'SUPABASE_STORAGE_REGION': 'ap-southeast-1',
+            'SUPABASE_STORAGE_BUCKET': 'establishment_images',
+        }
+        with patch.dict('os.environ', storage_env, clear=False):
+            url = SupabasePublicStorage().url('hotel_photos/unique-test.png')
+        self.assertEqual(
+            url,
+            'https://project-ref.supabase.co/storage/v1/object/public/'
+            'establishment_images/hotel_photos/unique-test.png',
+        )
 
     def test_storage_failure_does_not_create_photo_record(self):
         storage = Mock()

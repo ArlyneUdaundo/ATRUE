@@ -1,0 +1,120 @@
+{# Flight search form: trip type, flight type, route, dates, passengers and the search action. #}
+<form class="fs-search" data-fs-search data-fs-flight-type="{{ search_defaults.flight_type }}"
+      data-fs-country="{{ search_defaults.origin_country }}" aria-label="Flight search" novalidate>
+    <div class="fs-search__bars">
+        <div class="fs-search__tabs" role="tablist" aria-label="Trip type">
+            <button type="button" class="fs-tripchip{% if search_defaults.trip_type == 'oneway' %} is-active{% endif %}" role="tab"
+                    aria-selected="{% if search_defaults.trip_type == 'oneway' %}true{% else %}false{% endif %}" data-fs-trip="oneway">
+                <i class="fas fa-arrow-right" aria-hidden="true"></i> One Way
+            </button>
+            <button type="button" class="fs-tripchip{% if search_defaults.trip_type == 'round' %} is-active{% endif %}" role="tab"
+                    aria-selected="{% if search_defaults.trip_type == 'round' %}true{% else %}false{% endif %}" data-fs-trip="round">
+                <i class="fas fa-right-left" aria-hidden="true"></i> Round Trip
+            </button>
+            <button type="button" class="fs-tripchip{% if search_defaults.trip_type == 'multicity' %} is-active{% endif %}" role="tab"
+                    aria-selected="{% if search_defaults.trip_type == 'multicity' %}true{% else %}false{% endif %}" data-fs-trip="multicity">
+                <i class="fas fa-route" aria-hidden="true"></i> Multi-City
+            </button>
+            <input type="hidden" name="trip_type" value="{% if search_defaults.trip_type == 'oneway' %}oneway{% elif search_defaults.trip_type == 'round' %}round{% elif search_defaults.trip_type == 'multicity' %}multicity{% endif %}" data-fs-trip-input>
+        </div>
+
+        <span class="fs-search__sep" aria-hidden="true"></span>
+
+        <div class="fs-search__tabs fs-search__tabs--type" role="tablist" aria-label="Flight type">
+            <button type="button" class="fs-tripchip{% if search_defaults.flight_type == 'domestic' %} is-active{% endif %}" role="tab"
+                    aria-selected="{% if search_defaults.flight_type == 'domestic' %}true{% else %}false{% endif %}" data-fs-flighttype="domestic">
+                <i class="fas fa-map-location-dot" aria-hidden="true"></i> Domestic
+            </button>
+            <button type="button" class="fs-tripchip{% if search_defaults.flight_type == 'international' %} is-active{% endif %}" role="tab"
+                    aria-selected="{% if search_defaults.flight_type == 'international' %}true{% else %}false{% endif %}" data-fs-flighttype="international">
+                <i class="fas fa-earth-asia" aria-hidden="true"></i> International
+            </button>
+            <input type="hidden" name="flight_type" value="{{ search_defaults.flight_type|upper }}" data-fs-flighttype-input>
+        </div>
+    </div>
+
+    <div class="fs-search__grid" data-fs-grid>
+        <div class="fs-field fs-field--airport" data-field="from">
+            <label class="fs-field__label"><i class="fas fa-plane-departure" aria-hidden="true"></i> From</label>
+            {% include 'search/_airport_field.html' with field_name='origin_airport' airport=origin_airport_object placeholder='Origin airport or city' compact=True icon='fa-plane-departure' %}
+        </div>
+
+        <button type="button" class="fs-swap" data-fs-swap aria-label="Swap origin and destination" title="Swap airports">
+            <i class="fas fa-right-left" aria-hidden="true"></i>
+        </button>
+
+        <div class="fs-field fs-field--airport" data-field="to">
+            <label class="fs-field__label"><i class="fas fa-plane-arrival" aria-hidden="true"></i> To</label>
+            {% include 'search/_airport_field.html' with field_name='destination_airport' airport=destination_airport_object placeholder='Destination airport or city' compact=True icon='fa-plane-arrival' %}
+        </div>
+
+        <div class="fs-field fs-field--dates" data-field="depart">
+            <label class="fs-field__label" for="fsDepart"><i class="fas fa-calendar-day" aria-hidden="true"></i> Departure</label>
+            <div class="fs-date-range">
+                <span class="fs-control fs-control--date">
+                    <span class="fs-control__text" data-fs-depart-label>{{ search_defaults.departure_label }}</span>
+                    <input class="fs-date" type="date" id="fsDepart" name="departure_date" value="{{ search_defaults.departure_date }}" data-fs-depart>
+                </span>
+                <span class="fs-date-range__return" data-fs-return-field{% if search_defaults.trip_type != 'round' %} hidden{% endif %}>
+                    <span class="fs-control fs-control--date">
+                        <span class="fs-control__text" data-fs-return-label>{{ search_defaults.return_date|date:'M d, Y' }}</span>
+                        <input class="fs-date" type="date" id="fsReturn" name="return_date" value="{{ search_defaults.return_date }}" data-fs-return>
+                    </span>
+                </span>
+            </div>
+        </div>
+
+        <div class="fs-field fs-field--pax" data-fs-pax>
+            <span class="fs-field__label" id="fsPaxLabel"><i class="fas fa-user-group" aria-hidden="true"></i> Passengers</span>
+            <button type="button" class="fs-control fs-control--btn" data-fs-pax-toggle aria-haspopup="dialog" aria-expanded="false" aria-labelledby="fsPaxLabel">
+                <span data-fs-pax-summary>{{ search_defaults.passengers }} Adult{% if search_defaults.passengers != 1 %}s{% endif %}</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+            </button>
+            <input type="hidden" name="passengers" value="{{ search_defaults.passengers }}" data-fs-pax-input>
+            <div class="fs-pax" data-fs-pax-panel role="dialog" aria-label="Passengers" hidden>
+                <div class="fs-pax__row">
+                    <span class="fs-pax__type"><strong>Adults</strong><small>12 yrs and above</small></span>
+                    <span class="fs-stepper">
+                        <button type="button" data-fs-pax-step="adults" data-delta="-1" aria-label="Remove adult"><i class="fas fa-minus" aria-hidden="true"></i></button>
+                        <b data-fs-pax-count="adults">{{ search_defaults.passengers }}</b>
+                        <button type="button" data-fs-pax-step="adults" data-delta="1" aria-label="Add adult"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                    </span>
+                </div>
+                <div class="fs-pax__row">
+                    <span class="fs-pax__type"><strong>Children</strong><small>2-11 yrs</small></span>
+                    <span class="fs-stepper">
+                        <button type="button" data-fs-pax-step="children" data-delta="-1" aria-label="Remove child"><i class="fas fa-minus" aria-hidden="true"></i></button>
+                        <b data-fs-pax-count="children">0</b>
+                        <button type="button" data-fs-pax-step="children" data-delta="1" aria-label="Add child"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                    </span>
+                </div>
+                <div class="fs-pax__row">
+                    <span class="fs-pax__type"><strong>Infants</strong><small>Below 2 yrs</small></span>
+                    <span class="fs-stepper">
+                        <button type="button" data-fs-pax-step="infants" data-delta="-1" aria-label="Remove infant"><i class="fas fa-minus" aria-hidden="true"></i></button>
+                        <b data-fs-pax-count="infants">0</b>
+                        <button type="button" data-fs-pax-step="infants" data-delta="1" aria-label="Add infant"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                    </span>
+                </div>
+                <button type="button" class="fs-pax__done" data-fs-pax-done>Done</button>
+            </div>
+        </div>
+
+        <button type="submit" class="fs-btn fs-btn--primary fs-search__submit" data-fs-submit>
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i> Search Flights
+        </button>
+    </div>
+
+    <div class="fs-search__multi" data-fs-multi{% if search_defaults.trip_type != 'multicity' %} hidden{% endif %}>
+        <p class="fs-search__multi-note"><i class="fas fa-circle-info" aria-hidden="true"></i> Add each city pair as its own flight segment. Two segments minimum.</p>
+        <div class="fs-legs" data-fs-legs>
+            {% include 'airlines/search/_multi_city_leg.html' with leg_index=1 %}
+            {% include 'airlines/search/_multi_city_leg.html' with leg_index=2 %}
+        </div>
+        <button type="button" class="fs-btn fs-btn--outline fs-legs__add" data-fs-legs-add>
+            <i class="fas fa-plus" aria-hidden="true"></i> Add another flight
+        </button>
+    </div>
+
+    <p class="fs-search__error" data-fs-search-error role="alert" hidden></p>
+</form>

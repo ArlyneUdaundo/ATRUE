@@ -50,11 +50,14 @@ def location_tree(request):
 
 def notification_count(request):
     if not request.user.is_authenticated:
-        return {'notification_count': 0}
-    from simulation.models import ActivityLog
-    return {
-        'notification_count': ActivityLog.objects.filter(user=request.user).count(),
-    }
+        return {'notification_count': 0, 'recent_notifications': []}
+    from notifications.models import Notification
+
+    unread = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    recent = Notification.objects.filter(recipient=request.user).select_related(
+        'session', 'establishment', 'assignment', 'role', 'actor'
+    )[:5]
+    return {'notification_count': unread, 'recent_notifications': recent}
 
 
 def simulation_task_context(request):

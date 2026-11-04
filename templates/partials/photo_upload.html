@@ -1,0 +1,35 @@
+{% load static %}
+<section class="photo-upload-section" data-establishment-photo-section aria-label="{{ photo_title }}">
+    <h3 class="photo-upload-heading"><i class="fas fa-images" aria-hidden="true"></i> {{ photo_title }}</h3>
+    <div class="photo-upload-drop" data-photo-drop>
+        <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i>
+        <strong>Drag photos here or <label for="{{ photo_input_id }}">browse files</label></strong>
+        <span>JPG, JPEG, or PNG &mdash; up to 5 MB each</span>
+        <input id="{{ photo_input_id }}" type="file" name="photos" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple
+               data-photo-upload data-photo-kind="gallery" data-max-count="5"
+               data-photo-preview-target="{{ photo_input_id }}-preview"
+               data-photo-count-target="{{ photo_input_id }}-count">
+    </div>
+    <ul class="photo-upload-rules">
+        <li>File type: JPG, JPEG, or PNG.</li>
+        <li>Maximum size: 5 MB per photo.</li>
+        <li>Maximum quantity: 5 photos per establishment.</li>
+        <li>Recommended image: clear, high-quality establishment photos.</li>
+    </ul>
+    <p class="photo-upload-error" data-photo-error role="alert" hidden></p>
+    <div class="photo-upload-selected" id="{{ photo_input_id }}-preview" data-photo-preview aria-live="polite"></div>
+    <p class="photo-upload-count" id="{{ photo_input_id }}-count" data-photo-count>
+        {% if photo_owner %}{{ photo_owner.photos.count }}{% else %}0{% endif %} of 5 photos
+    </p>
+    {% if photo_owner and photo_owner.photos.all %}
+    <div class="photo-upload-existing" data-photo-existing>
+        {% for photo in photo_owner.photos.all %}
+        <label class="photo-upload-existing-card">
+            <img src="{{ photo.image.url }}" alt="{{ photo_title }} {{ forloop.counter }}">
+            <span class="photo-upload-filename">{{ photo.image.name|default:'Saved photo' }}</span>
+            <span class="photo-upload-remove"><input type="checkbox" name="delete_photos" value="{{ photo.id }}"> Remove</span>
+        </label>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>

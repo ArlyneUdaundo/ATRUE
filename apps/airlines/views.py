@@ -1,7 +1,8 @@
 import json
 import logging
+import os
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
@@ -16,19 +17,25 @@ from accounts.roles import (
 )
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, Count, ExpressionWrapper, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce
-from django.http import JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from atrue_core.decorators import manager_required, student_booking_required
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import (
+    delete_image_record,
+    validate_establishment_photos,
+    validate_image_upload,
+)
 from atrue_core.location_hierarchy import country_province_keys, location_matches
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -46,6 +53,8 @@ from atrue_core.services import (
 )
 from locations.geonames_service import search_worldwide_places
 
+from . import passenger_details_sample as pd_sample
+
 from .itineraries import (
     DEFAULT_TIMEZONE_FALLBACK as DEFAULT_AIRPORT_TIMEZONE,
     MAX_ITINERARY_SEGMENTS,
@@ -58,6 +67,7 @@ from .itineraries import (
     segment_duration_minutes,
 )
 from .layouts import build_seat_map
+from .live_flights import LiveFlightSearchError, offer_rows, search_offers
 from .models import (
     Airline,
     AirlineFleet,
@@ -70,12 +80,14 @@ from .models import (
     FARE_CLASS_CHOICES,
     Flight,
     FlightItinerary,
+    FlightOfferSnapshot,
     Seat,
     SeatLayout,
     Service,
     TripRole,
     TripSegment,
 )
+from .sample_flights import AIRPORT_CHOICES, filter_groups, sample_results
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +102,7 @@ def _serialize_airport(airport):
         'code': airport.code,
         'city': airport.city,
         'country': airport.country,
+        'country_code': airport.country_code,
         'region': airport.region,
         'address': airport.address,
         'label': f"{airport.code} — {', '.join(cities)}",
@@ -104,6 +117,7 @@ def _airport_endpoint_payload(airport):
         'code': airport.code,
         'country': airport.country,
         'region': airport.region,
+        'address': airport.address,
         'municipality': airport.city,
     }
 
@@ -113,11 +127,19 @@ def airports_api(request):
 
     Search is server-side (name / IATA / ICAO / city / address / country / region) so the
     whole world list never has to be shipped to the browser.  ``?id=N`` returns a
-    single airport for pre-filled form values.
+    single airport for pre-filled form values.  ``?country=Philippines`` (or an ISO
+    alpha-2 code such as ``PH``) narrows the suggestions to one country, which is how
+    the Domestic / International selector steers the flight search form.
     """
     q = (request.GET.get('q') or '').strip()
     pk = (request.GET.get('id') or '').strip()
+    country = (request.GET.get('country') or '').strip()
     qs = Airport.objects.filter(status=Airport.Status.ACTIVE)
+    if country:
+        if len(country) == 2:
+            qs = qs.filter(country_code__iexact=country)
+        else:
+            qs = qs.filter(country__iexact=country)
 
     if pk:
         try:
@@ -492,6 +514,12 @@ def flight_list(request):
     destination = (request.GET.get('destination', '') or '').strip()
     origin_airport = (request.GET.get('origin_airport') or '').strip()
     destination_airport = (request.GET.get('destination_airport') or '').strip()
+    requested_flight_type = (request.GET.get('flight_type') or '').strip().upper()
+    flight_type = (
+        requested_flight_type
+        if requested_flight_type in ('DOMESTIC', 'INTERNATIONAL')
+        else ''
+    )
     origin_country = (request.GET.get('origin_country') or '').strip()
     origin_province = (request.GET.get('origin_province') or '').strip()
     origin_municipality = (request.GET.get('origin_municipality') or '').strip()
@@ -503,39 +531,133 @@ def flight_list(request):
     return_date = request.GET.get('return_date', '')
     search_submitted = request.GET.get('search_submit') == '1'
     search_errors = []
-    if trip_type not in (Booking.TripType.ONE_WAY, Booking.TripType.ROUND_TRIP):
+    multicity_requested = trip_type == 'MULTI_CITY'
+    if trip_type not in (
+        Booking.TripType.ONE_WAY, Booking.TripType.ROUND_TRIP, 'MULTI_CITY'
+    ):
         trip_type = Booking.TripType.ONE_WAY
         if search_submitted:
-            search_errors.append('Choose One-way or Round-trip.')
+            search_errors.append('Choose One-way, Round-trip or Multi-city.')
     dep = _parse_date(departure_date)
     ret = _parse_date(return_date)
+
+    # Multi-city legs arrive as parallel query lists. They are read here so the
+    # server can validate each segment independently of the browser.
+    multi_legs = []
+    if multicity_requested and search_submitted:
+        raw_origins = request.GET.getlist('leg_origin_airport')
+        raw_destinations = request.GET.getlist('leg_destination_airport')
+        raw_dates = request.GET.getlist('leg_departure_date')
+        leg_count = max(len(raw_origins), len(raw_destinations), len(raw_dates))
+        for index in range(leg_count):
+            multi_legs.append({
+                'index': index + 1,
+                'origin': (raw_origins[index] if index < len(raw_origins) else '').strip(),
+                'destination': (raw_destinations[index] if index < len(raw_destinations) else '').strip(),
+                'date': (raw_dates[index] if index < len(raw_dates) else '').strip(),
+            })
+
+    def _require_active_airport(raw):
+        """An active Airport for a form value, else None."""
+        if not raw.isdigit():
+            return None
+        return Airport.objects.filter(
+            pk=raw, status=Airport.Status.ACTIVE).first()
+
+    def _flight_type_for(origin_record, destination_record):
+        """'DOMESTIC', 'INTERNATIONAL' or '' when the pair cannot be judged."""
+        if not origin_record or not destination_record:
+            return ''
+        if origin_record.pk == destination_record.pk:
+            return ''
+        if origin_record.country and destination_record.country:
+            same = (origin_record.country_code and destination_record.country_code
+                    and origin_record.country_code.upper() == destination_record.country_code.upper())
+            if same:
+                return 'DOMESTIC'
+            if (origin_record.country_code and destination_record.country_code):
+                return 'INTERNATIONAL'
+            return ('DOMESTIC'
+                    if origin_record.country.strip().lower()
+                    == destination_record.country.strip().lower()
+                    else 'INTERNATIONAL')
+        return ''
+
+    def _check_flight_type(origin_record, destination_record, label=''):
+        """Append a message when the pair contradicts the chosen flight type."""
+        actual = _flight_type_for(origin_record, destination_record)
+        if not actual or not flight_type:
+            return
+        if actual != flight_type:
+            subject = f'{label.capitalize()} is' if label else 'The selected route is'
+            search_errors.append(
+                f"{subject} {actual.title().lower()}, which does not match the "
+                f"{flight_type.title().lower()} flight type. "
+                f"Choose {'International' if actual == 'INTERNATIONAL' else 'Domestic'} "
+                f"or pick different airports.")
+
     if search_submitted:
-        # The destination is what the passenger searched for; the departure
-        # airport is optional and can be refined on this page.
-        if not destination_airport.isdigit() or not Airport.objects.filter(
-            pk=destination_airport, status=Airport.Status.ACTIVE
-        ).exists():
-            search_errors.append('Select a valid flying-to airport.')
-        if origin_airport:
-            if not origin_airport.isdigit() or not Airport.objects.filter(
-                pk=origin_airport, status=Airport.Status.ACTIVE
-            ).exists():
-                search_errors.append('Select a valid flying-from airport.')
-            elif destination_airport.isdigit() and int(origin_airport) == int(destination_airport):
-                search_errors.append(
-                    'Flying-from and flying-to airports must be different.')
-        if not departure_date or dep is None:
-            search_errors.append('Select a valid departure date.')
-        elif dep < timezone.localdate():
-            search_errors.append('Departure date cannot be in the past.')
-        if trip_type == Booking.TripType.ROUND_TRIP:
-            if not return_date or ret is None:
-                search_errors.append('Select a valid return date.')
-            elif dep and ret < dep:
-                search_errors.append(
-                    'Return date cannot be earlier than departure.')
-            elif ret < timezone.localdate():
-                search_errors.append('Return date cannot be in the past.')
+        if multicity_requested:
+            if len(multi_legs) < 2:
+                search_errors.append('A multi-city trip needs at least two flight segments.')
+            for leg in multi_legs:
+                origin_record = _require_active_airport(leg['origin'])
+                destination_record = _require_active_airport(leg['destination'])
+                if origin_record is None:
+                    search_errors.append(
+                        f'Select a valid flying-from airport for segment {leg["index"]}.')
+                if destination_record is None:
+                    search_errors.append(
+                        f'Select a valid flying-to airport for segment {leg["index"]}.')
+                if (origin_record and destination_record
+                        and origin_record.pk == destination_record.pk):
+                    search_errors.append(
+                        f'Segment {leg["index"]} must fly to a different airport.')
+                leg_date = _parse_date(leg['date'])
+                if leg_date is None:
+                    search_errors.append(
+                        f'Select a valid departure date for segment {leg["index"]}.')
+                elif leg_date < timezone.localdate():
+                    search_errors.append(
+                        f'Segment {leg["index"]} departure date cannot be in the past.')
+                if origin_record and destination_record:
+                    _check_flight_type(origin_record, destination_record,
+                                       f'segment {leg["index"]}')
+            if multi_legs:
+                first_date = _parse_date(multi_legs[0]['date'])
+                last_date = _parse_date(multi_legs[-1]['date'])
+                if first_date and last_date:
+                    dep = first_date
+                    ret = last_date
+                    departure_date = multi_legs[0]['date']
+                    return_date = multi_legs[-1]['date']
+        else:
+            # The destination is what the passenger searched for; the departure
+            # airport is optional and can be refined on this page.
+            destination_record = _require_active_airport(destination_airport)
+            origin_record = _require_active_airport(origin_airport) if origin_airport else None
+            if destination_record is None:
+                search_errors.append('Select a valid flying-to airport.')
+            if origin_airport:
+                if origin_record is None:
+                    search_errors.append('Select a valid flying-from airport.')
+                elif destination_record and origin_record.pk == destination_record.pk:
+                    search_errors.append(
+                        'Flying-from and flying-to airports must be different.')
+            if origin_record and destination_record:
+                _check_flight_type(origin_record, destination_record)
+            if not departure_date or dep is None:
+                search_errors.append('Select a valid departure date.')
+            elif dep < timezone.localdate():
+                search_errors.append('Departure date cannot be in the past.')
+            if trip_type == Booking.TripType.ROUND_TRIP:
+                if not return_date or ret is None:
+                    search_errors.append('Select a valid return date.')
+                elif dep and ret < dep:
+                    search_errors.append(
+                        'Return date cannot be earlier than departure.')
+                elif ret < timezone.localdate():
+                    search_errors.append('Return date cannot be in the past.')
     requested_fare_class = (request.GET.get('fare_class') or '').strip()
     fare_class = (
         requested_fare_class
@@ -571,7 +693,7 @@ def flight_list(request):
         flights = flights.filter(trip_role=TripRole.OUTBOUND)
         if trip_type == Booking.TripType.ONE_WAY:
             flights = flights.filter(trip_type=Booking.TripType.ONE_WAY)
-        else:
+        elif trip_type == Booking.TripType.ROUND_TRIP:
             flights = flights.filter(
                 trip_type=Booking.TripType.ROUND_TRIP,
                 paired_flight__status__in=(
@@ -622,6 +744,9 @@ def flight_list(request):
 
     if search_errors:
         flights = []
+    # A multi-city search is previewed as separate segments: the page reports
+    # the legs it validated and shows the sample schedule for the first leg, so
+    # the passenger still sees filters, sorting and cards, not an empty page.
     flights = list(flights)
     itinerary_rows = (
         []
@@ -689,10 +814,162 @@ def flight_list(request):
             else row['itinerary'].economy_fare
         )
 
+    # Duffel contributes provider listings only.  These search results are not
+    # inserted into local inventory and none of the booking/payment views call
+    # Duffel's order or payment APIs.
+    duffel_offers = []
+    provider_error = ''
+    provider_mode = os.getenv('DUFFEL_MODE', 'test').strip().lower()
+    token_configured = bool(os.getenv('DUFFEL_ACCESS_TOKEN', '').strip())
+    if search_submitted and not search_errors and not token_configured:
+        provider_error = (
+            'Automatic provider listings are not configured yet. Add a Duffel test token '
+            'as DUFFEL_ACCESS_TOKEN in the server environment.')
+    if search_submitted and not search_errors and token_configured:
+        if origin_airport.isdigit() and destination_airport.isdigit():
+            origin_record = Airport.objects.filter(pk=origin_airport).first()
+            destination_record = Airport.objects.filter(pk=destination_airport).first()
+            if origin_record and destination_record:
+                if not origin_record.iata_code or not destination_record.iata_code:
+                    provider_error = (
+                        'Automatic provider search needs IATA airport codes for both airports.')
+                else:
+                    cabin_map = {
+                        'ECONOMY': 'economy',
+                        'PREMIUM_ECONOMY': 'premium_economy',
+                        'BUSINESS': 'business',
+                        'FIRST_CLASS': 'first',
+                    }
+                    try:
+                        offers = search_offers(
+                            origin_record.iata_code,
+                            destination_record.iata_code,
+                            dep.isoformat(),
+                            passengers=passengers,
+                            return_date=(ret.isoformat()
+                                         if trip_type == Booking.TripType.ROUND_TRIP and ret
+                                         else None),
+                            cabin_class=cabin_map.get(fare_class, 'economy'),
+                        )
+                        duffel_offers = offer_rows(offers, provider_mode)
+                        for row in duffel_offers:
+                            try:
+                                amount = Decimal(str(row['price']))
+                            except (InvalidOperation, TypeError, ValueError):
+                                amount = None
+                            try:
+                                expires_at = parse_datetime(row['expires_at']) if row['expires_at'] else None
+                            except (TypeError, ValueError):
+                                expires_at = None
+                            FlightOfferSnapshot.objects.update_or_create(
+                                provider='duffel', mode=provider_mode,
+                                offer_id=row['id'],
+                                defaults={
+                                    'origin_code': origin_record.iata_code,
+                                    'destination_code': destination_record.iata_code,
+                                    'departure_date': dep,
+                                    'return_date': (ret if trip_type == Booking.TripType.ROUND_TRIP else None),
+                                    'passenger_count': passengers,
+                                    'cabin_class': cabin_map.get(fare_class, 'economy'),
+                                    'total_amount': amount,
+                                    'currency': row['currency'][:3],
+                                    'expires_at': expires_at,
+                                    'retrieved_at': timezone.now(),
+                                    'payload': row['payload'],
+                                },
+                            )
+                    except LiveFlightSearchError as exc:
+                        provider_error = str(exc)
+        else:
+            provider_error = (
+                'Choose both a departure and destination airport to search provider listings.')
+
+    # The public results page is a front-end recreation of the booking UI: it
+    # renders the fixed sample schedule below and stamps the searched route
+    # onto it, while everything computed above still feeds the flight context,
+    # itinerary rows, provider listings and the search feedback messages.
+    origin_airport_object = (
+        Airport.objects.filter(pk=origin_airport).first()
+        if origin_airport.isdigit() else None
+    )
+    destination_airport_object = (
+        Airport.objects.filter(pk=destination_airport).first()
+        if destination_airport.isdigit() else None
+    )
+
+    def _route_code(record, fallback):
+        code = (((record.iata_code if record else '') or '').strip().upper())
+        return code if len(code) >= 2 else fallback
+
+    form_origin_code = _route_code(origin_airport_object, 'MNL')
+    form_destination_code = _route_code(destination_airport_object, 'CEB')
+    airport_choices = list(AIRPORT_CHOICES)
+    known_codes = {row[0] for row in airport_choices}
+    for record, code in (
+        (origin_airport_object, form_origin_code),
+        (destination_airport_object, form_destination_code),
+    ):
+        if record and code not in known_codes:
+            city = (record.city or record.airport_name or code).strip()
+            airport_choices.append((code, city, record.airport_name or city))
+            known_codes.add(code)
+
+    requested_trip = (request.GET.get('trip_type') or '').strip()
+
+    def _pretty_date(value):
+        try:
+            return date.fromisoformat(value).strftime('%b %d, %Y').replace(' 0', ' ')
+        except ValueError:
+            return value
+
+    requested_flight_type = (request.GET.get('flight_type') or '').strip().upper()
+    flight_type = (
+        requested_flight_type
+        if requested_flight_type in ('DOMESTIC', 'INTERNATIONAL')
+        else 'DOMESTIC'
+    )
+    flight_type_labels = {'DOMESTIC': 'Domestic', 'INTERNATIONAL': 'International'}
+
+    departure_default = departure_date or '2025-10-25'
+    return_default = return_date or '2025-10-28'
+    sample_flights = sample_results(form_origin_code, form_destination_code, mixed=True)
+    # The flight cards follow the airports actually selected in the worldwide
+    # picker, so the list shows the chosen city and country rather than only
+    # falling back to the built-in Manila/Cebu sample labels.
+    route_cities = {code: city for code, city, _ in airport_choices}
+    origin_country_label = (
+        (origin_airport_object.country if origin_airport_object else '')
+        or (destination_airport_object.country if destination_airport_object else '')
+        or 'Philippines'
+    )
+    search_defaults = {
+        'origin_code': form_origin_code,
+        'destination_code': form_destination_code,
+        'origin_label': f"{route_cities.get(form_origin_code, form_origin_code)} ({form_origin_code})",
+        'destination_label': f"{route_cities.get(form_destination_code, form_destination_code)} ({form_destination_code})",
+        'departure_date': departure_default,
+        'return_date': return_default,
+        'departure_label': _pretty_date(departure_default),
+        'return_label': _pretty_date(return_default),
+        'trip_type': (
+            'oneway' if requested_trip == 'ONE_WAY' else
+            'multicity' if requested_trip == 'MULTI_CITY' else
+            'round' if requested_trip == 'ROUND_TRIP' else ''),
+        'flight_type': flight_type,
+        'flight_type_label': flight_type_labels[flight_type],
+        'origin_country': origin_country_label,
+        'passengers': passengers,
+        'today': timezone.localdate().isoformat(),
+    }
+
     return render(request, 'airlines/list.html', {
         'flights': flights,
         'return_rows': return_rows,
         'is_round_trip_search': search_submitted and trip_type == Booking.TripType.ROUND_TRIP,
+        'is_multicity_search': search_submitted and multicity_requested,
+        'multi_city_legs': [leg for leg in multi_legs if leg.get('origin') or leg.get('destination')],
+        'flight_type': flight_type,
+        'flight_type_label': flight_type_labels[flight_type],
         'itinerary_rows': itinerary_rows,
         'badges': _result_badges(flights, itinerary_rows),
         'airline_logos': _result_logos(flights, itinerary_rows),
@@ -701,14 +978,12 @@ def flight_list(request):
         'origin_airport': origin_airport,
         'destination_airport': destination_airport,
         'can_add_flight': can_create_establishment(request.user, 'airlines'),
-        'origin_airport_object': (
-            Airport.objects.filter(pk=origin_airport).first()
-            if origin_airport.isdigit() else None
-        ),
-        'destination_airport_object': (
-            Airport.objects.filter(pk=destination_airport).first()
-            if destination_airport.isdigit() else None
-        ),
+        'origin_airport_object': origin_airport_object,
+        'destination_airport_object': destination_airport_object,
+        'sample_flights': sample_flights,
+        'airport_choices': airport_choices,
+        'search_defaults': search_defaults,
+        'filter_groups': filter_groups(sample_flights),
         'origin_country': origin_country,
         'origin_province': origin_province,
         'origin_municipality': origin_municipality,
@@ -723,6 +998,11 @@ def flight_list(request):
         'fare_class_choices': FARE_CLASS_CHOICES,
         'passengers': passengers,
         'search_errors': search_errors,
+        'duffel_offers': duffel_offers,
+        'duffel_mode': provider_mode,
+        'duffel_search_error': provider_error,
+        'duffel_search_configured': bool(
+            os.getenv('DUFFEL_ACCESS_TOKEN', '').strip()),
     })
 
 
@@ -760,6 +1040,19 @@ def update_airline(request, airline_id):
         Airline.objects.prefetch_related('photos', 'fleet_entries__aircraft_type'),
         pk=airline_id)
     if request.method == 'POST':
+        delete_ids = request.POST.getlist('delete_photos')
+        logo = request.FILES.get('logo')
+        try:
+            photos = validate_establishment_photos(
+                request.FILES.getlist('photos'),
+                existing_count=airline.photos.count(),
+                delete_count=airline.photos.filter(pk__in=delete_ids).count(),
+            )
+            if logo:
+                validate_image_upload(logo)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('airlines:update_airline', airline_id)
         for field in ('name', 'contact_number', 'email', 'description', 'operating_info', 'status'):
             setattr(airline, field, request.POST.get(field) or getattr(airline, field))
         default_type = _post_pk(request, 'default_aircraft_type')
@@ -776,10 +1069,9 @@ def update_airline(request, airline_id):
             else:
                 airline.default_aircraft_type = fleet.aircraft_type
         airline.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
             AirlinePhoto.objects.create(airline=airline, image=image, is_primary=not airline.photos.exists())
-        for photo in airline.photos.filter(pk__in=request.POST.getlist('delete_photos')):
+        for photo in airline.photos.filter(pk__in=delete_ids):
             delete_image_record(photo)
         if airline.photos.exists() and not airline.photos.filter(is_primary=True).exists():
             first = airline.photos.first()
@@ -788,8 +1080,7 @@ def update_airline(request, airline_id):
         # A new logo replaces the current one outright: only one image is ever
         # the airline's mark, so keeping the old photo around would leave the
         # search results and tickets showing the previous carrier mark.
-        logo = request.FILES.get('logo')
-        if logo and is_valid_image(logo):
+        if logo:
             for photo in airline.photos.all():
                 delete_image_record(photo)
             AirlinePhoto.objects.create(airline=airline, image=logo, is_primary=True)
@@ -2635,6 +2926,307 @@ def update_flight(request, flight_id):
 
 
 @xframe_options_sameorigin
+def passenger_details(request):
+    """Prototype passenger details, seat, baggage and insurance page.
+
+    This page is a front-end recreation of the ATRUE booking step that follows
+    flight selection. It renders the chosen sample flight alongside the
+    passenger forms, the interactive seat map, the 5 kg baggage options, the
+    travel insurance plans and the fare summary. Selections live in the page
+    state only: nothing is written to the database and no booking or payment is
+    created here. All prices and policies are clearly labelled as samples.
+
+    The chosen flight comes from the query string (``origin``, ``destination``,
+    ``index``) so a result card can deep-link into this page for any sample
+    row; absent parameters fall back to the first sample flight for the route.
+    """
+    origin_code = (request.GET.get('origin', 'MNL') or 'MNL').strip().upper()[:3]
+    destination_code = (
+        request.GET.get('destination', 'CEB') or 'CEB'
+    ).strip().upper()[:3]
+    try:
+        index = int(request.GET.get('index', 0))
+    except (TypeError, ValueError):
+        index = 0
+
+    selected = pd_sample.selected_flight(origin_code, destination_code, index)
+    default_flight_type = 'INTERNATIONAL' if _is_international_route(
+        selected) else 'DOMESTIC'
+
+    context = {
+        'selected': selected,
+        'flight': selected,
+        'fare': pd_sample.fare_context(selected),
+        'seat_map': pd_sample.seat_map_context(selected.get('aircraft')),
+        'refund': pd_sample.refund_context(),
+        'default_flight_type': default_flight_type,
+        'trip_type': request.GET.get('trip_type', 'one-way'),
+        'return_date': request.GET.get('return_date', ''),
+        'departure_date': request.GET.get('departure_date', ''),
+        'passengers_param': _passenger_breakdown_param(request.GET.get('passengers', '')),
+        'is_sample': True,
+    }
+    return render(request, 'airlines/passenger_details.html', context)
+
+
+def confirm_passenger_details(request):
+    """Save a prototype booking summary in the session and continue to payment."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest('Confirm Details must be submitted from the review screen.')
+
+    try:
+        payload = json.loads(request.POST.get('ticket_payload') or '{}')
+        if not isinstance(payload, dict):
+            raise ValueError('The booking details are invalid.')
+        flight_request = payload.get('flight') or {}
+        if not isinstance(flight_request, dict):
+            raise ValueError('The selected flight is invalid.')
+        origin_code = str(flight_request.get('origin_code') or '').upper()[:3]
+        destination_code = str(flight_request.get('destination_code') or '').upper()[:3]
+        flight_id = str(flight_request.get('id') or '')
+        flight_rows = sample_results(origin_code, destination_code)
+        flight = next((row for row in flight_rows if row['id'] == flight_id), None)
+        if flight is None:
+            raise ValueError('Please return to flight details and choose a valid flight.')
+
+        passengers = payload.get('passengers')
+        if not isinstance(passengers, list) or not passengers or len(passengers) > 19:
+            raise ValueError('The passenger list is invalid.')
+        passenger_counts = {'adult': 0, 'child': 0, 'infant': 0}
+        passenger_rows = []
+        seat_map = pd_sample.seat_map_context(flight.get('aircraft'))
+        seat_lookup = {
+            seat['number']: seat
+            for row in seat_map['rows'] for seat in row['seats']
+        }
+        used_seats = set()
+        for item in passengers:
+            if not isinstance(item, dict):
+                raise ValueError('The passenger list is invalid.')
+            category = str(item.get('category') or '')
+            if category not in passenger_counts:
+                raise ValueError('A passenger type is invalid.')
+            name = str(item.get('name') or '').strip()[:120]
+            if not name:
+                raise ValueError('Enter a name for every passenger.')
+            seat_number = str(item.get('seat') or '').strip().upper()
+            if category == 'infant':
+                seat_number = ''
+            else:
+                seat = seat_lookup.get(seat_number)
+                if not seat or seat['taken'] or seat_number in used_seats:
+                    raise ValueError('One or more selected seats are unavailable. Please choose again.')
+                used_seats.add(seat_number)
+            passenger_counts[category] += 1
+            passenger_rows.append({
+                'name': name,
+                'category': category,
+                'category_label': dict((key, label) for key, label, _hint
+                                       in pd_sample.PASSENGER_CATEGORIES)[category],
+                'seat': seat_number or 'No seat',
+                'seat_category': seat_lookup[seat_number]['category_label'] if seat_number else '',
+                'seat_price': seat_lookup[seat_number]['price'] if seat_number else 0,
+            })
+        if passenger_counts['adult'] < 1 or passenger_counts['infant'] > passenger_counts['adult']:
+            raise ValueError('The passenger count is invalid.')
+        if (passenger_counts['adult'] > pd_sample.MAX_ADULTS
+                or passenger_counts['child'] > pd_sample.MAX_CHILDREN
+                or passenger_counts['infant'] > pd_sample.MAX_INFANTS):
+            raise ValueError('The passenger count is invalid.')
+
+        baggage_kg = int(payload.get('baggage_kg') or 0)
+        baggage_option = next((item for item in pd_sample.BAGGAGE_OPTIONS
+                               if item[0] == baggage_kg), None)
+        insurance_key = str(payload.get('insurance_key') or 'none')
+        insurance_plan = next((item for item in pd_sample.INSURANCE_PLANS
+                               if item[0] == insurance_key), None)
+        if baggage_option is None or insurance_plan is None:
+            raise ValueError('The selected extras are invalid.')
+
+        passenger_total = len(passenger_rows)
+        base_fare = int(flight['price']) * passenger_total
+        taxes = pd_sample.TAXES_AND_FEES_PER_PASSENGER * passenger_total
+        baggage_total = baggage_option[1] * passenger_total
+        insurance_total = insurance_plan[2] * passenger_total
+        seat_total = sum(row['seat_price'] for row in passenger_rows)
+        total = base_fare + taxes + baggage_total + insurance_total + seat_total
+
+        departure_date = ''
+        arrival_date = ''
+        date_value = str(payload.get('departure_date') or '').strip()
+        try:
+            travel_date = date.fromisoformat(date_value)
+            departure_date = travel_date.strftime('%B %d, %Y')
+            arrival_date = (travel_date + timedelta(days=1 if flight['overnight'] else 0)).strftime('%B %d, %Y')
+        except ValueError:
+            departure_date = 'Date not provided'
+            arrival_date = departure_date
+
+        ticket = {
+            'booking_reference': 'ATR-' + uuid.uuid4().hex[:8].upper(),
+            'status': 'Details confirmed (simulation)',
+            'issued_on': timezone.localdate().strftime('%B %d, %Y'),
+            'flight': {
+                'airline': flight['airline'],
+                'logo': flight.get('airline_logo', ''),
+                'number': flight['flight_number'],
+                'origin_code': flight['origin_code'],
+                'origin_city': flight['origin_city'],
+                'origin_airport': flight['origin_airport'],
+                'destination_code': flight['destination_code'],
+                'destination_city': flight['destination_city'],
+                'destination_airport': flight['destination_airport'],
+                'departure_date': departure_date,
+                'arrival_date': arrival_date,
+                'departure_time': flight['depart_time'],
+                'arrival_time': flight['arrive_time'],
+                'stops': flight['stops_label'],
+                'aircraft': flight['aircraft'],
+                'cabin': 'Economy Class',
+                'checked_baggage': flight['checked_baggage'],
+                'cabin_baggage': flight['cabin_baggage'],
+            },
+            'passengers': passenger_rows,
+            'extras': {
+                'extra_baggage_kg': baggage_kg,
+                'insurance': insurance_plan[1],
+            },
+            'fare': {
+                'passenger_count': passenger_total,
+                'base_fare': base_fare,
+                'taxes': taxes,
+                'baggage': baggage_total,
+                'insurance': insurance_total,
+                'seats': seat_total,
+                'total': total,
+            },
+        }
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        return HttpResponseBadRequest(str(exc) or 'The booking details are invalid.')
+
+    request.session['airlines_passenger_ticket'] = ticket
+    return redirect('airlines:passenger_payment')
+
+
+def passenger_payment(request):
+    """Render the session-backed simulated payment page for a flight preview."""
+    ticket = request.session.get('airlines_passenger_ticket')
+    if not ticket:
+        messages.info(request, 'Review your passenger and seat details before payment.')
+        return redirect('airlines:passenger_details')
+    if ticket.get('payment_status'):
+        return redirect('airlines:passenger_payment_confirmation')
+    return render(request, 'airlines/passenger_payment.html', {'ticket': ticket})
+
+
+def complete_passenger_payment(request):
+    """Complete a mock payment without storing or forwarding credentials."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest('Submit the payment form to continue.')
+    ticket = request.session.get('airlines_passenger_ticket')
+    if not ticket:
+        messages.info(request, 'Review your passenger and seat details before payment.')
+        return redirect('airlines:passenger_details')
+    if ticket.get('payment_status'):
+        return redirect('airlines:passenger_payment_confirmation')
+
+    method_labels = {
+        'card': 'Credit / Debit Card',
+        'gcash': 'GCash',
+        'maya': 'Maya',
+        'bank': 'Online Banking',
+        'paypal': 'PayPal',
+        'otc': 'Over-the-Counter',
+    }
+    method = str(request.POST.get('payment_choice') or '')
+    if method not in method_labels:
+        return HttpResponseBadRequest('Choose a valid payment method.')
+    if request.POST.get('payment_validated') != '1':
+        return HttpResponseBadRequest('Complete payment details before continuing.')
+
+    # This project simulates payment. Card number, expiry, CVV, and address
+    # fields are never named in the form and are never received by this view.
+    ticket['payment_method'] = method_labels[method]
+    ticket['payment_status'] = 'Simulated payment successful'
+    ticket['status'] = 'Booking confirmed (simulation)'
+    ticket['paid_amount'] = ticket.get('fare', {}).get('total', 0)
+    request.session['airlines_passenger_ticket'] = ticket
+    request.session['airlines_payment_confirmed'] = True
+    return redirect('airlines:passenger_payment_confirmation')
+
+
+def passenger_payment_confirmation(request):
+    """Show a refresh-safe confirmation for the simulated payment."""
+    ticket = request.session.get('airlines_passenger_ticket')
+    if not ticket or not ticket.get('payment_status'):
+        messages.info(request, 'Complete the simulated payment to view confirmation.')
+        return redirect('airlines:passenger_payment')
+    return render(request, 'airlines/passenger_payment_confirmation.html',
+                  {'ticket': ticket})
+
+
+def passenger_ticket(request):
+    """Display the last session-backed e-ticket for the sample booking flow."""
+    ticket = request.session.get('airlines_passenger_ticket')
+    if not ticket:
+        messages.info(request, 'Confirm your booking details to view the e-ticket.')
+        return redirect('airlines:passenger_details')
+    return render(request, 'airlines/passenger_ticket.html', {'ticket': ticket})
+
+
+def _passenger_breakdown_param(raw):
+    """Normalise the passenger query parameter into a traveller breakdown.
+
+    The results page sends ``adult:2,child:1,infant:0`` so the page opens
+    with the same travellers the search used. A bare number is still accepted
+    and is read as a number of adults, so older bookmarks keep working.
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return 'adult:1,child:0,infant:0'
+
+    counts = {'adult': 1, 'child': 0, 'infant': 0}
+    if raw.isdigit():
+        counts['adult'] = max(1, min(pd_sample.MAX_ADULTS, int(raw)))
+        return 'adult:{0},child:0,infant:0'.format(counts['adult'])
+
+    parsed = {}
+    for chunk in raw.split(','):
+        parts = chunk.split(':')
+        if len(parts) != 2:
+            continue
+        key = parts[0].strip()
+        if key not in counts:
+            continue
+        try:
+            parsed[key] = int(parts[1])
+        except (TypeError, ValueError):
+            continue
+    if not parsed:
+        return 'adult:1,child:0,infant:0'
+
+    counts['adult'] = max(1, min(pd_sample.MAX_ADULTS, parsed.get('adult', 1)))
+    counts['child'] = max(0, min(pd_sample.MAX_CHILDREN, parsed.get('child', 0)))
+    counts['infant'] = max(0, min(pd_sample.MAX_INFANTS, parsed.get('infant', 0)))
+    counts['infant'] = min(counts['infant'], counts['adult'])
+    return 'adult:{0},child:{1},infant:{2}'.format(
+        counts['adult'], counts['child'], counts['infant']
+    )
+
+
+def _is_international_route(flight):
+    """True when a sample route leaves the Philippines.
+
+    Only the sample codes can reach here, so the Philippines airports are
+    listed explicitly; anything else counts as international.
+    """
+    ph_codes = {'MNL', 'CEB', 'DVO', 'ILO', 'KLO', 'PPS', 'MPH', 'CGY',
+                'TAC', 'ZAM'}
+    return not ({flight.get('origin_code'), flight.get('destination_code')}
+                <= ph_codes)
+
+
+@xframe_options_sameorigin
 @login_required
 @student_booking_required
 def book_flight(request, flight_id):
@@ -3306,8 +3898,13 @@ def bookings(request):
     flights = Flight.objects.all()
     if airline_ids is not None:
         flights = flights.filter(airline_id__in=airline_ids)
+    page_query = request.GET.copy()
+    page_query.pop('page', None)
+    bookings_page = Paginator(qs, 15).get_page(request.GET.get('page'))
     return render(request, 'airlines/bookings.html', {
-        'bookings': qs,
+        'bookings': bookings_page,
+        'bookings_page': bookings_page,
+        'page_query': page_query.urlencode(),
         'flights': flights,
         'q': q, 'status': status, 'trip_type': trip_type, 'flight': flight_id,
         'date_from': date_from, 'date_to': date_to,
@@ -3439,6 +4036,9 @@ def booking_detail(request, booking_id):
             booking.status = Booking.Status.CHECKED_OUT
             booking.checked_out_at = timezone.now()
             booking.save(update_fields=['status', 'checked_out_at'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Passenger travelled", booking.booking_reference)
             log_activity(booking.passenger, f"Travel completed {booking.booking_reference}",
                          booking.flight.flight_number)

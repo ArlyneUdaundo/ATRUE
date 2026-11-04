@@ -1,0 +1,73 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Notifications</h1>
+        <p>Stay updated with your assignments, sessions, and important alerts.</p>
+    </div>
+    <form method="post" action="{% url 'notifications:mark_all_read' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-ghost"><i class="fas fa-check-double"></i> Mark All as Read</button>
+    </form>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+    <div class="card-pad" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <form method="get" action="{% url 'notifications:list' %}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select name="status" aria-label="Read status" class="form-control" style="width:auto">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Notifications</option>
+                <option value="unread" {% if status_filter == 'unread' %}selected{% endif %}>Unread{% if unread_count_total %} ({{ unread_count_total }}){% endif %}</option>
+                <option value="read" {% if status_filter == 'read' %}selected{% endif %}>Read</option>
+            </select>
+            <select name="category" aria-label="Notification category" class="form-control" style="width:auto">
+                <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
+                <option value="roles" {% if category_filter == 'roles' %}selected{% endif %}>Role Assignments</option>
+                <option value="sessions" {% if category_filter == 'sessions' %}selected{% endif %}>Sessions</option>
+                <option value="bookings" {% if category_filter == 'bookings' %}selected{% endif %}>Bookings and Reservations</option>
+                <option value="payments" {% if category_filter == 'payments' %}selected{% endif %}>Payments</option>
+            </select>
+            <input type="search" name="q" value="{{ search_query }}" placeholder="Search notifications" class="form-control" style="max-width:240px">
+            <button type="submit" class="btn btn-brand btn-sm">Filter</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    {% for n in notifications %}
+    <form method="post" action="{% url 'notifications:open' n.pk %}" style="margin:0">
+        {% csrf_token %}
+        <button type="submit" class="notif-item" style="display:flex;gap:14px;padding:16px 18px;border:0;border-bottom:1px solid #eef2f7;align-items:flex-start;width:100%;text-align:left;cursor:pointer;color:inherit;{% if not n.is_read %}background:#f8fbff{% else %}background:#fff{% endif %}">
+            <span style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;display:grid;place-items:center;flex:0 0 auto"><i class="fas fa-bell"></i></span>
+            <span style="flex:1;min-width:0;display:block">
+                <span style="font-weight:700;color:#0f172a;display:block">{{ n.title|default:n.get_notification_type_display }}</span>
+                <span style="color:#475569;margin-top:4px;white-space:normal;display:block">{{ n.message|linebreaksbr }}</span>
+                <span style="color:{% if n.is_read %}#64748b{% else %}#1d4ed8{% endif %};font-size:12px;font-weight:600;margin-top:4px;display:block">{% if n.is_read %}Read{% else %}Unread{% endif %}{% if n.actor %} | Instructor: {{ n.actor.get_full_name|default:n.actor.username }}{% endif %}{% if n.role %} | Role: {{ n.role.name }}{% endif %}</span>
+                <span style="color:#94a3b8;font-size:12px;margin-top:6px;display:block">{{ n.created_at|date:"M d, Y H:i" }}{% if n.session %} | Session: {{ n.session.name }}{% if n.session.session_id %} ({{ n.session.session_id }}){% endif %}{% endif %}{% if n.establishment %} | {{ n.establishment.name }}{% endif %}</span>
+            </span>
+        </button>
+    </form>
+    {% empty %}
+    <div style="text-align:center;padding:40px 20px;color:#64748b">
+        <i class="fas fa-bell-slash" style="font-size:32px;margin-bottom:12px;display:block"></i>
+        <div style="font-weight:700;color:#0f172a">No notifications yet</div>
+        <div style="margin-top:4px">You're all caught up.</div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if is_paginated %}
+<div style="display:flex;justify-content:center;gap:8px;margin-top:18px">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query|urlencode }}" class="btn btn-ghost btn-sm">Previous</a>
+    {% endif %}
+    <span class="btn btn-ghost btn-sm" style="pointer-events:none">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&q={{ search_query|urlencode }}" class="btn btn-ghost btn-sm">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

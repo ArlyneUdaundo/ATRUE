@@ -8,13 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261016-vehicle-booking-modal-1">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261026-navbar-icon-refresh-2">
+    <link rel="stylesheet" href="{% static 'css/photo-upload.css' %}?v=20261028-photo-upload-2">
     <link rel="stylesheet" href="{% static 'css/payment-methods.css' %}?v=20261013-payment-methods-4">
-    <link rel="stylesheet" href="{% static 'css/agoda.css' %}?v=20261016-vehicle-booking-modal-1">
+    <link rel="stylesheet" href="{% static 'css/agoda.css' %}?v=20261024-establishment-search-1">
     <link rel="stylesheet" href="{% static 'css/location-select.css' %}?v=20260922">
     <link rel="stylesheet" href="{% static 'css/location-picker.css' %}?v=20260923">
     <link rel="stylesheet" href="{% static 'css/location-autocomplete.css' %}?v=20261015-location-autocomplete-1">
-    <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261014-airport-sheet-sizing-2">
+    <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261023-airport-empty-overlay-1">
 <link rel="stylesheet" href="{% static 'css/location-cascade.css' %}?v=20261012-location-popup-layer">
 <link rel="stylesheet" href="{% static 'css/atrue-datepicker.css' %}?v=20261011-modal-popup-layer">
 <link rel="stylesheet" href="{% static 'css/atrue-timepicker.css' %}?v=20261011-modal-popup-layer">
@@ -24,8 +25,10 @@
 
 <link rel="stylesheet" href="{% static 'css/establishment-modal.css' %}?v=20261010-flight-modal-logo-larger-1">
     <link rel="stylesheet" href="{% static 'css/delete-confirm-modal.css' %}?v=20261015-delete-pending-status">
+    <link rel="stylesheet" href="{% static 'css/ui-enhancements.css' %}?v=20261026-skip-link-focus-1">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 <div class="dash">
     <!-- Header -->
     <header class="site-header">
@@ -41,12 +44,39 @@
             <div class="topbar-space" aria-hidden="true"></div>
 
             <div class="topbar-right">
-                <a href="{% url 'simulation:logs' %}" class="icon-btn" title="Notifications" style="position:relative">
+            <div class="notif-wrap" id="notifWrap" style="position:relative">
+                <button type="button" class="icon-btn" id="notifToggle" title="Notifications" style="position:relative" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-bell"></i>
                     {% if notification_count %}
                     <span class="badge badge-red" style="position:absolute;top:-4px;right:-4px;border:2px solid #fff;font-size:10px;min-width:16px;height:16px;line-height:12px;text-align:center;border-radius:99px">{{ notification_count }}</span>
                     {% endif %}
-                </a>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown" style="position:absolute;right:0;top:calc(100% + 10px);width:380px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 40px 60px -30px rgba(15,23,42,.4);display:none;overflow:hidden;z-index:200">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eef2f7">
+                        <div style="font-weight:700">Notifications</div>
+                        <a href="{% url 'notifications:list' %}" style="color:#2563eb;font-size:13px;font-weight:600">View All</a>
+                    </div>
+                    <div style="max-height:380px;overflow:auto">
+                        {% for n in recent_notifications %}
+                        <form method="post" action="{% url 'notifications:open' n.pk %}" style="margin:0;border-bottom:1px solid #f1f5f9;{% if not n.is_read %}background:#f8fbff{% endif %}">
+                            {% csrf_token %}<button type="submit" style="display:flex;width:100%;gap:12px;padding:12px 16px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer">
+                            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;display:grid;place-items:center;flex:0 0 auto"><i class="fas fa-bell"></i></div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-weight:600;font-size:14px">{{ n.title|default:n.get_notification_type_display }}</div>
+                                <div style="color:#475569;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.message }}</div>
+                                <div style="color:#94a3b8;font-size:11px;margin-top:4px">{{ n.created_at|date:"M d, Y H:i" }} · {% if n.is_read %}Read{% else %}Unread{% endif %}</div>
+                            </div>
+                            </button>
+                        </form>
+                        {% empty %}
+                        <div style="padding:18px;text-align:center;color:#64748b">No notifications</div>
+                        {% endfor %}
+                    </div>
+                    <div style="padding:10px 16px;text-align:center;border-top:1px solid #eef2f7">
+                        <form method="post" action="{% url 'notifications:mark_all_read' %}">{% csrf_token %}<button type="submit" class="btn btn-ghost btn-sm" style="width:100%">Mark All as Read</button></form>
+                    </div>
+                </div>
+            </div>
                 <div class="user-dd" id="userDd">
                     <button type="button" class="user-chip" id="userDdToggle">
                             <span class="avatar">{% if request.user.profile_picture %}<img src="{{ request.user.profile_picture.url }}" alt="">{% else %}{{ request.user.initials }}{% endif %}</span>
@@ -70,9 +100,9 @@
         </div>
 
         <nav class="top-nav" id="topNav">
-            <a href="{% url 'dashboard' %}" class="nav-link{% if request.path == '/' or request.path == '/dashboard/' %} active{% endif %}"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'dashboard' %}" class="nav-link nav-dashboard{% if request.path == '/' or request.path == '/dashboard/' %} active{% endif %}"><i class="fas fa-table-cells-large nav-icon"></i> Dashboard</a>
             {% if request.user.account_type == 'STUDENT' or request.user.account_type == 'INSTRUCTOR' or request.user.account_type == 'ADMIN' or request.user.account_type == 'SYSTEM_ADMIN' %}
-            <a href="{% url 'simulation:workspace' %}" class="nav-link{% if '/simulation/workspace' in request.path %} active{% endif %}"><i class="fas fa-users"></i> {% if request.user.account_type == 'STUDENT' %}My Roles{% else %}Simulation Sessions{% endif %}</a>
+            <a href="{% url 'simulation:workspace' %}" class="nav-link nav-my-roles{% if '/simulation/workspace' in request.path %} active{% endif %}"><i class="fas fa-users nav-icon"></i> {% if request.user.account_type == 'STUDENT' %}My Roles{% else %}Simulation Sessions{% endif %}</a>
             {% endif %}
 
             {% if request.user.is_airline_ticketing_only %}
@@ -87,7 +117,7 @@
             {% else %}
             <span class="nav-sep"></span>
             <div class="nav-dd{% if '/hotels/' in request.path or '/resorts/' in request.path or '/staycations/' in request.path or '/restaurants/' in request.path or '/landmarks/' in request.path or '/activities/' in request.path or '/packages/' in request.path %} active{% endif %}">
-                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-building"></i> Establishments <i class="fas fa-chevron-down"></i></a>
+                <a href="#" class="nav-link nav-dd-toggle nav-establishments"><i class="fas fa-building nav-icon"></i> Establishments <i class="fas fa-chevron-down"></i></a>
                 <div class="nav-dd-menu">
                     <a href="{% url 'hotels:list' %}" class="nav-dd-item nav-dd-item--rich di-hotels{% if '/hotels/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-hotel"></i></span><span class="di-txt"><b>Hotels</b><small>Rooms &amp; suites</small></span></a>
                     <a href="{% url 'resorts:list' %}" class="nav-dd-item nav-dd-item--rich di-resorts{% if '/resorts/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-umbrella-beach"></i></span><span class="di-txt"><b>Resorts</b><small>Villas &amp; cabanas</small></span></a>
@@ -99,7 +129,7 @@
                 </div>
             </div>
             <div class="nav-dd{% if '/flights/' in request.path or '/transportation/' in request.path %} active{% endif %}">
-                <a href="#" class="nav-link nav-dd-toggle"><i class="fas fa-plane"></i> Travel Transport <i class="fas fa-chevron-down"></i></a>
+                <a href="#" class="nav-link nav-dd-toggle nav-travel-transport"><i class="fas fa-plane nav-icon"></i> Travel Transport <i class="fas fa-chevron-down"></i></a>
                 <div class="nav-dd-menu">
                     <a href="{% url 'airlines:list' %}" class="nav-dd-item nav-dd-item--rich di-airlines{% if '/flights/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-plane"></i></span><span class="di-txt"><b>Flights</b><small>Domestic &amp; international bookings</small></span></a>
                     <a href="{% url 'transportation:list' %}" class="nav-dd-item nav-dd-item--rich di-transport{% if '/transportation/' in request.path %} active{% endif %}"><span class="di-ico"><i class="fas fa-bus"></i></span><span class="di-txt"><b>Land Transportation</b><small>Vans, buses &amp; cars</small></span></a>
@@ -150,12 +180,12 @@
          selection flow) and have BOTH the flash-message container and the
          content section follow it. When the class sat on the section, the
          messages were left at a different width from the content. -->
-    <main class="main {% block content_class %}{% endblock %}">
+    <main id="main" class="main {% block content_class %}{% endblock %}">
 
         {% if messages %}
         <div class="container">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %}{{ message }}</div>
+            <div class="alert alert-{{ message.tags }}" role="{% if message.tags == 'error' or message.tags == 'danger' %}alert{% else %}status{% endif %}">{% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>{% elif message.tags == 'error' or message.tags == 'danger' %}<i class="fas fa-circle-exclamation"></i>{% elif message.tags == 'warning' %}<i class="fas fa-triangle-exclamation"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %}{{ message }}</div>
             {% endfor %}
         </div>
         {% endif %}
@@ -498,6 +528,27 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="{% static 'js/guests-tables.js' %}?v=20261012e"></script>
 <script src="{% static 'js/establishment-modal.js' %}?v=20261015-hotel-form-modal-fix-1"></script>
     <script src="{% static 'js/delete-confirm-modal.js' %}?v=20261015-confirm-button-fix-2"></script>
+    <script src="{% static 'js/form-loading.js' %}?v=20261024-form-loading-1"></script>
+    <script src="{% static 'js/photo-upload.js' %}?v=20261028-photo-upload-2"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+        var toggle = document.getElementById('notifToggle');
+        var dropdown = document.getElementById('notifDropdown');
+        if(toggle && dropdown){
+            toggle.addEventListener('click', function(e){
+                e.stopPropagation();
+                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                toggle.setAttribute('aria-expanded', dropdown.style.display === 'block' ? 'true' : 'false');
+            });
+            document.addEventListener('click', function(e){
+                if(!dropdown.contains(e.target) && !toggle.contains(e.target)){
+                    dropdown.style.display = 'none';
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>
 

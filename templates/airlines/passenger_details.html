@@ -1,0 +1,85 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passenger Details | ATRUE Flight Booking</title>
+    <meta name="description" content="Enter passenger details, choose seats, extra baggage and travel insurance for an ATRUE flight booking.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/passenger-details.css' %}?v=20261022-logo-1">
+    {% include 'partials/tab_context.html' %}
+</head>
+<body class="pd-body">
+{% include 'airlines/booking/_header.html' %}
+
+<main class="pd-shell" data-pd-root
+      data-base-fare="{{ fare.base_fare }}"
+      data-taxes-per-passenger="{{ fare.taxes_per_passenger }}"
+      data-baggage-basis="{{ fare.baggage_basis }}"
+      data-insurance-basis="{{ fare.insurance_basis }}"
+      data-default-flight-type="{{ default_flight_type }}"
+      data-initial-passengers="{{ passengers_param }}"
+      data-departure-date="{{ departure_date|default:'' }}"
+      data-back-url="{% url 'airlines:list' %}">
+
+    <div class="pd-pagehead">
+        <div>
+            <h1>Passenger details</h1>
+            <p>Complete the traveller details, choose your seats and review the fare
+            before payment.</p>
+        </div>
+        <a class="pd-pagehead__back" href="{% url 'airlines:list' %}">
+            <i class="fas fa-arrow-left"></i> Back to flight results
+        </a>
+    </div>
+
+    <div class="pd-steps" aria-label="Booking progress">
+        <span class="pd-step is-done"><i class="fas fa-check"></i> Flight selected</span>
+        <span class="pd-step is-current">Your details</span>
+        <span class="pd-step">Review &amp; payment</span>
+    </div>
+
+    <div class="pd-sample-banner" role="note">
+        <i class="fas fa-circle-info"></i>
+        <span><b>Prototype page.</b> Flight, seat, baggage and insurance prices are
+        realistic samples for demonstration. In the live system they come from the
+        airline&rsquo;s fare rules for this route and cabin.</span>
+    </div>
+
+    <div class="pd-columns">
+        <aside class="pd-col pd-col--summary">
+            {% include 'airlines/booking/_flight_summary.html' %}
+        </aside>
+
+        <section class="pd-col pd-col--main">
+            {% include 'airlines/booking/_flight_type.html' %}
+            {% include 'airlines/booking/_passenger_count.html' %}
+            <div id="pd-passengers" class="pd-passengers" aria-live="polite"></div>
+            {% include 'airlines/booking/_seat_section.html' %}
+            {% include 'airlines/booking/_services.html' %}
+            {% include 'airlines/booking/_cancellation_policy.html' %}
+        </section>
+
+        <aside class="pd-col pd-col--fare">
+            {% include 'airlines/booking/_fare_summary.html' %}
+        </aside>
+    </div>
+
+    {% include 'airlines/booking/_seat_modal.html' %}
+    {% include 'airlines/booking/_review.html' %}
+</main>
+
+<template id="pd-pax-template">
+    {% include 'airlines/booking/_passenger_form.html' %}
+</template>
+
+{{ fare|json_script:"pd-fare-data" }}
+{{ seat_map|json_script:"pd-seat-data" }}
+{{ selected|json_script:"pd-selected-flight-data" }}
+
+<script src="{% static 'js/passenger-details.js' %}?v=20261022-2"></script>
+</body>
+</html>

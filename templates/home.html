@@ -179,12 +179,25 @@
 .hm-search .field[hidden] { display: none; }
 .hm-search-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .hm-search .field.grow { grid-column: span 2; }
-.hm-search .hm-date-range { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-height: 74px; border: 1.5px solid var(--hm-line); border-radius: 16px; background: #fbfdff; overflow: hidden; transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.hm-search .hm-date-range { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 12px; align-items: stretch; }
 .hm-search .hm-date-range.has-return { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.hm-search .hm-date-range:focus-within { border-color: var(--hm-acc); box-shadow: 0 0 0 4px rgba(29,78,216,0.12); }
-.hm-search .hm-date-range > .field { min-width: 0; min-height: 64px; padding: 7px 17px 8px; border: 0; border-radius: 0; background: transparent; }
-.hm-search .hm-date-range > #returnField { border-left: 1px solid var(--hm-line); }
-.hm-search .hm-date-range > .field:focus-within { border-color: transparent; box-shadow: none; }
+.hm-search .hm-date-range .hm-date-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hm-search .hm-date-range .hm-date-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--hm-mut); margin: 0; }
+.hm-search .hm-date-range .hm-date-label i { display: none !important; }
+.hm-search .hm-date-range--clean { border: 0; background: transparent; box-shadow: none; overflow: visible; }
+.hm-search .hm-date-range--clean:focus-within { box-shadow: none; }
+.hm-search .hm-date-range .adp-anchor { width: 100%; }
+.hm-search .hm-date-range .adp-trigger { width: 100%; min-height: 56px; padding: 10px 14px 10px 16px; border-radius: 14px; border: 1px solid var(--hm-line); background: #fbfdff; box-shadow: none; color: var(--hm-ink); font-weight: 600; justify-content: space-between; gap: 12px; }
+.hm-search .hm-date-range .adp-trigger:hover,
+.hm-search .hm-date-range .adp-trigger:focus-visible { border-color: var(--hm-acc); background: #fff; box-shadow: 0 0 0 3px rgba(29,78,216,0.10); }
+.hm-search .hm-date-range .adp-trigger .adp-trigger-value { text-align: left; }
+.hm-search .hm-date-range .adp-trigger .adp-trigger-placeholder { color: #8fa0b5; font-weight: 500; }
+.hm-search .hm-date-range .adp-trigger .adp-trigger-icon { color: #1d4ed8; }
+.hm-search .hm-date-range input[type="date"] { width: 100%; min-height: 56px; padding: 10px 16px; border-radius: 14px; border: 1px solid var(--hm-line); background: #fbfdff; color: var(--hm-ink); font-weight: 600; font-size: 15px; }
+.hm-search .hm-date-range input[type="date"]:focus { outline: none; border-color: var(--hm-acc); box-shadow: 0 0 0 3px rgba(29,78,216,0.10); background: #fff; }
+.hm-search .hm-date-range input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+.hm-search .hm-date-range input[type="date"]::-webkit-inner-spin-button,
+.hm-search .hm-date-range input[type="date"]::-webkit-clear-button { display: none; }
 .hm-search-fields.is-flight-search { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hm-search-fields.is-flight-search > .field.grow { grid-column: auto; }
 .hm-search .hm-flight-details { display: flex; flex-direction: column; justify-content: center; position: relative; }
@@ -1226,14 +1239,14 @@
                         <label><i class="fas fa-plane-arrival"></i> Flying to</label>
                         {% include 'search/_airport_field.html' with field_name='destination_airport' airport=search_flight_airport placeholder='Search worldwide airports' %}
                     </div>
-                    <div class="hm-date-range" id="dateRangeField">
-                        <div class="field" id="departureField">
-                            <label><i class="fas fa-calendar-days"></i> <span id="departureLabel">Departure date</span></label>
-                            <input type="date" name="check_in" value="{{ search_check_in }}" aria-label="Departure date">
+                    <div class="hm-date-range hm-date-range--clean" id="dateRangeField">
+                        <div class="hm-date-col" id="departureField">
+                            <label class="hm-date-label"><span id="departureLabel">Check-in</span></label>
+                            <input type="date" name="check_in" value="{{ search_check_in }}" aria-label="Check-in date">
                         </div>
-                        <div class="field" id="returnField" hidden>
-                            <label><i class="fas fa-calendar-days"></i> <span id="returnLabel">Return date</span></label>
-                            <input type="date" name="check_out" value="{{ search_check_out }}" aria-label="Return date">
+                        <div class="hm-date-col" id="returnField" hidden>
+                            <label class="hm-date-label"><span id="returnLabel">Check-out</span></label>
+                            <input type="date" name="check_out" value="{{ search_check_out }}" aria-label="Check-out date">
                         </div>
                     </div>
                     <div class="field" id="reservationTimeField" hidden>

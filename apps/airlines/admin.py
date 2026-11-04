@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import (
     Aircraft, AircraftType, Airline, AirlineFleet, AirlinePhoto, Airport,
     Booking, Cabin, Flight, FlightItinerary, Manufacturer, Seat, SeatLayout,
-    Service,
+    Service, FlightOfferSnapshot,
 )
 
 
@@ -144,3 +144,16 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = ('pk', 'passenger', 'flight', 'itinerary', 'passengers_count',
                     'total_bill', 'status', 'created_at')
     list_filter = ('status', 'flight', 'itinerary')
+
+
+@admin.register(FlightOfferSnapshot)
+class FlightOfferSnapshotAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'mode', 'origin_code', 'destination_code',
+                    'departure_date', 'total_amount', 'currency', 'retrieved_at')
+    list_filter = ('provider', 'mode', 'currency', 'departure_date')
+    search_fields = ('offer_id', 'origin_code', 'destination_code')
+    readonly_fields = ('provider', 'mode', 'offer_id', 'origin_code',
+                       'destination_code', 'departure_date', 'return_date',
+                       'total_amount', 'currency', 'expires_at',
+                       'retrieved_at', 'payload')
+    ordering = ('-retrieved_at',)

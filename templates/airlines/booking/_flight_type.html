@@ -1,0 +1,27 @@
+<div class="pd-card pd-section" id="pd-flight-type">
+    <div class="pd-section__head">
+        <h2><i class="fas fa-earth-asia"></i> Flight type</h2>
+        <p>Choose the type of journey. This decides whether passport details are required.</p>
+    </div>
+
+    <div class="pd-toggle" role="radiogroup" aria-label="Flight type">
+        <label class="pd-toggle__option">
+            <input type="radio" name="flight_type" value="DOMESTIC" {% if default_flight_type == 'DOMESTIC' %}checked{% endif %}>
+            <span class="pd-toggle__card">
+                <i class="fas fa-map-location-dot"></i>
+                <span class="pd-toggle__title">Domestic Flight</span>
+                <span class="pd-toggle__hint">Within the Philippines</span>
+            </span>
+        </label>
+        <label class="pd-toggle__option">
+            <input type="radio" name="flight_type" value="INTERNATIONAL" {% if default_flight_type == 'INTERNATIONAL' %}checked{% endif %}>
+            <span class="pd-toggle__card">
+                <i class="fas fa-earth-asia"></i>
+                <span class="pd-toggle__title">International Flight</span>
+                <span class="pd-toggle__hint">Leaving the Philippines</span>
+            </span>
+        </label>
+    </div>
+
+    <p class="pd-note" data-pd-flight-type-note role="status" aria-live="polite"></p>
+</div>

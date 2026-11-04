@@ -13,7 +13,7 @@
 
 <div class="page-head">
     <div>
-        <h2>Transportation</h2>
+        <h1>Transportation</h1>
         <p>Step 1 of 3: pick your travel agency first, then we&rsquo;ll show you its cars.</p>
     </div>
     {% if request.user.is_platform_manager %}
@@ -46,18 +46,10 @@
 
 <div class="cards cards-transport">
     {% for a in agencies %}
-    <div class="scard">
+    <div class="scard establishment-list-card">
         <div class="scard-body">
             <div class="scard-top">
-                <div class="scard-photo">
-                    {% with cover=a.agency.photos.all|first %}
-                    {% if cover %}
-                    <img src="{{ cover.image.url }}" alt="{{ a.agency.name }}">
-                    {% else %}
-                    <img src="https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=75" alt="Transportation photo">
-                    {% endif %}
-                    {% endwith %}
-                </div>
+                <div class="scard-photo agoda-gallery" data-gallery><div class="agoda-gallery-track">{% for photo in a.agency.photos.all %}<img class="agoda-gallery-image{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ a.agency.name }} photo {{ forloop.counter }}" loading="lazy">{% empty %}<div class="agoda-gallery-placeholder"><i class="fas fa-car-side"></i><span>No photos yet</span></div>{% endfor %}</div>{% if a.agency.photos.all|length > 1 %}<button type="button" class="agoda-gallery-btn prev" data-gallery-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button><button type="button" class="agoda-gallery-btn next" data-gallery-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button><div class="agoda-gallery-dots" data-gallery-dots></div>{% endif %}</div>
             </div>
             <h3>{{ a.agency.name }}</h3>
             <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ a.agency.location }}</div>

@@ -10,7 +10,7 @@ from accounts.roles import (
     effective_role_keys,
     owner_role_keys,
 )
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
-from atrue_core.image_utils import delete_image_record, is_valid_image
+from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.search_catalog import render_search_page
 from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
@@ -218,7 +218,9 @@ def _parse_table_cost(value):
 
 
 def restaurant_list(request):
-    restaurants = Restaurant.objects.prefetch_related('tables', 'photos').filter(status=Restaurant.Status.ACTIVE)
+    restaurants = Restaurant.objects.prefetch_related('tables', 'photos')
+    if not (request.user.is_authenticated and request.user.is_platform_manager):
+        restaurants = restaurants.filter(status=Restaurant.Status.ACTIVE)
     assignment = _active_task_assignment(request)
     establishment = assignment.establishment if assignment else None
     # Only a restaurant assignment narrows the catalogue. An assignment in
@@ -274,6 +276,11 @@ def add_restaurant(request):
         if cost_per_table is None:
             messages.error(request, "Enter a valid cost per table (0 or more).")
             return redirect('restaurants:add')
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'))
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'restaurants/form.html', {'restaurant': None, 'status_choices': Restaurant.Status.choices, 'location_parts': _location_parts('')}, status=400)
         restaurant = Restaurant.objects.create(
             name=request.POST.get('name'),
             location=_compose_location(request),
@@ -286,7 +293,6 @@ def add_restaurant(request):
             status=request.POST.get('status', Restaurant.Status.ACTIVE),
         )
         restaurant.refresh_from_db()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for index, image in enumerate(photos):
             RestaurantPhoto.objects.create(restaurant=restaurant, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created restaurant", f"{restaurant.name} ({restaurant.restaurant_id})")
@@ -311,6 +317,13 @@ def update_restaurant(request, restaurant_id):
                 'status_choices': Restaurant.Status.choices,
                 'location_parts': _location_parts(restaurant.location),
             })
+        delete_ids = request.POST.getlist('delete_photos')
+        delete_count = restaurant.photos.filter(pk__in=delete_ids).count()
+        try:
+            photos = validate_establishment_photos(request.FILES.getlist('photos'), existing_count=restaurant.photos.count(), delete_count=delete_count)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return render(request, 'restaurants/form.html', {'restaurant': restaurant, 'status_choices': Restaurant.Status.choices, 'location_parts': _location_parts(restaurant.location)}, status=400)
         for field in ('name', 'cuisine_type', 'contact_number',
                       'email', 'operating_hours', 'status'):
             setattr(restaurant, field, request.POST.get(field) or getattr(restaurant, field))
@@ -318,7 +331,6 @@ def update_restaurant(request, restaurant_id):
         restaurant.country = request.POST.get('location_country') or restaurant.country
         restaurant.cost_per_table = cost_per_table
         restaurant.save()
-        photos = [f for f in request.FILES.getlist('photos') if is_valid_image(f)]
         for image in photos:
             RestaurantPhoto.objects.create(restaurant=restaurant, image=image, is_primary=not restaurant.photos.exists())
         for photo in restaurant.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -364,7 +376,7 @@ def delete_restaurant(request, restaurant_id):
 
 
 def restaurant_detail(request, restaurant_id):
-    """FR-011 VIEW Restaurant – full detail profile (tables)."""
+    """FR-011 VIEW Restaurant â€“ full detail profile (tables)."""
     restaurant = get_object_by_slug_or_404(
         Restaurant.objects.prefetch_related('tables', 'photos'),
         restaurant_id,
@@ -463,7 +475,7 @@ def update_table(request, table_id):
 
 @manager_required
 def tables(request):
-    """FR-012 RETRIEVE Tables – search by restaurant, capacity, location, status."""
+    """FR-012 RETRIEVE Tables â€“ search by restaurant, capacity, location, status."""
     qs = Table.objects.select_related('restaurant').all()
     restaurant_ids = _assigned_restaurant_ids(request)
     restaurants = Restaurant.objects.all()
@@ -500,7 +512,7 @@ def tables(request):
 
 @login_required
 def table_detail(request, table_id):
-    """FR-012 VIEW Table – availability, capacity, reserve."""
+    """FR-012 VIEW Table â€“ availability, capacity, reserve."""
     table = get_object_or_404(Table.objects.select_related('restaurant'), pk=table_id)
     _require_assigned_restaurant(request, table.restaurant_id)
     is_manager = request.user.is_staff or request.user.account_type in ('ADMIN', 'INSTRUCTOR')
@@ -781,6 +793,9 @@ def booking_detail(request, booking_id):
             booking.save(update_fields=['status', 'checked_out_at'])
             booking.table.status = Table.Status.AVAILABLE
             booking.table.save(update_fields=['status'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Party completed meal", str(booking.pk))
         elif action == 'modify':
             when = _parse_datetime(request.POST.get('reservation_datetime'), booking.reservation_datetime)

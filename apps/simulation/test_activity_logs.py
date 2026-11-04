@@ -130,7 +130,7 @@ class SessionLogsListingTests(SessionLogsBase):
         response = self.client.get(url)
         self.assertContains(response, 'ABC Grand Hotel')
         self.assertContains(response, 'Guest – Hotel')
-        self.assertContains(response, 'Active')
+        self.assertContains(response, 'In Progress')
 
         url_b = reverse('simulation:session_logs', args=[self.session_b.id])
         response_b = self.client.get(url_b)
@@ -147,6 +147,111 @@ class SessionLogsListingTests(SessionLogsBase):
         actions = [r['log'].action for r in response.context['rows']]
         self.assertEqual(actions[0], 'Payment recorded for hotel')
         self.assertEqual(actions[-1], 'Older task')
+
+
+class SessionLogStatusTests(SessionLogsBase):
+    """Assignment lifecycle status is shown against each Activity Log row."""
+
+    def setUp(self):
+        super().setUp()
+        self.assignment = self.assign(
+            self.john, self.session_a,
+            SimulationRoleAssignment.Role.GUEST_HOTEL, self.est_hotel)
+        self.url = reverse('simulation:session_logs', args=[self.session_a.id])
+        self.client.force_login(self.instructor)
+
+    def set_assignment_status(self, status):
+        SimulationRoleAssignment.objects.filter(
+            pk=self.assignment.pk).update(status=status)
+        self.assignment.refresh_from_db()
+
+    def status_for(self, response, log):
+        return next(
+            row['status'] for row in response.context['rows']
+            if row['log'].pk == log.pk)
+
+    def json_status_for(self, response, log):
+        index = next(
+            i for i, row in enumerate(response.context['rows'])
+            if row['log'].pk == log.pk)
+        return response.context['rows_json'][index]['status']
+
+    def test_assignment_activity_status_maps_each_lifecycle_status(self):
+        expected = {
+            SimulationRoleAssignment.AssignmentStatus.ACTIVE: 'In Progress',
+            SimulationRoleAssignment.AssignmentStatus.DONE: 'Completed',
+            SimulationRoleAssignment.AssignmentStatus.INACTIVE: 'Cancelled',
+        }
+        for status, label in expected.items():
+            with self.subTest(status=status):
+                self.set_assignment_status(status)
+                self.assertEqual(self.assignment.activity_status, label)
+
+    def test_log_page_and_modal_use_the_assignment_status(self):
+        log = self.log(
+            self.john, self.session_a, 'Started simulation task',
+            simulation_role=SimulationRoleAssignment.Role.GUEST_HOTEL,
+            role_assignment=self.assignment)
+        expected = {
+            SimulationRoleAssignment.AssignmentStatus.ACTIVE: (
+                'In Progress', 'badge-blue'),
+            SimulationRoleAssignment.AssignmentStatus.DONE: (
+                'Completed', 'badge-green'),
+            SimulationRoleAssignment.AssignmentStatus.INACTIVE: (
+                'Cancelled', 'badge-gray'),
+        }
+        for status, (label, badge_class) in expected.items():
+            with self.subTest(status=status):
+                self.set_assignment_status(status)
+                response = self.client.get(self.url)
+                self.assertEqual(self.status_for(response, log), label)
+                self.assertEqual(self.json_status_for(response, log), label)
+                self.assertContains(
+                    response,
+                    f'class="badge {badge_class}">{label}</span>',
+                    html=False)
+
+    def test_linked_assignment_wins_over_a_later_legacy_match(self):
+        linked = self.assignment
+        SimulationRoleAssignment.objects.filter(pk=linked.pk).update(
+            status=SimulationRoleAssignment.AssignmentStatus.INACTIVE)
+        later = self.assign(
+            self.john, self.session_a,
+            SimulationRoleAssignment.Role.GUEST_HOTEL, self.est_hotel)
+        SimulationRoleAssignment.objects.filter(pk=later.pk).update(
+            status=SimulationRoleAssignment.AssignmentStatus.DONE)
+        log = self.log(
+            self.john, self.session_a, 'Worked a hotel task',
+            simulation_role=SimulationRoleAssignment.Role.GUEST_HOTEL,
+            role_assignment=linked)
+
+        response = self.client.get(self.url)
+        self.assertEqual(self.status_for(response, log), 'Cancelled')
+        self.assertEqual(self.json_status_for(response, log), 'Cancelled')
+
+    def test_legacy_log_without_assignment_link_uses_matched_status(self):
+        self.set_assignment_status(
+            SimulationRoleAssignment.AssignmentStatus.DONE)
+        log = self.log(
+            self.john, self.session_a, 'Legacy hotel activity',
+            simulation_role=SimulationRoleAssignment.Role.GUEST_HOTEL)
+
+        response = self.client.get(self.url)
+        self.assertEqual(self.status_for(response, log), 'Completed')
+
+    def test_unmatched_and_instructor_logs_have_no_status(self):
+        instructor_log = self.log(
+            self.instructor, self.session_a, 'Reviewed the session')
+        unmatched_student_log = self.log(
+            self.maria, self.session_a, 'Completed a task without an assignment',
+            simulation_role=SimulationRoleAssignment.Role.RESTAURANT_GUEST)
+
+        response = self.client.get(self.url)
+        for log in (instructor_log, unmatched_student_log):
+            with self.subTest(log=log.pk):
+                self.assertEqual(self.status_for(response, log), '-')
+                self.assertEqual(self.json_status_for(response, log), '-')
+        self.assertNotContains(response, 'badge badge-gray">-</span>')
 
 
 class SessionLogsFilterTests(SessionLogsBase):

@@ -33,6 +33,26 @@ class Notification(models.Model):
         RESTAURANT_RESERVATION_SUBMITTED = 'RESTAURANT_RESERVATION_SUBMITTED', 'Restaurant reservation submitted'
         RESTAURANT_RESERVATION_CONFIRMED = 'RESTAURANT_RESERVATION_CONFIRMED', 'Restaurant reservation confirmed'
         RESTAURANT_RESERVATION_REJECTED = 'RESTAURANT_RESERVATION_REJECTED', 'Restaurant reservation rejected'
+        RESORT_RESERVATION_SUBMITTED = 'RESORT_RESERVATION_SUBMITTED', 'Resort reservation submitted'
+        RESORT_RESERVATION_CONFIRMED = 'RESORT_RESERVATION_CONFIRMED', 'Resort reservation confirmed'
+        RESORT_RESERVATION_REJECTED = 'RESORT_RESERVATION_REJECTED', 'Resort reservation rejected'
+        RESORT_RESERVATION_CANCELLED = 'RESORT_RESERVATION_CANCELLED', 'Resort reservation cancelled'
+        RESORT_RESERVATION_UPDATED = 'RESORT_RESERVATION_UPDATED', 'Resort reservation updated'
+        STAYCATION_RESERVATION_SUBMITTED = 'STAYCATION_RESERVATION_SUBMITTED', 'Staycation reservation submitted'
+        STAYCATION_RESERVATION_CONFIRMED = 'STAYCATION_RESERVATION_CONFIRMED', 'Staycation reservation confirmed'
+        STAYCATION_RESERVATION_REJECTED = 'STAYCATION_RESERVATION_REJECTED', 'Staycation reservation rejected'
+        STAYCATION_RESERVATION_CANCELLED = 'STAYCATION_RESERVATION_CANCELLED', 'Staycation reservation cancelled'
+        STAYCATION_RESERVATION_UPDATED = 'STAYCATION_RESERVATION_UPDATED', 'Staycation reservation updated'
+        ACTIVITY_BOOKING_SUBMITTED = 'ACTIVITY_BOOKING_SUBMITTED', 'Activity booking submitted'
+        ACTIVITY_BOOKING_CONFIRMED = 'ACTIVITY_BOOKING_CONFIRMED', 'Activity booking confirmed'
+        ACTIVITY_BOOKING_REJECTED = 'ACTIVITY_BOOKING_REJECTED', 'Activity booking rejected'
+        ACTIVITY_BOOKING_CANCELLED = 'ACTIVITY_BOOKING_CANCELLED', 'Activity booking cancelled'
+        ACTIVITY_BOOKING_UPDATED = 'ACTIVITY_BOOKING_UPDATED', 'Activity booking updated'
+        LANDMARK_TICKET_SUBMITTED = 'LANDMARK_TICKET_SUBMITTED', 'Landmark ticket submitted'
+        LANDMARK_TICKET_CONFIRMED = 'LANDMARK_TICKET_CONFIRMED', 'Landmark ticket confirmed'
+        LANDMARK_TICKET_REJECTED = 'LANDMARK_TICKET_REJECTED', 'Landmark ticket rejected'
+        LANDMARK_TICKET_CANCELLED = 'LANDMARK_TICKET_CANCELLED', 'Landmark ticket cancelled'
+        LANDMARK_TICKET_UPDATED = 'LANDMARK_TICKET_UPDATED', 'Landmark ticket updated'
         # -- airline workflow -----------------------------------------------
         FLIGHT_RESERVATION_SUBMITTED = 'FLIGHT_RESERVATION_SUBMITTED', 'Flight reservation submitted'
         FLIGHT_RESERVATION_APPROVED = 'FLIGHT_RESERVATION_APPROVED', 'Flight reservation approved'
@@ -68,6 +88,14 @@ class Notification(models.Model):
     title = models.CharField(max_length=150, blank=True)
     message = models.TextField()
 
+    # Optional link to any module-owned record (booking, reservation, bill, etc.).
+    # Keeping the concrete record in its owning app avoids duplicating its data.
+    related_content_type = models.ForeignKey(
+        ContentType, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notification_records')
+    related_object_id = models.PositiveBigIntegerField(null=True, blank=True)
+    related_object = GenericForeignKey('related_content_type', 'related_object_id')
+
     # The transaction this concerns, when there is one. SET_NULL so a deleted
     # (rolled back) transaction never takes the notification queue with it.
     transaction = models.ForeignKey(
@@ -76,6 +104,15 @@ class Notification(models.Model):
     session = models.ForeignKey(
         'simulation.SimulationSession', on_delete=models.CASCADE, null=True, blank=True,
         related_name='notifications')
+    assignment = models.ForeignKey(
+        'simulation.SimulationRoleAssignment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notifications')
+    role = models.ForeignKey(
+        'simulation.Role', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notifications')
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='notifications_sent')
     establishment = models.ForeignKey(
         'establishments.Establishment', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='notifications')

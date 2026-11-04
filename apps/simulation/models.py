@@ -261,6 +261,7 @@ class SimulationRoleAssignment(models.Model):
         max_length=10, choices=AssignmentStatus.choices, default=AssignmentStatus.ACTIVE
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     #: When the assignment was marked :attr:`AssignmentStatus.DONE` - i.e. when
     #: the student successfully performed the role's required action. Null until
@@ -504,6 +505,15 @@ class SimulationRoleAssignment(models.Model):
     def is_active(self):
         return self.status == self.AssignmentStatus.ACTIVE
 
+    @property
+    def activity_status(self):
+        """The assignment status shown against its Activity Log entries."""
+        return {
+            self.AssignmentStatus.ACTIVE: 'In Progress',
+            self.AssignmentStatus.DONE: 'Completed',
+            self.AssignmentStatus.INACTIVE: 'Cancelled',
+        }.get(self.status, self.get_status_display())
+
     def role_permissions(self):
         """Return the list of permissions applicable to the assigned role (FR View Simulation Role)."""
         return ROLE_PERMISSIONS.get(self.role, [])
@@ -687,6 +697,34 @@ ROLE_PERMISSIONS = {
 }
 
 
+class SimulationAssignmentTaskCompletion(models.Model):
+    """A verified role-task action completed for one assignment."""
+
+    class Status(models.TextChoices):
+        COMPLETED = 'COMPLETED', 'Completed'
+
+    assignment = models.ForeignKey(
+        SimulationRoleAssignment, on_delete=models.CASCADE,
+        related_name='task_completions')
+    task_key = models.CharField(max_length=100)
+    task_label = models.CharField(max_length=150)
+    status = models.CharField(max_length=12, choices=Status.choices,
+                              default=Status.COMPLETED)
+    completion_event = models.CharField(max_length=40)
+    booking_reference = models.CharField(
+        max_length=50, blank=True, default='', db_index=True,
+        help_text='Booking that verified this task, when the action produced one.')
+    completed_at = models.DateTimeField(default=timezone.now, editable=False)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='simulation_task_completions')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=('assignment', 'task_key'), name='unique_assignment_task_completion')]
+        ordering = ['completed_at', 'pk']
+
+
 class ActivityLog(models.Model):
     """Significant simulation actions for traceability (BR-085, REQ-028)."""
 
@@ -700,6 +738,9 @@ class ActivityLog(models.Model):
     session = models.ForeignKey(
         'simulation.SimulationSession', null=True, blank=True, on_delete=models.SET_NULL
     )
+    role_assignment = models.ForeignKey(
+        'simulation.SimulationRoleAssignment', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='activity_logs')
     establishment = models.ForeignKey(
         'establishments.Establishment', null=True, blank=True, on_delete=models.SET_NULL
     )

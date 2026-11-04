@@ -1,0 +1,23 @@
+{% load static %}
+{# Right sidebar: current search summary with a route to edit it. #}
+<aside class="fs-panel fs-trip" data-fs-trip-summary aria-labelledby="fsTripTitle">
+    <h2 class="fs-panel__title" id="fsTripTitle"><i class="fas fa-route" aria-hidden="true"></i> Trip Summary</h2>
+    <div class="fs-trip__image">
+        <img src="{% static 'img/destination-beach.svg' %}" alt="Tropical island with turquoise water">
+    </div>
+    <p class="fs-trip__route" data-fs-summary-route>{{ search_defaults.origin_label }} &rarr; {{ search_defaults.destination_label }}</p>
+    {% if is_multicity_search and multi_city_legs %}
+    <ol class="fs-trip__legs">
+        {% for leg in multi_city_legs %}
+        <li><span class="fs-trip__leg-n">{{ forloop.counter }}</span> Segment {{ forloop.counter }} <small>{{ leg.date }}</small></li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="fs-trip__dates"><i class="fas fa-calendar-days" aria-hidden="true"></i> <span data-fs-summary-dates>{{ search_defaults.departure_label }}{% if search_defaults.trip_type == 'round' %} &ndash; {{ search_defaults.return_label }}{% endif %}</span></p>
+    {% endif %}
+    <p class="fs-trip__pax"><i class="fas fa-user-group" aria-hidden="true"></i> <span data-fs-summary-pax>{{ search_defaults.passengers }} Traveler{% if search_defaults.passengers != 1 %}s{% endif %}</span></p>
+    <p class="fs-trip__type"><i class="fas fa-plane-circle-check" aria-hidden="true"></i> {{ flight_type_label }} &middot; {% if is_multicity_search %}Multi-City{% elif search_defaults.trip_type == 'round' %}Round Trip{% else %}One Way{% endif %}</p>
+    <button type="button" class="fs-btn fs-btn--outline fs-btn--block" data-fs-edit-search>
+        <i class="fas fa-pen" aria-hidden="true"></i> Edit Search
+    </button>
+</aside>

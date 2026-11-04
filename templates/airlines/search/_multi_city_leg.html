@@ -1,0 +1,29 @@
+{# One multi-city flight segment: origin, destination and its own departure date. #}
+<div class="fs-leg-row" data-fs-leg>
+    <span class="fs-leg-row__num" data-fs-leg-num>1</span>
+    <div class="fs-field fs-field--airport" data-field="from">
+        <label class="fs-field__label" for="fsLegFrom{{ leg_index }}"><i class="fas fa-plane-departure" aria-hidden="true"></i> From</label>
+        <div data-fs-leg-origin>
+            {% include 'search/_airport_field.html' with field_name='leg_origin_airport' airport=None placeholder='Origin airport or city' compact=True icon='fa-plane-departure' %}
+        </div>
+        <input type="hidden" id="fsLegFrom{{ leg_index }}" value="">
+    </div>
+    <span class="fs-leg-row__arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span>
+    <div class="fs-field fs-field--airport" data-field="to">
+        <label class="fs-field__label" for="fsLegTo{{ leg_index }}"><i class="fas fa-plane-arrival" aria-hidden="true"></i> To</label>
+        <div data-fs-leg-destination>
+            {% include 'search/_airport_field.html' with field_name='leg_destination_airport' airport=None placeholder='Destination airport or city' compact=True icon='fa-plane-arrival' %}
+        </div>
+        <input type="hidden" id="fsLegTo{{ leg_index }}" value="">
+    </div>
+    <div class="fs-field" data-field="depart">
+        <label class="fs-field__label" for="fsLegDate{{ leg_index }}"><i class="fas fa-calendar-day" aria-hidden="true"></i> Departure</label>
+        <span class="fs-control fs-control--date">
+            <span class="fs-control__text" data-fs-leg-date-label>Select date</span>
+            <input class="fs-date" type="date" id="fsLegDate{{ leg_index }}" name="leg_departure_date" data-fs-leg-depart aria-label="Segment {{ leg_index }} departure date">
+        </span>
+    </div>
+    <button type="button" class="fs-leg-row__remove" data-fs-leg-remove aria-label="Remove this segment" title="Remove segment">
+        <i class="fas fa-xmark" aria-hidden="true"></i>
+    </button>
+</div>

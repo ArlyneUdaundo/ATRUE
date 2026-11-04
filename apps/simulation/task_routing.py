@@ -27,8 +27,9 @@ def _operation(
         'allowed_routes': frozenset(allowed),
         'icon': icon,
         'tasks': tuple(
-            {'label': task_label, 'route': task_route, 'icon': task_icon}
-            for task_label, task_route, task_icon in task_items
+            {'key': f"{namespace}.task.{index + 1:02d}", 'label': task_label,
+             'route': task_route, 'icon': task_icon}
+            for index, (task_label, task_route, task_icon) in enumerate(task_items)
         ),
     }
 
@@ -50,9 +51,9 @@ _TRANSPORT_MANAGER_ROUTES = {
     'manage', 'agency_vehicles', 'update_agency', 'add_vehicle',
     'update_vehicle', 'add_driver', 'update_driver', 'bookings', 'booking_detail',
 }
-_PACKAGE_MANAGER_ROUTES = {'manage', 'update_package'}
+_PACKAGE_MANAGER_ROUTES = {'manage', 'update_package', 'bookings', 'booking_detail'}
 _ACTIVITY_MANAGER_ROUTES = {
-    'manage', 'update_activity',
+    'manage', 'update_activity', 'bookings', 'booking_detail',
 }
 _RESORT_MANAGER_ROUTES = {
     'manage', 'update_resort', 'units', 'unit_detail', 'update_unit', 'add_unit',
@@ -204,9 +205,9 @@ _OPERATIONS = {
                     'fa-suitcase-rolling'),),
         ),
         'TRAVEL_AGENCY_RESERVATION_OFFICER': _operation(
-            'Travel Agency Operations', 'tour_package:manage', 'tour_package',
-            {'manage'}, 'fa-calendar-check',
-            tasks=(('Manage Tour Packages', 'tour_package:manage',
+            'Travel Agency Operations', 'tour_package:bookings', 'tour_package',
+            {'bookings', 'booking_detail'}, 'fa-calendar-check',
+            tasks=(('Manage Package Bookings', 'tour_package:bookings',
                     'fa-calendar-check'),),
         ),
         'TRAVEL_CONSULTANT': _operation(
@@ -228,6 +229,7 @@ _OPERATIONS = {
             _PACKAGE_MANAGER_ROUTES, 'fa-map-marked-alt',
             tasks=(
                 ('Manage Tour Packages', 'tour_package:manage', 'fa-suitcase-rolling'),
+                ('Manage Tour Bookings', 'tour_package:bookings', 'fa-calendar-check'),
                 ('Manage Activities', 'activities:manage', 'fa-hiking'),
                 ('Manage Landmarks', 'landmarks:manage', 'fa-landmark'),
                 ('Manage Tour Transactions', 'transactions:admin_list',
@@ -238,9 +240,9 @@ _OPERATIONS = {
             },
         ),
         'TOUR_COORDINATOR': _operation(
-            'Tour Operations', 'tour_package:manage', 'tour_package',
-            {'manage'}, 'fa-calendar-check',
-            tasks=(('Manage Tour Packages', 'tour_package:manage',
+            'Tour Operations', 'tour_package:bookings', 'tour_package',
+            {'bookings', 'booking_detail'}, 'fa-calendar-check',
+            tasks=(('Manage Tour Bookings', 'tour_package:bookings',
                     'fa-calendar-check'),),
         ),
         'TOUR_OPERATOR': _operation(
@@ -250,9 +252,10 @@ _OPERATIONS = {
                     'fa-map-marked-alt'),),
         ),
         'TOUR_GUIDE': _operation(
-            'Tour Operations', 'activities:manage', 'activities',
-            {'manage'}, 'fa-route',
-            tasks=(('Manage Activities', 'activities:manage', 'fa-route'),),
+            'Tour Operations', 'tour_package:operate', 'tour_package',
+            {'operate'}, 'fa-route',
+            tasks=(('Operate Assigned Tour Package', 'tour_package:operate',
+                    'fa-route'),),
         ),
         'TOUR_BILLING_OFFICER': _operation(
             'Tour Operations', 'transactions:admin_list', 'transactions',
@@ -273,6 +276,8 @@ _OPERATIONS = {
             _ACTIVITY_MANAGER_ROUTES, 'fa-person-hiking',
             tasks=(
                 ('Manage Activities', 'activities:manage', 'fa-person-hiking'),
+                ('Manage Activity Bookings', 'activities:bookings',
+                 'fa-calendar-check'),
             ),
         ),
         'ACTIVITY_RESERVATION_OFFICER': _operation(
@@ -298,10 +303,13 @@ _OPERATIONS = {
     'TOUR_PACKAGE': {
         'TOUR_PACKAGE_MANAGER': _operation(
             'Tour Package Operations', 'tour_package:manage', 'tour_package',
-            {'manage', 'update_package'}, 'fa-suitcase-rolling',
+            {'manage', 'update_package', 'bookings', 'booking_detail'},
+            'fa-suitcase-rolling',
             tasks=(
                 ('Manage Tour Packages', 'tour_package:manage',
                  'fa-suitcase-rolling'),
+                ('Manage Package Bookings', 'tour_package:bookings',
+                 'fa-calendar-check'),
             ),
         ),
         'TOUR_PACKAGE_RESERVATION_OFFICER': _operation(
@@ -536,6 +544,11 @@ GUEST_MODULES = {
     'ACTIVITY_GUEST': {'establishment_type': 'ACTIVITY', 'detail_route': 'activities:detail'},
 }
 
+# Retired role records remain resolvable while historical assignments are
+# reviewed. This compatibility alias points the retired tour customer to its
+# replacement workflow without duplicating its task list or event rules.
+GUEST_ROLE_ALIASES = {'CUSTOMER_TOUR': 'TOUR_GUEST'}
+
 
 def guest_destination_types():
     """``{role code: establishment type}`` for the guest roles an instructor
@@ -555,8 +568,13 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'group_start', 'booking_detail', 'ticket'},
         'fa-hotel',
         tasks=(
-            ('Browse Hotel Rooms', 'hotels:list', 'fa-hotel'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Select a hotel room', 'hotels:list', 'fa-bed'),
+            ('Complete guest information', 'hotels:list', 'fa-user-pen'),
+            ('Submit booking request', 'hotels:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'RESORT_GUEST': _operation(
@@ -564,8 +582,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'group_start', 'flow_select', 'booking_detail', 'ticket'},
         'fa-umbrella-beach',
         tasks=(
-            ('Browse Resort Units', 'resorts:flow_select', 'fa-umbrella-beach'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'resorts:flow_select', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'RESTAURANT_GUEST': _operation(
@@ -573,8 +594,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'flow_select', 'booking_detail', 'ticket'},
         'fa-utensils',
         tasks=(
-            ('Browse Restaurant Tables', 'restaurants:list', 'fa-utensils'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'restaurants:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'STAYCATION_GUEST': _operation(
@@ -582,8 +606,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'flow_select', 'booking_detail', 'ticket'},
         'fa-building',
         tasks=(
-            ('Browse Staycations', 'staycations:list', 'fa-building'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'staycations:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'LANDMARK_GUEST': _operation(
@@ -591,8 +618,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'flow_select', 'booking_detail', 'ticket'},
         'fa-star',
         tasks=(
-            ('Browse Landmarks', 'landmarks:list', 'fa-star'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'landmarks:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'TOUR_GUEST': _operation(
@@ -600,8 +630,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'flow_select', 'booking_detail', 'ticket'},
         'fa-map',
         tasks=(
-            ('Browse Tour Packages', 'tour_package:list', 'fa-map'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'tour_package:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'PASSENGER_TRANSPORT': _operation(
@@ -609,8 +642,11 @@ _GUEST_OPERATIONS = {
         {'list', 'agency_vehicles', 'book', 'booking_detail', 'ticket'},
         'fa-bus',
         tasks=(
-            ('Browse Transport Options', 'transportation:list', 'fa-bus'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'transportation:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
     'ACTIVITY_GUEST': _operation(
@@ -618,8 +654,11 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'flow_select', 'booking_detail', 'ticket'},
         'fa-person-hiking',
         tasks=(
-            ('Browse Activities', 'activities:list', 'fa-person-hiking'),
-            ('View Bookings', 'transactions:booking_list', 'fa-book-open'),
+            ('Submit booking request', 'activities:list', 'fa-paper-plane'),
+            ('Payment verification by Billing Officer',
+             'transactions:booking_list', 'fa-file-invoice-dollar'),
+            ('Reservation confirmation',
+             'transactions:booking_list', 'fa-calendar-check'),
         ),
     ),
 }
@@ -684,7 +723,8 @@ def _owner_operation(role_code):
         # selected airline; the schedule page uses add_flight_schedule.
         owner_routes.add('airlines:add_flight')
     result['allowed_routes'] = frozenset(set(base['allowed_routes']) | owner_routes)
-    result['tasks'] = ({'label': add_label, 'route': add_route, 'icon': 'fa-plus'},) + base['tasks']
+    result['tasks'] = ({'key': f'owner.{role_code.lower()}.create', 'label': add_label,
+                        'route': add_route, 'icon': 'fa-plus'},) + base['tasks']
     return result
 
 
@@ -699,16 +739,56 @@ _BILLING_OPERATION = _operation(
     tasks=(('Review and confirm payments', 'transactions:payment_review', 'fa-file-invoice-dollar'),),
 )
 
+#: The five verified hotel-guest actions, in workflow order. Keys and events
+#: are stable because they are written onto task-completion rows.
+HOTEL_GUEST_TASK_RULES = {
+    'Select a hotel room': ('hotel_guest.select_room', ['HOTEL_ROOM_SELECTED']),
+    'Complete guest information': (
+        'hotel_guest.guest_information', ['HOTEL_GUEST_INFO_COMPLETED']),
+    'Submit booking request': (
+        'hotel_guest.submit_booking', ['CUSTOMER_BOOKING_SUBMITTED']),
+    'Payment verification by Billing Officer': (
+        'hotel_guest.payment_verification', ['PAYMENT_VERIFIED']),
+    'Reservation confirmation': (
+        'hotel_guest.reservation_confirmation', ['RESERVATION_CONFIRMED']),
+}
+
+#: Student-facing explanation of each verified hotel-guest step.
+HOTEL_GUEST_TASK_DESCRIPTIONS = {
+    'Select a hotel room': 'Choose an available room and confirm the selection.',
+    'Complete guest information': 'Enter the required guest details.',
+    'Submit booking request': 'Send the booking request to the hotel.',
+    'Payment verification by Billing Officer': (
+        'Wait for the Billing Officer to confirm the payment.'),
+    'Reservation confirmation': 'Ensure the booking is fully confirmed.',
+}
+
+#: The verified events every non-hotel guest workflow can prove. The key suffix
+#: is namespaced by the role code so two guest roles in one class never share a
+#: completion row.
+GUEST_TASK_RULES = {
+    'Submit booking request': (
+        'submit_booking', ['CUSTOMER_BOOKING_SUBMITTED'],
+        'Send the booking request to the establishment.'),
+    'Payment verification by Billing Officer': (
+        'payment_verification', ['PAYMENT_VERIFIED'],
+        'Wait for the Billing Officer to confirm the payment.'),
+    'Reservation confirmation': (
+        'reservation_confirmation', ['RESERVATION_CONFIRMED'],
+        'Ensure the booking is fully confirmed.'),
+}
+
 
 def task_operation_for(assignment):
     """Return the operations and task routes allowed for this assignment."""
-    role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
-    from .models import BILLING_OFFICER_ROLE_CODES
-    if role_code in BILLING_OFFICER_ROLE_CODES:
-        if not assignment.establishment_id:
-            return None
+    role_ref = assignment.role_ref if assignment.role_ref_id else None
+    role_code = role_ref.code if role_ref else assignment.role
+    from .models import Role
+    operation_category = assignment.operation_category
+    if (operation_category == Role.OperationCategory.BILLING
+            and assignment.establishment_id):
         operation = dict(_BILLING_OPERATION)
-        role_name = assignment.role_ref.name if assignment.role_ref_id else assignment.get_role_display()
+        role_name = role_ref.name if role_ref else assignment.get_role_display()
         operation['label'] = role_name
         operation['tasks'] = tuple(
             {**task, 'label': role_name}
@@ -734,8 +814,9 @@ def task_operation_for(assignment):
                 ('View Ticket', 'transactions:booking_list', 'fa-ticket-alt'),
             ),
         )
-    if role_code in _GUEST_OPERATIONS:
-        return _guest_operation(role_code)
+    guest_workflow_code = GUEST_ROLE_ALIASES.get(role_code, role_code)
+    if guest_workflow_code in _GUEST_OPERATIONS:
+        return _guest_operation(guest_workflow_code)
     if role_code == 'RESTAURANT_STAFF':
         if assignment.establishment_id:
             establishment_type = assignment.establishment.type
@@ -770,7 +851,81 @@ def task_operation_for(assignment):
         if assignment.role_ref_id and assignment.role_ref.establishment_type
         else establishment_type
     )
-    return _OPERATIONS.get(routing_type, {}).get(role_code)
+    operations = _OPERATIONS.get(routing_type, {})
+    operation = operations.get(role_code)
+    if operation is not None:
+        return operation
+
+    # Role is the source of truth for a role's establishment and workflow
+    # stage. If a catalogue role has a new code but belongs to an established
+    # workflow category, reuse the configured route/task definition for that
+    # category. This lets newly seeded role records participate without adding
+    # another parallel role-code list here. Roles without a matching configured
+    # workflow deliberately remain unconfigured rather than inheriting an
+    # unrelated checklist.
+    if role_ref is not None and role_ref.operation_category:
+        candidates = Role.objects.filter(
+            establishment_type=routing_type,
+            operation_category=role_ref.operation_category,
+            requires_establishment=role_ref.requires_establishment,
+        ).order_by('is_active', 'sort_order', 'code')
+        for candidate in candidates:
+            if candidate.code in operations:
+                return operations[candidate.code]
+    return None
+
+
+def assignment_tasks_for(assignment):
+    """Return role task links annotated with stable keys and verified events.
+
+    Only task links that currently have a successful backend business-action
+    hook are trackable. Page visits and configuration links remain untracked.
+    """
+    operation = task_operation_for(assignment)
+    if operation is None:
+        return []
+    from .models import Role
+    role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
+    category = assignment.operation_category
+    tasks = []
+    for index, task in enumerate(operation['tasks'], 1):
+        item = dict(task)
+        if not item.get('key'):
+            item['key'] = f"{role_code.lower()}.task.{index:02d}"
+        item['completion_events'] = []
+        item['description'] = ''
+        if role_code == 'GUEST_HOTEL':
+            item['description'] = HOTEL_GUEST_TASK_DESCRIPTIONS.get(item['label'], '')
+        if role_code == 'GUEST_HOTEL' and item['label'] in HOTEL_GUEST_TASK_RULES:
+            item['key'], item['completion_events'] = HOTEL_GUEST_TASK_RULES[item['label']]
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Book Flight':
+            item['key'] = 'passenger_airline.book_flight'
+            item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
+        elif (GUEST_ROLE_ALIASES.get(role_code, role_code) in GUEST_MODULES
+              and item['label'] in GUEST_TASK_RULES):
+            suffix, events, description = GUEST_TASK_RULES[item['label']]
+            item['key'] = f"{role_code.lower()}.{suffix}"
+            item['completion_events'] = events
+            item['description'] = description
+        elif category == Role.OperationCategory.BILLING and index == 1:
+            item['key'] = f"{role_code.lower()}.payment_verification"
+            item['completion_events'] = ['PAYMENT_VERIFIED']
+        elif task['route'] == 'hotels:rooms':
+            item['key'] = f"{role_code.lower()}.room_management"
+            item['completion_events'] = ['HOTEL_ROOM_SAVED']
+        elif (category in {Role.OperationCategory.RESERVATION, Role.OperationCategory.MANAGER}
+              and task['route'].endswith(':bookings')):
+            item['key'] = f"{role_code.lower()}.booking_work"
+            item['completion_events'] = ['BOOKING_CONFIRMED']
+            if category == Role.OperationCategory.MANAGER:
+                item['completion_events'].append('BOOKING_FULFILLED')
+        elif (category == Role.OperationCategory.FRONT_DESK
+              and (task['route'].endswith(':bookings')
+                   or task['route'].endswith(':operate'))):
+            item['key'] = f"{role_code.lower()}.service_fulfilment"
+            item['completion_events'] = ['BOOKING_FULFILLED']
+        tasks.append(item)
+    return tasks
 
 
 def operation_with_urls(assignment, operation):
