@@ -1,0 +1,54 @@
+<article class="fs-card fs-card--live">
+    <div class="fs-card__summary">
+        <div class="fs-card__airline">
+            <span class="fs-logo fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            <span class="fs-card__airline-name">{{ flight.airline.name }}</span>
+            <span class="fs-card__flightno">{{ flight.flight_number }}</span>
+        </div>
+
+        <div class="fs-card__point">
+            <span class="fs-card__code">{{ flight.origin_airport.iata_code|default:"—" }}</span>
+            <span class="fs-card__location">{{ flight.origin }}</span>
+            <span class="fs-card__time">{{ flight.departure_time|date:"H:i" }}</span>
+            <span class="fs-card__chips">
+                <span class="fs-chip"><i class="fas fa-suitcase-rolling" aria-hidden="true"></i> Baggage</span>
+            </span>
+        </div>
+
+        <div class="fs-card__route">
+            <span class="fs-card__duration">
+                {% if flight.departure_time and flight.arrival_time %}
+                {{ flight.arrival_time|timeuntil:flight.departure_time }}
+                {% else %}—{% endif %}
+            </span>
+            <span class="fs-card__line" aria-hidden="true"><span></span><i class="fas fa-plane"></i><span></span></span>
+            <span class="fs-card__stops">Direct</span>
+        </div>
+
+        <div class="fs-card__point fs-card__point--arrive">
+            <span class="fs-card__code">{{ flight.destination_airport.iata_code|default:"—" }}</span>
+            <span class="fs-card__location">{{ flight.destination }}</span>
+            <span class="fs-card__time">{{ flight.arrival_time|date:"H:i" }}</span>
+            <span class="fs-card__chips">
+                <span class="fs-chip"><i class="fas fa-circle-check" aria-hidden="true"></i> Scheduled</span>
+            </span>
+        </div>
+
+        <div class="fs-card__price">
+            <span class="fs-card__amount">&#8369;{{ flight.economy_fare|floatformat:2 }}</span>
+            <span class="fs-card__per">per person</span>
+            <div class="fs-card__actions">
+                <a class="fs-btn fs-btn--primary" href="{% url 'airlines:book' flight.pk %}">Book Flight</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="fs-card__details" style="display:block">
+        <div class="fs-card__details-grid">
+            <span><b>Departure</b> {{ flight.departure_time|date:"M d, Y H:i" }}</span>
+            <span><b>Arrival</b> {{ flight.arrival_time|date:"M d, Y H:i" }}</span>
+            <span><b>Availability</b> {{ flight.capacity }} seat(s)</span>
+            <span><b>Fare class</b> Economy</span>
+        </div>
+    </div>
+</article>
