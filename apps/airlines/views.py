@@ -931,8 +931,9 @@ def flight_list(request):
     )
     flight_type_labels = {'DOMESTIC': 'Domestic', 'INTERNATIONAL': 'International'}
 
-    departure_default = departure_date or '2025-10-25'
-    return_default = return_date or '2025-10-28'
+    today = timezone.localdate()
+    departure_default = departure_date or today.isoformat()
+    return_default = return_date or (today + timedelta(days=3)).isoformat()
     sample_flights = sample_results(form_origin_code, form_destination_code, mixed=True)
     # The flight cards follow the airports actually selected in the worldwide
     # picker, so the list shows the chosen city and country rather than only

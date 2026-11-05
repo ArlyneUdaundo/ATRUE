@@ -53,12 +53,12 @@
             <div class="fs-date-range">
                 <span class="fs-control fs-control--date">
                     <span class="fs-control__text" data-fs-depart-label>{{ search_defaults.departure_label }}</span>
-                    <input class="fs-date" type="date" id="fsDepart" name="departure_date" value="{{ search_defaults.departure_date }}" data-fs-depart>
+                    <input class="fs-date" type="date" id="fsDepart" name="departure_date" value="{{ search_defaults.departure_date }}" min="{{ search_defaults.departure_date }}" data-fs-depart>
                 </span>
                 <span class="fs-date-range__return" data-fs-return-field{% if search_defaults.trip_type != 'round' %} hidden{% endif %}>
                     <span class="fs-control fs-control--date">
-                        <span class="fs-control__text" data-fs-return-label>{{ search_defaults.return_date|date:'M d, Y' }}</span>
-                        <input class="fs-date" type="date" id="fsReturn" name="return_date" value="{{ search_defaults.return_date }}" data-fs-return>
+                        <span class="fs-control__text" data-fs-return-label>{{ search_defaults.return_label }}</span>
+                        <input class="fs-date" type="date" id="fsReturn" name="return_date" value="{{ search_defaults.return_date }}" min="{{ search_defaults.departure_date }}" data-fs-return>
                     </span>
                 </span>
             </div>

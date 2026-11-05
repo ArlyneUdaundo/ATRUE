@@ -634,6 +634,13 @@
     }
 
     const syncDateLabels = () => {
+        if (departInput && returnInput) {
+            returnInput.min = departInput.value || departInput.min;
+            if (returnInput.value && departInput.value
+                    && returnInput.value < departInput.value) {
+                returnInput.value = departInput.value;
+            }
+        }
         if (departLabel) {
             departLabel.textContent = prettyDate(departInput.value);
         }
