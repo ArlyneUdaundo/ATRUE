@@ -1647,12 +1647,33 @@ body.flight-booking-modal-open { overflow: hidden; }
     align-items: center;
     gap: 14px;
     padding: 14px 16px;
-    border: 1px solid var(--slate-700);
-    border-radius: 10px;
-    background: var(--slate-800);
+    border: 1px solid #dfe8f3;
+    border-radius: 14px;
+    background: #f8fbff;
+    box-shadow: 0 1px 2px rgba(16, 35, 63, .04);
 }
 .seat-open-list { display:flex; flex:1 1 100%; flex-wrap:wrap; gap:10px; }
-.seat-open-btn { flex: 0 0 auto; min-width: 170px; }
+.seat-open-btn {
+    flex: 1 1 210px;
+    min-width: 170px;
+    min-height: 52px;
+    padding: 9px 13px;
+    border: 1px solid #d6e2f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #17365f;
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(16, 35, 63, .04);
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.seat-open-btn:hover,
+.seat-open-btn:focus-visible {
+    border-color: #7fb2e8;
+    background: #f2f8ff;
+    box-shadow: 0 0 0 3px rgba(11, 99, 206, .1);
+    outline: none;
+}
+.seat-open-btn i { color: #0b63ce; margin-right: 5px; }
 /* ==========================================================================
    Seat selection popup
    A light, white modal: flight segment tabs across the top, the passenger list
