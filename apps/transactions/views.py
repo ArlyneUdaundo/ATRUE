@@ -174,6 +174,10 @@ def payment_review(request):
 
     for bill in bills.select_related('customer').prefetch_related('payments'):
         booking = bill.booking
+        travel_order = getattr(bill, 'travel_order', None)
+        if booking is None and travel_order:
+            first_item = travel_order.items.select_related('content_type').first()
+            booking = first_item.booking if first_item else None
         if booking is None:
             continue
         establishment = None
@@ -844,5 +848,4 @@ def establishment_booking_clear(request):
     if request.method == 'POST':
         clear(request)
     return redirect('home')
-
 
