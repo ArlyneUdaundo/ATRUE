@@ -222,18 +222,27 @@ def home(request):
         except Exception:
             return list(qs)
 
-    hero_images = [
-        {'src': 'img/hero-beach.jpg', 'alt': 'Tropical beach resort'},
-        {'src': 'img/hero-mountains.jpg', 'alt': 'Mountain resort landscape'},
-        {'src': 'img/hero-city.jpg', 'alt': 'City skyline'},
-        {'src': 'img/hero-island.jpg', 'alt': 'Island getaway'},
-    ]
-    try:
-        import random
-        random.seed()
-        hero_images = random.sample(hero_images, k=min(3, len(hero_images)))
-    except Exception:
-        pass
+    hero_images = []
+    for source in (
+        Resort.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
+        Staycation.objects.filter(status='ACTIVE').prefetch_related('photos').order_by('name'),
+    ):
+        for establishment in source:
+            photo = next((item for item in establishment.photos.all() if item.is_primary), None)
+            photo = photo or next(iter(establishment.photos.all()), None)
+            if photo and photo.image:
+                try:
+                    if photo.image.storage.exists(photo.image.name):
+                        hero_images.append({
+                            'url': photo.image.url,
+                            'name': establishment.name,
+                        })
+                except (OSError, ValueError, NotImplementedError):
+                    continue
+            if len(hero_images) >= 4:
+                break
+        if len(hero_images) >= 4:
+            break
 
     show = {'all','flights','hotels','resorts','staycations','restaurants','landmarks','activities','tours','landtransportation'}
     if tab != 'all':
