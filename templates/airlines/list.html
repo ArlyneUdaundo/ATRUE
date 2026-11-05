@@ -61,16 +61,43 @@
 
             {% include 'airlines/search/_sorting_bar.html' %}
 
+            {% if flights %}
+            <p class="fs-notice" role="note">
+                <i class="fas fa-circle-check" aria-hidden="true"></i>
+                These are live database schedules. Bookings made here are saved and appear in Airline Manager bookings.
+            </p>
+            <div class="card card-pad" style="margin-bottom:18px">
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr><th>Flight</th><th>Airline</th><th>Route</th><th>Departure</th><th>Fare</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for flight in flights %}
+                        <tr>
+                            <td><b>{{ flight.flight_number }}</b></td>
+                            <td>{{ flight.airline.name }}</td>
+                            <td>{{ flight.origin }} → {{ flight.destination }}</td>
+                            <td>{{ flight.departure_time|date:"M d, Y H:i" }}</td>
+                            <td>₱ {{ flight.economy_fare }}</td>
+                            <td><a class="btn btn-brand btn-sm" href="{% url 'airlines:book' flight.pk %}">Book Flight</a></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
             <p class="fs-notice" role="note">
                 <i class="fas fa-circle-info" aria-hidden="true"></i>
-                Mixed sample routes for this preview: schedules and fares are indicative and cannot be booked here.
+                No live schedules are available for this search. The routes below are sample previews and cannot be booked.
             </p>
-
             <div class="fs-cards" data-fs-cards>
                 {% for row in sample_flights %}
                 {% include 'airlines/search/_flight_card.html' with row=row %}
                 {% endfor %}
             </div>
+            {% endif %}
 
             <div class="fs-empty" data-fs-empty hidden>
                 <span class="fs-empty__icon" aria-hidden="true"><i class="fas fa-plane-slash"></i></span>
