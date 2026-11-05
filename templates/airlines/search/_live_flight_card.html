@@ -1,4 +1,18 @@
-<article class="fs-card fs-card--live">
+<article class="fs-card fs-card--live" data-fs-card
+         data-id="{{ flight.pk }}"
+         data-rank="00{{ flight.pk }}"
+         data-flight="{{ flight.flight_number }}"
+         data-origin="{{ flight.origin_airport.iata_code|default:'' }}"
+         data-destination="{{ flight.destination_airport.iata_code|default:'' }}"
+         data-airline-name="{{ flight.airline.name }}"
+         data-price="{{ flight.economy_fare|default:0 }}"
+         data-duration="0"
+         data-duration-bucket="short"
+         data-stops="nonstop"
+         data-band="standard"
+         data-airline="{{ flight.airline.name }}"
+         data-emissions="0"
+         data-depart="{{ flight.departure_time|date:'U' }}">
     <div class="fs-card__summary">
         <div class="fs-card__airline">
             <span class="fs-logo fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>

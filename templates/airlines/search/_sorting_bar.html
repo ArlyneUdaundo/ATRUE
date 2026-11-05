@@ -16,7 +16,7 @@
     </div>
 
     <div class="fs-sortbar__right">
-        <span class="fs-count" data-fs-count role="status">Showing {{ sample_flights|length }} results</span>
+        <span class="fs-count" data-fs-count role="status">Showing {% if flights %}{{ flights|length }}{% else %}{{ sample_flights|length }}{% endif %} results</span>
         <label class="fs-sortby">
             <span>Sort by:</span>
             <select data-fs-sort-select aria-label="Sort results by">
