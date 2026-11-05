@@ -962,6 +962,7 @@ def _assignment_json(assignment):
         ).count(),
         'view_url': reverse('simulation:role_detail', args=[assignment.pk]),
         'unassign_url': reverse('simulation:unassign', args=[assignment.pk]),
+        'reactivate_url': reverse('simulation:reactivate', args=[assignment.pk]),
         'progress_url': reverse('simulation:assignment_progress', args=[assignment.pk]),
         'progress': assignment_progress_data(assignment),
     }

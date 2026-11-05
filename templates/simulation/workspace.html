@@ -256,7 +256,9 @@
                                 {% csrf_token %}<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
                             </form>
                             {% elif row.assignment.status == 'DONE' %}
-                            <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>
+                            <form method="post" action="{% url 'simulation:reactivate' row.assignment.id %}" style="display:inline">
+                                {% csrf_token %}<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button>
+                            </form>
                             {% endif %}
                             {% else %}
                             <button type="button" class="btn btn-brand btn-sm js-assignment-open" aria-haspopup="dialog"
@@ -1159,7 +1161,9 @@
                 + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
                 + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
         } else if (assignment.status === 'DONE') {
-            html += ' <span class="btn btn-ghost btn-sm" aria-disabled="true"><i class="fas fa-circle-check"></i> Done</span>';
+            html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" style="display:inline">'
+                + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
+                + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button></form>';
         }
         studentDetails.querySelector('.simulation-student-actions').innerHTML = html;
         var progressNode = studentDetails.querySelector('[data-session-progress]');

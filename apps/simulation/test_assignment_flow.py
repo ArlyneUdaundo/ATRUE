@@ -1873,6 +1873,7 @@ class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
 
         self.assertContains(response, 'Assigned role as done')
         self.assertNotContains(response, 'No role assigned')
+        self.assertContains(response, 'Mark as Active to Edit')
 
     def test_workspace_labels_active_roles_as_assigned(self):
         session = SimulationSession.objects.create(
