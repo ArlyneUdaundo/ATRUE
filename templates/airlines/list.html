@@ -44,7 +44,7 @@
         <section class="fs-results" id="fsResults" aria-labelledby="fsResultsTitle">
             <div class="fs-results__meta">
                 <div>
-                    <h2 class="fs-results__title" id="fsResultsTitle">Flight options across multiple destinations</h2>
+                    <h2 class="fs-results__title" id="fsResultsTitle">Available flights</h2>
                     <p class="fs-results__sub" data-fs-results-sub>{{ search_defaults.departure_label }}{% if search_defaults.trip_type == 'round' %} &ndash; {{ search_defaults.return_label }}{% endif %} &middot; {{ search_defaults.passengers }} traveler{% if search_defaults.passengers != 1 %}s{% endif %}</p>
                     <p class="fs-results__tags">
                         <span class="fs-tag fs-tag--type" data-fs-tag-type><i class="fas {% if flight_type == 'INTERNATIONAL' %}fa-earth-asia{% else %}fa-map-location-dot{% endif %}" aria-hidden="true"></i> <span data-fs-tag-type-text>{{ flight_type_label }}</span></span>

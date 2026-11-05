@@ -469,7 +469,7 @@ a.fs-btn {
     gap: 40px;
     max-width: 1408px;
     margin: 0 auto;
-    padding: 46px 24px 92px;
+    padding: 22px 24px 78px;
 }
 
 .fs-hero__eyebrow {
@@ -481,17 +481,17 @@ a.fs-btn {
 }
 
 .fs-hero__title {
-    font-size: 42px;
+    font-size: 36px;
     font-weight: 800;
     letter-spacing: -.02em;
     line-height: 1.12;
 }
 
 .fs-hero__sub {
-    margin-top: 10px;
+    margin-top: 7px;
     max-width: 430px;
     color: rgba(255, 255, 255, .86);
-    font-size: 14.5px;
+    font-size: 13px;
 }
 
 .fs-hero__slogan {
@@ -514,13 +514,13 @@ a.fs-btn {
 }
 
 .fs-search-wrap {
-    margin-top: -66px;
+    margin-top: -58px;
     position: relative;
     z-index: 5;
 }
 
 .fs-search {
-    padding: 16px 18px 18px;
+    padding: 12px 14px 14px;
     border: 1px solid rgba(226, 232, 240, .8);
     border-radius: 16px;
     background: #fff;
@@ -594,8 +594,8 @@ a.fs-btn {
     display: grid;
     grid-template-columns: minmax(0, 1.3fr) 36px minmax(0, 1.3fr) minmax(190px, 1fr) minmax(150px, .8fr) 180px;
     align-items: end;
-    gap: 12px;
-    margin-top: 14px;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 .fs-search__grid.is-multicity {
