@@ -909,6 +909,7 @@ def assignment_tasks_for(assignment):
         if item['label'].startswith('Add ') and role_code != 'AIRLINE_OWNER':
             item['completion_events'] = ['ESTABLISHMENT_CREATED']
             item['description'] = 'Create and save the assigned business entity.'
+            item['completion_events'].append(f"WORKFLOW_TASK:{item['key']}")
         elif task['route'].endswith(':manage') and category == Role.OperationCategory.MANAGER:
             item['completion_events'] = ['ESTABLISHMENT_UPDATED']
             item['description'] = 'Save a valid update to the assigned establishment.'

@@ -266,7 +266,10 @@ def record_workflow_action(user, route_name, *, session=None,
     for assignment in assignments.order_by('assigned_at', 'id')[:20]:
         matches = [
             task for task in assignment_tasks_for(assignment)
-            if (task.get('completion_events') or [''])[0].startswith('WORKFLOW_TASK:')
+            if any(
+                event.startswith('WORKFLOW_TASK:')
+                for event in task.get('completion_events', ())
+            )
             and _workflow_route_matches(task.get('route'), route_name)
         ]
         if len(matches) == 1:
@@ -274,8 +277,12 @@ def record_workflow_action(user, route_name, *, session=None,
     if len(candidates) != 1:
         return None
     assignment, task = candidates[0]
+    workflow_event = next(
+        event for event in task['completion_events']
+        if event.startswith('WORKFLOW_TASK:')
+    )
     return _record_task_event(
-        assignment, task['completion_events'][0], user)
+        assignment, workflow_event, user)
 
 
 def _assignment_events(assignment):

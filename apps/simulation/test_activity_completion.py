@@ -450,6 +450,17 @@ class SessionProgressTests(CompletionTestCase):
             assignment = self.assign(self.manager, role_code, establishment)
             self.assertTrue(assignment_tasks_for(assignment), role_code)
 
+    def test_owner_creation_tasks_have_verified_post_fallback(self):
+        hotel = Hotel.objects.create(name='Owner Creation Hotel')
+        establishment = establishment_for_instance(hotel, create=True)
+        assignment = self.assign(self.manager, 'HOTEL_OWNER', establishment)
+        task = assignment_tasks_for(assignment)[0]
+        self.assertIn('ESTABLISHMENT_CREATED', task['completion_events'])
+        self.assertTrue(any(
+            event.startswith('WORKFLOW_TASK:')
+            for event in task['completion_events']
+        ))
+
     def test_new_catalogue_role_uses_its_workflow_metadata(self):
         role = Role.objects.create(
             code='FUTURE_HOTEL_RESERVATION', name='Future Hotel Reservation',
