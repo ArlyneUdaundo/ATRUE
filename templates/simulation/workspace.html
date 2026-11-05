@@ -155,7 +155,7 @@
                         </div>
                         {% if row.assignment %}
                         <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
-                        <span class="simulation-student-task-progress">{% if row.progress.tracked %}{{ row.progress.percent }}% · {{ row.progress.completed }}/{{ row.progress.tracked }} tasks{% else %}No tracked tasks{% endif %}</span>
+                        <span class="simulation-student-task-progress">{% if row.progress.required %}{{ row.progress.percent }}% · {{ row.progress.completed_required }}/{{ row.progress.required }} required tasks{% else %}No required tasks{% endif %}</span>
                         <span class="simulation-student-status">{{ row.assignment.get_status_display }}</span>
                         {% else %}
                         <span class="badge badge-gray">No role assigned</span>
@@ -198,11 +198,11 @@
                                 </div>
                                 {% if row.progress.percent is not None %}<strong class="sim-progress-percent" data-progress-percent>{{ row.progress.percent }}%</strong>{% endif %}
                             </div>
-                            {% if row.progress.tracked %}
+                            {% if row.progress.required %}
                             <div class="sim-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.progress.percent }}">
                                 <span style="width: {{ row.progress.percent }}%"></span>
                             </div>
-                            <div class="sim-progress-caption"><span data-progress-count>{{ row.progress.completed }} of {{ row.progress.tracked }} tasks completed</span><span>{{ row.progress.completed }}/{{ row.progress.tracked }}</span></div>
+                            <div class="sim-progress-caption"><span data-progress-count>{{ row.progress.completed_required }} of {{ row.progress.required }} required tasks completed</span><span>{{ row.progress.completed_required }}/{{ row.progress.required }}</span></div>
                             {% if row.progress.awaiting_message %}<p class="sim-progress-awaiting" data-progress-awaiting><i class="fas fa-clock" aria-hidden="true"></i> {{ row.progress.awaiting_message }}</p>{% endif %}
                             {% if row.progress.success_message %}
                             <div class="sim-progress-success" data-progress-success>
@@ -223,7 +223,7 @@
                                 </li>
                                 {% empty %}<li class="sim-progress-empty">{{ row.progress.message }}</li>{% endfor %}
                             </ol>
-                            {% if row.progress.tracked %}
+                            {% if row.progress.required %}
                             <div class="sim-progress-legend" data-progress-legend aria-label="Progress legend">
                                 <div class="sim-legend-groups">
                                     <span class="sim-legend-item sim-legend-item--completed"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Completed</strong><small>Task is finished and verified.</small></span></span>
@@ -238,7 +238,7 @@
                             {% if row.progress.ready_to_mark_done %}
                             <p class="sim-progress-ready" data-progress-ready><i class="fas fa-circle-check" aria-hidden="true"></i> Ready for Instructor Review</p>
                             {% endif %}
-                            {% if row.progress.untracked %}<p class="sim-progress-note">{{ row.progress.untracked }} task{{ row.progress.untracked|pluralize }} cannot be verified automatically and are not included in the percentage.</p>{% endif %}
+                            {% if row.progress.untracked_required %}<p class="sim-progress-note">{{ row.progress.untracked_required }} required task{{ row.progress.untracked_required|pluralize }} cannot be verified automatically and remain in the percentage denominator.</p>{% endif %}
                         </section>
                         <div class="simulation-student-actions">
                             {% if row.assignment %}
@@ -603,6 +603,10 @@
         trigger.setAttribute('aria-expanded', 'true');
         setBodyLock();
         refreshProgress(details);
+        window.simulationProgressPoll = window.setInterval(function () {
+            if (!studentDetailsNode || studentDetailsNode.hidden) return;
+            refreshProgress(studentDetailsNode);
+        }, 5000);
         var closeButton = studentModal.querySelector('[data-student-close]');
         if (closeButton) closeButton.focus();
     }
@@ -649,7 +653,7 @@
             || 'Updates only when the student completes a verified task in the simulation.';
         copy.appendChild(hint);
         head.appendChild(copy);
-        if (progress.tracked) {
+        if (progress.required) {
             var percent = document.createElement('strong');
             percent.className = 'sim-progress-percent';
             percent.dataset.progressPercent = '';
@@ -658,7 +662,7 @@
         }
         container.appendChild(head);
 
-        if (progress.tracked) {
+        if (progress.required) {
             var track = document.createElement('div');
             track.className = 'sim-progress-track';
             track.setAttribute('role', 'progressbar');
@@ -674,10 +678,10 @@
             caption.className = 'sim-progress-caption';
             var count = document.createElement('span');
             count.dataset.progressCount = '';
-            count.textContent = progress.completed + ' of ' + progress.tracked + ' tasks completed';
+            count.textContent = progress.completed_required + ' of ' + progress.required + ' required tasks completed';
             caption.appendChild(count);
             var fraction = document.createElement('span');
-            fraction.textContent = progress.completed + '/' + progress.tracked;
+            fraction.textContent = progress.completed_required + '/' + progress.required;
             caption.appendChild(fraction);
             container.appendChild(caption);
 
@@ -752,7 +756,7 @@
         }
         container.appendChild(list);
 
-        if (progress.tracked) {
+        if (progress.required) {
             var legend = document.createElement('div');
             legend.className = 'sim-progress-legend';
             legend.dataset.progressLegend = '';
@@ -768,7 +772,7 @@
             ].forEach(function (entry) {
                 appendLegendItem(legendGroups, entry[0], entry[1], entry[2]);
             });
-            if (progress.untracked) {
+            if (progress.untracked_required) {
                 appendLegendItem(legendGroups, 'untracked', 'Not tracked',
                     'No verified completion rule yet.');
             }
@@ -797,12 +801,12 @@
             container.appendChild(ready);
         }
 
-        if (progress.untracked) {
+        if (progress.untracked_required) {
             var note = document.createElement('p');
             note.className = 'sim-progress-note';
-            note.textContent = progress.untracked + ' task'
-                + (progress.untracked === 1 ? '' : 's')
-                + ' cannot be verified automatically and are not included in the percentage.';
+            note.textContent = progress.untracked_required + ' required task'
+                + (progress.untracked_required === 1 ? '' : 's')
+                + ' cannot be verified automatically and remain in the percentage denominator.';
             container.appendChild(note);
         }
     }
@@ -812,9 +816,49 @@
         if (!container || !container.dataset.progressUrl) return;
         fetch(container.dataset.progressUrl, { credentials: 'same-origin' })
             .then(function (response) { return response.ok ? response.json() : null; })
-            .then(function (data) { if (data && data.ok) renderProgress(container, data.progress); })
+            .then(function (data) {
+                if (!data || !data.ok) return;
+                renderProgress(container, data.progress);
+                if (studentModalStatusBadge && data.progress.assignment_status_display) {
+                    studentModalStatusBadge.textContent = data.progress.assignment_status_display;
+                    studentModalStatusBadge.className = 'badge '
+                        + (data.progress.assignment_status === 'DONE'
+                            ? 'badge-green' : 'badge-blue');
+                }
+            })
             .catch(function () {});
     }
+
+    function refreshStudentRows() {
+        document.querySelectorAll('.simulation-student-row').forEach(function (row) {
+            var details = row.querySelector('[data-session-progress]');
+            if (!details || !details.dataset.progressUrl) return;
+            fetch(details.dataset.progressUrl, { credentials: 'same-origin' })
+                .then(function (response) { return response.ok ? response.json() : null; })
+                .then(function (data) {
+                    if (!data || !data.ok || !data.progress) return;
+                    var progress = data.progress;
+                    var taskProgress = row.querySelector('.simulation-student-task-progress');
+                    if (taskProgress) {
+                        taskProgress.textContent = progress.required
+                            ? progress.percent + '% · ' + progress.completed_required + '/'
+                                + progress.required + ' required tasks'
+                            : 'No required tasks';
+                    }
+                    var status = row.querySelector('.simulation-student-status');
+                    if (status && progress.assignment_status_display) {
+                        status.textContent = progress.assignment_status_display;
+                    }
+                    if (progress.assignment_status) {
+                        row.dataset.studentStatus = progress.assignment_status;
+                    }
+                })
+                .catch(function () {});
+        });
+    }
+
+    window.setInterval(refreshStudentRows, 5000);
+    refreshStudentRows();
 
     document.addEventListener('simulation-assignment-completed', function (event) {
         var formNode = event.target.closest('form[data-mark-role-done]');
@@ -837,6 +881,10 @@
 
     function closeStudentDetails() {
         if (!studentModal || studentModal.hidden) return;
+        if (window.simulationProgressPoll) {
+            window.clearInterval(window.simulationProgressPoll);
+            window.simulationProgressPoll = null;
+        }
         if (studentDetailsNode && studentDetailsPlaceholder && studentDetailsPlaceholder.parentNode) {
             studentDetailsPlaceholder.parentNode.insertBefore(studentDetailsNode, studentDetailsPlaceholder);
             studentDetailsPlaceholder.remove();

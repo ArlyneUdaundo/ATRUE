@@ -208,6 +208,8 @@ def add_landmark(request):
         except (ValueError, ValidationError) as exc:
             messages.error(request, ' '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc))
             return render(request, 'landmarks/landmark_form.html', {'landmark': None, 'title': 'Landmark'}, status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', landmark)
         log_activity(request.user, "Created landmark", landmark.name)
         messages.success(request, f"Landmark '{landmark.name}' created.")
         return redirect('landmarks:manage')
@@ -231,6 +233,8 @@ def update_landmark(request, landmark_id):
                 return JsonResponse({'ok': False, 'errors': errors}, status=400)
             messages.error(request, str(exc))
             return render(request, 'landmarks/landmark_form.html', {'landmark': landmark, 'title': 'Landmark'}, status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', landmark)
         log_activity(request.user, "Updated landmark", landmark.name)
         messages.success(request, "Landmark updated.")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

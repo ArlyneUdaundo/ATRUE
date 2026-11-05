@@ -652,6 +652,8 @@ _TASK_STATE_LABELS = {
     'pending': 'Pending',
     'pending_verification': 'Pending verification',
     'untracked': 'Not tracked',
+    'failed': 'Failed',
+    'cancelled': 'Cancelled',
 }
 
 
@@ -730,13 +732,14 @@ def _booking_awaiting_payment(booking):
 def _guest_task_state(task, completion, booking, awaiting_payment):
     """Derive one guest task state from verified events and booking data."""
     if completion is not None:
+        if completion.status == SimulationAssignmentTaskCompletion.Status.FAILED:
+            return 'failed'
+        if completion.status == SimulationAssignmentTaskCompletion.Status.CANCELLED:
+            return 'cancelled'
         return 'completed'
     key = task['key']
     if key.endswith('payment_verification'):
         return 'awaiting' if awaiting_payment else 'pending'
-    if key.endswith('reservation_confirmation') and booking is not None:
-        if getattr(booking, 'status', '') == 'CONFIRMED':
-            return 'completed'
     return 'pending'
 
 
@@ -746,6 +749,7 @@ def assignment_progress_data(assignment):
         return {
             'has_assignment': False, 'tasks': [], 'tracked': 0,
             'completed': 0, 'percent': None, 'untracked': 0,
+            'required': 0, 'completed_required': 0, 'untracked_required': 0,
             'role': '', 'role_display': '',
             'ready_to_mark_done': False, 'is_complete': False,
             'state': 'empty', 'title': 'Session Progress',
@@ -765,35 +769,51 @@ def assignment_progress_data(assignment):
         if is_guest and role_code != 'PASSENGER_AIRLINE' else None)
     awaiting_payment = _booking_awaiting_payment(booking) if booking else False
     tracked = completed = untracked = 0
+    required = completed_required = untracked_required = 0
     rendered = []
     for index, task in enumerate(tasks, 1):
+        is_required = task.get('classification', 'REQUIRED') == 'REQUIRED'
+        if is_required:
+            required += 1
         trackable = bool(task.get('completion_events'))
         completion = completions.get(task['key'])
         if not trackable:
             state = 'untracked'
             untracked += 1
+            if is_required:
+                untracked_required += 1
         else:
             tracked += 1
             if is_guest and role_code != 'PASSENGER_AIRLINE':
                 state = _guest_task_state(
                     task, completion, booking, awaiting_payment)
             elif completion is not None:
-                state = 'completed'
+                state = {
+                    SimulationAssignmentTaskCompletion.Status.FAILED: 'failed',
+                    SimulationAssignmentTaskCompletion.Status.CANCELLED: 'cancelled',
+                }.get(completion.status, 'completed')
             elif assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
                 state = 'pending_verification'
+            elif assignment.started_at is not None:
+                state = 'in_progress'
             else:
                 state = 'pending'
             if state == 'completed':
                 completed += 1
+                if is_required:
+                    completed_required += 1
         rendered.append({
             'key': task['key'], 'label': task['label'],
             'description': task.get('description', ''),
             'status': _TASK_STATE_LABELS[state], 'state': state,
             'icon': task.get('icon', ''), 'number': index,
             'tracked': trackable,
+            'classification': task.get('classification', 'REQUIRED'),
+            'completion_at': completion.completed_at.isoformat()
+            if completion is not None else '',
         })
-    percent = round(completed * 100 / tracked) if tracked else None
-    is_complete = bool(tracked and completed == tracked)
+    percent = round(completed_required * 100 / required) if required else None
+    is_complete = bool(required and completed_required == required)
     if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
         state = 'done'
     elif is_complete:
@@ -812,7 +832,7 @@ def assignment_progress_data(assignment):
     if state == 'complete':
         success_message = (
             'Verified tasks are complete; review the remaining untracked tasks before marking this assignment done.'
-            if untracked else
+            if untracked_required else
             'All required tasks have verified completion and are ready for instructor review.')
     elif state == 'done':
         success_message = (
@@ -825,7 +845,7 @@ def assignment_progress_data(assignment):
         'completed': completed, 'percent': percent, 'untracked': untracked,
         'role': role_code, 'role_display': assignment.role_label,
         'ready_to_mark_done': bool(
-            tracked and completed == tracked
+        required and completed_required == required
             and assignment.status == SimulationRoleAssignment.AssignmentStatus.ACTIVE),
         'is_complete': is_complete, 'state': state,
         'title': 'Hotel Booking Progress' if is_hotel_guest else 'Role Task Progress',
@@ -837,7 +857,9 @@ def assignment_progress_data(assignment):
         'awaiting_message': awaiting_message,
         'assignment_status': assignment.status,
         'assignment_status_display': assignment.get_status_display(),
-        'message': ('Progress reflects verified tasks only.' if tracked else
+        'required': required, 'completed_required': completed_required,
+        'untracked_required': untracked_required,
+        'message': ('Progress reflects verified required tasks only.' if required else
                     f'No role tasks for {assignment.role_label} have a verified completion rule yet.'),
     }
 

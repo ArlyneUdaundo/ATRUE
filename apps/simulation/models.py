@@ -702,6 +702,8 @@ class SimulationAssignmentTaskCompletion(models.Model):
 
     class Status(models.TextChoices):
         COMPLETED = 'COMPLETED', 'Completed'
+        FAILED = 'FAILED', 'Failed'
+        CANCELLED = 'CANCELLED', 'Cancelled'
 
     assignment = models.ForeignKey(
         SimulationRoleAssignment, on_delete=models.CASCADE,
@@ -718,6 +720,7 @@ class SimulationAssignmentTaskCompletion(models.Model):
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='simulation_task_completions')
+    outcome_details = models.TextField(blank=True, default='')
 
     class Meta:
         constraints = [models.UniqueConstraint(

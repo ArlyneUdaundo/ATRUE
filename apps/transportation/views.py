@@ -181,6 +181,8 @@ def add_agency(request):
             operating_hours=request.POST.get('operating_hours', ''),
             status=request.POST.get('status', Agency.Status.ACTIVE),
         )
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', agency)
         for index, image in enumerate(photos):
             AgencyPhoto.objects.create(agency=agency, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created transport agency", agency.name)
@@ -205,6 +207,8 @@ def update_agency(request, agency_id):
                       'operating_hours', 'status'):
             setattr(agency, field, request.POST.get(field) or getattr(agency, field))
         agency.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', agency)
         if photos:
             # The first newly uploaded image becomes the cover photo. Existing
             # primary photos remain in the gallery but no longer mask it.
@@ -627,5 +631,3 @@ def ticket_detail(request, booking_id):
 def ticket_pdf(request, booking_id):
     from atrue_core.etickets import eticket_pdf
     return eticket_pdf(request, 'transportation', booking_id)
-
-

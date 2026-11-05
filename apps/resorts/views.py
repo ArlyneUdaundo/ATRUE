@@ -144,6 +144,8 @@ def add_resort(request):
             email=request.POST.get('email', ''),
             operating_schedule=request.POST.get('operating_schedule', ''),
         )
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', resort)
         resort.refresh_from_db()
         for index, image in enumerate(photos):
             ResortPhoto.objects.create(resort=resort, image=image, is_primary=(index == 0))
@@ -171,6 +173,8 @@ def update_resort(request, resort_id):
                       'contact_number', 'email', 'operating_schedule', 'status'):
             setattr(resort, field, request.POST.get(field, getattr(resort, field)))
         resort.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', resort)
         for image in photos:
             ResortPhoto.objects.create(resort=resort, image=image, is_primary=not resort.photos.exists())
         for photo in resort.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -1114,4 +1118,3 @@ def resort_flow_select(request, resort_id):
     from atrue_core.establishment_flow import handle_flow
 
     return handle_flow(request, 'resort', resort_id)
-

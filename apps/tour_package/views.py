@@ -227,6 +227,8 @@ def add_package(request):
         except ValidationError as exc:
             messages.error(request, ' '.join(exc.messages))
             return render(request, 'tour_package/form.html', _component_context(None), status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', package)
         log_activity(request.user, "Created tour package", package.name)
         messages.success(request, f"Package '{package.name}' created.")
         return redirect('tour_package:manage')
@@ -247,6 +249,8 @@ def update_package(request, package_id):
         except ValidationError as exc:
             messages.error(request, ' '.join(exc.messages))
             return render(request, 'tour_package/form.html', _component_context(package), status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', package)
         log_activity(request.user, "Updated tour package", package.name)
         messages.success(request, "Package updated.")
         return redirect('tour_package:manage')

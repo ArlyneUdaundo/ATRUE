@@ -117,6 +117,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "atrue_core.middleware.ContactNumberValidationMiddleware",
     "atrue_core.middleware.PaymentMethodValidationMiddleware",
+    "atrue_core.middleware.SimulationWorkflowTrackingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "atrue_core.middleware.StorageUploadErrorMiddleware",

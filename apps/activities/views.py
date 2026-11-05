@@ -185,6 +185,8 @@ def add_activity(request):
         except ValidationError as exc:
             messages.error(request, ' '.join(exc.messages))
             return render(request, 'activities/activity_form.html', {'activity': None, 'providers': providers, 'selected_provider': provider}, status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', activity)
         log_activity(request.user, "Created activity", activity.name)
         messages.success(request, f"Activity '{activity.name}' created.")
         return redirect('activities:manage')
@@ -209,6 +211,8 @@ def update_activity(request, activity_id):
         except ValidationError as exc:
             messages.error(request, ' '.join(exc.messages))
             return render(request, 'activities/activity_form.html', {'activity': activity}, status=400)
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', activity)
         log_activity(request.user, "Updated activity", activity.name)
         messages.success(request, "Activity updated.")
         return redirect('activities:manage')
@@ -635,5 +639,3 @@ def operate(request):
             ('SUSPENDED', 'Suspended'),
         ],
     })
-
-

@@ -139,6 +139,34 @@ class PaymentMethodValidationMiddleware:
         return self.get_response(request)
 
 
+class SimulationWorkflowTrackingMiddleware:
+    """Record assigned workflow tasks after a backend POST succeeds."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.method != 'POST' or not getattr(request, 'user', None):
+            return response
+        successful_redirect = 300 <= response.status_code < 400
+        successful_json = (
+            200 <= response.status_code < 300
+            and response.get('Content-Type', '').lower().startswith('application/json')
+            and b'"ok":true' in response.content.replace(b' ', b'').lower()
+        )
+        if not (successful_redirect or successful_json):
+            return response
+        match = getattr(request, 'resolver_match', None)
+        route_name = getattr(match, 'view_name', '') if match else ''
+        if not route_name:
+            return response
+        from simulation.completion import record_workflow_action
+        record_workflow_action(
+            request.user, route_name)
+        return response
+
+
 class AdminMoneyFormattingMiddleware:
     """Load the shared money formatter in Django's built-in admin pages."""
 

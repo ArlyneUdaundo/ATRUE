@@ -1069,6 +1069,8 @@ def update_airline(request, airline_id):
             else:
                 airline.default_aircraft_type = fleet.aircraft_type
         airline.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', airline)
         for image in photos:
             AirlinePhoto.objects.create(airline=airline, image=image, is_primary=not airline.photos.exists())
         for photo in airline.photos.filter(pk__in=delete_ids):

@@ -504,7 +504,7 @@ _ROLE_ALIASES = {
     },
     'TRANSPORTATION': {
         'TRANSPORT_RESERVATION_AGENT': 'TRANSPORT_RESERVATION_OFFICER',
-        'TRANSPORT_FRONT_DESK': 'TRANSPORT_DISPATCHER',
+        'TRANSPORT_FRONT_DESK': 'TRANSPORT_STAFF',
     },
 }
 
@@ -841,6 +841,7 @@ def task_operation_for(assignment):
     if not establishment_type:
         return None
     if (establishment_type == 'HOTEL' and not assignment.hotel_id
+            and not assignment.establishment_id
             and assignment.role_ref_id and assignment.role_ref.requires_establishment):
         return None
     if assignment.role_ref_id and assignment.role_ref.requires_establishment:
@@ -894,6 +895,23 @@ def assignment_tasks_for(assignment):
             item['key'] = f"{role_code.lower()}.task.{index:02d}"
         item['completion_events'] = []
         item['description'] = ''
+        item['classification'] = 'REQUIRED'
+        if category == Role.OperationCategory.MANAGER:
+            item['description'] = 'Complete and save the assigned management operation.'
+        elif category == Role.OperationCategory.RESERVATION:
+            item['description'] = 'Process the assigned reservation and save the authorized decision.'
+        elif category == Role.OperationCategory.FRONT_DESK:
+            item['description'] = 'Deliver or fulfil the assigned confirmed booking.'
+        elif category == Role.OperationCategory.BILLING:
+            item['description'] = 'Review and verify the payment for the assigned establishment.'
+        elif category == Role.OperationCategory.CUSTOMER:
+            item['description'] = 'Complete this customer booking step successfully.'
+        if item['label'].startswith('Add ') and role_code != 'AIRLINE_OWNER':
+            item['completion_events'] = ['ESTABLISHMENT_CREATED']
+            item['description'] = 'Create and save the assigned business entity.'
+        elif task['route'].endswith(':manage') and category == Role.OperationCategory.MANAGER:
+            item['completion_events'] = ['ESTABLISHMENT_UPDATED']
+            item['description'] = 'Save a valid update to the assigned establishment.'
         if role_code == 'GUEST_HOTEL':
             item['description'] = HOTEL_GUEST_TASK_DESCRIPTIONS.get(item['label'], '')
         if role_code == 'GUEST_HOTEL' and item['label'] in HOTEL_GUEST_TASK_RULES:
@@ -924,6 +942,12 @@ def assignment_tasks_for(assignment):
                    or task['route'].endswith(':operate'))):
             item['key'] = f"{role_code.lower()}.service_fulfilment"
             item['completion_events'] = ['BOOKING_FULFILLED']
+        if item['label'] in {'View Booking', 'View Ticket'}:
+            item['classification'] = 'INFORMATIONAL'
+        elif not item.get('completion_events') and item['label'].startswith('Manage '):
+            item['classification'] = 'REQUIRED'
+        if item['classification'] != 'INFORMATIONAL' and not item.get('completion_events'):
+            item['completion_events'] = [f"WORKFLOW_TASK:{item['key']}"]
         tasks.append(item)
     return tasks
 

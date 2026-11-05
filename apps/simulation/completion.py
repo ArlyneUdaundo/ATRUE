@@ -15,13 +15,9 @@ Completion rules, keyed off the role's operation category:
 * ``MANAGER`` roles: Done when they confirm a booking, or when they close out
   fulfilment/billing (``fulfil``/``complete`` in the transaction engine).
 
-Every helper is idempotent. Only an ``ACTIVE`` assignment can be completed (the
-DB update is guarded by ``status=ACTIVE``), so a refresh or a repeated
-submission can never complete the same assignment twice or write two completion
-log lines. When the acting student holds several qualifying assignments, the one
-to complete is resolved deterministically (see :func:`complete_activity_assignment`);
-if the resolution is genuinely ambiguous the action is recorded but nothing is
-completed - the student's classroom instructor remains able to mark it by hand.
+Every helper is idempotent. Only an ``ACTIVE`` assignment can receive a new
+completion, and the assignment is automatically marked ``DONE`` when all
+required tasks are verified.
 """
 
 from atrue_core.services import log_activity
@@ -102,10 +98,10 @@ def complete_guest_booking(user, *, assignment=None, session=None,
 
 def record_hotel_guest_booking(user, booking, *, assignment=None,
                                task_assignment_id=None):
-    """Record the three guest actions proven by a saved hotel booking.
+    """Record the final hotel booking submission after it is durably saved.
 
-    No task is ticked before the booking exists: a selected room and a completed
-    guest form are real only once the server has saved the whole booking.
+    Room selection and guest information are recorded by their successful
+    session-step handlers. A saved booking proves submission only.
     """
     target = _from_task(assignment, task_assignment_id, user, CUSTOMER_CATEGORIES)
     if target is None:
@@ -118,10 +114,9 @@ def record_hotel_guest_booking(user, booking, *, assignment=None,
     if target is None:
         return None
     reference = getattr(booking, 'booking_reference', '') or ''
-    for task_event in ('HOTEL_ROOM_SELECTED', 'HOTEL_GUEST_INFO_COMPLETED',
-                       'CUSTOMER_BOOKING_SUBMITTED'):
-        _record_task_event(target, task_event, user, booking_reference=reference)
-    return target
+    return _record_task_event(
+        target, 'CUSTOMER_BOOKING_SUBMITTED', user,
+        booking_reference=reference)
 
 
 def record_guest_payment_verified(booking, *, session=None, actor=None,
@@ -197,8 +192,6 @@ def record_actor_task_event(user, task_event, *, session=None, establishment=Non
     ).select_related('session', 'establishment', 'role_ref', 'hotel')
     if session is not None:
         qs = qs.filter(session=session)
-    else:
-        qs = qs.filter(session__status=SimulationSession.Status.ACTIVE)
     if establishment is not None:
         qs = qs.filter(establishment=establishment)
     candidates = [
@@ -210,6 +203,79 @@ def record_actor_task_event(user, task_event, *, session=None, establishment=Non
     return _record_task_event(
         candidates[0], task_event, user,
         booking_reference=booking_reference)
+
+
+def record_establishment_task_event(user, task_event, entity, *,
+                                    session=None, assignment=None):
+    """Record a saved establishment milestone for the acting role."""
+    if entity is None:
+        return None
+    from establishments.models import establishment_for_instance
+    establishment = establishment_for_instance(entity, create=False)
+    if establishment is None:
+        return None
+    return record_actor_task_event(
+        user, task_event, session=session, establishment=establishment,
+        assignment=assignment)
+
+
+def _workflow_route_matches(task_route, route_name):
+    """Match a successful POST endpoint to its task's workflow landing route."""
+    if not task_route or not route_name:
+        return False
+    task_namespace, _, task_base = task_route.partition(':')
+    namespace, _, current_base = route_name.partition(':')
+    if task_namespace != namespace:
+        return False
+    if task_route == route_name:
+        return True
+    if task_base == 'manage':
+        singular = namespace.rstrip('s')
+        return current_base in {'manage', f'update_{singular}', f'add_{singular}'}
+    stem = task_base.rstrip('s')
+    aliases = {stem}
+    if stem.endswith('_schedule'):
+        aliases.add(stem[:-len('_schedule')])
+    return (
+        any(
+            current_base == alias
+            or current_base.startswith(f'{alias}_')
+            or current_base in {
+                f'add_{alias}', f'update_{alias}', f'delete_{alias}'
+            }
+            for alias in aliases
+        )
+    )
+
+
+def record_workflow_action(user, route_name, *, session=None,
+                           task_assignment_id=None):
+    """Record a successful workflow without requiring task-page navigation."""
+    from .task_routing import assignment_tasks_for
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return None
+    assignments = SimulationRoleAssignment.objects.filter(
+        student=user,
+        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+    ).select_related('session', 'establishment', 'role_ref', 'hotel')
+    if task_assignment_id:
+        assignments = assignments.filter(pk=task_assignment_id)
+    if session is not None:
+        assignments = assignments.filter(session=session)
+    candidates = []
+    for assignment in assignments.order_by('assigned_at', 'id')[:20]:
+        matches = [
+            task for task in assignment_tasks_for(assignment)
+            if (task.get('completion_events') or [''])[0].startswith('WORKFLOW_TASK:')
+            and _workflow_route_matches(task.get('route'), route_name)
+        ]
+        if len(matches) == 1:
+            candidates.append((assignment, matches[0]))
+    if len(candidates) != 1:
+        return None
+    assignment, task = candidates[0]
+    return _record_task_event(
+        assignment, task['completion_events'][0], user)
 
 
 def _assignment_events(assignment):
@@ -288,7 +354,7 @@ def _guest_assignment_for_booking(booking, *, session=None):
 
 
 def _record_task_event(target, task_event, user, *, booking_reference=''):
-    """Write one verified task completion without changing assignment status."""
+    """Write one verified task completion; instructors close assignments."""
     if target is None:
         return None
     from .task_routing import assignment_tasks_for
@@ -358,7 +424,7 @@ def complete_reservation_completion(user, *, assignment=None, session=None,
 def complete_activity_assignment(user, *, assignment=None, session=None,
                                  establishment=None, categories=None, action='',
                                  details='', booking_reference='', task_event=''):
-    """Record the acting student's verified role task, idempotently.
+    """Record the acting student's verified role task and update its status.
 
     ``user`` must be authenticated. ``categories`` restricts which operation
     categories may be completed (a CUSTOMER action can never complete a
@@ -373,8 +439,8 @@ def complete_activity_assignment(user, *, assignment=None, session=None,
       5. otherwise ``None`` - no-op, never a guess.
 
     Returns the matched active assignment when the event is allowed by its role,
-    or ``None`` when there is no safe match. This records task progress only;
-    the instructor remains responsible for the assignment's Mark as Done action.
+    or ``None`` when there is no safe match. The final required task changes the
+    assignment status to ``DONE`` automatically.
     """
     if user is None or not getattr(user, 'is_authenticated', False):
         return None

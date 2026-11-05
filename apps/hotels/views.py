@@ -246,6 +246,8 @@ def add_hotel(request):
             email=request.POST.get('email', ''),
             operating_schedule=request.POST.get('operating_schedule', ''),
         )
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', hotel)
         for index, image in enumerate(photos):
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created hotel", f"{hotel.name} ({hotel.establishment_id})")
@@ -301,6 +303,8 @@ def update_hotel(request, hotel_id):
         hotel.operating_schedule = fd['operating_schedule']
         hotel.status = fd['status']
         hotel.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', hotel)
         for image in photos:
             HotelPhoto.objects.create(hotel=hotel, image=image, is_primary=not hotel.photos.exists())
         for photo in hotel.photos.filter(pk__in=request.POST.getlist('delete_photos')):
@@ -1255,6 +1259,13 @@ def hotel_group_select_rooms(request, hotel_id):
         'pay_later': request.POST.get('pay_later') == 'on',
     }
     request.session.modified = True
+    from simulation.completion import record_actor_task_event
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+    record_actor_task_event(
+        request.user, 'HOTEL_ROOM_SELECTED',
+        session=None,
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+    )
     return redirect('hotels:group_payment')
 
 
@@ -1278,6 +1289,13 @@ def hotel_group_guests(request):
             })
         request.session['hotel_group_booking']['guests'] = guest_lines
         request.session.modified = True
+        from simulation.completion import record_actor_task_event
+        from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+        record_actor_task_event(
+            request.user, 'HOTEL_GUEST_INFO_COMPLETED',
+            session=None,
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        )
         return redirect('hotels:group_review')
     return render(request, 'hotels/group_guests.html', {
         'hotel': hotel, 'room_forms': list(zip(rooms, _guest_line_defaults(rooms, request.user))), 'check_in': check_in, 'check_out': check_out,
@@ -1694,4 +1712,3 @@ def ticket_pdf(request, booking_id):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f"inline; filename={ctx['download_name']}"
     return response
-

@@ -292,6 +292,8 @@ def add_restaurant(request):
             cost_per_table=cost_per_table,
             status=request.POST.get('status', Restaurant.Status.ACTIVE),
         )
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', restaurant)
         restaurant.refresh_from_db()
         for index, image in enumerate(photos):
             RestaurantPhoto.objects.create(restaurant=restaurant, image=image, is_primary=(index == 0))
@@ -331,6 +333,8 @@ def update_restaurant(request, restaurant_id):
         restaurant.country = request.POST.get('location_country') or restaurant.country
         restaurant.cost_per_table = cost_per_table
         restaurant.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', restaurant)
         for image in photos:
             RestaurantPhoto.objects.create(restaurant=restaurant, image=image, is_primary=not restaurant.photos.exists())
         for photo in restaurant.photos.filter(pk__in=request.POST.getlist('delete_photos')):

@@ -114,6 +114,8 @@ def add_staycation(request):
             rate=request.POST.get('rate') or 0,
             status=request.POST.get('status', Staycation.Status.ACTIVE),
         )
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_CREATED', staycation)
         for index, image in enumerate(photos):
             StaycationPhoto.objects.create(staycation=staycation, image=image, is_primary=(index == 0))
         log_activity(request.user, "Created staycation",
@@ -147,6 +149,8 @@ def update_staycation(request, staycation_id):
             except (TypeError, ValueError):
                 pass
         staycation.save()
+        from simulation.completion import record_establishment_task_event
+        record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', staycation)
         for image in photos:
             StaycationPhoto.objects.create(staycation=staycation, image=image, is_primary=not staycation.photos.exists())
         for photo in staycation.photos.filter(pk__in=request.POST.getlist('delete_photos')):

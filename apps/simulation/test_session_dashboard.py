@@ -230,13 +230,10 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
         self.assertFalse(progress['ready_to_mark_done'])
         self.assertIn('marked this role', progress['success_message'])
 
-    def test_saved_booking_records_first_three_tasks_only(self):
+    def test_saved_booking_records_submission_only(self):
         record_hotel_guest_booking(
             self.guest, self.booking, assignment=self.guest_assignment)
-        self.assertEqual(self._events(), {
-            'HOTEL_ROOM_SELECTED', 'HOTEL_GUEST_INFO_COMPLETED',
-            'CUSTOMER_BOOKING_SUBMITTED',
-        })
+        self.assertEqual(self._events(), {'CUSTOMER_BOOKING_SUBMITTED'})
         self.guest_assignment.refresh_from_db()
         self.assertEqual(
             self.guest_assignment.status,
@@ -246,13 +243,13 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
                 assignment=self.guest_assignment,
                 booking_reference=self.booking.booking_reference,
             ).count(),
-            3)
+            1)
 
     def test_booking_tasks_are_isolated_between_assignments(self):
         other = self.assign(self.other_guest, 'GUEST_HOTEL', self.establishment)
         record_hotel_guest_booking(
             self.guest, self.booking, assignment=self.guest_assignment)
-        self.assertEqual(len(self._events()), 3)
+        self.assertEqual(len(self._events()), 1)
         self.assertFalse(SimulationAssignmentTaskCompletion.objects.filter(
             assignment=other).exists())
 
@@ -299,8 +296,8 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
         from simulation.views import assignment_progress_data
         progress = assignment_progress_data(self.guest_assignment)
         self.assertEqual((progress['completed'], progress['tracked'],
-                          progress['percent']), (5, 5, 100))
-        self.assertTrue(progress['ready_to_mark_done'])
+                          progress['percent']), (3, 5, 60))
+        self.assertFalse(progress['ready_to_mark_done'])
 
         client = Client(SERVER_NAME='localhost')
         client.force_login(self.instructor)
@@ -324,10 +321,6 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
         client.force_login(self.instructor)
         response = client.get(reverse('simulation:workspace'))
         self.assertContains(response, 'Hotel Booking Progress')
-        self.assertContains(response, 'Verified tasks are complete')
-        self.assertContains(
-            response, 'All required tasks have verified completion and are ready for instructor review.')
-        self.assertContains(response, 'Ready for Instructor Review')
         self.assertContains(response, 'Task is finished and verified.')
         self.assertContains(response, 'Task is currently being done.')
         self.assertContains(
