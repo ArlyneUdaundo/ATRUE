@@ -344,6 +344,18 @@ def can_create_establishment(user, module):
     ))
 
 
+def can_create_flight(user):
+    """Whether the user may add a flight schedule to an airline."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_staff or effective_role_keys(user).intersection(FULL_ACCESS_TYPES):
+        return True
+    return bool(
+        owner_role_keys(user).intersection({'AIRLINE_OWNER'})
+        or 'AIRLINE_MANAGER' in effective_role_keys(user)
+    )
+
+
 def can_access_module_route(user, module, route_name):
     """Check access to one module route, including role-specific route grants.
 
