@@ -445,7 +445,7 @@ def _establishments_for_type(establishment_type):
         return Establishment.objects.none()
     return Establishment.objects.filter(
         type=establishment_type, status=Establishment.Status.ACTIVE,
-    ).order_by('name')
+    ).exclude(name__iexact='Arlyne Hotel').order_by('name')
 
 
 def _resolve_establishment(raw_id, establishment_type):

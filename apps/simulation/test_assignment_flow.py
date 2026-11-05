@@ -570,6 +570,20 @@ class AdminAssignmentTests(AssignmentFlowTestCase):
         self.assertContains(response, self.grand.name)
         self.assertContains(response, self.tour_est.name)
 
+    def test_assign_page_hides_arlyne_hotel(self):
+        arlyne_hotel = Hotel.objects.create(
+            name='Arlyne Hotel', country='Philippines',
+            province='Cebu', municipality='Cebu City')
+        establishment_for_instance(arlyne_hotel, create=True)
+
+        response = self.client.get(reverse('simulation:assign'))
+
+        establishments = response.context['establishments_by_type']['HOTEL']
+        self.assertNotIn(
+            arlyne_hotel.name,
+            {item['name'] for item in establishments},
+        )
+
     def test_operational_role_without_establishment_is_rejected(self):
         self.post(establishment='')
         self.assertFalse(
@@ -1816,6 +1830,25 @@ class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
 
         self.assertContains(response, 'Do the Task')
         self.assertNotContains(response, 'Airline Passenger Tasks')
+
+    def test_workspace_labels_completed_roles_as_done(self):
+        session = SimulationSession.objects.create(
+            name='Completed Role Session',
+            instructor=self.instructor,
+        )
+        assignment = self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Completed Hotel Role',
+        )
+        assignment.session = session
+        assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
+        assignment.completed_at = timezone.now()
+        assignment.save(update_fields=['session', 'status', 'completed_at'])
+
+        response = self.client.get(reverse('simulation:workspace'))
+
+        self.assertContains(response, 'Assigned role as done')
+        self.assertNotContains(response, 'No role assigned')
 
     def test_active_passenger_task_can_view_flight_detail_without_other_bookings(self):
         self.assign(

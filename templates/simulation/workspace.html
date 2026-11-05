@@ -154,7 +154,7 @@
                         {% if row.assignment %}
                         <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
                         <span class="simulation-student-task-progress">{% if row.progress.required %}{{ row.progress.percent }}% · {{ row.progress.completed_required }}/{{ row.progress.required }} required tasks{% else %}No required tasks{% endif %}</span>
-                        <span class="simulation-student-status">{{ row.assignment.get_status_display }}</span>
+                        <span class="simulation-student-status">{% if row.assignment.status == 'DONE' %}Assigned role as done{% else %}{{ row.assignment.get_status_display }}{% endif %}</span>
                         {% else %}
                         <span class="badge badge-gray">No role assigned</span>
                         <span class="simulation-student-task-progress">No progress yet</span>
@@ -166,7 +166,7 @@
                         <div class="simulation-student-detail-grid">
                             <div class="simulation-student-detail-item"><span>Session</span><strong>{{ session.name }}</strong></div>
                             <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}No activity assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% if row.assignment.status == 'DONE' %}<small>Assigned role as done</small>{% endif %}{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}No establishment{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Simulation Date</span><strong class="simulation-student-date-value">{% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% else %}Not scheduled{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Simulation Time</span><strong class="simulation-student-time-value">{% if row.assignment.start_time and row.assignment.end_time %}{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
