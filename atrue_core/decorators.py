@@ -35,6 +35,12 @@ def student_booking_required(view_func):
                     ('airlines', 'book_itinerary'): 'PASSENGER_AIRLINE',
                     ('activities', 'book_activity'): 'ACTIVITY_GUEST',
                     ('activities', 'flow_select'): 'ACTIVITY_GUEST',
+                    ('hotels', 'group_start'): 'GUEST_HOTEL',
+                    ('hotels', 'group_select_rooms'): 'GUEST_HOTEL',
+                    ('hotels', 'group_guests'): 'GUEST_HOTEL',
+                    ('hotels', 'group_review'): 'GUEST_HOTEL',
+                    ('hotels', 'group_payment'): 'GUEST_HOTEL',
+                    ('hotels', 'book'): 'GUEST_HOTEL',
                 }
                 task_role = role_by_booking_route.get((namespace, url_name))
                 if task_role:

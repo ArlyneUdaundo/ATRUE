@@ -10,6 +10,7 @@ from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from atrue_core import services as core_services
@@ -77,6 +78,22 @@ class HotelWorkflowTestCase(TestCase):
             hotel=cls.hotel, room_number='102', room_type='DELUXE',
             rate=Decimal('4500.00'), max_guest_capacity=2,
             status=services.ROOM_AVAILABLE)
+
+    def test_assigned_guest_hotel_can_start_booking_flow(self):
+        assignment = SimulationRoleAssignment.objects.get(
+            student=self.guest, role='GUEST_HOTEL')
+        self.client.force_login(self.guest)
+        session = self.client.session
+        session['active_simulation_task_assignment'] = assignment.pk
+        session.save()
+
+        response = self.client.get(
+            reverse('hotels:group_start', args=[self.hotel.pk]),
+            {'check_in': STAY_IN.isoformat(), 'check_out': STAY_OUT.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Review &amp; Payment')
 
     def booking(self, rooms=None, total='9000.00'):
         return services.book_room(
