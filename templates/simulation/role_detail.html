@@ -54,7 +54,15 @@
             {% if assignment.status == 'ACTIVE' and task_operation %}
             <a href="{% url 'simulation:do_task' assignment.id %}" class="btn btn-brand" style="min-height:48px;padding:12px 22px;font-weight:700"><i class="fas fa-play"></i> {% if assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</a>
             {% elif assignment.status == 'DONE' %}
-            <span class="badge badge-green" style="padding:10px 14px"><i class="fas fa-check-circle"></i> Task Completed</span>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+                <span class="badge badge-green" style="padding:10px 14px"><i class="fas fa-check-circle"></i> Task Completed</span>
+                {% if can_manage %}
+                <form method="post" action="{% url 'simulation:reactivate' assignment.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button>
+                </form>
+                {% endif %}
+            </div>
             {% elif assignment.status != 'ACTIVE' %}
             <span class="badge badge-gray" style="padding:10px 14px">{{ assignment.get_status_display }}</span>
             {% else %}

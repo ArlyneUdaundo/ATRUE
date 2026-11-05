@@ -584,6 +584,30 @@ class AdminAssignmentTests(AssignmentFlowTestCase):
             {item['name'] for item in establishments},
         )
 
+    def test_instructor_can_reactivate_completed_role_for_editing(self):
+        assignment = self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Completed Hotel Role',
+        )
+        assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
+        assignment.completed_at = timezone.now()
+        assignment.save(update_fields=['status', 'completed_at'])
+
+        response = self.client.post(
+            reverse('simulation:reactivate', args=[assignment.pk]),
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('simulation:role_detail', args=[assignment.pk]),
+        )
+        assignment.refresh_from_db()
+        self.assertEqual(
+            assignment.status,
+            SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+        )
+        self.assertIsNone(assignment.completed_at)
+
     def test_operational_role_without_establishment_is_rejected(self):
         self.post(establishment='')
         self.assertFalse(

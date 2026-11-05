@@ -13,6 +13,7 @@ urlpatterns = [
     path('assignments/<int:assignment_id>/progress/', views.assignment_progress, name='assignment_progress'),
     path('assign/', views.assign_role, name='assign'),
     path('unassign/<int:assignment_id>/', views.unassign_role, name='unassign'),
+    path('reactivate/<int:assignment_id>/', views.reactivate_role, name='reactivate'),
     path('do-task/<int:assignment_id>/', views.do_task, name='do_task'),
     path('roles/', views.role_list, name='role_list'),
     path('roles/<int:assignment_id>/', views.role_detail, name='role_detail'),

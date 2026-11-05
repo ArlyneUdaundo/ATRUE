@@ -1268,6 +1268,40 @@ def unassign_role(request, assignment_id):
 
 
 @login_required
+def reactivate_role(request, assignment_id):
+    """Return a completed assignment to active so an instructor can edit it."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not _is_instructor(request.user):
+        messages.error(request, "Only instructors may reactivate role assignments.")
+        return redirect('simulation:workspace')
+
+    with transaction.atomic():
+        assignment = get_object_or_404(
+            SimulationRoleAssignment.objects.select_for_update(of=('self',)).select_related(
+                'student', 'session', 'establishment'),
+            pk=assignment_id,
+        )
+        if assignment.status != SimulationRoleAssignment.AssignmentStatus.DONE:
+            messages.info(request, 'Only completed role assignments can be reactivated.')
+            return redirect('simulation:role_detail', assignment_id=assignment_id)
+        assignment.status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
+        assignment.completed_at = None
+        assignment.save(update_fields=['status', 'completed_at'])
+        _notify_assignment(assignment, request.user, modified=True)
+        log_activity(
+            request.user,
+            'Reactivated simulation role',
+            f'{assignment.get_role_display()} for '
+            f'{assignment.student.get_full_name() or assignment.student.username}',
+            session=assignment.session,
+        )
+
+    messages.success(request, 'Role reactivated. You can now edit the assignment.')
+    return redirect('simulation:role_detail', assignment_id=assignment_id)
+
+
+@login_required
 def session_assignment(request, session_id):
     """Create or update one student's assignment from the session-page modal.
 
