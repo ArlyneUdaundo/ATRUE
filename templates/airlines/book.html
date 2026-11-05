@@ -115,8 +115,8 @@
                     <input type="number" name="baggage" id="baggage" step="1" class="form-input" value="0" min="0" oninput="updateFare()">
                 </div>
                 <div class="form-group">
-                    <label>Payment Method</label>
-                    <select name="payment_method" class="form-input" required>
+                    <label for="flight-payment-method">Payment Method</label>
+                    <select name="payment_method" id="flight-payment-method" class="form-input" required aria-describedby="flight-payment-method-help">
                     <option value="GCASH">GCash</option>
                     <option value="MAYA">Maya</option>
                     <option value="BANK_TRANSFER">Bank Transfer</option>
@@ -124,6 +124,7 @@
                     <option value="DEBIT_CARD">Debit Card</option>
                     <option value="PAYPAL">PayPal</option>
                     <option value="QR_PH">QR Ph</option></select>
+                    <small id="flight-payment-method-help" class="meta">Choose a payment method with its logo.</small>
                 </div>
             </div>
             <label class="checkbox" style="margin-bottom:6px">
