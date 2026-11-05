@@ -1795,6 +1795,13 @@ class AirlineFrontDeskRouteAccessTests(AssignmentFlowTestCase):
                 response = self.client.get(reverse(route, args=args))
                 self.assertEqual(response.status_code, 200)
 
+        flights_response = self.client.get(reverse('airlines:flights'))
+        self.assertEqual(flights_response.status_code, 200)
+        self.assertContains(
+            flights_response,
+            reverse('airlines:add_flight_schedule'),
+        )
+
 
 class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
     def setUp(self):
