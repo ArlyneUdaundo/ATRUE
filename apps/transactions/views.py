@@ -60,6 +60,7 @@ def payment_review(request):
 
     bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
     rows = []
+    seen_bill_ids = set()
     pending_payments = Payment.objects.filter(status=Payment.Status.PENDING, bill__isnull=False)
     for payment in pending_payments.select_related('bill', 'customer').prefetch_related('bill__payments'):
         bill = payment.bill
@@ -167,10 +168,12 @@ def payment_review(request):
         rows.append({
             'bill': bill, 'booking': booking, 'establishment': establishment,
             'payment': payment, 'needs_recording': False,
+            'can_verify': True,
             'booking_type': booking._meta.verbose_name.title(),
             'check_in': getattr(booking, 'check_in', None),
             'check_out': getattr(booking, 'check_out', None),
         })
+        seen_bill_ids.add(bill.pk)
 
     for bill in bills.select_related('customer').prefetch_related('payments'):
         booking = bill.booking
@@ -220,6 +223,43 @@ def payment_review(request):
             return redirect('transactions:payment_review')
         rows.append({
             'bill': bill, 'booking': booking, 'establishment': establishment,
+            'can_verify': True,
+            'needs_recording': False,
+            'booking_type': booking._meta.verbose_name.title(),
+            'check_in': getattr(booking, 'check_in', None),
+            'check_out': getattr(booking, 'check_out', None),
+        })
+        seen_bill_ids.add(bill.pk)
+
+    # Keep every saved booking visible to the Billing Officer, including
+    # pay-later bookings that do not have a Payment row yet. They can be
+    # reviewed here, but approval remains unavailable until the bill is paid.
+    waiting_bills = Bill.objects.filter(
+        status__in=[Bill.Status.UNPAID, Bill.Status.PARTIALLY_PAID],
+        verified_at__isnull=True,
+    ).select_related('customer').prefetch_related('payments')
+    for bill in waiting_bills:
+        if bill.pk in seen_bill_ids:
+            continue
+        booking = bill.booking
+        travel_order = getattr(bill, 'travel_order', None)
+        if booking is None and travel_order:
+            first_item = travel_order.items.select_related('content_type').first()
+            booking = first_item.booking if first_item else None
+        if booking is None:
+            continue
+        try:
+            from simulation.completion import establishment_for_booking
+            establishment = establishment_for_booking(booking)
+        except Exception:
+            continue
+        if (not is_admin and assignment is not None
+                and (establishment is None
+                     or establishment.pk != assignment.establishment_id)):
+            continue
+        rows.append({
+            'bill': bill, 'booking': booking, 'establishment': establishment,
+            'payment': None, 'can_verify': False,
             'needs_recording': False,
             'booking_type': booking._meta.verbose_name.title(),
             'check_in': getattr(booking, 'check_in', None),
@@ -848,4 +888,3 @@ def establishment_booking_clear(request):
     if request.method == 'POST':
         clear(request)
     return redirect('home')
-

@@ -76,7 +76,8 @@
         </div>
 
         <div class="payment-review-action">
-            <p class="payment-review-help">{% if row.payment %}Verify that the submitted amount was received. The booking moves to the Reservation Officer after full payment is verified.{% else %}This bill is fully paid and ready for verification.{% endif %}</p>
+            <p class="payment-review-help">{% if row.payment %}Verify that the submitted amount was received. The booking moves to the Reservation Officer after full payment is verified.{% elif row.can_verify %}This bill is fully paid and ready for verification.{% else %}This booking is saved and waiting for the guest to submit payment.{% endif %}</p>
+            {% if row.can_verify %}
             <form method="post">
                 {% csrf_token %}
                 {% if row.payment %}
@@ -88,6 +89,7 @@
                 <button type="submit" class="btn btn-brand btn-sm">Verify fully paid bill</button>
                 {% endif %}
             </form>
+            {% endif %}
         </div>
     </section>
     {% endfor %}
