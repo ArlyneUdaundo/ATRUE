@@ -154,7 +154,7 @@
                         {% if row.assignment %}
                         <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
                         <span class="simulation-student-task-progress">{% if row.progress.required %}{{ row.progress.percent }}% · {{ row.progress.completed_required }}/{{ row.progress.required }} required tasks{% else %}No required tasks{% endif %}</span>
-                        <span class="simulation-student-status">{% if row.assignment.status == 'DONE' %}Assigned role as done{% else %}{{ row.assignment.get_status_display }}{% endif %}</span>
+                        <span class="simulation-student-status">{% if row.assignment.status == 'DONE' %}Assigned role as done{% elif row.assignment.status == 'ACTIVE' %}Role assigned{% else %}{{ row.assignment.get_status_display }}{% endif %}</span>
                         {% else %}
                         <span class="badge badge-gray">No role assigned</span>
                         <span class="simulation-student-task-progress">No progress yet</span>

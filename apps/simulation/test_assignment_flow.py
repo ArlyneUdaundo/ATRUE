@@ -1850,6 +1850,22 @@ class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
         self.assertContains(response, 'Assigned role as done')
         self.assertNotContains(response, 'No role assigned')
 
+    def test_workspace_labels_active_roles_as_assigned(self):
+        session = SimulationSession.objects.create(
+            name='Active Role Session',
+            instructor=self.instructor,
+        )
+        assignment = self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Active Hotel Role',
+        )
+        assignment.session = session
+        assignment.save(update_fields=['session'])
+
+        response = self.client.get(reverse('simulation:workspace'))
+
+        self.assertContains(response, 'Role assigned')
+
     def test_active_passenger_task_can_view_flight_detail_without_other_bookings(self):
         self.assign(
             self.arlyne, Role.HOTEL_MANAGER, self.sunrise_est,
