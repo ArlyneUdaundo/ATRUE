@@ -1249,6 +1249,50 @@ body.flight-booking-modal-open { overflow: hidden; }
     .alert { padding: 12px 14px; }
 }
 
+/* Final mobile guards for shared dashboard components. Individual pages can
+   still opt into denser layouts above these rules when their content needs it. */
+@media (max-width: 900px) {
+    .topbar { min-width: 0; }
+    .topbar-space { display: none; }
+    .topbar-right { margin-left: auto; }
+    .topbar-search { min-width: 0; }
+    .nav-toggle { display: grid; }
+    .top-nav { max-height: calc(100dvh - 92px); overflow-y: auto; }
+    .page-head, .card-head, .section-head { min-width: 0; }
+    .page-head > *, .card-head > *, .section-head > * { min-width: 0; }
+    .table-wrap { width: 100%; max-width: 100%; overflow-x: auto; }
+    .table { min-width: 640px; }
+    .modal, .dialog, [role="dialog"] { max-width: calc(100vw - 24px); }
+}
+
+@media (max-width: 640px) {
+    .topbar .brand { gap: 8px; min-width: 0; }
+    .topbar .side-logo { width: 52px; height: 52px; }
+    .topbar .side-brand b { font-size: 17px; }
+    .topbar .side-brand small { font-size: 8px; letter-spacing: .14em; }
+    .topbar-right { gap: 2px; }
+    .topbar .icon-btn { width: 38px; height: 38px; }
+    .user-chip { max-width: 48px; padding-right: 4px; }
+    .user-chip-caret { display: none; }
+    .notif-dropdown { width: min(380px, calc(100vw - 24px)) !important; right: -4px !important; }
+    .content, .main.rm-wide .content { padding: 14px 12px; }
+    .container, .main.rm-wide .container { padding: 0 12px; }
+    .page-head { gap: 12px; }
+    .page-head .btn, .page-head a.btn { width: 100%; }
+    .btn { max-width: 100%; }
+    .form-actions, .card-actions, .fcard-actions { flex-wrap: wrap; }
+    .form-actions .btn, .card-actions .btn { flex: 1 1 140px; }
+    .table { min-width: 580px; }
+    .agoda-room-card { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+    .topbar .side-brand { display: none !important; }
+    .topbar .side-logo { width: 46px; height: 46px; }
+    .content, .main.rm-wide .content { padding-left: 10px; padding-right: 10px; }
+    .container, .main.rm-wide .container { padding-left: 10px; padding-right: 10px; }
+}
+
 /* ============================================================
    Helper utilities & compatibility classes (blue theme)
    ============================================================ */

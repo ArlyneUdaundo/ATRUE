@@ -1768,3 +1768,33 @@ input, select, textarea { font-family: inherit; }
     /* Keep the floating control from covering booking buttons on phones. */
     .back-top { display: none; }
 }
+
+/* Keep shared public-page surfaces usable on narrow touch screens. */
+@media (max-width: 900px) {
+    .nav-inner { gap: 12px; }
+    .nav-actions { margin-left: auto; }
+    .nav-links { gap: 0; }
+    .dropdown {
+        left: auto;
+        right: 0;
+        transform: translateY(10px);
+        min-width: min(340px, calc(100vw - 32px));
+    }
+    .has-dropdown.open .dropdown { transform: translateY(0); }
+    .hero-inner, .feature-grid, .contact-grid, .cta-inner { min-width: 0; }
+    .hero-cta, .cta-btns { flex-wrap: wrap; }
+    .hero-cta .btn, .cta-btns .btn { max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+    body { font-size: 15px; }
+    .nav-inner { padding-left: 16px; padding-right: 16px; }
+    .brand-text b { font-size: 19px; }
+    .brand-text small { font-size: 9px; letter-spacing: .16em; }
+    .section-head { gap: 12px; }
+    .section-head, .section-head > * { min-width: 0; }
+    .hero-cta .btn, .cta-btns .btn { width: 100%; }
+    .form-card, .auth-card { max-width: 100%; }
+    .modal-dialog, .hm-signin-dialog { width: min(100% - 24px, 560px); }
+    input, select, textarea { max-width: 100%; }
+}
