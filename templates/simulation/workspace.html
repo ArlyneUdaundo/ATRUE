@@ -140,7 +140,6 @@
             {% if is_instructor %}
             <div class="simulation-session-activities-head">
                 <h3>Students <span class="simulation-session-student-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span></h3>
-                <a href="{% url 'simulation:assign' %}?session={{ session.pk }}" class="btn btn-outline btn-sm"><i class="fas fa-plus" aria-hidden="true"></i> Add Activity</a>
             </div>
             {% if session.student_rows %}
             <div class="simulation-student-list" role="list">
