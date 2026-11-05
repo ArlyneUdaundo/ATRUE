@@ -1,3 +1,4 @@
+{% load flight_cards %}
 <article class="fs-card fs-card--live" data-fs-card
          data-id="{{ flight.pk }}"
          data-rank="00{{ flight.pk }}"
@@ -15,7 +16,9 @@
          data-depart="{{ flight.departure_time|date:'U' }}">
     <div class="fs-card__summary">
         <div class="fs-card__airline">
-            <span class="fs-logo fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            {% with logo=airline_logos|get_item:flight.airline_id %}
+            {% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='fs-logo fs-logo--airline' %}
+            {% endwith %}
             <span class="fs-card__airline-name">{{ flight.airline.name }}</span>
             <span class="fs-card__flightno">{{ flight.flight_number }}</span>
         </div>

@@ -38,6 +38,14 @@
   box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
 }
 .payment-method-label { flex: 1; min-width: 0; font-weight: 600; }
+.payment-method-trigger .payment-method-label {
+  display: none;
+}
+.payment-method-trigger .payment-method-icon {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 36px;
+}
 .payment-method-caret { color: #66758b; transition: transform .16s ease; }
 .payment-method-control.is-open .payment-method-caret { transform: rotate(180deg); }
 .payment-method-menu {
