@@ -1778,6 +1778,23 @@ class AirlineFrontDeskRouteAccessTests(AssignmentFlowTestCase):
         self.assertEqual(
             self.client.get(reverse('airlines:manage')).status_code, 200)
 
+    def test_an_airline_manager_may_manage_flight_schedules(self):
+        manager = User.objects.create_user(
+            'airlineschedulemanager', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.assign(manager, Role.AIRLINE_MANAGER, self.airline_est,
+                    activity_name='Schedule Manager Session')
+        self.client.force_login(manager)
+
+        for route, args in (
+            ('airlines:flight_detail', (self.flight.slug,)),
+            ('airlines:add_flight', (self.airline.pk,)),
+            ('airlines:add_flight_schedule', ()),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route, args=args))
+                self.assertEqual(response.status_code, 200)
+
 
 class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
     def setUp(self):

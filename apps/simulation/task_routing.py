@@ -44,7 +44,8 @@ _AIRLINE_MANAGER_ROUTES = {
     'manage', 'airline_detail', 'update_airline', 'aircrafts',
     'aircraft_detail', 'airline_fleet', 'add_aircraft', 'update_aircraft',
     'services', 'service_detail', 'add_service', 'update_service',
-    'flights', 'update_flight',
+    'flights', 'flight_detail', 'add_flight', 'add_flight_schedule',
+    'update_flight',
     'bookings', 'booking_detail', 'itinerary_detail', 'update_itinerary',
 }
 _TRANSPORT_MANAGER_ROUTES = {
