@@ -13,6 +13,15 @@
             <a href="{% url 'transportation:list' %}"><i class="fas fa-car-side"></i>Car Rental</a>
             <a href="{% url 'restaurants:list' %}"><i class="fas fa-utensils"></i>Restaurants</a>
         </nav>
+        <div class="fp-nav__tools" aria-label="Account tools">
+            <a class="fp-nav__icon" href="{% url 'airlines:list' %}" aria-label="Search flights"><i class="fas fa-magnifying-glass"></i></a>
+            <button class="fp-nav__icon fp-nav__notification" type="button" aria-label="Notifications"><i class="far fa-bell"></i><i class="fp-nav__dot"></i></button>
+            <button class="fp-nav__profile" type="button" aria-label="Account menu">
+                <span class="fp-nav__avatar">{% if request.user.is_authenticated %}{{ request.user.first_name|default:"E"|slice:":1"|upper }}{% else %}E{% endif %}</span>
+                <span class="fp-nav__profile-name">{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Eula D. Espiritu{% endif %}</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
         <details class="fp-nav__mobile">
             <summary aria-label="Open navigation menu"><i class="fas fa-bars"></i><span>Menu</span></summary>
             <nav aria-label="Mobile navigation">

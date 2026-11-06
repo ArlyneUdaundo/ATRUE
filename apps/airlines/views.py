@@ -20,6 +20,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Case, Count, ExpressionWrapper, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce
@@ -88,7 +89,7 @@ from .models import (
     TripRole,
     TripSegment,
 )
-from .sample_flights import AIRPORT_CHOICES, filter_groups, sample_results
+from .sample_flights import sample_results
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,7 @@ def _aircraft_conflict(aircraft, departure, arrival, exclude_id=None):
     return qs.exists()
 
 
-def _itinerary_search(request, dep=None):
+def _itinerary_search(request, dep=None, multi_legs=None):
     """Search connecting itineraries, each as one result.
 
     An itinerary matches on its *ends*: a MNL to DXB search must offer the
@@ -304,6 +305,33 @@ def _itinerary_search(request, dep=None):
     last_order = Flight.objects.filter(
         itinerary=OuterRef('pk')).order_by('-segment_order').values(
         'segment_order')[:1]
+
+    if multi_legs:
+        # A multi-city search is bookable only when the stored itinerary has
+        # the same airport sequence and travel dates as the submitted segments.
+        # Never fill gaps with unrelated single-flight or sample rows.
+        itineraries = list(FlightItinerary.objects.filter(
+            status__in=(FlightItinerary.Status.SCHEDULED,
+                        FlightItinerary.Status.DELAYED)
+        ).select_related('airline').prefetch_related(
+            'legs__origin_airport', 'legs__destination_airport'))
+        expected = []
+        for leg in multi_legs:
+            origin_id = int(leg['origin']) if str(leg.get('origin', '')).isdigit() else None
+            destination_id = int(leg['destination']) if str(leg.get('destination', '')).isdigit() else None
+            expected.append((origin_id, destination_id, _parse_date(leg.get('date'))))
+        now = timezone.now()
+        return [itinerary for itinerary in itineraries
+                if len(itinerary.ordered_legs) == len(expected)
+                and all(flight.departure_time >= now
+                        for flight in itinerary.ordered_legs)
+                and all(
+                    flight.origin_airport_id == origin_id
+                    and flight.destination_airport_id == destination_id
+                    and _local(flight.departure_time).date() == leg_date
+                    for flight, (origin_id, destination_id, leg_date)
+                    in zip(itinerary.ordered_legs, expected)
+                )]
 
     origin = (request.GET.get('origin', '') or '').strip()
     destination = (request.GET.get('destination', '') or '').strip()
@@ -366,7 +394,9 @@ def _itinerary_search(request, dep=None):
              'barangay': [], 'loc_text': ''},
             destination_province, destination_municipality, '',
             country=destination_country, country_provinces=destination_keys)]
-    return results
+    now = timezone.now()
+    return [itinerary for itinerary in results
+            if all(leg.departure_time >= now for leg in itinerary.ordered_legs)]
 
 
 def _itinerary_result_rows(itineraries):
@@ -403,6 +433,111 @@ def _itinerary_result_rows(itineraries):
             'remaining': remaining if remaining is not None else 0,
         })
     return rows
+
+
+def _flight_search_band(value):
+    hour = _local(value).hour if value else 0
+    if hour < 6:
+        return 'early'
+    if hour < 12:
+        return 'morning'
+    if hour < 18:
+        return 'afternoon'
+    return 'evening'
+
+
+def _flight_search_stops(stops):
+    if not stops:
+        return 'nonstop'
+    return '1' if stops == 1 else '2+'
+
+
+def _flight_search_duration_bucket(minutes):
+    if not minutes:
+        return 'unknown'
+    if minutes < 60:
+        return 'lt1'
+    if minutes < 180:
+        return '1-3'
+    if minutes < 360:
+        return '3-6'
+    return '6+'
+
+
+def _flight_filter_groups(flights, itinerary_rows):
+    """Build visible filter options and counts only from returned inventory."""
+    groups = {'stops': {}, 'airline': {}, 'band': {}, 'duration': {}}
+
+    def add(stops, airline_id, airline_name, band, duration):
+        groups['stops'][stops] = groups['stops'].get(stops, 0) + 1
+        groups['airline'][str(airline_id)] = (airline_name, groups['airline'].get(str(airline_id), (airline_name, 0))[1] + 1)
+        groups['band'][band] = groups['band'].get(band, 0) + 1
+        groups['duration'][duration] = groups['duration'].get(duration, 0) + 1
+
+    for flight in flights:
+        minutes = flight.segment_duration_minutes or 0
+        if not minutes and flight.departure_time and flight.arrival_time:
+            minutes = max(0, int((flight.arrival_time - flight.departure_time).total_seconds() // 60))
+        flight.search_stops = 'nonstop'
+        flight.search_band = _flight_search_band(flight.departure_time)
+        flight.search_duration_minutes = minutes
+        flight.search_duration_label = (
+            format_duration(minutes) if minutes else 'Duration unavailable')
+        flight.search_duration_bucket = _flight_search_duration_bucket(minutes)
+        add(flight.search_stops, flight.airline_id, flight.airline.name,
+            flight.search_band, flight.search_duration_bucket)
+    for row in itinerary_rows:
+        itinerary = row['itinerary']
+        minutes = itinerary.total_duration_minutes or 0
+        row['stops_bucket'] = _flight_search_stops(itinerary.stops)
+        row['band'] = _flight_search_band(itinerary.departure_time)
+        row['duration_bucket'] = _flight_search_duration_bucket(minutes)
+        row['departure_timestamp'] = int(_local(itinerary.departure_time).timestamp()) if itinerary.departure_time else 0
+        add(row['stops_bucket'], itinerary.airline_id, itinerary.airline.name,
+            row['band'], row['duration_bucket'])
+
+    labels = {
+        'stops': [('nonstop', 'Non-stop'), ('1', '1 Stop'), ('2+', '2+ Stops')],
+        'band': [('early', 'Early Morning', '12am–6am'),
+                 ('morning', 'Morning', '6am–12pm'),
+                 ('afternoon', 'Afternoon', '12pm–6pm'),
+                 ('evening', 'Evening', '6pm–12am')],
+        'duration': [('lt1', 'Under 1 hour'), ('1-3', '1–3 hours'),
+                     ('3-6', '3–6 hours'), ('6+', '6+ hours'),
+                     ('unknown', 'Duration unavailable')],
+    }
+    result = []
+    for key, title in (('stops', 'Stops'), ('airline', 'Airlines'),
+                       ('band', 'Departure Time'), ('duration', 'Duration')):
+        items = []
+        if key == 'airline':
+            items = [{'value': value, 'label': entry[0], 'hint': '', 'count': entry[1]}
+                     for value, entry in sorted(groups[key].items(), key=lambda item: item[1][0].lower())]
+        else:
+            for entry in labels[key]:
+                value, label = entry[0], entry[1]
+                hint = entry[2] if len(entry) > 2 else ''
+                if groups[key].get(value):
+                    items.append({'value': value, 'label': label,
+                                  'hint': hint, 'count': groups[key][value]})
+        if items:
+            result.append({'key': key, 'title': title, 'items': items,
+                           'select_all': key == 'airline'})
+    return result
+
+
+def _search_price_range(flights, itinerary_rows):
+    fares = [Decimal(str(getattr(flight, 'search_fare', flight.economy_fare) or 0))
+             for flight in flights]
+    fares.extend(Decimal(str(row.get('search_fare', row['itinerary'].economy_fare) or 0))
+                 for row in itinerary_rows)
+    if not fares:
+        return {'min': 0, 'max': 1000}
+    floor_price = int(min(fares) // 500) * 500
+    ceiling_price = int((max(fares) + 499) // 500) * 500
+    if ceiling_price <= floor_price:
+        ceiling_price = floor_price + 500
+    return {'min': max(0, floor_price), 'max': ceiling_price}
 
 
 def _result_badges(flights, itinerary_rows):
@@ -521,13 +656,23 @@ def flight_list(request):
         if requested_flight_type in ('DOMESTIC', 'INTERNATIONAL')
         else ''
     )
+
+    # The public search only offers departures that have not already passed,
+    # including when a user opens the browse page without submitting a search.
+    flights = flights.filter(departure_time__gte=timezone.now())
     origin_country = (request.GET.get('origin_country') or '').strip()
     origin_province = (request.GET.get('origin_province') or '').strip()
     origin_municipality = (request.GET.get('origin_municipality') or '').strip()
     destination_country = (request.GET.get('destination_country') or '').strip()
     destination_province = (request.GET.get('destination_province') or '').strip()
     destination_municipality = (request.GET.get('destination_municipality') or '').strip()
-    trip_type = request.GET.get('trip_type', Booking.TripType.ONE_WAY)
+    trip_type = (request.GET.get('trip_type')
+                 or Booking.TripType.ONE_WAY).strip().upper()
+    trip_type = {
+        'ONEWAY': Booking.TripType.ONE_WAY,
+        'ROUND': Booking.TripType.ROUND_TRIP,
+        'MULTICITY': 'MULTI_CITY',
+    }.get(trip_type, trip_type)
     departure_date = request.GET.get('departure_date', '')
     return_date = request.GET.get('return_date', '')
     search_submitted = request.GET.get('search_submit') == '1'
@@ -633,16 +778,16 @@ def flight_list(request):
                     departure_date = multi_legs[0]['date']
                     return_date = multi_legs[-1]['date']
         else:
-            # The destination is what the passenger searched for; the departure
-            # airport is optional and can be refined on this page.
+            # Both endpoints are required for a flight search.  The browser
+            # validates this too, but the server must not trust that client.
             destination_record = _require_active_airport(destination_airport)
             origin_record = _require_active_airport(origin_airport) if origin_airport else None
+            if origin_record is None:
+                search_errors.append('Select a valid flying-from airport.')
             if destination_record is None:
                 search_errors.append('Select a valid flying-to airport.')
             if origin_airport:
-                if origin_record is None:
-                    search_errors.append('Select a valid flying-from airport.')
-                elif destination_record and origin_record.pk == destination_record.pk:
+                if origin_record and destination_record and origin_record.pk == destination_record.pk:
                     search_errors.append(
                         'Flying-from and flying-to airports must be different.')
             if origin_record and destination_record:
@@ -690,6 +835,10 @@ def flight_list(request):
             flights = flights.filter(departure_time__date=dep)
         else:
             flights = flights.filter(departure_time__date__gte=dep)
+    if search_submitted and multicity_requested:
+        # Multi-city bookings are represented by a stored itinerary, never by
+        # unrelated single-flight rows that happen to share the first date.
+        flights = []
     if search_submitted and not search_errors:
         flights = flights.filter(trip_role=TripRole.OUTBOUND)
         if trip_type == Booking.TripType.ONE_WAY:
@@ -745,17 +894,16 @@ def flight_list(request):
 
     if search_errors:
         flights = []
-    # A multi-city search is previewed as separate segments: the page reports
-    # the legs it validated and shows the sample schedule for the first leg, so
-    # the passenger still sees filters, sorting and cards, not an empty page.
+    # Multi-city results are stored itineraries whose segment sequence and
+    # dates match the validated search legs; no unrelated flight is substituted.
     flights = list(flights)
-    itinerary_rows = (
-        []
-        if search_errors or (
-            search_submitted and trip_type == Booking.TripType.ROUND_TRIP
-        )
-        else _itinerary_result_rows(_itinerary_search(request, dep))
-    )
+    itinerary_search_rows = []
+    if not search_errors and not (
+        search_submitted and trip_type == Booking.TripType.ROUND_TRIP
+    ):
+        itinerary_search_rows = _itinerary_search(
+            request, dep, multi_legs if search_submitted and multicity_requested else None)
+    itinerary_rows = _itinerary_result_rows(itinerary_search_rows)
     if fare_class:
         flights = [
             flight for flight in flights
@@ -885,37 +1033,17 @@ def flight_list(request):
             provider_error = (
                 'Choose both a departure and destination airport to search provider listings.')
 
-    # The public results page is a front-end recreation of the booking UI: it
-    # renders the fixed sample schedule below and stamps the searched route
-    # onto it, while everything computed above still feeds the flight context,
-    # itinerary rows, provider listings and the search feedback messages.
+    # Search defaults and airport labels come from the active database records.
     origin_airport_object = (
-        Airport.objects.filter(pk=origin_airport).first()
+        Airport.objects.filter(pk=origin_airport, status=Airport.Status.ACTIVE).first()
         if origin_airport.isdigit() else None
     )
     destination_airport_object = (
-        Airport.objects.filter(pk=destination_airport).first()
+        Airport.objects.filter(pk=destination_airport, status=Airport.Status.ACTIVE).first()
         if destination_airport.isdigit() else None
     )
 
-    def _route_code(record, fallback):
-        code = (((record.iata_code if record else '') or '').strip().upper())
-        return code if len(code) >= 2 else fallback
-
-    form_origin_code = _route_code(origin_airport_object, 'MNL')
-    form_destination_code = _route_code(destination_airport_object, 'CEB')
-    airport_choices = list(AIRPORT_CHOICES)
-    known_codes = {row[0] for row in airport_choices}
-    for record, code in (
-        (origin_airport_object, form_origin_code),
-        (destination_airport_object, form_destination_code),
-    ):
-        if record and code not in known_codes:
-            city = (record.city or record.airport_name or code).strip()
-            airport_choices.append((code, city, record.airport_name or city))
-            known_codes.add(code)
-
-    requested_trip = (request.GET.get('trip_type') or '').strip()
+    requested_trip = (request.GET.get('trip_type') or 'ONE_WAY').strip()
 
     def _pretty_date(value):
         try:
@@ -934,21 +1062,29 @@ def flight_list(request):
     today = timezone.localdate()
     departure_default = departure_date or today.isoformat()
     return_default = return_date or (today + timedelta(days=3)).isoformat()
-    sample_flights = sample_results(form_origin_code, form_destination_code, mixed=True)
-    # The flight cards follow the airports actually selected in the worldwide
-    # picker, so the list shows the chosen city and country rather than only
-    # falling back to the built-in Manila/Cebu sample labels.
-    route_cities = {code: city for code, city, _ in airport_choices}
-    origin_country_label = (
-        (origin_airport_object.country if origin_airport_object else '')
-        or (destination_airport_object.country if destination_airport_object else '')
-        or 'Philippines'
-    )
+    airport_choices = list(Airport.objects.filter(
+        status=Airport.Status.ACTIVE).exclude(iata_code='').values_list(
+            'iata_code', 'city', 'airport_name', 'country'))
+    known_codes = {row[0] for row in airport_choices if row[0]}
+    for record in (origin_airport_object, destination_airport_object):
+        if record and record.iata_code and record.iata_code not in known_codes:
+            airport_choices.append((record.iata_code, record.city,
+                                    record.airport_name, record.country))
+            known_codes.add(record.iata_code)
+    form_origin_code = (origin_airport_object.iata_code if origin_airport_object else '')
+    form_destination_code = (destination_airport_object.iata_code if destination_airport_object else '')
+    origin_label = (
+        f"{origin_airport_object.city or origin_airport_object.airport_name} ({form_origin_code})"
+        if origin_airport_object else (origin or 'Choose origin'))
+    destination_label = (
+        f"{destination_airport_object.city or destination_airport_object.airport_name} ({form_destination_code})"
+        if destination_airport_object else (destination or 'Choose destination'))
+    origin_country_label = origin_airport_object.country if origin_airport_object else ''
     search_defaults = {
         'origin_code': form_origin_code,
         'destination_code': form_destination_code,
-        'origin_label': f"{route_cities.get(form_origin_code, form_origin_code)} ({form_origin_code})",
-        'destination_label': f"{route_cities.get(form_destination_code, form_destination_code)} ({form_destination_code})",
+        'origin_label': origin_label,
+        'destination_label': destination_label,
         'departure_date': departure_default,
         'return_date': return_default,
         'departure_label': _pretty_date(departure_default),
@@ -982,10 +1118,9 @@ def flight_list(request):
         'can_add_flight': can_create_flight(request.user),
         'origin_airport_object': origin_airport_object,
         'destination_airport_object': destination_airport_object,
-        'sample_flights': sample_flights,
         'airport_choices': airport_choices,
         'search_defaults': search_defaults,
-        'filter_groups': filter_groups(sample_flights),
+        'filter_groups': _flight_filter_groups(flights, itinerary_rows),
         'origin_country': origin_country,
         'origin_province': origin_province,
         'origin_municipality': origin_municipality,
@@ -1005,6 +1140,8 @@ def flight_list(request):
         'duffel_search_error': provider_error,
         'duffel_search_configured': bool(
             os.getenv('DUFFEL_ACCESS_TOKEN', '').strip()),
+        'results_count': len(flights) + len(itinerary_rows),
+        'price_range': _search_price_range(flights, itinerary_rows),
     })
 
 
@@ -2999,6 +3136,10 @@ def confirm_passenger_details(request):
         passengers = payload.get('passengers')
         if not isinstance(passengers, list) or not passengers or len(passengers) > 19:
             raise ValueError('The passenger list is invalid.')
+        flight_type = str(payload.get('flight_type') or '').upper()
+        if flight_type not in ('DOMESTIC', 'INTERNATIONAL'):
+            raise ValueError('Select a valid flight type.')
+        international = flight_type == 'INTERNATIONAL'
         passenger_counts = {'adult': 0, 'child': 0, 'infant': 0}
         passenger_rows = []
         seat_map = pd_sample.seat_map_context(flight.get('aircraft'))
@@ -3016,10 +3157,27 @@ def confirm_passenger_details(request):
             name = str(item.get('name') or '').strip()[:120]
             if not name:
                 raise ValueError('Enter a name for every passenger.')
+            details = item.get('details') or {}
+            if not isinstance(details, dict):
+                raise ValueError('Passenger details are invalid.')
+            required_fields = ('email', 'phone', 'dob', 'gender', 'nationality')
+            if any(not str(details.get(field) or '').strip() for field in required_fields):
+                raise ValueError('Complete all required passenger details.')
+            email = str(details.get('email') or '').strip()
+            try:
+                validate_email(email)
+            except ValidationError:
+                raise ValueError('Enter a valid passenger email address.')
+            try:
+                date.fromisoformat(str(details.get('dob') or ''))
+            except ValueError:
+                raise ValueError('Enter a valid passenger date of birth.')
+            if international and not str(details.get('passport') or '').strip():
+                raise ValueError('Passport numbers are required for international flights.')
             seat_number = str(item.get('seat') or '').strip().upper()
             if category == 'infant':
                 seat_number = ''
-            else:
+            elif seat_number:
                 seat = seat_lookup.get(seat_number)
                 if not seat or seat['taken'] or seat_number in used_seats:
                     raise ValueError('One or more selected seats are unavailable. Please choose again.')
@@ -3033,6 +3191,15 @@ def confirm_passenger_details(request):
                 'seat': seat_number or 'No seat',
                 'seat_category': seat_lookup[seat_number]['category_label'] if seat_number else '',
                 'seat_price': seat_lookup[seat_number]['price'] if seat_number else 0,
+                'details': {
+                    'email': email,
+                    'phone_code': str(details.get('phone_code') or '+63')[:6],
+                    'phone': str(details.get('phone') or '').strip()[:20],
+                    'dob': str(details.get('dob') or '')[:10],
+                    'gender': str(details.get('gender') or '')[:20],
+                    'nationality': str(details.get('nationality') or '')[:80],
+                    'passport': str(details.get('passport') or '').strip()[:40],
+                },
             })
         if passenger_counts['adult'] < 1 or passenger_counts['infant'] > passenger_counts['adult']:
             raise ValueError('The passenger count is invalid.')
@@ -3049,12 +3216,20 @@ def confirm_passenger_details(request):
                                if item[0] == insurance_key), None)
         if baggage_option is None or insurance_plan is None:
             raise ValueError('The selected extras are invalid.')
+        if insurance_plan[2] > 0 and not payload.get('insurance_terms_acknowledged'):
+            raise ValueError('Please acknowledge the insurance terms before selecting coverage.')
+        if not payload.get('policy_acknowledged'):
+            raise ValueError('Please acknowledge the cancellation and refund policy.')
 
         passenger_total = len(passenger_rows)
         base_fare = int(flight['price']) * passenger_total
         taxes = pd_sample.TAXES_AND_FEES_PER_PASSENGER * passenger_total
-        baggage_total = baggage_option[1] * passenger_total
-        insurance_total = insurance_plan[2] * passenger_total
+        baggage_total = (baggage_option[1] * passenger_total
+                         if pd_sample.BAGGAGE_CHARGE_BASIS == 'per_passenger'
+                         else baggage_option[1])
+        insurance_total = (insurance_plan[2] * passenger_total
+                           if pd_sample.INSURANCE_CHARGE_BASIS == 'per_passenger'
+                           else insurance_plan[2])
         seat_total = sum(row['seat_price'] for row in passenger_rows)
         total = base_fare + taxes + baggage_total + insurance_total + seat_total
 
@@ -3097,6 +3272,8 @@ def confirm_passenger_details(request):
             'extras': {
                 'extra_baggage_kg': baggage_kg,
                 'insurance': insurance_plan[1],
+                'insurance_terms_acknowledged': bool(payload.get('insurance_terms_acknowledged')),
+                'policy_acknowledged': bool(payload.get('policy_acknowledged')),
             },
             'fare': {
                 'passenger_count': passenger_total,

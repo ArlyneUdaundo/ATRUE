@@ -1,7 +1,12 @@
 {% load flight_cards %}
-<article class="fcard fcard-connect" data-flight-id="itinerary-{{ itin.id }}">
+<article class="fcard fcard-connect" data-flight-id="itinerary-{{ itin.id }}"
+         data-fs-card data-id="{{ itin.pk }}" data-rank="00{{ itin.pk }}"
+         data-flight="{{ itin.route_label }}" data-price="{{ row.search_fare }}"
+         data-duration="{{ itin.total_duration_minutes }}" data-duration-bucket="{{ row.duration_bucket }}"
+         data-stops="{{ row.stops_bucket }}" data-band="{{ row.band }}"
+         data-airline="{{ itin.airline_id }}" data-depart="{{ row.departure_timestamp }}">
     <div class="fcard-head-row">
-        <button type="button" class="fcard-summary-toggle" aria-expanded="false" aria-label="Show details for {{ itin.airline.name }} itinerary {{ itin.route_label }}">
+        <button type="button" class="fcard-summary-toggle" data-fs-toggle aria-expanded="false" aria-label="Show details for {{ itin.airline.name }} itinerary {{ itin.route_label }}">
             <span class="fcard-logo">{% with logo=airline_logos|get_item:itin.airline_id %}{% if logo and logo.image %}<img src="{{ logo.image.url }}" alt="{{ itin.airline.name }}">{% else %}<i class="fas fa-plane" aria-hidden="true"></i>{% endif %}{% endwith %}</span>
             <span class="fcard-main"><span class="fcard-title">{{ itin.airline.name }}<span class="fcard-badge badge-blue">{{ itin.stops_label }}</span>{% if 'cheapest' in badges|get_item:itin.id %}<span class="fcard-tag">Cheapest</span>{% endif %}{% if 'best' in badges|get_item:itin.id %}<span class="fcard-tag fcard-tag-best">Best</span>{% endif %}</span><span class="fcard-flight-no">{{ itin.route_label }} · {{ itin.segment_count }} segments{% if itin.checked_baggage_kg %} · {{ itin.checked_baggage_kg }} kg checked{% endif %}</span></span>
             <span class="fcard-stop"><b>{{ itin.origin_airport.code|default:itin.origin_code }}</b><span class="fcard-stop-sub">{{ itin.origin_airport.city|default:itin.origin }}</span></span>
@@ -13,7 +18,7 @@
         </button>
         {% if request.user.is_platform_manager %}<a href="{% url 'airlines:itinerary_detail' itin.id %}" class="btn btn-outline fcard-select">Details</a>{% elif request.user.is_airline_booking_restricted %}<span class="badge badge-blue fcard-select">Ticketing access</span>{% elif row.remaining > 0 %}<a href="{% url 'airlines:book_itinerary' itin.id %}?trip_type={{ trip_type }}&amp;departure_date={{ departure_date }}&amp;return_date={{ return_date }}&amp;fare_class={{ fare_class }}&amp;passengers={{ passengers }}" class="btn btn-brand fcard-select">Select</a>{% else %}<span class="badge badge-red fcard-sold-out">Sold out</span>{% endif %}
     </div>
-    <div class="fcard-body" hidden>
+    <div class="fcard-body" data-fs-details hidden>
         <div class="fcard-detail-grid">
             <div class="fcard-timeline fcard-itinerary-timeline">
                 {% for leg in itin.ordered_legs %}

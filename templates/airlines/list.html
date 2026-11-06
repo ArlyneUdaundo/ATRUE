@@ -6,7 +6,7 @@
 {% block content_class %}fs-dashboard-page{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/flight-search.css' %}?v=20261024-searchbar-reference-1">
+<link rel="stylesheet" href="{% static 'css/flight-search.css' %}?v=20261106-live-search-1">
 <link rel="stylesheet" href="{% static 'css/airport-picker.css' %}?v=20261023-airport-empty-overlay-1">
 {% endblock %}
 
@@ -61,34 +61,34 @@
 
             {% include 'airlines/search/_sorting_bar.html' %}
 
-            {% if flights %}
+            {% if flights or itinerary_rows %}
             <p class="fs-notice" role="note">
                 <i class="fas fa-circle-check" aria-hidden="true"></i>
-                These are live database schedules. Bookings made here are saved and appear in Airline Manager bookings.
+                Showing bookable schedules from ATRUE flight inventory. Price and availability are read from the current flight records.
             </p>
             <div class="fs-cards" data-fs-cards>
                 {% for flight in flights %}
                 {% include 'airlines/search/_live_flight_card.html' with flight=flight %}
                 {% endfor %}
+                {% for row in itinerary_rows %}
+                {% include 'airlines/_itinerary_result_card.html' with itin=row.itinerary row=row %}
+                {% endfor %}
             </div>
             {% else %}
             <p class="fs-notice" role="note">
                 <i class="fas fa-circle-info" aria-hidden="true"></i>
-                No live schedules are available for this search. The routes below are sample previews and cannot be booked.
+                No real, upcoming flights match this search. Try different airports or dates.{% if can_add_flight %} Add an upcoming schedule to make bookable ATRUE flights available.{% endif %}
             </p>
-            <div class="fs-cards" data-fs-cards>
-                {% for row in sample_flights %}
-                {% include 'airlines/search/_flight_card.html' with row=row %}
-                {% endfor %}
-            </div>
+            {% if can_add_flight %}<a class="fs-btn fs-btn--primary" href="{% url 'airlines:add_flight_schedule' %}"><i class="fas fa-plus" aria-hidden="true"></i> Add Flight Schedule</a>{% endif %}
+            <div class="fs-cards" data-fs-cards hidden></div>
             {% endif %}
 
-            <div class="fs-empty" data-fs-empty hidden>
+            {% if flights or itinerary_rows %}<div class="fs-empty" data-fs-empty hidden>
                 <span class="fs-empty__icon" aria-hidden="true"><i class="fas fa-plane-slash"></i></span>
                 <h3>No flights match your filters</h3>
                 <p>Try widening the price range or removing a filter.</p>
                 <button type="button" class="fs-btn fs-btn--primary" data-fs-clear-all>Clear all filters</button>
-            </div>
+            </div>{% endif %}
 
             <div class="fs-selection fs-selection--modal" data-fs-selection hidden role="dialog" aria-modal="true" aria-labelledby="fsSelectionDialogTitle" tabindex="-1" style="position:fixed;inset:0;z-index:120000;box-sizing:border-box;margin:0;padding:18px;border:0;border-radius:0;background:rgba(15,23,42,.58);box-shadow:none;backdrop-filter:blur(4px)">
                 <div class="fs-selection__dialog" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,100%);max-height:calc(100dvh - 36px);overflow:auto;box-sizing:border-box;padding:26px;border:1px solid #dbe7ff;border-radius:20px;background:#fff;box-shadow:0 28px 80px rgba(15,23,42,.28)">
@@ -132,7 +132,7 @@
     <div class="fs-shell">
         <p class="fs-disclaimer">
             <i class="fas fa-flask" aria-hidden="true"></i>
-            ATRUE flight search preview &mdash; results are sample data, not live airline inventory.
+            Search results come from current ATRUE flight schedules and stored itineraries.
         </p>
     </div>
 </div>
@@ -153,5 +153,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/flight-results.js' %}?v=20261023-mixed-routes-1"></script>
+<script src="{% static 'js/flight-results.js' %}?v=20261106-live-results-1"></script>
 {% endblock %}

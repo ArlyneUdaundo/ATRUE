@@ -1,6 +1,7 @@
 {# Flight search form: trip type, flight type, route, dates, passengers and the search action. #}
-<form class="fs-search" data-fs-search data-fs-flight-type="{{ search_defaults.flight_type }}"
+<form class="fs-search" method="get" action="{% url 'airlines:list' %}" data-fs-search data-fs-flight-type="{{ search_defaults.flight_type }}"
       data-fs-country="{{ search_defaults.origin_country }}" aria-label="Flight search" novalidate>
+    <input type="hidden" name="search_submit" value="1">
     <div class="fs-search__bars">
         <div class="fs-search__tabs" role="tablist" aria-label="Trip type">
             <button type="button" class="fs-tripchip{% if search_defaults.trip_type == 'oneway' %} is-active{% endif %}" role="tab"

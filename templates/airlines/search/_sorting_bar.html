@@ -1,31 +1,30 @@
 {# Sorting bar: four sort tabs, live result count and a sort-by select. #}
 <div class="fs-sortbar" data-fs-sortbar>
     <div class="fs-sortbar__tabs" role="tablist" aria-label="Sort results">
-        <button type="button" class="fs-sort is-active" role="tab" aria-selected="true" data-fs-sort="best">
-            <i class="fas fa-medal" aria-hidden="true"></i> Best Match
+        <button type="button" class="fs-sort is-active" role="tab" aria-selected="true" data-fs-sort="price-asc">
+            <i class="fas fa-tags" aria-hidden="true"></i> Price: Low to High
         </button>
-        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="cheapest">
-            <i class="fas fa-tags" aria-hidden="true"></i> Cheapest
+        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="price-desc">
+            <i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i> Price: High to Low
         </button>
-        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="fastest">
-            <i class="fas fa-bolt" aria-hidden="true"></i> Fastest
+        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="depart-asc">
+            <i class="fas fa-clock" aria-hidden="true"></i> Departure: Earliest
         </button>
-        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="emissions">
-            <i class="fas fa-leaf" aria-hidden="true"></i> Lowest Emissions
+        <button type="button" class="fs-sort" role="tab" aria-selected="false" data-fs-sort="depart-desc">
+            <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Departure: Latest
         </button>
     </div>
 
     <div class="fs-sortbar__right">
-        <span class="fs-count" data-fs-count role="status">Showing {% if flights %}{{ flights|length }}{% else %}{{ sample_flights|length }}{% endif %} results</span>
+        <span class="fs-count" data-fs-count role="status">Showing {{ results_count }} result{{ results_count|pluralize }}</span>
         <label class="fs-sortby">
             <span>Sort by:</span>
             <select data-fs-sort-select aria-label="Sort results by">
-                <option value="price-asc" selected>Price (Low to High)</option>
-                <option value="price-desc">Price (High to Low)</option>
-                <option value="duration-asc">Duration (Shortest)</option>
-                <option value="depart-asc">Departure (Earliest)</option>
-                <option value="emissions-asc">Emissions (Lowest)</option>
-                <option value="best">Best Match</option>
+                <option value="price-asc" selected>Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="depart-asc">Departure: Earliest First</option>
+                <option value="depart-desc">Departure: Latest First</option>
+                <option value="duration-asc">Duration: Shortest First</option>
             </select>
         </label>
     </div>

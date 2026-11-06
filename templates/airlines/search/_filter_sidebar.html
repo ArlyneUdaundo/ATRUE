@@ -10,14 +10,14 @@
         <div class="fs-range" data-fs-range>
             <div class="fs-range__track">
                 <span class="fs-range__fill" data-fs-range-fill></span>
-                <input type="range" min="1000" max="15000" step="500" value="1000"
+                <input type="range" min="{{ price_range.min }}" max="{{ price_range.max }}" step="500" value="{{ price_range.min }}"
                        data-fs-price-min aria-label="Minimum price">
-                <input type="range" min="1000" max="15000" step="500" value="15000"
+                <input type="range" min="{{ price_range.min }}" max="{{ price_range.max }}" step="500" value="{{ price_range.max }}"
                        data-fs-price-max aria-label="Maximum price">
             </div>
             <div class="fs-range__labels">
-                <span data-fs-price-min-label>&#8369;1,000</span>
-                <span data-fs-price-max-label>&#8369;15,000+</span>
+                <span data-fs-price-min-label>&#8369;{{ price_range.min }}</span>
+                <span data-fs-price-max-label>&#8369;{{ price_range.max }}+</span>
             </div>
         </div>
     </section>

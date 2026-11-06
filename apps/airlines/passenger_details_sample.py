@@ -29,9 +29,9 @@ BAGGAGE_OPTIONS = (
 #: Optional travel insurance plans. ``(key, name, price per passenger)``.
 INSURANCE_PLANS = (
     ('none', 'No Insurance', 0),
-    ('basic', 'Basic Plan', 299),
-    ('standard', 'Standard Plan', 499),
-    ('premium', 'Premium Plan', 799),
+    ('basic', 'Basic Protection', 299),
+    ('standard', 'Standard Protection', 499),
+    ('premium', 'Premium Protection', 799),
 )
 
 #: Passenger categories. ``(key, label)`` and the maximum each category allows.

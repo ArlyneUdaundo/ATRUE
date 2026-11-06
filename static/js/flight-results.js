@@ -29,8 +29,8 @@
     const airportData = document.getElementById('fsAirports');
     if (airportData) {
         try {
-            JSON.parse(airportData.textContent).forEach(([code, city, name]) => {
-                airports[code] = { city: city, name: name };
+            JSON.parse(airportData.textContent).forEach(([code, city, name, country]) => {
+                airports[code] = { city: city, name: name, country: country || '' };
             });
         } catch (error) {
             airports = {};
@@ -212,7 +212,9 @@
             }
             qa('[data-fs-pax-step="' + key + '"]').forEach((button) => {
                 const delta = Number(button.dataset.delta);
-                button.disabled = delta < 0 ? paxState[key] <= low : paxState[key] >= high;
+                button.disabled = delta < 0
+                    ? paxState[key] <= low
+                    : paxState[key] >= high || travelers() >= 9;
             });
         });
         if (paxSummary) {
@@ -258,7 +260,7 @@
         });
     }
 
-    const tripType = () => (tripInput ? tripInput.value : 'round');
+    const tripType = () => (tripInput ? tripInput.value : 'oneway');
     const flightType = () => (flightTypeInput ? flightTypeInput.value : 'DOMESTIC');
 
     const paintTags = () => {
@@ -357,6 +359,9 @@
             showSearchError(silent ? '' : 'Choose One Way, Round Trip or Multi-City.');
             return false;
         }
+        if (tripType() === 'multicity') {
+            return true;
+        }
         const { from, to } = currentRoute();
         if (!from || !to) {
             showSearchError(silent ? '' : 'Select both a flying-from and flying-to airport.');
@@ -378,6 +383,75 @@
             return false;
         }
         showSearchError('');
+        return true;
+    };
+
+    const validateDates = (silent) => {
+        if (tripType() === 'multicity') {
+            return true;
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const departure = departInput && departInput.value
+            ? new Date(departInput.value + 'T00:00:00') : null;
+        const returning = returnInput && returnInput.value
+            ? new Date(returnInput.value + 'T00:00:00') : null;
+        if (!departure || Number.isNaN(departure.getTime())) {
+            showSearchError(silent ? '' : 'Select a valid departure date.');
+            return false;
+        }
+        if (departure < today) {
+            showSearchError(silent ? '' : 'Departure date cannot be in the past.');
+            return false;
+        }
+        if (tripType() === 'round') {
+            if (!returning || Number.isNaN(returning.getTime())) {
+                showSearchError(silent ? '' : 'Select a valid return date.');
+                return false;
+            }
+            if (returning < departure) {
+                showSearchError(silent ? '' : 'Return date cannot be before departure.');
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const validateMultiCity = (silent) => {
+        if (tripType() !== 'multicity') {
+            return true;
+        }
+        const rows = legRows();
+        if (rows.length < 2) {
+            showSearchError(silent ? '' : 'A multi-city trip needs at least two flight segments.');
+            return false;
+        }
+        for (let index = 0; index < rows.length; index += 1) {
+            const row = rows[index];
+            const origin = readAirport(q('[data-fs-leg-origin] [data-airport-picker]', row));
+            const destination = readAirport(q('[data-fs-leg-destination] [data-airport-picker]', row));
+            const dateInput = q('[data-fs-leg-depart]', row);
+            if (!origin || !destination) {
+                showSearchError(silent ? '' : 'Select both airports for segment ' + (index + 1) + '.');
+                return false;
+            }
+            if (origin.id === destination.id) {
+                showSearchError(silent ? '' : 'Segment ' + (index + 1) + ' must use different airports.');
+                return false;
+            }
+            const domestic = isDomesticPair(origin, destination);
+            if (domestic !== null && ((flightType() === 'DOMESTIC') !== domestic)) {
+                showSearchError(
+                    silent ? '' : 'Segment ' + (index + 1) + ' does not match the selected '
+                    + flightType().toLowerCase() + ' flight type.'
+                );
+                return false;
+            }
+            if (!dateInput || !dateInput.value) {
+                showSearchError(silent ? '' : 'Select a departure date for segment ' + (index + 1) + '.');
+                return false;
+            }
+        }
         return true;
     };
 
@@ -806,6 +880,7 @@
         'duration-asc': (a, b) => Number(a.dataset.duration) - Number(b.dataset.duration)
             || Number(a.dataset.price) - Number(b.dataset.price),
         'depart-asc': (a, b) => Number(a.dataset.depart) - Number(b.dataset.depart),
+        'depart-desc': (a, b) => Number(b.dataset.depart) - Number(a.dataset.depart),
         'emissions-asc': (a, b) => Number(a.dataset.emissions) - Number(b.dataset.emissions),
     };
 
@@ -818,16 +893,16 @@
     };
 
     const tabForSort = {
-        best: 'best',
-        'price-asc': 'cheapest',
-        'duration-asc': 'fastest',
-        'emissions-asc': 'emissions',
+        'price-asc': 'price-asc',
+        'price-desc': 'price-desc',
+        'depart-asc': 'depart-asc',
+        'depart-desc': 'depart-desc',
     };
     const sortForTab = {
-        best: 'best',
-        cheapest: 'price-asc',
-        fastest: 'duration-asc',
-        emissions: 'emissions-asc',
+        'price-asc': 'price-asc',
+        'price-desc': 'price-desc',
+        'depart-asc': 'depart-asc',
+        'depart-desc': 'depart-desc',
     };
 
     const activateTab = (tabKey) => {
@@ -1071,8 +1146,8 @@
 
     if (searchForm) {
         searchForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-            if (!validateRoute()) {
+            if (!validateRoute() || !validateDates() || !validateMultiCity()) {
+                event.preventDefault();
                 if (searchError) {
                     searchError.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
@@ -1082,15 +1157,9 @@
                 returnInput.value = departInput.value;
             }
             syncDateLabels();
-            resetSelection();
-            paintTags();
-            const { from, to } = currentRoute();
-            if (from && to) {
-                paintRoute();
-            }
-            closePax();
-            applyFilters();
-            scrollToResults();
+            const tripValue = tripType() === 'oneway'
+                ? 'ONE_WAY' : tripType() === 'round' ? 'ROUND_TRIP' : 'MULTI_CITY';
+            tripInput.value = tripValue;
         });
     }
 

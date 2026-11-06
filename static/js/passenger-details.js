@@ -517,12 +517,6 @@
     }
 
     function confirmSeats() {
-        var missing = seatablePassengers().filter(function (p) { return !p.seat; });
-        if (missing.length) {
-            setPanelHint('Please assign a seat to every traveller before confirming. ' +
-                missing.length + ' still need a seat.');
-            return;
-        }
         setPanelHint('');
         closeSeatModal();
         renderSeatSummary();
@@ -573,8 +567,8 @@
         }
         if (hint) {
             var needed = seatablePassengers().length;
-            setText(hint, 'Seats are required for each traveller who occupies a seat (' +
-                needed + ').');
+            setText(hint, 'Seat selection is optional. Choose seats for up to ' + needed + ' traveller' +
+                (needed === 1 ? '' : 's') + '.');
         }
         updateFare();
     }
@@ -623,7 +617,10 @@
         var plan = planByKey(state.insuranceKey);
         if (!plan) { return; }
         var details = plan.details || {};
-        setText($('[data-pd-insurance-summary]'), details.summary || '');
+        var priceNote = Number(plan.price) > 0
+            ? plan.name + ' — ' + money(plan.price) + ' per insured passenger. '
+            : plan.name + ' — no premium. ';
+        setText($('[data-pd-insurance-summary]'), priceNote + (details.summary || ''));
         fillList($('[data-pd-insurance-covers]'), details.covers || []);
         fillList($('[data-pd-insurance-excludes]'), details.excludes || []);
     }
@@ -670,14 +667,6 @@
                 fail(node, 'passport', 'Passport number is required for international flights.'); ok = false;
             }
         });
-
-        // Seats required for every seatable passenger.
-        var missingSeats = seatablePassengers().filter(function (p) { return !p.seat; });
-        if (missingSeats.length) {
-            setErr('seats', 'Assign a seat to every traveller who occupies a seat (' +
-                missingSeats.length + ' remaining).');
-            ok = false;
-        }
 
         if (!state.policyAck) {
             setErr('policy', 'Please acknowledge the cancellation and refund policy.');
@@ -789,11 +778,16 @@
                 return {
                     name: (pax.values && pax.values.full_name || '').trim(),
                     category: pax.category,
-                    seat: pax.seat || ''
+                    seat: pax.seat || '',
+                    details: pax.values || {}
                 };
             }),
+            flight_type: state.flightType,
             baggage_kg: state.baggageKg,
-            insurance_key: state.insuranceKey
+            insurance_key: state.insuranceKey,
+            policy_acknowledged: Boolean(state.policyAck),
+            insurance_terms_acknowledged: Boolean(
+                state.insurancePrice === 0 || $('[data-pd-insurance-ack]').checked)
         };
     }
 
