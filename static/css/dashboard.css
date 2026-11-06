@@ -2371,6 +2371,8 @@ body.flight-booking-modal-open { overflow: hidden; }
 
 .am-identity { display: flex; align-items: center; gap: 16px; min-width: 245px; flex: 1 1 auto; }
 .am-logo { flex: 0 0 auto; width: 64px; height: 56px; border: 1px solid #e5edf7; border-radius: 12px; background: #fff; }
+.am-logo img { width: 100%; height: 100%; padding: 6px; object-fit: contain; }
+.am-logo .am-logo-fallback { color: #6d87a9; font-size: 22px; }
 .am-title-block { min-width: 0; }
 .am-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .am-title-line h2 { margin: 0; color: #122b52; font-size: 20px; font-weight: 750; line-height: 1.2; }
