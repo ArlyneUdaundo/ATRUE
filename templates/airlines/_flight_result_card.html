@@ -3,7 +3,7 @@
     <div class="fcard-head-row">
         <button type="button" class="fcard-summary-toggle" aria-expanded="false" aria-label="Show details for {{ flight.airline.name }} {{ flight.flight_number }}">
             {% with logo=airline_logos|get_item:flight.airline_id %}
-            {% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='fcard-logo' %}
+            {% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='fcard-logo' logo_placeholder='initials' %}
             {% endwith %}
             <span class="fcard-main">
                 <span class="fcard-title">{{ flight.airline.name }}{% if not is_return_card %}{% if 'cheapest' in badges|get_item:flight.id %}<span class="fcard-tag">Cheapest</span>{% endif %}{% if 'best' in badges|get_item:flight.id %}<span class="fcard-tag fcard-tag-best">Best</span>{% endif %}{% endif %}{% if is_round_trip_search %}<span class="fcard-badge badge-blue">{% if is_return_card %}Return flight{% else %}Outbound flight{% endif %}</span>{% endif %}{% if flight.status == 'DELAYED' %}<span class="fcard-badge badge-amber">{{ flight.get_status_display }}</span>{% endif %}</span>
@@ -47,7 +47,7 @@
                 </div>
             </div>
             <aside class="fcard-detail-side">
-                <div class="fcard-detail-airline">{% with logo=airline_logos|get_item:flight.airline_id %}{% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='airline-logo airline-logo--sm' %}{% endwith %}<div><strong>{{ flight.airline.name }}</strong><span>{{ flight.flight_number }} · {% if is_round_trip_search %}{% if is_return_card %}Round-trip return{% else %}Round-trip outbound{% endif %}{% else %}One-way{% endif %}</span></div></div>
+                <div class="fcard-detail-airline">{% with logo=airline_logos|get_item:flight.airline_id %}{% include 'airlines/_airline_logo.html' with airline=flight.airline logo=logo logo_class='airline-logo airline-logo--sm' logo_placeholder='initials' %}{% endwith %}<div><strong>{{ flight.airline.name }}</strong><span>{{ flight.flight_number }} · {% if is_round_trip_search %}{% if is_return_card %}Round-trip return{% else %}Round-trip outbound{% endif %}{% else %}One-way{% endif %}</span></div></div>
                 <div class="fcard-detail-facts">
                     {% if flight.aircraft %}<span><small>Aircraft</small><b>{{ flight.aircraft.model_name }}</b></span>{% endif %}
                     {% if fare_class %}<span><small>Cabin class</small><b>{{ fare_class|cut:"_"|title }}</b></span>{% else %}{% with layout=flight.seat_layout_record %}{% if layout %}<span><small>Cabin class</small><b>{% for cabin in layout.cabins.all %}{{ cabin.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</b></span>{% endif %}{% endwith %}{% endif %}

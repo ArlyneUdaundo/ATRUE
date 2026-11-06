@@ -1613,6 +1613,45 @@ select.fs-control:focus {
     display: none;
 }
 
+/* Use the same logo frame for direct and connecting result cards. */
+.fs-card__airline .fs-logo--airline,
+.fcard-summary-toggle .fcard-logo {
+    display: grid;
+    box-sizing: border-box;
+    width: 76px;
+    height: 48px;
+    min-width: 76px;
+    max-width: 76px;
+    flex: 0 0 76px;
+    place-items: center;
+    overflow: hidden;
+    padding: 4px;
+    border: 1px solid #e2eaf5;
+    border-radius: 10px;
+    background: #fff;
+}
+.fs-card__airline .fs-logo--airline img,
+.fcard-summary-toggle .fcard-logo img {
+    display: block;
+    box-sizing: border-box;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center;
+}
+.fs-logo--placeholder {
+    color: #1d5fbd;
+    background: #f1f6fd !important;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    line-height: 1;
+}
+.fs-logo--placeholder > span { display: block; }
+.fs-logo--lg.fs-logo--placeholder { width: 44px; height: 44px; min-width: 44px; max-width: 44px; flex-basis: 44px; }
+
 .fs-card__point {
     min-width: 0;
 }
