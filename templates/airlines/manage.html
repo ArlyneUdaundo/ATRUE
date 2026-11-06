@@ -28,7 +28,9 @@
 <article class="am-card">
     <header class="am-airline-head">
         <div class="am-identity">
-            {% include 'airlines/_airline_logo.html' with airline=a logo_class='airline-logo airline-logo--md am-logo' %}
+            <span class="airline-logo airline-logo--md am-logo">
+                {% if a.management_logo_url %}<img src="{{ a.management_logo_url }}" alt="{{ a.name }} logo symbol" loading="lazy" decoding="async">{% else %}<i class="fas fa-plane" role="img" aria-label="Airline logo" aria-hidden="true"></i>{% endif %}
+            </span>
             <div class="am-title-block">
                 <div class="am-title-line">
                     <h2>{{ a.name }}</h2>

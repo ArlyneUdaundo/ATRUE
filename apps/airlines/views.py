@@ -18,6 +18,7 @@ from accounts.roles import (
 )
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
@@ -56,6 +57,7 @@ from atrue_core.services import (
 from locations.geonames_service import search_worldwide_places
 
 from . import passenger_details_sample as pd_sample
+from .logo_data import AIRLINE_LOGOS
 
 from .itineraries import (
     DEFAULT_TIMEZONE_FALLBACK as DEFAULT_AIRPORT_TIMEZONE,
@@ -1168,6 +1170,12 @@ def manage(request):
         or 0
     )
     for airline in qs:
+        logo_filename = AIRLINE_LOGOS.get(airline.name)
+        airline.management_logo_url = (
+            f"{settings.STATIC_URL.rstrip('/')}/img/airline-marks/"
+            f"{logo_filename.rsplit('.', 1)[0]}-mark.png"
+            if logo_filename else ''
+        )
         layouts = {
             layout.aircraft_type_id: layout
             for layout in airline.seat_layouts.all()
