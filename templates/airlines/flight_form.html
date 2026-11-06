@@ -3,14 +3,10 @@
 
 {% block title %}{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/flight-classification.css' %}?v=20261106-flight-classification-2">
-{% endblock %}
-
 {% block content %}
 <div class="page-head"><div><h1>{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% if airline %} — {{ airline.name }}{% endif %}</h1><p>Schedule a service. The cabin and seat map are taken from the aircraft you pick.</p></div></div>
 
-<form method="post" class="card card-pad establishment-form-card" style="width:100%;margin:0 auto;max-width:860px" data-submit-loading data-flight-form>
+<form method="post" class="card card-pad establishment-form-card flight-form" style="width:100%;margin:0 auto;max-width:860px" data-modal-title="{% if flight %}Update Flight{% else %}Add Flight{% endif %}" data-submit-loading data-flight-form>
     {% csrf_token %}
 
     {% comment %}1. Flight type first — it decides which of the two forms below is shown.{% endcomment %}
@@ -45,7 +41,7 @@
                 <input type="radio" name="flight_classification" value="DOMESTIC" required
                        {% if flight_classification == 'DOMESTIC' %}checked{% endif %}>
                 <span class="flight-classification-card__body">
-                    <span class="flight-classification-card__icon"><i class="fas fa-map-location-dot"></i></span>
+                    <span class="flight-classification-card__icon"><i class="fas fa-house"></i></span>
                     <span class="flight-classification-card__copy">
                         <span class="flight-classification-card__title">Domestic</span>
                         <span class="flight-classification-card__text">Every airport on the journey is in the same country.</span>
@@ -86,7 +82,8 @@
         </div>
         <input type="hidden" name="airline" value="{{ airline.id }}">
         {% else %}
-        <div style="display:flex;align-items:center;gap:10px">
+        <div class="flight-airline-select" style="display:flex;align-items:center;gap:10px">
+            <i class="fas fa-plane" aria-hidden="true"></i>
             <select name="airline" id="flightAirline" class="form-input" data-airline required style="flex:1">
                 <option value="" data-logo="">Select an airline</option>
                 {% for a in airlines %}<option value="{{ a.id }}" data-logo="{{ a.logo_url }}" {% if airline and a.id == airline.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
@@ -462,12 +459,21 @@
         </div>
     </div><!-- /data-connecting-section -->
 
-    <button type="submit" class="btn btn-brand" style="width:100%;padding:14px;margin-top:10px">Save Flight</button>
+    <section class="flight-refund-note" aria-labelledby="flight-refund-title">
+        <div class="flight-refund-note__icon"><i class="fas fa-circle-info" aria-hidden="true"></i></div>
+        <div>
+            <h3 id="flight-refund-title">Refund Policy</h3>
+            <p>Refund eligibility and cancellation terms depend on the airline and the fare purchased. For connecting itineraries, configure refundable status and cancellation fees above. This form does not add or assume universal refund terms.</p>
+        </div>
+    </section>
+    <div class="flight-form__footer">
+    <button type="submit" class="btn btn-brand"><i class="fas fa-plane" aria-hidden="true"></i> {% if flight %}Save Changes{% else %}Add Flight{% endif %}</button>
     {% if airline %}
-    <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+    <a href="{% url 'airlines:airline_detail' airline.id %}" class="btn btn-outline">Cancel</a>
     {% else %}
-    <a href="{% url 'airlines:flights' %}" class="btn btn-outline" style="width:100%;margin-top:10px">Cancel</a>
+    <a href="{% url 'airlines:flights' %}" class="btn btn-outline">Cancel</a>
     {% endif %}
+    </div>
 </form>
 <script data-establishment-modal-init>
 (function () {

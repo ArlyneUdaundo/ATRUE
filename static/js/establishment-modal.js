@@ -78,29 +78,18 @@
         if (heading && !sourceForm.matches('[data-flight-form], [data-agency-form], [data-account-create-form], [data-tour-package-form], [data-service-form], [data-amenity-form], [data-resort-form], [data-staycation-form], [data-restaurant-form], [data-landmark-form], [data-activity-form]') && !heading.classList.contains('room-form-page-head') && !heading.classList.contains('unit-form-page-head') && !heading.classList.contains('hotel-form-page-head') && !heading.classList.contains('session-form-page-head')) body.appendChild(heading.cloneNode(true));
         var form = sourceForm.cloneNode(true);
         body.appendChild(form);
+        modal.classList.toggle('establishment-modal--flight', form.matches('[data-flight-form]'));
         var title = sourceForm.dataset.modalTitle || (heading && heading.querySelector('h1') && heading.querySelector('h1').textContent.trim());
         if (title) modal.querySelector('#establishmentModalTitle').textContent = title;
         var modalLogo = modal.querySelector('[data-establishment-modal-logo]');
         if (modalLogo) {
             modalLogo.replaceChildren();
             if (form.matches('[data-flight-form]')) {
-                var airlineLogo = sourceForm.querySelector('.airline-logo');
-                var logoUrl = airlineLogo && airlineLogo.querySelector('img') && airlineLogo.querySelector('img').getAttribute('src');
-                var airlineSelect = sourceForm.querySelector('[data-airline]');
-                if (!logoUrl && airlineSelect && airlineSelect.selectedOptions.length) {
-                    logoUrl = airlineSelect.selectedOptions[0].getAttribute('data-logo');
-                }
-                if (logoUrl) {
-                    var logo = document.createElement('span');
-                    logo.className = 'airline-logo';
-                    var image = document.createElement('img');
-                    image.src = logoUrl;
-                    image.alt = (airlineLogo && airlineLogo.getAttribute('aria-label')) || 'Airline logo';
-                    logo.appendChild(image);
-                    modalLogo.appendChild(logo);
-                } else if (airlineLogo) {
-                    modalLogo.appendChild(airlineLogo.cloneNode(true));
-                }
+                var flightIcon = document.createElement('span');
+                flightIcon.className = 'flight-modal-icon';
+                flightIcon.setAttribute('aria-hidden', 'true');
+                flightIcon.innerHTML = '<i class="fas fa-plane"></i>';
+                modalLogo.appendChild(flightIcon);
             }
         }
         prepareForm(form, url);
