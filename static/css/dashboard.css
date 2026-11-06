@@ -813,7 +813,7 @@ form.card { width: 100%; max-width: 780px; margin: 0 auto; }
 }
 .fcard.is-open .fcard-chev { transform: rotate(-135deg) translate(-3px, -3px); }
 
-.fcard-body { border-top: 1px solid var(--slate-100); background: var(--slate-50); }
+.fcard-body { overflow: hidden; border-top: 1px solid var(--slate-100); background: var(--slate-50); }
 .fcard-detail { padding: 16px 18px; }
 .fcard-facts {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -880,8 +880,8 @@ form.card { width: 100%; max-width: 780px; margin: 0 auto; }
 .flight-journey-section > h3 span { color: var(--slate-500); font-size: 12px; font-weight: 500; }
 .flight-return-section { margin-top: 22px; }
 .flight-return-section[hidden], .flight-trip-selection[hidden], .fcard-return-option[hidden] { display: none !important; }
-.fcard-head-row { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 20px; min-height: 180px; padding: 22px 24px; }
-.fcard-summary-toggle { display: grid; grid-template-columns: 104px minmax(160px, 1.35fr) minmax(56px, .55fr) minmax(64px, .55fr) minmax(110px, .9fr) minmax(56px, .55fr) minmax(64px, .55fr) minmax(84px, .65fr) 12px; grid-template-areas: "logo main origin depart duration dest arrive price chev"; align-items: center; gap: 16px; width: 100%; min-width: 0; padding: 12px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fcard-head-row { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 180px; padding: 22px 24px; }
+.fcard-summary-toggle { display: grid; grid-template-columns: 104px minmax(160px, 1.35fr) minmax(56px, .55fr) minmax(64px, .55fr) minmax(110px, .9fr) minmax(56px, .55fr) minmax(64px, .55fr) minmax(84px, .65fr); grid-template-areas: "logo main origin depart duration dest arrive price"; align-items: center; gap: 16px; width: 100%; min-width: 0; padding: 12px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; }
 .fcard-summary-toggle .fcard-logo { width: 104px; height: 56px; border-radius: 12px; }
 .fcard-summary-toggle .fcard-title { font-size: 16px; }
 .fcard-head-row > .fcard-select { min-height: 46px; font-size: 15px; }
@@ -893,8 +893,9 @@ form.card { width: 100%; max-width: 780px; margin: 0 auto; }
 .fcard-summary-toggle .fcard-stop-end { grid-area: dest; }
 .fcard-summary-toggle .fcard-mid-end { grid-area: arrive; }
 .fcard-summary-toggle .fcard-price { grid-area: price; }
-.fcard-summary-toggle .fcard-chev { grid-area: chev; }
+.fcard-summary-toggle .fcard-chev { display: none; }
 .fcard-select { min-width: 112px; justify-content: center; white-space: nowrap; }
+.fcard-details-toggle { gap: 7px; }
 .fcard-sold-out { justify-self: end; }
 .fcard-select:disabled { opacity: .55; cursor: not-allowed; }
 .fcard.is-selected { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.1); }
@@ -936,13 +937,13 @@ body.flight-booking-modal-open { overflow: hidden; }
 .transport-booking-modal .flight-booking-modal__panel { width: min(1080px, 100%); height: min(880px, 92vh); }
 @media (max-width: 1080px) {
     .fcard-head-row { grid-template-columns: minmax(0, 1fr); }
-    .fcard-summary-toggle { grid-template-columns: 88px minmax(120px, 1fr) minmax(62px, .6fr) 70px minmax(84px, .7fr) minmax(62px, .6fr) 70px auto 12px; gap: 10px; }
+    .fcard-summary-toggle { grid-template-columns: 88px minmax(120px, 1fr) minmax(62px, .6fr) 70px minmax(84px, .7fr) minmax(62px, .6fr) 70px auto; gap: 10px; }
     .fcard-summary-toggle .fcard-logo { width: 88px; height: 48px; }
     .fcard-head-row { min-height: 164px; padding: 18px; }
     .fcard-head-row > .fcard-select { justify-self: end; width: auto; margin-right: 8px; }
 }
 @media (max-width: 760px) {
-    .fcard-summary-toggle { grid-template-columns: 76px minmax(0, 1fr) 70px 12px; grid-template-areas: "logo main price chev" "logo origin duration dest" "logo depart duration arrive"; column-gap: 10px; row-gap: 8px; }
+    .fcard-summary-toggle { grid-template-columns: 76px minmax(0, 1fr) 70px; grid-template-areas: "logo main price" "logo origin duration" "logo depart duration" "logo dest dest" "logo arrive arrive"; column-gap: 10px; row-gap: 8px; }
     .fcard-summary-toggle .fcard-logo { width: 76px; height: 44px; }
     .fcard-head-row { min-height: 170px; padding: 16px; gap: 12px; }
     .fcard-summary-toggle .fcard-mid { align-items: flex-start; text-align: left; }
@@ -954,7 +955,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .fcard-detail-side { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--slate-200); }
 }
 @media (max-width: 460px) {
-    .fcard-summary-toggle { grid-template-columns: 40px minmax(0, 1fr) 12px; grid-template-areas: "logo main chev" "logo origin price" "logo depart price" "logo duration duration" "logo dest dest" "logo arrive arrive"; }
+    .fcard-summary-toggle { grid-template-columns: 68px minmax(0, 1fr); grid-template-areas: "logo main" "logo origin" "logo depart" "logo duration" "logo dest" "logo arrive"; }
     .fcard-summary-toggle .fcard-logo { width: 68px; height: 40px; }
     .fcard-summary-toggle .fcard-stop-end, .fcard-summary-toggle .fcard-mid-end { align-items: flex-start; text-align: left; }
     .fcard-summary-toggle .fcard-price { align-items: flex-end; }

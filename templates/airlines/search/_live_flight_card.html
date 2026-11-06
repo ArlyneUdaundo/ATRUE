@@ -55,6 +55,10 @@
             <span class="fs-card__amount">&#8369;{{ flight.search_fare|floatformat:2 }}</span>
             <span class="fs-card__per">per person</span>
             <div class="fs-card__actions">
+                <button type="button" class="fs-card__chevron" data-fs-toggle aria-expanded="false" aria-controls="flight-{{ flight.pk }}-details" aria-label="View details for {{ flight.airline.name }} flight {{ flight.flight_number }}">
+                    <i class="fas fa-chevron-down" data-fs-toggle-icon aria-hidden="true"></i>
+                    <span data-fs-toggle-label>View Details</span>
+                </button>
                 {% if request.user.is_platform_manager %}
                 <a class="fs-btn fs-btn--outline" href="{% url 'airlines:flight_detail' flight.slug %}">View Flight</a>
                 {% elif request.user.is_airline_booking_restricted %}
@@ -68,7 +72,7 @@
         </div>
     </div>
 
-    <div class="fs-card__details" data-fs-details hidden>
+    <div class="fs-card__details" id="flight-{{ flight.pk }}-details" data-fs-details hidden>
         <div class="fs-details">
             <div class="fs-details__head">
                 {% with logo=airline_logos|get_item:flight.airline_id %}

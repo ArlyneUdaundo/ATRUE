@@ -953,27 +953,52 @@
         }
         if (toggle) {
             toggle.setAttribute('aria-expanded', 'false');
-            toggle.setAttribute('aria-label', 'Show flight details for ' + (card.dataset.flight || 'this flight'));
+            toggle.setAttribute('aria-label', 'View details for ' + (card.dataset.flight || 'this flight'));
+            const label = q('[data-fs-toggle-label]', toggle);
+            const icon = q('[data-fs-toggle-icon]', toggle);
+            if (label) label.textContent = 'View Details';
+            if (icon) icon.className = 'fas fa-chevron-down';
         }
     };
 
     const toggleCard = (card, expand) => {
         const details = q('[data-fs-details]', card);
         const toggle = q('[data-fs-toggle]', card);
-        const open = typeof expand === 'boolean' ? expand : details.hidden;
-        cards.forEach((other) => {
-            if (other !== card) {
-                collapseCard(other);
-            }
-        });
         if (!details) {
             return;
         }
-        details.hidden = !open;
+        const open = typeof expand === 'boolean' ? expand : details.hidden;
+        details.getAnimations().forEach((animation) => animation.cancel());
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion || typeof details.animate !== 'function') {
+            details.hidden = !open;
+        } else if (open) {
+            details.hidden = false;
+            const height = details.scrollHeight;
+            const animation = details.animate(
+                [{ opacity: 0, maxHeight: '0px' }, { opacity: 1, maxHeight: height + 'px' }],
+                { duration: 200, easing: 'ease-out' }
+            );
+            animation.onfinish = () => { details.style.removeProperty('max-height'); };
+        } else {
+            const height = details.scrollHeight;
+            const animation = details.animate(
+                [{ opacity: 1, maxHeight: height + 'px' }, { opacity: 0, maxHeight: '0px' }],
+                { duration: 160, easing: 'ease-in' }
+            );
+            animation.onfinish = () => {
+                details.hidden = true;
+                details.style.removeProperty('max-height');
+            };
+        }
         card.classList.toggle('is-expanded', open);
         if (toggle) {
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            toggle.setAttribute('aria-label', (open ? 'Hide' : 'Show') + ' flight details for ' + (card.dataset.flight || 'this flight'));
+            toggle.setAttribute('aria-label', (open ? 'Hide' : 'View') + ' details for ' + (card.dataset.flight || 'this flight'));
+            const label = q('[data-fs-toggle-label]', toggle);
+            const icon = q('[data-fs-toggle-icon]', toggle);
+            if (label) label.textContent = open ? 'Hide Details' : 'View Details';
+            if (icon) icon.className = open ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
         }
     };
 

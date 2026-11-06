@@ -1754,7 +1754,8 @@ select.fs-control:focus {
 
 .fs-card__actions {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 6px;
     margin-top: 7px;
 }
@@ -1768,15 +1769,21 @@ select.fs-control:focus {
 }
 
 .fs-card__chevron {
-    display: grid;
-    place-items: center;
-    width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-width: 32px;
     height: 32px;
+    padding: 0 8px;
     border: 1px solid var(--fs-line);
     border-radius: 8px;
     background: #fff;
     color: var(--fs-muted);
-    font-size: 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     transition: background .14s ease, color .14s ease, border-color .14s ease;
 }
@@ -1805,6 +1812,7 @@ select.fs-control:focus {
     border-top: 1px solid #e3eaf7;
     padding: 14px 18px 16px;
     background: #f9fbff;
+    overflow: hidden;
 }
 
 .fs-card__details-grid {
