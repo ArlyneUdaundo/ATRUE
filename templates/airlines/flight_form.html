@@ -4,7 +4,7 @@
 {% block title %}{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/flight-classification.css' %}?v=20261106-flight-classification-1">
+<link rel="stylesheet" href="{% static 'css/flight-classification.css' %}?v=20261106-flight-classification-2">
 {% endblock %}
 
 {% block content %}
@@ -51,7 +51,7 @@
                         <span class="flight-classification-card__text">Every airport on the journey is in the same country.</span>
                         <span class="flight-classification-card__example">e.g. Manila → Cebu</span>
                     </span>
-                    <span class="flight-classification-card__check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                    <span class="flight-classification-card__radio" aria-hidden="true"></span>
                 </span>
             </label>
             <label class="flight-classification-card">
@@ -64,11 +64,15 @@
                         <span class="flight-classification-card__text">At least one airport is in another country.</span>
                         <span class="flight-classification-card__example">e.g. Manila → Singapore</span>
                     </span>
-                    <span class="flight-classification-card__check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                    <span class="flight-classification-card__radio" aria-hidden="true"></span>
                 </span>
             </label>
         </div>
-        <span class="flight-classification__hint">This is checked against every airport on the route when you save.</span>
+        <div class="flight-classification__route" data-route-scope-status role="status" aria-live="polite">
+            <i class="fas fa-circle-info" aria-hidden="true"></i>
+            <span data-route-scope-message>Select route airports to check the country classification.</span>
+        </div>
+        <span class="flight-classification__hint">Choose a classification. A mismatch with the selected airports will be rejected when you save.</span>
     </fieldset>
 
     {% comment %}3. Airline — predefined, never created here. Shared by both forms:
@@ -816,7 +820,50 @@
     }
 
     typeRadios.forEach(function (radio) { radio.addEventListener('change', syncFlightType); });
+    var scopeStatus = form.querySelector('[data-route-scope-status]');
+    var scopeMessage = scopeStatus && scopeStatus.querySelector('[data-route-scope-message]');
+    function updateRouteScopePreview() {
+        if (!scopeMessage) return;
+        var flightType = form.querySelector('input[name="flight_type"]:checked');
+        var connecting = flightType && flightType.value === 'CONNECTING';
+        var airportFields = connecting && segmentList
+            ? Array.prototype.slice.call(segmentList.querySelectorAll('[data-airport-value]'))
+            : Array.prototype.slice.call(directSection.querySelectorAll('[data-airport-value]'));
+        var chosen = airportFields.filter(function (field) { return field.value; });
+        var countries = chosen.map(function (field) {
+            return (field.dataset.airportCountryCode || field.dataset.airportCountry || '')
+                .trim().toLowerCase();
+        });
+        var actual = '';
+        if (chosen.length >= 2 && countries.every(Boolean)) {
+            actual = countries.every(function (country) { return country === countries[0]; })
+                ? 'DOMESTIC' : 'INTERNATIONAL';
+        }
+        scopeStatus.classList.remove('is-domestic', 'is-international', 'is-mismatch');
+        var selected = form.querySelector('input[name="flight_classification"]:checked');
+        if (!actual) {
+            scopeMessage.textContent = 'Select route airports to check the country classification.';
+            return;
+        }
+        var label = actual === 'DOMESTIC' ? 'Domestic' : 'International';
+        scopeStatus.classList.add(actual === 'DOMESTIC' ? 'is-domestic' : 'is-international');
+        if (selected && selected.value !== actual) {
+            scopeStatus.classList.add('is-mismatch');
+            scopeMessage.textContent = 'Route check: ' + label + '. Your selected classification does not match.';
+            return;
+        }
+        scopeMessage.textContent = 'Route check: ' + label + ' based on the selected airport countries.';
+    }
+    form.addEventListener('change', function (event) {
+        if (event.target.matches('[data-airport-value], input[name="flight_classification"], input[name="flight_type"]')) {
+            updateRouteScopePreview();
+        }
+    });
+    form.querySelectorAll('input[name="flight_classification"]').forEach(function (radio) {
+        radio.addEventListener('change', updateRouteScopePreview);
+    });
     syncFlightType();
+    updateRouteScopePreview();
     syncAircraft('outbound');
     syncAircraft('return');
     validateReturnDates();

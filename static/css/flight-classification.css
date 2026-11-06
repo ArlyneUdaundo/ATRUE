@@ -120,25 +120,38 @@
     font-weight: 600;
 }
 
-.flight-classification-card__check {
+.flight-classification-card__radio {
     position: absolute;
     top: 14px;
     right: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    box-sizing: border-box;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    background: #fff;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.flight-classification-card__radio::after {
+    content: "";
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #2563eb;
-    color: #fff;
-    font-size: 11px;
     opacity: 0;
-    transform: scale(0.75);
+    transform: scale(.6);
     transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.flight-classification-card input:checked + .flight-classification-card__body .flight-classification-card__check {
+.flight-classification-card input:checked + .flight-classification-card__body .flight-classification-card__radio {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.flight-classification-card input:checked + .flight-classification-card__body .flight-classification-card__radio::after {
     opacity: 1;
     transform: scale(1);
 }
@@ -149,6 +162,28 @@
     color: #7a8aa0;
     font-size: 11.5px;
 }
+
+.flight-classification__route {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-top: 14px;
+    padding: 11px 13px;
+    border: 1px solid #dbe5f2;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #52637a;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.flight-classification__route i { margin-top: 1px; color: #64748b; }
+.flight-classification__route.is-domestic,
+.flight-classification__route.is-international { border-color: #bfdbfe; background: #eff6ff; color: #1e3a8a; }
+.flight-classification__route.is-domestic i,
+.flight-classification__route.is-international i { color: #2563eb; }
+.flight-classification__route.is-mismatch { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.flight-classification__route.is-mismatch i { color: #dc2626; }
 
 @media (max-width: 640px) {
     .flight-classification__options {
