@@ -1148,8 +1148,9 @@ def flight_list(request):
 @manager_required
 def manage(request):
     qs = Airline.objects.prefetch_related(
-        'photos', 'aircrafts__aircraft_type__manufacturer', 'services', 'flights',
-        'fleet_entries__aircraft_type__manufacturer')
+        'photos', 'aircrafts__aircraft_type__manufacturer', 'services',
+        'flights__origin_airport', 'flights__destination_airport',
+        'fleet_entries__aircraft_type__manufacturer', 'seat_layouts')
     airline_ids = _assigned_airline_ids_for_management(request)
     if airline_ids is not None:
         qs = qs.filter(pk__in=airline_ids)
@@ -1159,6 +1160,32 @@ def manage(request):
         qs = qs.filter(Q(airline_id__icontains=q) | Q(name__icontains=q))
     if status:
         qs = qs.filter(status=status)
+    top_flight_count = (
+        Airline.objects.annotate(managed_flight_count=Count('flights'))
+        .order_by('-managed_flight_count')
+        .values_list('managed_flight_count', flat=True)
+        .first()
+        or 0
+    )
+    for airline in qs:
+        layouts = {
+            layout.aircraft_type_id: layout
+            for layout in airline.seat_layouts.all()
+        }
+        airline.management_models = [
+            (entry, layouts.get(entry.aircraft_type_id))
+            for entry in airline.fleet_entries.all()
+        ]
+        airline.is_top_airline = (
+            top_flight_count > 0 and airline.flights.count() == top_flight_count
+        )
+        airline.has_international_routes = any(
+            (flight.origin_airport.country if flight.origin_airport_id else flight.origin_country)
+            and (flight.destination_airport.country if flight.destination_airport_id else flight.destination_country)
+            and (flight.origin_airport.country if flight.origin_airport_id else flight.origin_country)
+                != (flight.destination_airport.country if flight.destination_airport_id else flight.destination_country)
+            for flight in airline.flights.all()
+        )
     return render(request, 'airlines/manage.html', {
         'airlines': qs,
         'q': q,

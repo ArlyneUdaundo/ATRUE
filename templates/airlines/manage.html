@@ -1,5 +1,4 @@
 {% extends 'dashboard_base.html' %}
-
 {% block title %}Airline Management{% endblock %}
 
 {% block content %}
@@ -7,7 +6,7 @@
     <div><h1>Airline Management</h1><p>Create, update and manage airlines, aircraft, services and flights.</p></div>
 </div>
 
-<form method="get" class="card card-pad" style="margin-bottom:18px">
+<form method="get" class="card card-pad am-filter">
     <div class="form-grid">
         <div class="form-group"><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Airline ID or name"></div>
         <div class="form-group">
@@ -16,89 +15,129 @@
                 <option value="">All statuses</option>
                 <option value="ACTIVE" {% if status == 'ACTIVE' %}selected{% endif %}>Active</option>
                 <option value="INACTIVE" {% if status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                <option value="SUSPENDED" {% if status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                <option value="UNDER_MAINTENANCE" {% if status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
             </select>
         </div>
     </div>
-    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
+    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search" aria-hidden="true"></i> Filter</button>
 </form>
 
+<div class="am-list">
 {% for a in airlines %}
-<div class="card card-pad" style="margin-bottom:18px">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        {% include 'airlines/_airline_logo.html' with airline=a logo_class='airline-logo airline-logo--md' %}
-        <div style="flex:1">
-            <h3 style="margin:0">{{ a.name }} <span class="badge badge-blue" style="font-size:12px">{{ a.airline_id }}</span></h3>
-            <div class="meta"><i class="fas fa-plane"></i> {{ a.aircrafts.count }} aircraft · {{ a.flights.count }} flights · {{ a.services.count }} services</div>
-        </div>
-        <span class="badge {% if a.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ a.get_status_display }}</span>
-        <a href="{% url 'airlines:airline_detail' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
-        <a href="{% url 'airlines:update_airline' a.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Edit</a>
-        <a href="{% url 'airlines:add_aircraft' a.id %}" class="btn btn-brand btn-sm"><i class="fas fa-plane-arrival"></i> Aircraft</a>
-        <a href="{% url 'airlines:add_service' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-concierge-bell"></i> Service</a>
-        <a href="{% url 'airlines:add_flight' a.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-fighter-jet"></i> Add Flight</a>
-    </div>
-
-    <div class="grid-2" style="margin-top:16px">
-        <div>
-            <h4 style="margin-bottom:8px"><i class="fas fa-plane-arrival"></i> Aircraft</h4>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead><tr><th>Aircraft ID</th><th>Model</th><th>Tail No.</th><th>Seats</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        {% for ac in a.aircrafts.all %}
-                        <tr>
-                            <td class="mono">{{ ac.aircraft_id }}</td>
-                            <td>{{ ac.model_name }}</td><td class="mono">{{ ac.tail_number }}</td><td>{{ ac.seating_capacity }}</td><td>{{ ac.get_status_display }}</td>
-                            <td><a href="{% url 'airlines:aircraft_detail' ac.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_aircraft' ac.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
-                        </tr>
-                        {% empty %}<tr><td colspan="6">No aircraft.</td></tr>{% endfor %}
-                    </tbody>
-                </table>
+<article class="am-card">
+    <header class="am-airline-head">
+        <div class="am-identity">
+            {% include 'airlines/_airline_logo.html' with airline=a logo_class='airline-logo airline-logo--md am-logo' %}
+            <div class="am-title-block">
+                <div class="am-title-line">
+                    <h2>{{ a.name }}</h2>
+                    <span class="am-status {% if a.status == 'ACTIVE' %}is-active{% else %}is-other{% endif %}"><i></i>{{ a.get_status_display }}</span>
+                </div>
+                <div class="am-meta">
+                    <span class="am-code">{{ a.airline_id }}</span>
+                    {% if a.has_international_routes %}<span><i class="fas fa-globe" aria-hidden="true"></i> International</span>{% endif %}
+                    <span><i class="fas fa-plane" aria-hidden="true"></i> {{ a.flights.count }} flights</span>
+                    <span><i class="fas fa-plane" aria-hidden="true"></i> {{ a.aircrafts.count }} aircraft</span>
+                    {% if a.is_top_airline %}<span class="am-top-label"><i class="fas fa-star" aria-hidden="true"></i> Top Airline</span>{% endif %}
+                </div>
             </div>
         </div>
-        <div>
-            <h4 style="margin-bottom:8px"><i class="fas fa-concierge-bell"></i> Services</h4>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead><tr><th>Service ID</th><th>Service</th><th>Rate</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                        {% for s in a.services.all %}
-                        <tr>
-                            <td class="mono">{{ s.service_id }}</td>
-                            <td>{{ s.name }}</td><td>₱ {{ s.rate }}</td><td>{{ s.get_status_display }}</td>
-                            <td><a href="{% url 'airlines:service_detail' s.id %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_service' s.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
-                        </tr>
-                        {% empty %}<tr><td colspan="5">No services.</td></tr>{% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="am-actions">
+            <form method="post" action="{% url 'airlines:update_airline' a.id %}" class="am-status-form">
+                {% csrf_token %}
+                <label class="sr-only" for="airline-status-{{ a.id }}">Change {{ a.name }} status</label>
+                <select id="airline-status-{{ a.id }}" name="status" aria-label="Change {{ a.name }} status" onchange="this.form.submit()">
+                    <option value="ACTIVE" {% if a.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                    <option value="INACTIVE" {% if a.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                    <option value="SUSPENDED" {% if a.status == 'SUSPENDED' %}selected{% endif %}>Suspended</option>
+                    <option value="UNDER_MAINTENANCE" {% if a.status == 'UNDER_MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+                </select>
+            </form>
+            <a href="{% url 'airlines:airline_detail' a.id %}" class="am-button"><i class="fas fa-eye" aria-hidden="true"></i> View</a>
+            <a href="{% url 'airlines:update_airline' a.id %}" class="am-button" data-establishment-create><i class="fas fa-pen" aria-hidden="true"></i> Edit</a>
+            <a href="{% url 'simulation:assign' %}" class="am-button am-button-primary"><i class="fas fa-user-plus" aria-hidden="true"></i> Assign</a>
+            <a href="{% url 'airlines:add_service' a.id %}" class="am-button"><i class="fas fa-concierge-bell" aria-hidden="true"></i> Service</a>
+            <a href="{% url 'airlines:airline_fleet' a.id %}" class="am-button" aria-label="Manage {{ a.name }} settings"><i class="fas fa-sliders-h" aria-hidden="true"></i> Settings</a>
         </div>
-    </div>
+    </header>
 
-    {% if a.flights.all %}
-    <h4 style="margin-top:16px"><i class="fas fa-fighter-jet"></i> Flights</h4>
-    <div class="table-wrap">
-        <table class="table">
-            <thead><tr><th>Flight</th><th>Aircraft</th><th>Route</th><th>Departure</th><th>Economy</th><th>First Class</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-                {% for f in a.flights.all %}
-                <tr>
-                    <td><b>{{ f.flight_number }}</b></td>
-                    <td class="mono">{% if f.aircraft %}{{ f.aircraft.tail_number }}{% else %}—{% endif %}</td>
-                    <td>{{ f.origin }} → {{ f.destination }}</td>
-                    <td>{{ f.departure_time|date:"M d, H:i" }}</td>
-                    <td>₱ {{ f.economy_fare }}</td>
-                    <td>₱ {{ f.first_class_fare }}</td>
-                    <td>{{ f.get_status_display }}</td>
-                    <td><a href="{% url 'airlines:flight_detail' f.slug %}" class="btn btn-ghost btn-sm">View</a> <a href="{% url 'airlines:update_flight' f.id %}" class="btn btn-ghost btn-sm" data-establishment-create>Edit</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
-</div>
+    <section class="am-section" aria-labelledby="aircraft-heading-{{ a.id }}">
+        <div class="am-section-head">
+            <h3 id="aircraft-heading-{{ a.id }}"><i class="fas fa-plane" aria-hidden="true"></i> Aircraft</h3>
+            <a href="{% url 'airlines:add_aircraft' a.id %}" class="am-section-action"><i class="fas fa-plus" aria-hidden="true"></i> Add aircraft</a>
+        </div>
+        <div class="am-table-scroll">
+            <table class="am-table">
+                <thead><tr><th>#</th><th>AIRCRAFT ID</th><th>MODEL</th><th>TAIL NO.</th><th>SEATS</th><th>STATUS</th></tr></thead>
+                <tbody>
+                    {% for ac in a.aircrafts.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="am-mono">{{ ac.aircraft_id }}</td>
+                        <td>{{ ac.model_name }}</td>
+                        <td class="am-mono">{{ ac.tail_number }}</td>
+                        <td>{{ ac.seating_capacity }}</td>
+                        <td><span class="am-status-pill {% if ac.status == 'AVAILABLE' %}is-active{% else %}is-other{% endif %}"><i></i>{{ ac.get_status_display }}</span></td>
+                    </tr>
+                    {% empty %}<tr><td colspan="6" class="am-empty">No aircraft registered for this airline.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="am-section" aria-labelledby="models-heading-{{ a.id }}">
+        <div class="am-section-head">
+            <h3 id="models-heading-{{ a.id }}"><i class="fas fa-chair" aria-hidden="true"></i> Models</h3>
+            <a href="{% url 'airlines:airline_fleet' a.id %}" class="am-section-action"><i class="fas fa-sliders-h" aria-hidden="true"></i> Manage models</a>
+        </div>
+        <div class="am-table-scroll">
+            <table class="am-table">
+                <thead><tr><th>#</th><th>MODEL ID</th><th>MODEL NAME</th><th>CAPACITY</th><th>CONFIGURATION</th><th>STATUS</th></tr></thead>
+                <tbody>
+                    {% for entry, layout in a.management_models %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="am-mono">{{ entry.aircraft_type.id }}</td>
+                        <td>{{ entry.aircraft_type.label }}</td>
+                        <td>{% if layout %}{{ layout.total_capacity }}{% else %}{{ entry.aircraft_type.typical_capacity }}{% endif %}</td>
+                        <td>{% if layout and layout.seat_map %}{{ layout.seat_map }}{% else %}<span class="am-muted">Not configured</span>{% endif %}</td>
+                        <td><span class="am-status-pill {% if entry.is_active and entry.aircraft_type.is_active %}is-active{% else %}is-other{% endif %}"><i></i>{% if entry.is_active and entry.aircraft_type.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                    </tr>
+                    {% empty %}<tr><td colspan="6" class="am-empty">No aircraft models in this airline's fleet.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="am-section" aria-labelledby="routes-heading-{{ a.id }}">
+        <div class="am-section-head">
+            <h3 id="routes-heading-{{ a.id }}"><i class="fas fa-route" aria-hidden="true"></i> Routes</h3>
+            <a href="{% url 'airlines:add_flight' a.id %}" class="am-section-action"><i class="fas fa-plus" aria-hidden="true"></i> Add flight</a>
+        </div>
+        <div class="am-table-scroll">
+            <table class="am-table am-route-table">
+                <thead><tr><th>#</th><th>ROUTE ID</th><th>FROM</th><th>TO</th><th>DEPARTURE TIME</th><th>ARRIVAL TIME</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                <tbody>
+                    {% for f in a.flights.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="am-mono">{{ f.flight_number|default:f.id }}</td>
+                        <td>{{ f.origin_airport.code|default:f.origin_code|default:f.origin }}</td>
+                        <td>{{ f.destination_airport.code|default:f.destination_code|default:f.destination }}</td>
+                        <td><time datetime="{{ f.departure_time|date:'c' }}">{{ f.departure_time|date:"M d, Y · H:i" }}</time></td>
+                        <td><time datetime="{{ f.arrival_time|date:'c' }}">{{ f.arrival_time|date:"M d, Y · H:i" }}</time></td>
+                        <td><span class="am-status-pill {% if f.status == 'SCHEDULED' %}is-active{% elif f.status == 'DELAYED' %}is-warning{% else %}is-other{% endif %}"><i></i>{{ f.get_status_display }}</span></td>
+                        <td><div class="am-row-actions"><a href="{% url 'airlines:flight_detail' f.slug %}" class="am-row-button" aria-label="View {{ f.flight_number }}"><i class="fas fa-eye" aria-hidden="true"></i> View</a><a href="{% url 'airlines:update_flight' f.id %}" class="am-row-button" data-establishment-create aria-label="Edit {{ f.flight_number }}"><i class="fas fa-pen" aria-hidden="true"></i> Edit</a></div></td>
+                    </tr>
+                    {% empty %}<tr><td colspan="8" class="am-empty">No routes scheduled for this airline.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</article>
 {% empty %}
-<div class="card"><div class="empty"><i class="fas fa-plane"></i><h3>No airlines yet</h3><p>Add your first airline to begin.</p></div></div>
+<div class="card"><div class="empty"><i class="fas fa-plane" aria-hidden="true"></i><h3>No airlines yet</h3><p>Add your first airline to begin.</p></div></div>
 {% endfor %}
+</div>
 {% endblock %}
