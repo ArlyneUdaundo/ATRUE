@@ -152,11 +152,48 @@ def airports_api(request):
         return JsonResponse({'results': [_serialize_airport(airport)]})
 
     if q:
+        # A one-character prefix is too broad to be useful and can make the
+        # contains lookup scan most of the worldwide airport table.
+        if len(q) < 2:
+            return JsonResponse({'results': []})
+        code_query = q.upper()
+        exact_codes = qs.filter(
+            Q(iata_code=code_query) | Q(icao_code=code_query)
+        ).annotate(exact=Case(
+            When(iata_code=code_query, then=Value(1)),
+            When(icao_code=code_query, then=Value(2)),
+            default=Value(3), output_field=IntegerField(),
+        )).order_by('exact', 'airport_name')[:30]
+        exact_code_results = list(exact_codes)
+        if exact_code_results:
+            return JsonResponse({'results': [_serialize_airport(a) for a in exact_code_results]})
+
+        prefix_matches = (
+            Q(iata_code__startswith=code_query) | Q(icao_code__startswith=code_query)
+            | Q(airport_name__istartswith=q) | Q(city__istartswith=q)
+            | Q(country__istartswith=q)
+        )
+        prefix_results = list(qs.filter(prefix_matches).annotate(match_rank=Case(
+            When(iata_code__startswith=code_query, then=Value(1)),
+            When(icao_code__startswith=code_query, then=Value(2)),
+            When(airport_name__istartswith=q, then=Value(3)),
+            When(city__istartswith=q, then=Value(4)),
+            default=Value(5), output_field=IntegerField(),
+        )).order_by('match_rank', 'airport_name')[:30])
+        if prefix_results:
+            return JsonResponse({'results': [_serialize_airport(a) for a in prefix_results]})
+
         airport_matches = (
-            Q(iata_code__iexact=q) | Q(icao_code__iexact=q)
-            | Q(airport_name__icontains=q) | Q(city__icontains=q)
+            Q(airport_name__icontains=q) | Q(city__icontains=q)
             | Q(address__icontains=q) | Q(country__icontains=q) | Q(region__icontains=q)
         )
+        direct_results = list(qs.filter(airport_matches).order_by('airport_name')[:30])
+        if direct_results:
+            return JsonResponse({'results': [_serialize_airport(a) for a in direct_results]})
+
+        # GeoNames is useful for accent and alias variants (for example,
+        # "Sao Paulo" matching an airport whose city is "São Paulo"), but is
+        # unnecessary for ordinary airport names, cities and IATA codes.
         for place in search_worldwide_places(q, limit=30):
             if place['level'] == 'city':
                 airport_matches |= Q(

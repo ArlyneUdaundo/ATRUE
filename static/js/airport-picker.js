@@ -61,19 +61,26 @@
                 results.forEach(function (airport) {
                     var item = document.createElement('li');
                     var button = document.createElement('button');
+                    var copy = document.createElement('span');
                     var name = document.createElement('span');
                     var details = document.createElement('span');
                     var code = airport.iata || airport.icao || '';
+                    var codeBadge = document.createElement('span');
                     button.type = 'button';
                     button.className = 'atrue-airport-item';
                     button.setAttribute('role', 'option');
                     button.setAttribute('aria-selected', 'false');
+                    copy.className = 'atrue-airport-item-txt';
                     name.className = 'atrue-airport-item-name';
                     name.textContent = airport.name || '';
                     details.className = 'atrue-airport-item-sub';
-                    details.textContent = [code, airport.city, airport.address, airport.region, airport.country].filter(Boolean).join(' · ');
-                    button.appendChild(name);
-                    button.appendChild(details);
+                    details.textContent = [airport.city, airport.address, airport.region, airport.country].filter(Boolean).join(' · ');
+                    codeBadge.className = 'atrue-airport-item-code';
+                    codeBadge.textContent = airport.iata ? 'IATA ' + airport.iata : (airport.icao ? 'ICAO ' + airport.icao : '');
+                    copy.appendChild(name);
+                    copy.appendChild(details);
+                    button.appendChild(copy);
+                    if (codeBadge.textContent) button.appendChild(codeBadge);
                     button.addEventListener('click', function () {
                         if (hidden) {
                             hidden.value = airport.id;
@@ -137,6 +144,11 @@
                 if (request) request.abort();
                 var query = input.value.trim();
                 if (!query) {
+                    list.innerHTML = '';
+                    empty.hidden = true;
+                    return;
+                }
+                if (query.length < 2) {
                     list.innerHTML = '';
                     empty.hidden = true;
                     return;
