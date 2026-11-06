@@ -89,6 +89,16 @@
             <span class="pd-field__hint" data-pd-passport-hint>Required for international flights.</span>
             <span class="pd-field__err" data-pd-err="passport" role="alert"></span>
         </label>
+        <label class="pd-field" data-pd-passport-country hidden>
+            <span class="pd-field__label">Passport issuing country <span class="pd-req">*</span></span>
+            <input type="text" data-pd-field="passport_country" autocomplete="country-name" aria-required="false">
+            <span class="pd-field__err" data-pd-err="passport_country" role="alert"></span>
+        </label>
+        <label class="pd-field" data-pd-passport-expiry hidden>
+            <span class="pd-field__label">Passport expiry date <span class="pd-req">*</span></span>
+            <input type="date" data-pd-field="passport_expiry" aria-required="false">
+            <span class="pd-field__err" data-pd-err="passport_expiry" role="alert"></span>
+        </label>
     </div>
 
     <div class="pd-pax__seat" data-pd-pax-seat>

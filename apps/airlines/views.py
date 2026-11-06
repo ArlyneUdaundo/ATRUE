@@ -3165,7 +3165,8 @@ def update_flight(request, flight_id):
             return redirect('airlines:flight_detail', flight.slug)
     return render(request, 'airlines/flight_form.html',
                   _flight_form_context(flight=flight, aircraft_type=aircraft_type,
-                                       return_aircraft_type=return_aircraft_type))
+                                       return_aircraft_type=return_aircraft_type,
+                                       flight_classification=posted_classification))
 
 
 @xframe_options_sameorigin
@@ -3183,6 +3184,145 @@ def passenger_details(request):
     ``index``) so a result card can deep-link into this page for any sample
     row; absent parameters fall back to the first sample flight for the route.
     """
+    flight_id = request.GET.get('flight_id')
+    itinerary_id = request.GET.get('itinerary_id')
+    if (flight_id and str(flight_id).isdigit()) or (itinerary_id and str(itinerary_id).isdigit()):
+        if itinerary_id and str(itinerary_id).isdigit():
+            itinerary = get_object_or_404(FlightItinerary, pk=int(itinerary_id))
+            flight = itinerary.first_leg
+            if flight is None:
+                return HttpResponseBadRequest('This itinerary has no bookable flight segments.')
+        else:
+            flight = get_object_or_404(
+                Flight.objects.select_related(
+                    'airline', 'aircraft__aircraft_type__manufacturer',
+                    'origin_airport', 'destination_airport', 'itinerary'),
+                pk=int(flight_id))
+        if flight.itinerary_id:
+            legs = flight.itinerary.ordered_legs
+            first, last = legs[0], legs[-1]
+            route_scope = route_scope_for_legs(legs) or flight.itinerary.route_scope
+            duration = flight.itinerary.total_duration_minutes
+            stops = flight.itinerary.stops
+        else:
+            legs = [flight]
+            first = last = flight
+            route_scope = route_scope_for_legs(legs) or flight.flight_classification
+        if route_scope not in (FlightItinerary.RouteScope.DOMESTIC,
+                               FlightItinerary.RouteScope.INTERNATIONAL):
+            return HttpResponseBadRequest(
+                'Flight classification is unavailable because its airport country data is incomplete.')
+            duration = flight.segment_duration_minutes
+            stops = 0
+        return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
+        priced_legs = list(legs) + ([return_flight] if return_flight else [])
+        common_cabins = set(priced_legs[0].cabin_classes) if priced_legs else set()
+        for leg in priced_legs[1:]:
+            common_cabins.intersection_update(leg.cabin_classes)
+        fare_class = (request.GET.get('fare_class') or Flight.FareClass.ECONOMY).strip().upper()
+        if fare_class not in common_cabins:
+            fare_class = Flight.FareClass.ECONOMY if Flight.FareClass.ECONOMY in common_cabins else next(iter(common_cabins), Flight.FareClass.ECONOMY)
+        fare_class_label = dict(FARE_CLASS_CHOICES).get(fare_class, 'Economy')
+        currency = flight.itinerary.currency if flight.itinerary_id else 'PHP'
+        currency_prefix = '₱' if currency == 'PHP' else f'{currency} '
+        booking_fare = (sum((Decimal(leg.fare_for(fare_class) or 0) for leg in legs), Decimal('0'))
+                        + (flight.itinerary.service_fee if flight.itinerary_id else Decimal('0'))
+                        + (Decimal(return_flight.fare_for(fare_class) or 0) if return_flight else Decimal('0')))
+        display_segments = list(legs)
+        if return_flight:
+            display_segments.append(return_flight)
+        selected = {
+            'id': flight.pk, 'database_flight': True,
+            'airline': flight.airline.name, 'airline_logo': flight.airline.logo_url,
+            'flight_number': flight.flight_number,
+            'origin_code': first.origin_airport.code if first.origin_airport_id else first.origin_code,
+            'origin_city': first.origin_airport.city if first.origin_airport_id else first.origin,
+            'origin_airport': first.origin_airport.name if first.origin_airport_id else first.origin,
+            'destination_code': last.destination_airport.code if last.destination_airport_id else last.destination_code,
+            'destination_city': last.destination_airport.city if last.destination_airport_id else last.destination,
+            'destination_airport': last.destination_airport.name if last.destination_airport_id else last.destination,
+            'depart_time': timezone.localtime(first.departure_time).strftime('%H:%M'),
+            'arrive_time': timezone.localtime(last.arrival_time).strftime('%H:%M'),
+            'origin_terminal': first.terminal, 'destination_terminal': last.arrival_terminal,
+            'duration_text': format_duration(duration),
+            'stops_label': 'Direct' if not stops else f'{stops} stop' + ('s' if stops != 1 else ''),
+            'aircraft': flight.aircraft.model_name if flight.aircraft_id else 'Aircraft to be announced',
+            'checked_baggage': f'{flight.checked_baggage_kg} kg' if flight.checked_baggage_kg else 'Not specified',
+            'cabin_baggage': f'{flight.cabin_baggage_kg} kg' if flight.cabin_baggage_kg else 'Not specified',
+            'meal_label': 'Not specified on schedule', 'wifi_label': 'Not specified on schedule',
+            'fare_class': fare_class.lower(), 'fare_class_key': fare_class,
+            'fare_class_label': fare_class_label,
+            'base_fare': float(booking_fare),
+            'base_fare_text': f'{currency_prefix}{booking_fare:,.2f}',
+            'currency': currency,
+            'price': float(booking_fare),
+            'trip_type_label': 'Round trip' if return_flight else ('Connecting' if len(legs) > 1 else 'One way'),
+            'route_scope': route_scope,
+            'cancellation_terms': (
+                f"{'Refundable' if flight.itinerary.is_refundable else 'Non-refundable'} fare. "
+                f"Cancellation fee: ₱{flight.itinerary.cancellation_fee:,.2f}. "
+                f"{'Changes permitted' if flight.itinerary.is_changeable else 'Changes not permitted'}. "
+                f"Change fee: ₱{flight.itinerary.change_fee:,.2f}."
+                if flight.itinerary_id else
+                'Cancellation and change conditions are not configured on this flight record. Confirm the airline fare rules before payment.'
+            ),
+            'segments': [{
+                'flight_number': leg.flight_number,
+                'origin_code': leg.origin_airport.code if leg.origin_airport_id else leg.origin_code,
+                'destination_code': leg.destination_airport.code if leg.destination_airport_id else leg.destination_code,
+                'departure': timezone.localtime(leg.departure_time).strftime('%b %d, %Y %H:%M'),
+                'arrival': timezone.localtime(leg.arrival_time).strftime('%b %d, %Y %H:%M'),
+                'layover': leg.layover_after_label if leg.next_segment else '',
+            } for leg in display_segments],
+        }
+        international = route_scope == FlightItinerary.RouteScope.INTERNATIONAL
+        fare = pd_sample.fare_context(selected)
+        fare['currency'] = currency
+        fare['taxes_per_passenger'] = 0
+        fare['taxes_per_passenger_text'] = '₱0.00'
+        fare['baggage_options'] = [
+            {'kg': kg, 'price': float(flight.baggage_rate or 0) * kg,
+            'price_text': f"{currency_prefix}{float(flight.baggage_rate or 0) * kg:,.2f}",
+             'label': 'No extra baggage' if not kg else f'{kg} kg'}
+            for kg in (0, 5, 10, 15, 20, 25)]
+        fare['insurance_plans'] = [{
+            'key': 'none', 'name': 'No insurance plan is configured for this flight',
+            'price': 0, 'price_text': '₱0.00',
+            'details': {'summary': 'Insurance is unavailable for this flight.', 'covers': [], 'excludes': []},
+        }]
+        fare['seat_types'] = [{'key': 'standard', 'label': 'Standard Seat', 'price': 0, 'price_text': '₱0.00'}]
+        fare['seat_pricing_note'] = 'No paid seat price is configured for this flight. Seat selection has no additional charge.'
+        fare['taxes_per_passenger'] = 0
+        real_map = _seat_map(flight)
+        seat_rows = []
+        first_cabin = next((cabin for cabin in real_map.get('cabins', [])
+                            if cabin.get('key') == fare_class),
+                           (real_map.get('cabins') or [{}])[0])
+        for row in first_cabin.get('rows', []):
+            seats = []
+            for block in row.get('blocks', []):
+                for col in block.get('cols', []):
+                    if col.get('seat'):
+                        seats.append({'number': col['seat'], 'letter': col.get('label', ''),
+                                      'taken': col.get('taken', False), 'price': 0,
+                                      'category': 'standard', 'category_label': 'Standard seat',
+                                      'position_label': col.get('position', 'Seat'), 'aisle_before': False})
+            seat_rows.append({'row': row.get('row'), 'seats': seats, 'is_exit': row.get('is_exit', False)})
+        seat_map = {'aircraft': selected['aircraft'], 'layout': real_map.get('seat_map', ''),
+                    'cabin': first_cabin.get('label', 'Economy'), 'cabin_pitch': '',
+                    'blocks': [], 'letters': [], 'rows': seat_rows,
+                    'exit_rows': [], 'front_rows': []}
+        return render(request, 'airlines/passenger_details.html', {
+            'selected': selected, 'flight': selected, 'fare': fare, 'seat_map': seat_map,
+            'refund': {'steps': [], 'statuses': []},
+            'default_flight_type': 'INTERNATIONAL' if international else 'DOMESTIC',
+            'trip_type': flight.trip_type,
+            'return_date': timezone.localtime(return_flight.departure_time).date().isoformat() if return_flight else '',
+            'departure_date': timezone.localtime(first.departure_time).date().isoformat(),
+            'passengers_param': _passenger_breakdown_param(request.GET.get('passengers', '')),
+            'is_sample': False, 'recorded_flight': flight,
+        })
+
     origin_code = (request.GET.get('origin', 'MNL') or 'MNL').strip().upper()[:3]
     destination_code = (
         request.GET.get('destination', 'CEB') or 'CEB'
@@ -3199,7 +3339,7 @@ def passenger_details(request):
     context = {
         'selected': selected,
         'flight': selected,
-        'fare': pd_sample.fare_context(selected),
+            'fare': pd_sample.fare_context(selected),
         'seat_map': pd_sample.seat_map_context(selected.get('aircraft')),
         'refund': pd_sample.refund_context(),
         'default_flight_type': default_flight_type,
@@ -3227,6 +3367,8 @@ def confirm_passenger_details(request):
         origin_code = str(flight_request.get('origin_code') or '').upper()[:3]
         destination_code = str(flight_request.get('destination_code') or '').upper()[:3]
         flight_id = str(flight_request.get('id') or '')
+        if flight_id.isdigit():
+            return _confirm_database_passenger_details(request, payload, int(flight_id))
         flight_rows = sample_results(origin_code, destination_code)
         flight = next((row for row in flight_rows if row['id'] == flight_id), None)
         if flight is None:
@@ -3235,9 +3377,9 @@ def confirm_passenger_details(request):
         passengers = payload.get('passengers')
         if not isinstance(passengers, list) or not passengers or len(passengers) > 19:
             raise ValueError('The passenger list is invalid.')
-        flight_type = str(payload.get('flight_type') or '').upper()
-        if flight_type not in ('DOMESTIC', 'INTERNATIONAL'):
-            raise ValueError('Select a valid flight type.')
+        origin_country = str(flight.get('origin_country') or '').strip().casefold()
+        destination_country = str(flight.get('destination_country') or '').strip().casefold()
+        flight_type = 'DOMESTIC' if origin_country and origin_country == destination_country else 'INTERNATIONAL'
         international = flight_type == 'INTERNATIONAL'
         passenger_counts = {'adult': 0, 'child': 0, 'infant': 0}
         passenger_rows = []
@@ -3389,6 +3531,202 @@ def confirm_passenger_details(request):
 
     request.session['airlines_passenger_ticket'] = ticket
     return redirect('airlines:passenger_payment')
+
+
+def _confirm_database_passenger_details(request, payload, flight_id):
+    """Persist a selected ATRUE flight booking using server-owned schedule data."""
+    if not request.user.is_authenticated:
+        return redirect('accounts:login')
+    flight = get_object_or_404(
+        Flight.objects.select_related('airline', 'itinerary', 'paired_flight'),
+        pk=flight_id)
+    if flight.itinerary_id and flight.itinerary.currency != 'PHP':
+        return HttpResponseBadRequest(
+            'ATRUE checkout currently supports PHP for flight bookings. This itinerary uses a different currency.')
+    if not resource_is_bookable(flight) or flight.status not in (
+            Flight.Status.SCHEDULED, Flight.Status.DELAYED):
+        return HttpResponseBadRequest('This flight is no longer available to book.')
+
+    # The posted classification and all posted prices are deliberately ignored.
+    # The record's administrator-maintained classification controls documents.
+    classification = (route_scope_for_legs(flight.itinerary.ordered_legs)
+                      if flight.itinerary_id else route_scope_for_legs([flight]))
+    classification = classification or (flight.itinerary.route_scope if flight.itinerary_id
+                                         else flight.flight_classification)
+    if classification not in (FlightItinerary.RouteScope.DOMESTIC,
+                               FlightItinerary.RouteScope.INTERNATIONAL):
+        return HttpResponseBadRequest('The selected flight has no valid administrator classification.')
+    international = classification == FlightItinerary.RouteScope.INTERNATIONAL
+    passengers = payload.get('passengers')
+    if not isinstance(passengers, list) or not passengers or len(passengers) > 19:
+        return HttpResponseBadRequest('The passenger list is invalid.')
+
+    counts = {'adult': 0, 'child': 0, 'infant': 0}
+    cleaned = []
+    travel_date = timezone.localtime(flight.departure_time).date()
+    for index, item in enumerate(passengers):
+        if not isinstance(item, dict) or item.get('category') not in counts:
+            return HttpResponseBadRequest('A passenger category is invalid.')
+        category = item['category']
+        details = item.get('details') or {}
+        if not isinstance(details, dict):
+            return HttpResponseBadRequest('Passenger details are invalid.')
+        name = ' '.join(str(details.get('full_name') or item.get('name') or '').split())[:200]
+        parts = name.split()
+        if len(parts) < 2 or not all(str(details.get(key) or '').strip() for key in ('dob', 'gender', 'nationality')):
+            return HttpResponseBadRequest('Enter each passenger name, birth date, gender and nationality.')
+        try:
+            dob = date.fromisoformat(str(details['dob']))
+        except (TypeError, ValueError):
+            return HttpResponseBadRequest('Enter a valid passenger birth date.')
+        age = travel_date.year - dob.year - ((travel_date.month, travel_date.day) < (dob.month, dob.day))
+        expected = 'infant' if age < 2 else ('child' if age < 12 else 'adult')
+        if expected != category or age < 0:
+            return HttpResponseBadRequest('Passenger category does not match age on the departure date.')
+        try:
+            email = str(details.get('email') or (cleaned[0]['email'] if cleaned else '')).strip()
+            validate_email(email)
+        except ValidationError:
+            return HttpResponseBadRequest('Enter a valid booking contact email.')
+        phone_code = str(details.get('phone_code') or (cleaned[0].get('phone_code') if cleaned else '+63') or '+63')
+        phone_value = str(details.get('phone') or (cleaned[0].get('phone_value') if cleaned else '') or '')
+        if not re.fullmatch(r'\d{7,15}', phone_value):
+            return HttpResponseBadRequest('Enter a valid booking contact number.')
+        phone = (phone_code + ' ' + phone_value).strip()[:40]
+        passport = str(details.get('passport') or '').strip()[:50]
+        passport_country = str(details.get('passport_country') or '').strip()[:100]
+        passport_expiry = None
+        if international:
+            if not passport or not passport_country or not details.get('passport_expiry'):
+                return HttpResponseBadRequest('Passport number, issuing country and expiry are required for this international flight.')
+            try:
+                passport_expiry = date.fromisoformat(str(details['passport_expiry']))
+            except (TypeError, ValueError):
+                return HttpResponseBadRequest('Enter a valid passport expiry date.')
+            if passport_expiry <= travel_date:
+                return HttpResponseBadRequest('The passport must be valid through the departure date.')
+        counts[category] += 1
+        cleaned.append({
+            'category': category, 'name': name,
+            'first_name': parts[0], 'middle_name': ' '.join(parts[1:-1]), 'last_name': parts[-1],
+            'dob': dob, 'gender': str(details.get('gender') or '')[:20],
+            'nationality': str(details.get('nationality') or '')[:100],
+            'email': email, 'phone': phone, 'phone_code': phone_code,
+            'phone_value': phone_value, 'passport': passport,
+            'passport_country': passport_country, 'passport_expiry': passport_expiry,
+            'seat': str(item.get('seat') or '').strip().upper() if category != 'infant' else '',
+        })
+    if counts['adult'] < 1 or counts['infant'] > counts['adult']:
+        return HttpResponseBadRequest('At least one adult is required, and each infant must travel with an adult.')
+    if counts['adult'] > pd_sample.MAX_ADULTS or counts['child'] > pd_sample.MAX_CHILDREN or counts['infant'] > pd_sample.MAX_INFANTS:
+        return HttpResponseBadRequest('The passenger count is above the booking limit.')
+    if str(payload.get('insurance_key') or 'none') != 'none':
+        return HttpResponseBadRequest('No travel insurance plan is configured for this flight.')
+    if not payload.get('policy_acknowledged'):
+        return HttpResponseBadRequest('Acknowledge the cancellation and refund policy before continuing.')
+
+    baggage_kg = int(payload.get('baggage_kg') or 0)
+    if baggage_kg not in (0, 5, 10, 15, 20, 25):
+        return HttpResponseBadRequest('The baggage selection is invalid.')
+    selected_seats = [row['seat'] for row in cleaned if row['seat']]
+    if len(selected_seats) != len(set(selected_seats)):
+        return HttpResponseBadRequest('Each passenger must have a different seat.')
+    seat_flights = list(legs) + ([flight.return_flight] if flight.trip_type == Flight.TripType.ROUND_TRIP
+                                 and flight.return_flight else [])
+    for seat_flight in seat_flights:
+        if selected_seats and not _seats_exist(seat_flight, selected_seats):
+            return HttpResponseBadRequest('A selected seat is not on every aircraft in this journey.')
+        if set(selected_seats).intersection(_booked_seat_numbers(seat_flight)):
+            return HttpResponseBadRequest('One or more selected seats have just been reserved. Please choose again.')
+
+    from django.db import IntegrityError
+    from transactions.cart import create_single_booking_order
+    fare_class = str((payload.get('flight') or {}).get('fare_class_key') or Flight.FareClass.ECONOMY).strip().upper()
+    return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
+    legs = flight.itinerary.ordered_legs if flight.itinerary_id else [flight]
+    priced_legs = list(legs) + ([return_flight] if return_flight else [])
+    if (fare_class not in dict(FARE_CLASS_CHOICES)
+            or any(fare_class not in leg.cabin_classes for leg in priced_legs)):
+        return HttpResponseBadRequest('The selected cabin is no longer available for every flight segment.')
+    fare = flight.fare_for(fare_class)
+    per_person = Decimal(fare or 0)
+    if flight.itinerary_id:
+        per_person = sum((Decimal(leg.fare_for(fare_class) or 0) for leg in legs), Decimal('0'))
+        if flight.itinerary.service_fee:
+            per_person += flight.itinerary.service_fee
+    if return_flight:
+        per_person += Decimal(return_flight.fare_for(fare_class) or 0)
+    baggage_charge = Decimal(baggage_kg) * Decimal(flight.baggage_rate or 0) * len(cleaned)
+    items = compute_airline_bill(flight, len(cleaned), fare, baggage_charge=baggage_charge,
+                                 baggage_kg=baggage_kg * len(cleaned), return_flight=return_flight,
+                                 return_fare=return_flight.fare_for(fare_class) if return_flight else None,
+                                 itinerary_legs=[(leg, leg.fare_for(fare_class)) for leg in legs])
+    total = bill_items_total(items)
+    if flight.itinerary_id and total != per_person * len(cleaned) + baggage_charge:
+        total = per_person * len(cleaned) + baggage_charge
+    try:
+        with transaction.atomic():
+            list(Flight.objects.select_for_update().filter(pk__in=[leg.pk for leg in seat_flights]))
+            for seat_flight in seat_flights:
+                if set(selected_seats).intersection(_booked_seat_numbers(seat_flight)):
+                    raise ValueError('One or more selected seats have just been reserved. Please choose again.')
+            booking = Booking.objects.create(
+                flight=flight, return_flight=return_flight,
+                itinerary=flight.itinerary if flight.itinerary_id else None,
+                passenger=request.user,
+                status=Booking.Status.PENDING,
+                trip_type=flight.trip_type,
+                return_date=return_flight.departure_time.date() if return_flight else None,
+                extra_baggage=baggage_charge, extra_baggage_kg=baggage_kg * len(cleaned),
+                cancellation_policy_acknowledged=True,
+                cancellation_policy_acknowledged_at=timezone.now(),
+                payer_name=request.user.get_full_name() or request.user.username,
+                payer_contact=cleaned[0]['phone'], total_bill=total,
+                travel_document_type='PASSPORT' if international else '',
+                travel_document_number=cleaned[0]['passport'] if international else '',
+            )
+            for index, passenger in enumerate(cleaned):
+                for leg_index, leg in enumerate(legs):
+                    Booking.BookingSeat.objects.create(
+                        booking=booking, passenger_name=passenger['name'],
+                        seat_number=passenger['seat'],
+                        flight=leg if flight.itinerary_id else None,
+                        segment=TripSegment.DEPARTURE,
+                        fare_class=fare_class,
+                        passenger_category=passenger['category'],
+                        first_name=passenger['first_name'], middle_name=passenger['middle_name'],
+                        last_name=passenger['last_name'], date_of_birth=passenger['dob'],
+                        gender=passenger['gender'], nationality=passenger['nationality'],
+                        contact_email=passenger['email'] if index == 0 else '',
+                        contact_number=passenger['phone'] if index == 0 else '',
+                        travel_document_type='PASSPORT' if international else '',
+                        travel_document_number=passenger['passport'],
+                        passport_issuing_country=passenger['passport_country'],
+                        passport_expiry_date=passenger['passport_expiry'],
+                    )
+                if return_flight:
+                    Booking.BookingSeat.objects.create(
+                        booking=booking, passenger_name=passenger['name'], seat_number=passenger['seat'],
+                        segment=TripSegment.RETURN, fare_class=fare_class,
+                        passenger_category=passenger['category'], first_name=passenger['first_name'],
+                        middle_name=passenger['middle_name'], last_name=passenger['last_name'],
+                        date_of_birth=passenger['dob'], gender=passenger['gender'],
+                        nationality=passenger['nationality'],
+                        contact_email=passenger['email'] if index == 0 else '',
+                        contact_number=passenger['phone'] if index == 0 else '',
+                        travel_document_type='PASSPORT' if international else '',
+                        travel_document_number=passenger['passport'],
+                        passport_issuing_country=passenger['passport_country'],
+                        passport_expiry_date=passenger['passport_expiry'],
+                    )
+            create_bill(service='flight', customer=request.user, items=items, booking=booking)
+            order = create_single_booking_order(
+                request=request, booking=booking, service='flight', amount=total,
+                payment_method='GCASH',
+                description=f'{flight.flight_number} · {len(cleaned)} passenger(s)', items=items)
+    except (IntegrityError, ValueError) as exc:
+        return HttpResponseBadRequest(str(exc) or 'A selected seat is no longer available.')
+    return redirect('transactions:order_detail', order.id)
 
 
 def passenger_payment(request):

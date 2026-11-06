@@ -1405,6 +1405,9 @@ class Booking(BookingFieldsMixin):
         choices=TRAVEL_DOCUMENT_TYPE_CHOICES,
         help_text="Travel document information (FR-020)")
     travel_document_number = models.CharField(max_length=50, blank=True)
+    cancellation_policy_acknowledged = models.BooleanField(default=False)
+    cancellation_policy_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    travel_insurance_plan = models.CharField(max_length=80, blank=True, default='')
     services = models.ManyToManyField(Service, blank=True, related_name='bookings')
     manager_remarks = models.TextField(blank=True, help_text="Remarks from the airline on confirm/decline (FR-018)")
     checked_in_at = models.DateTimeField(null=True, blank=True)
@@ -1453,6 +1456,17 @@ class Booking(BookingFieldsMixin):
             max_length=20, blank=True, choices=TRAVEL_DOCUMENT_TYPE_CHOICES,
             help_text="Per-passenger travel document (FR-020)")
         travel_document_number = models.CharField(max_length=50, blank=True)
+        passenger_category = models.CharField(max_length=10, blank=True, default='')
+        first_name = models.CharField(max_length=100, blank=True, default='')
+        middle_name = models.CharField(max_length=100, blank=True, default='')
+        last_name = models.CharField(max_length=100, blank=True, default='')
+        date_of_birth = models.DateField(null=True, blank=True)
+        gender = models.CharField(max_length=20, blank=True, default='')
+        nationality = models.CharField(max_length=100, blank=True, default='')
+        passport_issuing_country = models.CharField(max_length=100, blank=True, default='')
+        passport_expiry_date = models.DateField(null=True, blank=True)
+        contact_email = models.EmailField(blank=True, default='')
+        contact_number = models.CharField(max_length=40, blank=True, default='')
 
         class Meta:
             constraints = [

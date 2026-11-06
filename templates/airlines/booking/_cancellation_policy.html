@@ -1,10 +1,10 @@
 <div class="pd-card pd-section pd-policy" id="pd-policy">
     <div class="pd-section__head">
         <h2><i class="fas fa-file-shield"></i> Flight Cancellation &amp; Refund Policy</h2>
-        <p>Flight cancellation and refund eligibility depend on the airline&rsquo;s fare rules, the reason for cancellation, the timing of the request, and any applicable insurance policy. Insurance claims are assessed separately under the purchased policy.</p>
+        <p>{% if is_sample %}Flight cancellation and refund eligibility depend on the airline&rsquo;s fare rules, the reason for cancellation, the timing of the request, and any applicable insurance policy.{% else %}{{ selected.cancellation_terms }}{% endif %}</p>
     </div>
 
-    <ol class="pd-steps-list">
+    {% if is_sample %}<ol class="pd-steps-list">
         {% for step in refund.steps %}
         <li>
             <span class="pd-steps-list__no">{{ forloop.counter }}</span>
@@ -14,29 +14,30 @@
             </div>
         </li>
         {% endfor %}
-    </ol>
+    </ol>{% endif %}
 
-    <div class="pd-policy__statuses">
+    {% if is_sample %}<div class="pd-policy__statuses">
         <h3>Possible request statuses</h3>
         <div class="pd-policy__chips">
             {% for status in refund.statuses %}
             <span class="pd-chip pd-chip--status">{{ status }}</span>
             {% endfor %}
         </div>
-    </div>
+    </div>{% endif %}
 
-    <div class="pd-callout pd-callout--warn">
+    {% if is_sample %}<div class="pd-callout pd-callout--warn">
         <i class="fas fa-triangle-exclamation"></i>
         <p>Travel insurance does <b>not</b> automatically guarantee a refund. A claim must meet the
         purchased policy&rsquo;s coverage conditions and exclusions. Airline refunds and insurance
         claims are handled separately. A request is never approved automatically just because a
         reason was entered.</p>
-    </div>
+    </div>{% endif %}
 
     <button type="button" class="pd-link" data-pd-refund-toggle aria-expanded="false">
         <i class="fas fa-chevron-down"></i> <span data-pd-refund-toggle-text>Learn More About Refunds</span>
     </button>
     <div class="pd-insurance-terms" data-pd-refund-more hidden>
+        {% if is_sample %}
         <h4>Step-by-step process</h4>
         <ol>
             <li>The passenger submits a cancellation request from their booking.</li>
@@ -50,7 +51,7 @@
         Taxes and carrier surcharges may be refundable even when the fare is not. Where a refund is
         approved, fees may be deducted according to the fare conditions. All refund rules in this
         prototype are samples and, in the live system, are configurable and subject to the selected
-        airline&rsquo;s actual terms.</p>
+        airline&rsquo;s actual terms.</p>{% else %}<h4>Applicable fare conditions</h4><p>{{ selected.cancellation_terms }}</p>{% endif %}
     </div>
 
     <label class="pd-ack">

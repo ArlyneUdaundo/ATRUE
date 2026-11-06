@@ -17,6 +17,7 @@
 
 <main class="pd-shell" data-pd-root
       data-base-fare="{{ fare.base_fare }}"
+      data-currency="{{ fare.currency|default:'PHP' }}"
       data-taxes-per-passenger="{{ fare.taxes_per_passenger }}"
       data-baggage-basis="{{ fare.baggage_basis }}"
       data-insurance-basis="{{ fare.insurance_basis }}"
@@ -42,12 +43,14 @@
         <span class="pd-step">Review &amp; payment</span>
     </div>
 
-    <div class="pd-sample-banner" role="note">
+    {% if is_sample %}<div class="pd-sample-banner" role="note">
         <i class="fas fa-circle-info"></i>
         <span><b>Prototype page.</b> Flight, seat, baggage and insurance prices are
-        realistic samples for demonstration. In the live system they come from the
-        airline&rsquo;s fare rules for this route and cabin.</span>
-    </div>
+        realistic samples for demonstration. This prototype does not take payment
+        or confirm a booking. No payment is taken and no booking is confirmed in this sample flow.
+        In the live system these values come from the selected
+        flight record and applicable fare rules.</span>
+    </div>{% endif %}
 
     <div class="pd-columns">
         <aside class="pd-col pd-col--summary">
@@ -55,7 +58,13 @@
         </aside>
 
         <section class="pd-col pd-col--main">
-            {% include 'airlines/booking/_flight_type.html' %}
+            <section class="pd-card pd-section" aria-label="Flight classification">
+                <div class="pd-section__head">
+                    <h2><i class="fas fa-earth-asia"></i> Flight classification</h2>
+                    <p>This information comes from the selected flight schedule.</p>
+                </div>
+                <span class="pd-chip pd-chip--soft">{{ default_flight_type|title }}</span>
+            </section>
             {% include 'airlines/booking/_passenger_count.html' %}
             <div id="pd-passengers" class="pd-passengers" aria-live="polite"></div>
             {% include 'airlines/booking/_seat_section.html' %}

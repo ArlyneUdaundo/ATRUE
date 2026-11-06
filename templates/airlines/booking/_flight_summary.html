@@ -9,6 +9,8 @@
         <div>
             <h2 class="pd-flight__name">{{ selected.airline }}</h2>
             <span class="pd-chip">{{ selected.fare_class_label }}</span>
+            <span class="pd-chip pd-chip--soft">{{ default_flight_type|title }}</span>
+            {% if selected.trip_type_label %}<span class="pd-chip pd-chip--soft">{{ selected.trip_type_label }}</span>{% endif %}
         </div>
     </div>
 
@@ -43,5 +45,12 @@
         <div><dt><i class="fas fa-wifi"></i> Wi-Fi</dt><dd>{{ selected.wifi_label }}</dd></div>
     </dl>
 
-    <p class="pd-flight__note"><i class="fas fa-circle-info"></i> Sample schedule. Times are local to each airport.</p>
+    {% if selected.segments|length > 1 %}
+    <ol class="pd-flight__segments" aria-label="Flight segments">
+        {% for segment in selected.segments %}
+        <li>{{ segment.flight_number }} · {{ segment.origin_code }} to {{ segment.destination_code }} · {{ segment.departure }} – {{ segment.arrival }}{% if segment.layover %} · {{ segment.layover }} connection{% endif %}</li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+    <p class="pd-flight__note"><i class="fas fa-circle-info"></i> {% if is_sample %}Sample schedule. Times are local to each airport.{% else %}Schedule information is from the selected ATRUE flight record. Times are local to each airport.{% endif %}</p>
 </div>

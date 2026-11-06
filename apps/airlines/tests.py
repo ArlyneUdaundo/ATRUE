@@ -3895,14 +3895,21 @@ class PassengerDetailsPreviewTests(TestCase):
                         'name': 'Juan Dela Cruz',
                         'category': 'adult',
                         'seat': '7A',
+                        'details': {
+                            'full_name': 'Juan Dela Cruz', 'email': 'juan@example.com',
+                            'phone_code': '+63', 'phone': '9123456789',
+                            'dob': '1990-01-01', 'gender': 'male',
+                            'nationality': 'Philippines',
+                        },
                     }],
                     'baggage_kg': 5,
                     'insurance_key': 'none',
+                    'policy_acknowledged': True,
                 }),
             },
         )
 
-        self.assertRedirects(response, reverse('airlines:passenger_ticket'))
+        self.assertRedirects(response, reverse('airlines:passenger_payment'))
         ticket = client.get(reverse('airlines:passenger_ticket'))
         self.assertEqual(ticket.status_code, 200)
         self.assertContains(ticket, 'Flight Ticket / E-Ticket')
@@ -3946,9 +3953,16 @@ class PassengerDetailsPreviewTests(TestCase):
                         'name': 'Juan Dela Cruz',
                         'category': 'adult',
                         'seat': '7A',
+                        'details': {
+                            'full_name': 'Juan Dela Cruz', 'email': 'juan@example.com',
+                            'phone_code': '+63', 'phone': '9123456789',
+                            'dob': '1990-01-01', 'gender': 'male',
+                            'nationality': 'Philippines',
+                        },
                     }],
                     'baggage_kg': 5,
                     'insurance_key': 'none',
+                    'policy_acknowledged': True,
                 }),
             },
         )

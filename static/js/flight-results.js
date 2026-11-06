@@ -1136,12 +1136,17 @@
             if (passengerLink) {
                 const { from, to } = currentRoute();
                 const params = new URLSearchParams();
+                const selectedId = String(selected.id || '');
+                const itineraryId = selected.card && selected.card.getAttribute('data-flight-id');
+                if (/^itinerary-\d+$/.test(itineraryId || '')) {
+                    params.set('itinerary_id', itineraryId.replace('itinerary-', ''));
+                } else if (/^\d+$/.test(selectedId)) { params.set('flight_id', selectedId); }
                 const origin = selected.origin || (from && from.code);
                 const destination = selected.destination || (to && to.code);
                 if (origin) { params.set('origin', origin); }
                 if (destination) { params.set('destination', destination); }
                 const match = /(\d+)$/.exec(selected.id || '');
-                if (match) { params.set('index', String(Number(match[1]) - 1)); }
+                if (match && !/^\d+$/.test(selectedId)) { params.set('index', String(Number(match[1]) - 1)); }
                 params.set('trip_type', tripType());
                 params.set('passengers', 'adult:' + paxState.adults
                     + ',child:' + paxState.children

@@ -23,7 +23,7 @@
             {% else %}
             Charged <b>once per booking</b> regardless of the number of travellers.
             {% endif %}
-            Sample prices; the airline sets real baggage prices by route and fare class. These are prototype prices that can be configured by an administrator.
+            {% if is_sample %}Sample prices for this preview.{% else %}The displayed price uses the selected flight&rsquo;s stored baggage rate.{% endif %}
         </p>
     </div>
 
@@ -53,15 +53,15 @@
                     <ul data-pd-insurance-excludes></ul>
                 </div>
             </div>
-            <p class="pd-muted">Coverage may include eligible unexpected medical emergencies,
+            {% if is_sample %}<p class="pd-muted">Coverage may include eligible unexpected medical emergencies,
             trip interruption or cancellation, depending on the policy. Not every cancellation
-            is refundable. A claim must meet the policy&rsquo;s conditions and exclusions.</p>
+            is refundable. A claim must meet the policy&rsquo;s conditions and exclusions.</p>{% else %}<p class="pd-muted">No insurance product is configured for this flight. No coverage will be added.</p>{% endif %}
         </div>
 
         <button type="button" class="pd-link" data-pd-insurance-toggle aria-expanded="false">
             <i class="fas fa-chevron-down"></i> <span data-pd-insurance-toggle-text>View Coverage & Exclusions</span>
         </button>
-        <div class="pd-insurance-terms" data-pd-insurance-terms hidden>
+        {% if is_sample %}<div class="pd-insurance-terms" data-pd-insurance-terms hidden>
             <h4>Coverage & Exclusions, Terms, Conditions & Claim Requirements</h4>
             <p><strong>Covered events:</strong> Emergency medical expenses, trip cancellation for covered reasons, trip interruption, loss of checked baggage (where applicable).</p>
             <p><strong>Coverage limits:</strong> Vary by plan - Basic (up to ₱500,000 medical), Standard (up to ₱1,500,000), Premium (up to ₱3,000,000).</p>
@@ -69,12 +69,12 @@
             <p><strong>Required supporting documents:</strong> Medical certificate (for medical emergencies), proof of event, booking reference, receipts.</p>
             <p><strong>Claim submission instructions:</strong> Submit claim with supporting documents within the time limit specified in policy. Claims assessed separately from airline refunds.</p>
             <p><strong>Insurance provider details & applicable terms:</strong> Insurance is provided for this prototype only as a sample. A real policy is issued by the insurer, states its own coverage limits, exclusions and claim requirements. Airline refunds and insurance claims are handled separately.</p>
-        </div>
+        </div>{% endif %}
 
-        <label class="pd-ack" style="margin-top: 12px;">
+        {% if is_sample %}<label class="pd-ack" style="margin-top: 12px;">
             <input type="checkbox" data-pd-insurance-ack>
             <span>I have read and understand the insurance terms and conditions.</span>
         </label>
-        <span class="pd-field__err" data-pd-err="insurance_ack" role="alert"></span>
+        <span class="pd-field__err" data-pd-err="insurance_ack" role="alert"></span>{% endif %}
     </div>
 </div>

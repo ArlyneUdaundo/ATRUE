@@ -9,7 +9,7 @@
 
         <div class="pd-callout pd-callout--info">
             <i class="fas fa-circle-info"></i>
-            <p>Continue to the payment preview to complete this simulated booking. No real payment will be processed.</p>
+            <p>{% if is_sample %}Continue to the payment preview to complete this simulated booking. No real payment will be processed.{% else %}Review the details below. Continuing creates your booking and takes you to ATRUE checkout.{% endif %}</p>
         </div>
 
         <footer class="pd-review__foot">
@@ -17,7 +17,7 @@
             <form method="post" action="{% url 'airlines:confirm_passenger_details' %}" data-pd-ticket-form>
                 {% csrf_token %}
                 <input type="hidden" name="ticket_payload" data-pd-ticket-payload>
-                <button type="submit" class="pd-btn pd-btn--primary"><i class="fas fa-check"></i> Confirm Details</button>
+                <button type="submit" class="pd-btn pd-btn--primary"><i class="fas fa-check"></i> {% if is_sample %}Confirm Details{% else %}Continue to Checkout{% endif %}</button>
             </form>
         </footer>
     </div>

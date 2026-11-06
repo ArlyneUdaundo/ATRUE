@@ -60,9 +60,16 @@
     }
 
     function money(value) {
-        return '\u20b1' + Number(value || 0).toLocaleString('en-PH', {
-            minimumFractionDigits: 2, maximumFractionDigits: 2
-        });
+        var amount = Number(value || 0);
+        var currency = root.dataset.currency || 'PHP';
+        if (currency === 'PHP') {
+            return '\u20b1' + amount.toLocaleString('en-PH', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+        }
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency', currency: currency, minimumFractionDigits: 2
+        }).format(amount);
     }
 
     // --------------------------------------------------- passenger totals --
@@ -150,6 +157,12 @@
                 : state.counts[pax.category] > 0;
             removeBtn.hidden = !canRemove;
             removeBtn.setAttribute('data-pd-remove', String(index));
+            if (index > 0) {
+                var email = $('[data-pd-field="email"]', node);
+                var phone = $('[data-pd-field="phone"]', node);
+                if (email) { email.closest('.pd-field').hidden = true; }
+                if (phone) { phone.closest('.pd-field').hidden = true; }
+            }
             // Restore values.
             if (pax.values) {
                 Object.keys(pax.values).forEach(function (key) {
@@ -226,21 +239,23 @@
         state.passengers.forEach(function (pax, index) {
             var node = $('[data-pd-index="' + index + '"]');
             if (!node) { return; }
-            var field = $('[data-pd-passport]', node);
-            if (!field) { return; }
-            field.hidden = !international;
-            var input = $('[data-pd-field="passport"]', node);
-            if (input) {
-                input.required = international;
-                input.setAttribute('aria-required', international ? 'true' : 'false');
-            }
-            if (!international) { clearFieldError(input); }
+            [['passport', '[data-pd-passport]'], ['passport_country', '[data-pd-passport-country]'],
+                ['passport_expiry', '[data-pd-passport-expiry]']].forEach(function (entry) {
+                var wrapper = $(entry[1], node);
+                var input = $('[data-pd-field="' + entry[0] + '"]', node);
+                if (wrapper) { wrapper.hidden = !international; }
+                if (input) {
+                    input.required = international;
+                    input.setAttribute('aria-required', international ? 'true' : 'false');
+                }
+                if (!international) { clearFieldError(input); }
+            });
         });
         var note = $('[data-pd-flight-type-note]');
         if (note) {
             setText(note, international
-                ? 'Passport number is required for international flights.'
-                : 'Passport number is not required for domestic flights.');
+                ? 'Passport number, issuing country and expiry are required for international flights.'
+                : 'Passport information is not required for domestic flights.');
         }
     }
 
@@ -657,14 +672,31 @@
             var v = pax.values || {};
 
             if (!(v.full_name || '').trim()) { fail(node, 'full_name', 'Please enter the full name.'); ok = false; }
-            if (!EMAIL_RE.test((v.email || '').trim())) { fail(node, 'email', 'Please enter a valid email address.'); ok = false; }
+            if (index === 0 && !EMAIL_RE.test((v.email || '').trim())) { fail(node, 'email', 'Please enter a valid email address.'); ok = false; }
             var phoneVal = (v.phone || '').trim().replace(/\s+/g, '');
-            if (!phoneVal || !/^\d{11}$/.test(phoneVal)) { fail(node, 'phone', 'Please enter a valid phone number (11 digits only).'); ok = false; } else if (v.phone !== phoneVal) { pax.values.phone = phoneVal; }
+            if (index === 0 && (!phoneVal || !/^\d{11}$/.test(phoneVal))) { fail(node, 'phone', 'Please enter a valid phone number (11 digits only).'); ok = false; } else if (index === 0 && v.phone !== phoneVal) { pax.values.phone = phoneVal; }
             if (!(v.dob || '').trim()) { fail(node, 'dob', 'Please enter the date of birth.'); ok = false; }
+            else {
+                var born = new Date(v.dob + 'T00:00:00');
+                var travel = new Date((root.dataset.departureDate || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
+                var age = travel.getFullYear() - born.getFullYear();
+                if (travel.getMonth() < born.getMonth() ||
+                    (travel.getMonth() === born.getMonth() && travel.getDate() < born.getDate())) { age -= 1; }
+                var expected = age < 2 ? 'infant' : (age < 12 ? 'child' : 'adult');
+                if (age < 0 || expected !== pax.category) {
+                    fail(node, 'dob', 'Date of birth does not match the selected passenger category on the travel date.'); ok = false;
+                }
+            }
             if (!(v.gender || '').trim()) { fail(node, 'gender', 'Please select a gender.'); ok = false; }
             if (!(v.nationality || '').trim()) { fail(node, 'nationality', 'Please select a nationality.'); ok = false; }
             if (state.flightType === 'INTERNATIONAL' && !(v.passport || '').trim()) {
                 fail(node, 'passport', 'Passport number is required for international flights.'); ok = false;
+            }
+            if (state.flightType === 'INTERNATIONAL' && !(v.passport_country || '').trim()) {
+                fail(node, 'passport_country', 'Passport issuing country is required.'); ok = false;
+            }
+            if (state.flightType === 'INTERNATIONAL' && !(v.passport_expiry || '').trim()) {
+                fail(node, 'passport_expiry', 'Passport expiry date is required.'); ok = false;
             }
         });
 
@@ -724,7 +756,11 @@
             row('Airline', flightAirlineText()),
             row('Route', flightRouteText()),
             row('Class', 'Economy'),
-            row('Flight type', state.flightType === 'INTERNATIONAL' ? 'International' : 'Domestic')
+            row('Classification', flightData.route_scope === 'INTERNATIONAL' ? 'International' : 'Domestic'),
+            row('Segments', (flightData.segments || []).map(function (segment) {
+                return segment.flight_number + ' ' + segment.origin_code + '–' + segment.destination_code;
+            }).join(' · ') || '—'),
+            row('Cancellation & change terms', flightData.cancellation_terms || 'See applicable fare rules')
         ]));
 
         var paxRows = [row('Travellers', paxSummary())];
@@ -733,7 +769,10 @@
             var bits = [(v.full_name || 'Passenger ' + (index + 1))];
             if (SEATABLE[pax.category]) { bits.push('Seat ' + (pax.seat || 'not assigned')); }
             bits.push(categoryLabel(pax.category));
-            paxRows.push(row('Passenger ' + (index + 1), bits.join(' \u00b7 ')));
+            bits.push(v.email || '');
+            bits.push((v.phone_code || '') + ' ' + (v.phone || ''));
+            if (state.flightType === 'INTERNATIONAL') { bits.push('Passport ' + (v.passport || '') + ', ' + (v.passport_country || '') + ' (expires ' + (v.passport_expiry || '') + ')'); }
+            paxRows.push(row('Passenger ' + (index + 1), bits.filter(Boolean).join(' · ')));
         });
         body.appendChild(block('Passengers', paxRows));
 
@@ -767,11 +806,13 @@
     }
 
     function buildTicketPayload() {
+        var contact = (state.passengers[0] && state.passengers[0].values) || {};
         return {
             flight: {
                 id: flightData.id,
                 origin_code: flightData.origin_code,
-                destination_code: flightData.destination_code
+                destination_code: flightData.destination_code,
+                fare_class_key: flightData.fare_class_key || 'ECONOMY'
             },
             departure_date: root.dataset.departureDate || '',
             passengers: state.passengers.map(function (pax) {
@@ -779,7 +820,11 @@
                     name: (pax.values && pax.values.full_name || '').trim(),
                     category: pax.category,
                     seat: pax.seat || '',
-                    details: pax.values || {}
+                    details: Object.assign({}, pax.values || {}, {
+                        email: (pax.values && pax.values.email) || contact.email || '',
+                        phone_code: (pax.values && pax.values.phone_code) || contact.phone_code || '+63',
+                        phone: (pax.values && pax.values.phone) || contact.phone || ''
+                    })
                 };
             }),
             flight_type: state.flightType,

@@ -231,6 +231,7 @@ def fare_context(selected: dict) -> dict:
     ]
     return {
         'base_fare': selected['base_fare'],
+        'currency': 'PHP',
         'base_fare_text': selected['base_fare_text'],
         'taxes_per_passenger': TAXES_AND_FEES_PER_PASSENGER,
         'taxes_per_passenger_text': _money(TAXES_AND_FEES_PER_PASSENGER),
