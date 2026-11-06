@@ -20,7 +20,7 @@
             {% if row.airline_logo %}
             <img class="fs-logo" src="{% static row.airline_logo %}" alt="{{ row.airline }} logo">
             {% else %}
-            <span class="fs-logo fs-logo--glyph" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            <span class="fs-logo fs-logo--glyph" role="img" aria-label="{{ row.airline }} logo">{{ row.airline|default:'A'|slice:":2"|upper }}</span>
             {% endif %}
             <span class="fs-card__airline-name">{{ row.airline }}</span>
             <span class="fs-card__flightno">{{ row.flight_number }}</span>

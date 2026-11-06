@@ -2,9 +2,13 @@
 <div class="pd-card pd-flight">
     <div class="pd-flight__airline">
         {% if selected.airline_logo %}
-        <img src="{% static selected.airline_logo %}" alt="{{ selected.airline }}" class="pd-flight__logo">
+        {% if selected.airline_logo|slice:":1" == "/" or selected.airline_logo|slice:":4" == "http" %}
+        <img src="{{ selected.airline_logo }}" alt="{{ selected.airline }}" class="pd-flight__logo">
         {% else %}
-        <span class="pd-flight__logo pd-flight__logo--fallback" aria-hidden="true"><i class="fas fa-plane"></i></span>
+        <img src="{% static selected.airline_logo %}" alt="{{ selected.airline }}" class="pd-flight__logo">
+        {% endif %}
+        {% else %}
+        <span class="pd-flight__logo pd-flight__logo--fallback" role="img" aria-label="{{ selected.airline }} logo">{{ selected.airline|default:'A'|slice:":2"|upper }}</span>
         {% endif %}
         <div>
             <h2 class="pd-flight__name">{{ selected.airline }}</h2>

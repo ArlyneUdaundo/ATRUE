@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from atrue_core.models import BookingFieldsMixin, BookingStatus
@@ -222,18 +223,19 @@ class Airline(models.Model):
     def logo_photo(self):
         """The photo that acts as this airline's official mark.
 
-        Only one image ever need be shown for an airline, and the system
-        already keeps those images as :class:`AirlinePhoto` rows. The primary
-        one is the logo (that is the convention the search results and tickets
-        have always read); a gallery with no primary falls back to its first
-        photo. Read through ``self.photos.all()`` so a view that prefetched the
-        gallery pays no extra query.
+        Only a locked logo or a legacy primary photo counts as the airline
+        mark; an unrelated gallery photo is never presented as a logo. Read
+        through ``self.photos.all()`` so a view that prefetched the gallery
+        pays no extra query.
         """
         photos = list(self.photos.all())
         for photo in photos:
+            if photo.is_locked_logo:
+                return photo
+        for photo in photos:
             if photo.is_primary:
                 return photo
-        return photos[0] if photos else None
+        return None
 
     @property
     def logo_url(self):
@@ -254,22 +256,70 @@ class Airline(models.Model):
         return self.name
 
 
+class AirlinePhotoQuerySet(models.QuerySet):
+    """Prevent ORM bulk operations from bypassing a saved-logo lock."""
+
+    def _locked_rows(self):
+        if self.filter(is_locked_logo=True).exists():
+            raise ProtectedError(
+                'A registered airline logo is locked and cannot be changed or deleted.',
+                list(self.filter(is_locked_logo=True)),
+            )
+
+    def update(self, **kwargs):
+        if kwargs and self.filter(is_locked_logo=True).exists():
+            raise ProtectedError(
+                'A registered airline logo is locked and cannot be changed.',
+                list(self.filter(is_locked_logo=True)),
+            )
+        return super().update(**kwargs)
+
+    def delete(self):
+        self._locked_rows()
+        return super().delete()
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        ids = [obj.pk for obj in objs if obj.pk]
+        if self.model.objects.filter(pk__in=ids, is_locked_logo=True).exists():
+            self.model.objects.filter(pk__in=ids, is_locked_logo=True)._locked_rows()
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+
 class AirlinePhoto(models.Model):
     """Multiple photos for an airline listing/detail gallery."""
 
-    airline = models.ForeignKey(Airline, on_delete=models.CASCADE, related_name='photos')
+    airline = models.ForeignKey(Airline, on_delete=models.PROTECT, related_name='photos')
     image = models.ImageField(upload_to='airline_photos/')
     caption = models.CharField(max_length=150, blank=True)
     is_primary = models.BooleanField(default=False)
+    is_locked_logo = models.BooleanField(default=False, editable=False)
+    source_url = models.URLField(blank=True, max_length=500)
+    license_name = models.CharField(max_length=120, blank=True)
+    attribution = models.CharField(max_length=250, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    objects = AirlinePhotoQuerySet.as_manager()
 
     class Meta:
         ordering = ['-is_primary', 'id']
 
     def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk, is_locked_logo=True).exists():
+            raise ProtectedError(
+                'A registered airline logo is locked and cannot be changed.', [self])
+        if self.is_locked_logo and (not self.is_primary or not self.image):
+            raise ValidationError('A locked airline logo must have an image and remain primary.')
         if self.is_primary:
-            AirlinePhoto.objects.filter(airline=self.airline).exclude(pk=self.pk).update(is_primary=False)
+            AirlinePhoto.objects.filter(
+                airline=self.airline, is_locked_logo=False,
+            ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.is_locked_logo:
+            raise ProtectedError(
+                'A registered airline logo is locked and cannot be deleted.', [self])
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.airline.name} - {self.image}"

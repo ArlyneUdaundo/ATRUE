@@ -28,12 +28,7 @@
 <article class="am-card">
     <header class="am-airline-head">
         <div class="am-identity">
-            <span class="airline-logo airline-logo--md am-logo">
-                {% if a.management_logo_url %}
-                <img src="{{ a.management_logo_url }}" data-fallback-src="{{ a.logo_url }}" alt="{{ a.name }} logo" loading="lazy" decoding="async" onerror="if(!this.dataset.fallbackTried&amp;&amp;this.dataset.fallbackSrc){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
-                <i class="fas fa-plane am-logo-fallback" aria-hidden="true" hidden></i>
-                {% elif a.logo_url %}<img src="{{ a.logo_url }}" alt="{{ a.name }} logo" loading="lazy" decoding="async">{% else %}<i class="fas fa-plane" role="img" aria-label="{{ a.name }} logo"></i>{% endif %}
-            </span>
+            {% include 'airlines/_airline_logo.html' with airline=a logo_class='airline-logo airline-logo--md am-logo' %}
             <div class="am-title-block">
                 <div class="am-title-line">
                     <h2>{{ a.name }}</h2>

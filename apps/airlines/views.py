@@ -18,7 +18,6 @@ from accounts.roles import (
 )
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
@@ -37,7 +36,6 @@ from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.image_utils import (
     delete_image_record,
     validate_establishment_photos,
-    validate_image_upload,
 )
 from atrue_core.location_hierarchy import country_province_keys, location_matches
 from atrue_core.slugs import get_object_by_slug_or_404
@@ -57,7 +55,6 @@ from atrue_core.services import (
 from locations.geonames_service import search_worldwide_places
 
 from . import passenger_details_sample as pd_sample
-from .logo_data import AIRLINE_LOGOS
 
 from .itineraries import (
     DEFAULT_TIMEZONE_FALLBACK as DEFAULT_AIRPORT_TIMEZONE,
@@ -600,6 +597,7 @@ def _result_logos(flights, itinerary_rows):
     if airline_ids:
         photos = (AirlinePhoto.objects
                   .filter(airline_id__in=airline_ids)
+                  .filter(Q(is_primary=True) | Q(is_locked_logo=True))
                   .order_by('airline_id', '-is_primary', 'id'))
         for photo in photos:
             logos.setdefault(photo.airline_id, photo)
@@ -1172,12 +1170,6 @@ def manage(request):
         or 0
     )
     for airline in qs:
-        logo_filename = AIRLINE_LOGOS.get(airline.name)
-        airline.management_logo_url = (
-            f"{settings.STATIC_URL.rstrip('/')}/img/airline-marks/"
-            f"{logo_filename.rsplit('.', 1)[0]}-mark.png"
-            if logo_filename else ''
-        )
         layouts = {
             layout.aircraft_type_id: layout
             for layout in airline.seat_layouts.all()
@@ -1217,15 +1209,18 @@ def update_airline(request, airline_id):
         pk=airline_id)
     if request.method == 'POST':
         delete_ids = request.POST.getlist('delete_photos')
-        logo = request.FILES.get('logo')
+        if request.FILES.get('logo') or request.POST.get('remove_logo'):
+            messages.error(request, 'Airline logos are stored automatically and cannot be replaced or removed.')
+            return redirect('airlines:update_airline', airline_id)
+        if airline.photos.filter(pk__in=delete_ids, is_locked_logo=True).exists():
+            messages.error(request, 'A saved airline logo is locked and cannot be deleted.')
+            return redirect('airlines:update_airline', airline_id)
         try:
             photos = validate_establishment_photos(
                 request.FILES.getlist('photos'),
-                existing_count=airline.photos.count(),
+                existing_count=airline.photos.filter(is_locked_logo=False).count(),
                 delete_count=airline.photos.filter(pk__in=delete_ids).count(),
             )
-            if logo:
-                validate_image_upload(logo)
         except ValidationError as exc:
             messages.error(request, ' '.join(exc.messages))
             return redirect('airlines:update_airline', airline_id)
@@ -1248,23 +1243,9 @@ def update_airline(request, airline_id):
         from simulation.completion import record_establishment_task_event
         record_establishment_task_event(request.user, 'ESTABLISHMENT_UPDATED', airline)
         for image in photos:
-            AirlinePhoto.objects.create(airline=airline, image=image, is_primary=not airline.photos.exists())
+            AirlinePhoto.objects.create(airline=airline, image=image, is_primary=False)
         for photo in airline.photos.filter(pk__in=delete_ids):
             delete_image_record(photo)
-        if airline.photos.exists() and not airline.photos.filter(is_primary=True).exists():
-            first = airline.photos.first()
-            first.is_primary = True
-            first.save(update_fields=['is_primary'])
-        # A new logo replaces the current one outright: only one image is ever
-        # the airline's mark, so keeping the old photo around would leave the
-        # search results and tickets showing the previous carrier mark.
-        if logo:
-            for photo in airline.photos.all():
-                delete_image_record(photo)
-            AirlinePhoto.objects.create(airline=airline, image=logo, is_primary=True)
-        elif request.POST.get('remove_logo'):
-            for photo in airline.photos.all().iterator():
-                delete_image_record(photo)
         # A flight is only bookable for the seats its layout has, and the layout
         # now comes from the airline's fleet, so changing the default type has to
         # re-seat the flights that have no aircraft of their own.

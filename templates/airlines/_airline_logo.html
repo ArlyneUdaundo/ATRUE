@@ -15,7 +15,7 @@ degrades to the plane glyph rather than a broken-image box.
 {% elif airline.logo_url %}
 <span class="{{ logo_class|default:'airline-logo' }}"><img src="{{ airline.logo_url }}" alt="{{ airline.name|default:'Airline' }} logo" loading="lazy" decoding="async"></span>
 {% elif logo_placeholder %}
-<span class="{{ logo_class|default:'airline-logo' }} fs-logo--placeholder" role="img" aria-label="{{ airline.name|default:'Airline' }} logo"><span aria-hidden="true">{{ airline.name|default:'A'|slice:":2"|upper }}</span></span>
+<span class="{{ logo_class|default:'airline-logo' }} airline-logo--placeholder fs-logo--placeholder" role="img" aria-label="{{ airline.name|default:'Airline' }} logo"><span aria-hidden="true">{{ airline.name|default:'A'|slice:":2"|upper }}</span></span>
 {% else %}
-<span class="{{ logo_class|default:'airline-logo' }}" role="img" aria-label="{{ airline.name|default:'Airline' }}"><i class="fas fa-plane" aria-hidden="true"></i></span>
+<span class="{{ logo_class|default:'airline-logo' }} airline-logo--placeholder" role="img" aria-label="{{ airline.name|default:'Airline' }} logo"><span aria-hidden="true">{{ airline.name|default:'A'|slice:":2"|upper }}</span></span>
 {% endif %}

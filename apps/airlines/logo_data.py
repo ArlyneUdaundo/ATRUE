@@ -63,12 +63,11 @@ def logo_file(name):
     return File(path.open('rb'), name=filename)
 
 
-def seed_airline_logos(Airline, AirlinePhoto, storage, *, replace=False, write=None):
+def seed_airline_logos(Airline, AirlinePhoto, storage, *, write=None):
     """Attach the bundled logo to every seeded airline.
 
-    Idempotent by design: an airline that already owns a photo keeps it unless
-    ``replace`` is set, so re-running the management command never clobbers a
-    mark an operator uploaded, and a second run is a no-op. The image is written
+    Idempotent by design: an airline that already has a primary mark keeps it,
+    and a second run is a no-op. The image is written
     through ``storage`` so the row holds an ordinary media reference that
     survives a database backup/restore the same way any uploaded photo does.
 
@@ -80,12 +79,13 @@ def seed_airline_logos(Airline, AirlinePhoto, storage, *, replace=False, write=N
     created = skipped = 0
     for name in AIRLINE_LOGOS:
         for airline in Airline.objects.filter(name=name):
-            existing = AirlinePhoto.objects.filter(airline=airline)
-            if existing.exists():
-                if not replace:
-                    skipped += 1
-                    continue
-                existing.delete()
+            existing_logo = AirlinePhoto.objects.filter(
+                airline=airline, is_primary=True).first()
+            if existing_logo:
+                if hasattr(existing_logo, 'is_locked_logo') and not existing_logo.is_locked_logo:
+                    AirlinePhoto.objects.filter(pk=existing_logo.pk).update(is_locked_logo=True)
+                skipped += 1
+                continue
 
             handle = logo_file(name)
             if handle is None:
@@ -96,8 +96,15 @@ def seed_airline_logos(Airline, AirlinePhoto, storage, *, replace=False, write=N
             target = f'{PHOTO_DIR}/{handle.name}'
             if not storage.exists(target):
                 target = storage.save(target, handle)
-            AirlinePhoto.objects.create(
-                airline=airline, image=target, is_primary=True)
+            photo_fields = {'airline': airline, 'image': target, 'is_primary': True,
+                            'caption': 'Official airline logo'}
+            try:
+                AirlinePhoto._meta.get_field('is_locked_logo')
+            except Exception:  # Historical model during migration 0036.
+                pass
+            else:
+                photo_fields['is_locked_logo'] = True
+            AirlinePhoto.objects.create(**photo_fields)
             created += 1
             if write is not None:
                 write(f'  {name}: attached {handle.name}')

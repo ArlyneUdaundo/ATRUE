@@ -36,8 +36,26 @@ class ServiceAdmin(admin.ModelAdmin):
 
 @admin.register(AirlinePhoto)
 class AirlinePhotoAdmin(admin.ModelAdmin):
-    list_display = ('airline', 'is_primary', 'caption', 'created_at')
-    list_filter = ('is_primary',)
+    list_display = ('airline', 'is_primary', 'is_locked_logo', 'caption', 'created_at')
+    list_filter = ('is_primary', 'is_locked_logo')
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.is_locked_logo:
+            return tuple(field.name for field in self.model._meta.fields)
+        return ('created_at', 'is_locked_logo', 'source_url', 'license_name', 'attribution')
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.is_locked_logo:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop('delete_selected', None)
+        return actions
 
 
 @admin.register(Flight)
