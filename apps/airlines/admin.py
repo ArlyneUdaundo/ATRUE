@@ -43,9 +43,10 @@ class AirlinePhotoAdmin(admin.ModelAdmin):
 @admin.register(Flight)
 class FlightAdmin(admin.ModelAdmin):
     list_display = ('flight_number', 'airline', 'itinerary', 'segment_order', 'aircraft',
-                    'origin_airport', 'destination_airport',
+                    'origin_airport', 'destination_airport', 'flight_classification',
                     'departure_time', 'arrival_time', 'total_capacity', 'economy_fare', 'status')
-    list_filter = ('airline', 'status', 'origin_airport', 'destination_airport')
+    list_filter = ('airline', 'status', 'flight_classification',
+                   'origin_airport', 'destination_airport')
     # Capacity is derived from the seat layout, so it is not something to type
     # in here.
     readonly_fields = ('total_capacity',)
@@ -60,9 +61,11 @@ class FlightItineraryAdmin(admin.ModelAdmin):
     an isolated inline could produce a journey that can never be sold.
     """
 
-    list_display = ('itinerary_reference', 'route_label', 'airline', 'segment_count',
-                    'stops_label', 'total_duration_label', 'total_price', 'status')
-    list_filter = ('airline', 'flight_type', 'trip_type', 'status', 'booking_available')
+    list_display = ('itinerary_reference', 'route_label', 'airline', 'route_scope',
+                    'segment_count', 'stops_label', 'total_duration_label',
+                    'total_price', 'status')
+    list_filter = ('airline', 'flight_type', 'trip_type', 'route_scope',
+                   'status', 'booking_available')
     search_fields = ('itinerary_reference',)
     readonly_fields = ('itinerary_reference', 'total_duration_minutes',
                         'total_duration_label')

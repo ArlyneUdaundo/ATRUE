@@ -85,12 +85,14 @@ from .models import (
     Flight,
     FlightItinerary,
     FlightOfferSnapshot,
+    ROUTE_SCOPE_CHOICES,
     Seat,
     SeatLayout,
     Service,
     TripRole,
     TripSegment,
 )
+from .route_scope import normalize_route_scope, route_scope_for_legs
 from .sample_flights import sample_results
 
 logger = logging.getLogger(__name__)
@@ -1731,6 +1733,7 @@ def flights(request):
     q = request.GET.get('q', '')
     airline = request.GET.get('airline', '')
     status = request.GET.get('status', '')
+    classification = normalize_route_scope(request.GET.get('classification'))
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     if q:
@@ -1743,6 +1746,8 @@ def flights(request):
         qs = qs.filter(airline_id=airline)
     if status:
         qs = qs.filter(status=status)
+    if classification:
+        qs = qs.filter(flight_classification=classification)
     if date_from:
         from_dt = _parse_dt(date_from)
         if from_dt:
@@ -1755,6 +1760,8 @@ def flights(request):
         'flights': qs,
         'airlines': airlines,
         'q': q, 'airline': airline, 'status': status,
+        'classification': classification,
+        'classification_choices': ROUTE_SCOPE_CHOICES,
         'date_from': date_from, 'date_to': date_to,
         'can_add_flight': can_create_flight(request.user),
     })
@@ -1809,7 +1816,7 @@ def _active_airlines_unique_names():
 
 def _flight_form_context(airline=None, flight=None, airline_fixed=False,
                          aircraft_type=None, return_aircraft_type=None,
-                         trip_type=None):
+                         trip_type=None, flight_classification=None):
     """Context for the flight form, scoped to the chosen airline's fleet.
 
     The aircraft list is the airline's own — an Emirates airframe can never be
@@ -1828,8 +1835,11 @@ def _flight_form_context(airline=None, flight=None, airline_fixed=False,
         if return_leg is None and return_aircraft_type is None:
             return_aircraft_type = aircraft_type
         trip_type = flight.trip_type
+        if flight_classification is None:
+            flight_classification = flight.flight_classification
     elif trip_type not in (Flight.TripType.ONE_WAY, Flight.TripType.ROUND_TRIP):
         trip_type = Flight.TripType.ONE_WAY
+    flight_classification = normalize_route_scope(flight_classification)
     if airline is None:
         aircrafts = Aircraft.objects.none()
     elif flight is None:
@@ -1857,6 +1867,7 @@ def _flight_form_context(airline=None, flight=None, airline_fixed=False,
         'selected_type': aircraft_type,
         'return_selected_type': return_aircraft_type,
         'trip_type': trip_type,
+        'flight_classification': flight_classification,
         'flight': flight,
         'return_leg': return_leg,
     }
@@ -1888,6 +1899,31 @@ def _posted_aircraft(request, prefix, airline):
     if airline is not None and aircraft.airline_id != airline.pk:
         return None
     return aircraft
+
+
+def _posted_flight_classification(request):
+    return normalize_route_scope(request.POST.get('flight_classification'))
+
+
+def _validate_flight_classification(request, legs, errors):
+    classification = _posted_flight_classification(request)
+    if not classification:
+        errors.append(
+            "Flight classification is required. Choose Domestic or International.")
+        return ''
+
+    route_scope = route_scope_for_legs(legs)
+    if not route_scope:
+        errors.append(
+            "Flight classification cannot be verified until every airport on "
+            "the route has country data.")
+        return classification
+    if classification != route_scope:
+        expected = dict(ROUTE_SCOPE_CHOICES)[route_scope]
+        errors.append(
+            f"This route is {expected.lower()}, so its flight classification "
+            f"must be {expected}.")
+    return classification
 
 
 def _resolve_leg(request, airline, prefix='', label='Departure',
@@ -2065,9 +2101,16 @@ def _resolve_flight_schedule(request, flight=None, airline=None):
                     f"{out_ac.tail_number} is already flying the return leg during "
                     "that time. Choose a different aircraft.")
 
+    classification_legs = [departure]
+    if return_leg is not None:
+        classification_legs.append(return_leg)
+    flight_classification = _validate_flight_classification(
+        request, classification_legs, errors)
+
     result = {
         'airline': airline,
         'trip_type': trip_type,
+        'flight_classification': flight_classification,
         'departure': departure,
         'return_leg': return_leg,
         'terminal': (request.POST.get('terminal') or '').strip()[:50],
@@ -2443,10 +2486,12 @@ def _resolve_itinerary_schedule(request, airline=None, itinerary=None):
     _check_itinerary_sequence(legs, errors, min_connection, max_connection)
     _check_itinerary_aircraft(legs, errors, exclude_ids)
     _check_itinerary_flight_numbers(legs, errors)
+    flight_classification = _validate_flight_classification(request, legs, errors)
 
     result = {
         'airline': airline,
         'trip_type': trip_type,
+        'flight_classification': flight_classification,
         'legs': legs,
         'status': (request.POST.get('itinerary_status')
                    or (itinerary.status if itinerary else Flight.Status.SCHEDULED)),
@@ -2491,6 +2536,8 @@ def _save_itinerary(result, itinerary=None):
                 'min_advance_booking_hours', 'min_connection_minutes',
                 'max_connection_minutes'):
         setattr(itinerary, key, result[key])
+    itinerary.route_scope = (result['flight_classification']
+                             or itinerary.route_scope)
     itinerary.save()
 
     existing = {leg.pk: leg for leg in itinerary.ordered_legs}
@@ -2511,6 +2558,7 @@ def _save_itinerary(result, itinerary=None):
         flight.trip_role = TripRole.OUTBOUND
         flight.round_trip_group = None
         flight.paired_flight = None
+        flight.flight_classification = result['flight_classification']
         flight.save()
         seen.add(flight.pk)
         saved.append(flight)
@@ -2754,8 +2802,9 @@ def itinerary_public_detail(request, itinerary_id):
 def _shared_leg_fields(data):
     """The pricing/status fields both legs of a trip are sold on."""
     return {key: data[key] for key in (
-        'terminal', 'gate', 'first_class_fare', 'business_fare',
-        'premium_economy_fare', 'economy_fare', 'baggage_rate', 'status')}
+        'flight_classification', 'terminal', 'gate', 'first_class_fare',
+        'business_fare', 'premium_economy_fare', 'economy_fare',
+        'baggage_rate', 'status')}
 
 
 def _save_round_trip(request, flight, result):
@@ -2836,12 +2885,15 @@ def _add_itinerary(request, airline, airline_fixed=False):
     cannot leave half a journey behind.
     """
     posted_legs = None
+    posted_classification = normalize_route_scope(
+        _query_str(request, 'flight_classification'))
     if request.method == 'POST':
         result, errors = _resolve_itinerary_schedule(request, airline=airline)
         if errors:
             for error in errors:
                 messages.error(request, error)
             posted_legs = result['legs']
+            posted_classification = result['flight_classification']
             airline = result['airline'] or airline
         else:
             with transaction.atomic():
@@ -2859,7 +2911,9 @@ def _add_itinerary(request, airline, airline_fixed=False):
                 f"total.")
             return redirect('airlines:itinerary_detail', itinerary.pk)
 
-    context = _flight_form_context(airline=airline, airline_fixed=airline_fixed)
+    context = _flight_form_context(
+        airline=airline, airline_fixed=airline_fixed,
+        flight_classification=posted_classification)
     context.update(_itinerary_form_context(airline=airline, legs=posted_legs))
     context['flight_type'] = FlightItinerary.FlightType.CONNECTING
     return render(request, 'airlines/flight_form.html', context)
@@ -2873,14 +2927,17 @@ def _update_itinerary(request, itinerary):
     leg keeps its seat bookings.  Legs whose ids the manager removed are deleted
     by :func:`_save_itinerary`.
     """
+    posted_classification = itinerary.route_scope
     if request.method == 'POST':
         result, errors = _resolve_itinerary_schedule(
             request, airline=itinerary.airline, itinerary=itinerary)
         if errors:
             for error in errors:
                 messages.error(request, error)
+            posted_classification = result['flight_classification']
             context = _flight_form_context(
-                airline=itinerary.airline, airline_fixed=True)
+                airline=itinerary.airline, airline_fixed=True,
+                flight_classification=posted_classification)
             context.update(_itinerary_form_context(
                 airline=itinerary.airline, itinerary=itinerary,
                 legs=result['legs']))
@@ -2899,7 +2956,8 @@ def _update_itinerary(request, itinerary):
         return redirect('airlines:itinerary_detail', itinerary.pk)
 
     context = _flight_form_context(
-        airline=itinerary.airline, airline_fixed=True)
+        airline=itinerary.airline, airline_fixed=True,
+        flight_classification=posted_classification)
     context.update(_itinerary_form_context(airline=itinerary.airline,
                                           itinerary=itinerary))
     context['flight_type'] = FlightItinerary.FlightType.CONNECTING
@@ -2955,12 +3013,15 @@ def add_flight(request, airline_id=None):
     # A rejected POST re-renders with what the manager actually chose, so the
     # return section stays open and the typed values are not silently lost.
     posted_trip_type = None
+    posted_classification = normalize_route_scope(
+        _query_str(request, 'flight_classification'))
     if request.method == 'POST':
         result, errors = _resolve_flight_schedule(request, airline=airline)
         if errors:
             for error in errors:
                 messages.error(request, error)
             posted_trip_type = result['trip_type']
+            posted_classification = result['flight_classification']
             airline = result['airline'] or airline
             departure = result['departure']
             aircraft_type = (departure['aircraft'].aircraft_type_id
@@ -2995,7 +3056,8 @@ def add_flight(request, airline_id=None):
                   _flight_form_context(airline=airline, airline_fixed=airline_fixed,
                                        aircraft_type=aircraft_type,
                                        return_aircraft_type=return_aircraft_type,
-                                       trip_type=posted_trip_type or trip_type))
+                                       trip_type=posted_trip_type or trip_type,
+                                       flight_classification=posted_classification))
 
 
 @manager_required
@@ -3026,12 +3088,14 @@ def update_flight(request, flight_id):
     aircraft_type = _query_pk(request, 'aircraft_type')
     return_aircraft_type = _query_pk(request, 'return_aircraft_type')
     return_leg = flight.return_flight
+    posted_classification = None
     if request.method == 'POST':
         result, errors = _resolve_flight_schedule(request, flight=flight,
                                                   airline=flight.airline)
         if errors:
             for error in errors:
                 messages.error(request, error)
+            posted_classification = result['flight_classification']
             departure = result['departure']
             aircraft_type = (departure['aircraft'].aircraft_type_id
                              if departure.get('aircraft') else aircraft_type)

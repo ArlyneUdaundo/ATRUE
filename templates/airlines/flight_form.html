@@ -1,6 +1,11 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/flight-classification.css' %}?v=20261106-flight-classification-1">
+{% endblock %}
 
 {% block content %}
 <div class="page-head"><div><h1>{% if flight %}Update Flight{% else %}Add Flight{% endif %}{% if airline %} — {{ airline.name }}{% endif %}</h1><p>Schedule a service. The cabin and seat map are taken from the aircraft you pick.</p></div></div>
@@ -31,7 +36,42 @@
         <span class="meta" style="display:block;margin-top:6px">One Way and Round Trip schedule one or two linked flights. Connecting chains several legs into one journey with its own aircraft, cabin and fare per leg.</span>
     </fieldset>
 
-    {% comment %}2. Airline — predefined, never created here. Shared by both forms:
+    {% comment %}2. Flight classification — decided by the countries on the route,
+         not by the number of legs or the kind of trip.{% endcomment %}
+    <fieldset class="flight-classification">
+        <legend>Flight Classification <span class="flight-classification__required">*</span></legend>
+        <div class="flight-classification__options">
+            <label class="flight-classification-card">
+                <input type="radio" name="flight_classification" value="DOMESTIC" required
+                       {% if flight_classification == 'DOMESTIC' %}checked{% endif %}>
+                <span class="flight-classification-card__body">
+                    <span class="flight-classification-card__icon"><i class="fas fa-map-location-dot"></i></span>
+                    <span class="flight-classification-card__copy">
+                        <span class="flight-classification-card__title">Domestic</span>
+                        <span class="flight-classification-card__text">Every airport on the journey is in the same country.</span>
+                        <span class="flight-classification-card__example">e.g. Manila → Cebu</span>
+                    </span>
+                    <span class="flight-classification-card__check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                </span>
+            </label>
+            <label class="flight-classification-card">
+                <input type="radio" name="flight_classification" value="INTERNATIONAL" required
+                       {% if flight_classification == 'INTERNATIONAL' %}checked{% endif %}>
+                <span class="flight-classification-card__body">
+                    <span class="flight-classification-card__icon"><i class="fas fa-earth-americas"></i></span>
+                    <span class="flight-classification-card__copy">
+                        <span class="flight-classification-card__title">International</span>
+                        <span class="flight-classification-card__text">At least one airport is in another country.</span>
+                        <span class="flight-classification-card__example">e.g. Manila → Singapore</span>
+                    </span>
+                    <span class="flight-classification-card__check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                </span>
+            </label>
+        </div>
+        <span class="flight-classification__hint">This is checked against every airport on the route when you save.</span>
+    </fieldset>
+
+    {% comment %}3. Airline — predefined, never created here. Shared by both forms:
          the operator picks the fleet that the legs are scheduled against.{% endcomment %}
     <div class="form-group">
         <label>Airline <span style="color:#d64545">*</span></label>
@@ -53,13 +93,13 @@
     </div>
 
     <div data-direct-section {% if flight_type == 'CONNECTING' %}hidden{% endif %}>
-    {% comment %}1b. One Way / Round Trip, derived from the Flight Type chosen above.
+    {% comment %}3b. One Way / Round Trip, derived from the Flight Type chosen above.
          The direct validator still reads trip_type, so it is carried in a hidden
          input rather than a second, redundant set of radios.{% endcomment %}
     <input type="hidden" name="trip_type" data-trip-type-sync
            value="{% if trip_type == 'ROUND_TRIP' %}ROUND_TRIP{% else %}ONE_WAY{% endif %}">
 
-    {% comment %}3. Departure leg.{% endcomment %}
+    {% comment %}4. Departure leg.{% endcomment %}
     <h3 style="margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-plane-departure"></i> Departure Flight</h3>
 
     <div class="form-grid">
@@ -131,7 +171,7 @@
         <div class="form-group"><label>Gate <span class="meta" style="display:block">(optional, if available)</span></label><input type="text" name="gate" class="form-input" value="{{ flight.gate|default:'' }}" maxlength="50"></div>
     </div>
 
-    {% comment %}4. Return leg — only rendered for a Round Trip.{% endcomment %}
+    {% comment %}5. Return leg — only rendered for a Round Trip.{% endcomment %}
     <div data-return-section {% if trip_type != 'ROUND_TRIP' %}hidden{% endif %}>
         <h3 style="margin:30px 0 6px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-plane-arrival"></i> Return Flight</h3>
 
@@ -202,7 +242,7 @@
         <p class="meta" data-return-warning style="display:none;color:#b42318"></p>
     </div>
 
-    {% comment %}5. Fares and status — shared by both legs of a trip.{% endcomment %}
+    {% comment %}6. Fares and status — shared by both legs of a trip.{% endcomment %}
     <h3 style="margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-tags"></i> Fares &amp; Status</h3>
 
     <div class="form-grid">
@@ -241,7 +281,7 @@
     </div>
     </div><!-- /data-direct-section -->
 
-    {% comment %}6. Connecting itinerary — a chain of legs sold as one journey.{% endcomment %}
+    {% comment %}7. Connecting itinerary — a chain of legs sold as one journey.{% endcomment %}
     <div data-connecting-section {% if flight_type != 'CONNECTING' %}hidden{% endif %}>
         <h3 style="margin:26px 0 6px;padding-bottom:8px;border-bottom:1px solid #e5e7eb"><i class="fas fa-route"></i> Journey Segments</h3>
         <p class="meta" style="margin:0 0 14px">
@@ -654,6 +694,11 @@
             url.searchParams.set('airline', airlineSelect.value);
             url.searchParams.set('trip_type', isRoundTrip() ? 'ROUND_TRIP' : 'ONE_WAY');
             url.searchParams.set('flight_type', isConnecting() ? 'CONNECTING' : 'DIRECT');
+            var classification = form.querySelector(
+                'input[name="flight_classification"]:checked');
+            if (classification) {
+                url.searchParams.set('flight_classification', classification.value);
+            }
             window.location.href = url.toString();
         });
     }

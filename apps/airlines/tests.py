@@ -501,6 +501,7 @@ class FlightLocationTest(TestCase):
             latitude=1.3644, longitude=103.9915, status='ACTIVE')
         payload = dict(
             flight_number='FL-NEW', aircraft=self.aircraft.pk, trip_type='ONE_WAY',
+            flight_classification='INTERNATIONAL',
             origin_airport=mnl.pk, destination_airport=sin.pk,
             departure_time='2027-01-05T09:00', arrival_time='2027-01-05T11:00',
             economy_fare='1200', first_class_fare='2400', status='SCHEDULED')
@@ -527,6 +528,7 @@ class FlightLocationTest(TestCase):
             country_code='PH', status='ACTIVE')
         payload = dict(
             flight_number='FL-BAD', aircraft=self.aircraft.pk, trip_type='ONE_WAY',
+            flight_classification='DOMESTIC',
             origin_airport=mnl.pk, destination_airport=mnl.pk,
             departure_time='2027-01-05T09:00', arrival_time='2027-01-05T11:00',
             economy_fare='1200', first_class_fare='2400', status='SCHEDULED')
@@ -549,6 +551,7 @@ class FlightLocationTest(TestCase):
             country_code='PH', status='ACTIVE')
         payload = dict(
             flight_number='FL-SMUGGLE', trip_type='ONE_WAY',
+            flight_classification='DOMESTIC',
             origin_airport=mnl.pk, destination_airport=ceb.pk,
             departure_time='2027-01-05T09:00', arrival_time='2027-01-05T11:00',
             seat_layout='EMIRATES_A380',
@@ -582,6 +585,7 @@ class FlightScheduleTest(TestCase):
     def _payload(self, **kw):
         base = dict(
             airline=self.airline.pk, trip_type='ONE_WAY',
+            flight_classification='DOMESTIC',
             origin_airport=self.mnl.pk, destination_airport=self.ceb.pk,
             departure_time='2027-01-05T09:00', arrival_time='2027-01-05T11:00',
             economy_fare='1200', first_class_fare='2400', business_fare='0',
@@ -597,9 +601,32 @@ class FlightScheduleTest(TestCase):
         flight = Flight.objects.get(flight_number='FL-NOAC')
         self.assertIsNone(flight.aircraft)
         self.assertEqual(flight.airline, self.airline)
+        self.assertEqual(flight.flight_classification, 'DOMESTIC')
         # Inherits the airline's real 3-3 narrowbody: 180 sellable seats.
         self.assertEqual(flight.capacity, 180)
         self.assertEqual(flight.seat_layout_record.airline, self.airline)
+
+    def test_classification_is_required(self):
+        self._login()
+        resp = self.client.post(
+            reverse('airlines:add_flight_schedule'),
+            self._payload(flight_number='FL-NOCLASS', flight_classification=''))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Flight.objects.filter(flight_number='FL-NOCLASS').exists())
+        self.assertContains(
+            resp, 'Flight classification is required. Choose Domestic or International.')
+
+    def test_a_route_rejects_the_wrong_classification(self):
+        self._login()
+        resp = self.client.post(
+            reverse('airlines:add_flight_schedule'),
+            self._payload(flight_number='FL-WRONGCLASS',
+                          flight_classification='INTERNATIONAL'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Flight.objects.filter(flight_number='FL-WRONGCLASS').exists())
+        self.assertContains(
+            resp,
+            'This route is domestic, so its flight classification must be Domestic.')
 
     def test_schedule_form_requires_an_airline(self):
         self._login()
@@ -757,6 +784,7 @@ class RoundTripScheduleTest(TestCase):
     def _payload(self, **kw):
         base = dict(
             airline=self.airline.pk, trip_type='ROUND_TRIP',
+            flight_classification='DOMESTIC',
             flight_number='5J100', origin_airport=self.mnl.pk,
             destination_airport=self.ceb.pk,
             departure_time='2027-01-05T09:00', arrival_time='2027-01-05T11:00',
@@ -780,7 +808,9 @@ class RoundTripScheduleTest(TestCase):
 
         self.assertEqual(out.trip_type, Flight.TripType.ROUND_TRIP)
         self.assertEqual(out.trip_role, TripRole.OUTBOUND)
+        self.assertEqual(out.flight_classification, 'DOMESTIC')
         self.assertEqual(back.trip_role, TripRole.RETURN)
+        self.assertEqual(back.flight_classification, 'DOMESTIC')
         # The return is a schedule in its own right, so it is sold as a one-way
         # leg of the trip rather than as a second round trip.
         self.assertEqual(back.trip_type, Flight.TripType.ONE_WAY)
@@ -1892,6 +1922,7 @@ class ConnectingItineraryScheduleTest(TestCase):
     def _payload(self, **kw):
         base = dict(
             flight_type='CONNECTING', airline=self.airline.pk,
+            flight_classification='INTERNATIONAL',
             segment_count='2', status='SCHEDULED', itinerary_status='SCHEDULED',
             booking_available='on', min_connection_minutes='45',
             seg_0_flight_number='5J711',
@@ -1924,18 +1955,38 @@ class ConnectingItineraryScheduleTest(TestCase):
         itinerary = FlightItinerary.objects.get()
 
         self.assertEqual(itinerary.flight_type, FlightItinerary.FlightType.CONNECTING)
+        self.assertEqual(itinerary.route_scope, FlightItinerary.RouteScope.INTERNATIONAL)
         self.assertEqual(itinerary.segment_count, 2)
         self.assertEqual(itinerary.stops, 1)
         self.assertEqual(itinerary.route_label, 'MNL - SIN - DXB')
         legs = itinerary.ordered_legs
         self.assertEqual([leg.segment_order for leg in legs], [1, 2])
         self.assertEqual([leg.flight_number for leg in legs], ['5J711', '5J712'])
+        self.assertEqual([leg.flight_classification for leg in legs],
+                         ['INTERNATIONAL', 'INTERNATIONAL'])
         # Each leg is a real schedule with its own airframe and seat map.
         self.assertEqual([leg.aircraft_id for leg in legs],
                          [self.narrow.pk, self.wide.pk])
         self.assertNotEqual(legs[0].seat_layout_record.pk,
                             legs[1].seat_layout_record.pk)
 
+    def test_a_connecting_route_rejects_the_wrong_classification(self):
+        assertRejected(
+            self,
+            self._add(flight_classification='DOMESTIC'),
+            'This route is international, so its flight classification must be '
+            'International.')
+        self.assertEqual(FlightItinerary.objects.count(), 0)
+
+    def test_a_border_in_the_middle_makes_the_whole_journey_international(self):
+        self.assertEqual(
+            self._add(seg_1_destination_airport=self.mnl.pk).status_code, 302)
+        itinerary = FlightItinerary.objects.get()
+        self.assertEqual(itinerary.route_label, 'MNL - SIN - MNL')
+        self.assertEqual(itinerary.route_scope, FlightItinerary.RouteScope.INTERNATIONAL)
+        self.assertEqual(
+            [leg.flight_classification for leg in itinerary.ordered_legs],
+            ['INTERNATIONAL', 'INTERNATIONAL'])
 
     def test_the_journey_duration_adds_the_layover(self):
         self._add()
@@ -2175,6 +2226,7 @@ class ConnectingItineraryEditTest(TestCase):
     def _payload(self, **kw):
         base = dict(
             flight_type='CONNECTING', airline=self.airline.pk,
+            flight_classification='INTERNATIONAL',
             segment_count='2', itinerary_status='SCHEDULED', booking_available='on',
             min_connection_minutes='45',
             seg_0_id=str(self.legs[0].pk), seg_0_flight_number='5J711',
@@ -2196,6 +2248,7 @@ class ConnectingItineraryEditTest(TestCase):
     def _create(self):
         payload = dict(
             flight_type='CONNECTING', airline=self.airline.pk,
+            flight_classification='INTERNATIONAL',
             segment_count='2', itinerary_status='SCHEDULED', booking_available='on',
             min_connection_minutes='45',
             seg_0_flight_number='5J711', seg_0_aircraft=self.narrow.pk,
@@ -2215,6 +2268,15 @@ class ConnectingItineraryEditTest(TestCase):
         return self.client.post(
             reverse('airlines:update_itinerary', args=[self.itinerary.pk]),
             self._payload(**kw))
+
+    def test_the_edit_form_selects_the_saved_classification(self):
+        response = self.client.get(
+            reverse('airlines:update_itinerary', args=[self.itinerary.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['flight_classification'], 'INTERNATIONAL')
+        self.assertRegex(
+            response.content.decode(),
+            r'name="flight_classification" value="INTERNATIONAL" required\s+checked')
 
     def test_editing_a_journey_reuses_the_existing_leg_rows(self):
         original_pks = [leg.pk for leg in self.legs]
@@ -2338,6 +2400,7 @@ class ConnectingItineraryPagesTest(TestCase):
             reverse('airlines:add_flight_schedule'),
             dict(
                 flight_type='CONNECTING', airline=self.airline.pk,
+                flight_classification='INTERNATIONAL',
                 segment_count='2', itinerary_status='SCHEDULED',
                 booking_available='on', min_connection_minutes='45',
                 seg_0_flight_number='5J711', seg_0_aircraft=self.aircraft.pk,
@@ -2416,6 +2479,15 @@ class ConnectingItineraryFormTest(TestCase):
         for value in ('DIRECT', 'ROUND_TRIP', 'CONNECTING'):
             self.assertIn('value="%s" data-flight-type' % value, body)
 
+    def test_the_form_offers_domestic_and_international_classification_cards(self):
+        resp = self.client.get(reverse('airlines:add_flight_schedule'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['flight_classification'], '')
+        body = resp.content.decode()
+        self.assertIn('name="flight_classification" value="DOMESTIC"', body)
+        self.assertIn('name="flight_classification" value="INTERNATIONAL"', body)
+        self.assertIn('Every airport on the journey is in the same country.', body)
+
     def test_the_direct_form_is_the_default(self):
         body = self.client.get(
             reverse('airlines:add_flight_schedule')).content.decode()
@@ -2485,6 +2557,7 @@ class ConnectingItinerarySearchTest(TestCase):
         self.client.post(reverse('airlines:add_flight_schedule'),
             dict(
                 flight_type='CONNECTING', airline=self.airline.pk,
+                flight_classification='INTERNATIONAL',
                 segment_count='2', itinerary_status='SCHEDULED',
                 booking_available='on', min_connection_minutes='45',
                 seg_0_flight_number='5J711', seg_0_aircraft=self.aircraft.pk,
@@ -2831,6 +2904,7 @@ class ConnectingItineraryBookingTest(TestCase):
             reverse('airlines:add_flight_schedule'),
             dict(
                 flight_type='CONNECTING', airline=self.airline.pk,
+                flight_classification='INTERNATIONAL',
                 segment_count='2', itinerary_status='SCHEDULED',
                 booking_available='on', min_connection_minutes='45',
                 seg_0_flight_number='5J711', seg_0_aircraft=self.aircraft.pk,

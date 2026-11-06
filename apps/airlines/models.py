@@ -12,6 +12,7 @@ from airlines.itineraries import (
     total_price,
 )
 from airlines.layouts import CABIN_FARE_FIELDS, FARE_CLASSES, capacity_for
+from airlines.route_scope import route_scope_for_legs
 
 
 AIRLINE_STATUS_CHOICES = [
@@ -784,6 +785,11 @@ class Flight(models.Model):
         max_length=15, choices=TripType.choices, default=TripType.ONE_WAY,
         verbose_name="Trip Type",
         help_text="Whether this flight is sold as a one-way or round-trip service")
+    flight_classification = models.CharField(
+        max_length=15, choices=ROUTE_SCOPE_CHOICES, blank=True, default='',
+        db_index=True, verbose_name="Flight classification",
+        help_text="Whether every airport on this journey is in one country "
+                  "(domestic) or the journey crosses a border (international).")
     trip_role = models.CharField(
         max_length=10, choices=TripRole.choices, default=TripRole.OUTBOUND,
         verbose_name="Trip Role",
@@ -1119,7 +1125,7 @@ class FlightItinerary(models.Model):
     route_scope = models.CharField(
         max_length=15, choices=ROUTE_SCOPE_CHOICES, default=RouteScope.DOMESTIC,
         verbose_name="Route scope",
-        help_text="Derived from the journey's two end airports: same country is "
+        help_text="Derived from every airport on the journey: same country is "
                   "domestic, anything else is international.")
     status = models.CharField(
         max_length=10, choices=FLIGHT_STATUS_CHOICES, default='SCHEDULED')
@@ -1212,22 +1218,12 @@ class FlightItinerary(models.Model):
 
     @staticmethod
     def derive_route_scope(legs):
-        """Domestic when both ends are in one country, international otherwise.
+        """Domestic when every airport is in one country, otherwise international.
 
         Derived rather than typed in, because a scope that disagrees with the
         airports is worse than no scope at all.
         """
-        legs = list(legs or [])
-        if not legs:
-            return None
-        first, last = legs[0], legs[-1]
-        origin = first.origin_airport if first.origin_airport_id else None
-        destination = last.destination_airport if last.destination_airport_id else None
-        if origin is None or destination is None:
-            return None
-        if origin.country_code and origin.country_code == destination.country_code:
-            return FlightItinerary.RouteScope.DOMESTIC
-        return FlightItinerary.RouteScope.INTERNATIONAL
+        return route_scope_for_legs(legs)
 
     @property
     def ordered_legs(self):
