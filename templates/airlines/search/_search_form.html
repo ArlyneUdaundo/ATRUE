@@ -59,7 +59,7 @@
                 <span class="fs-date-range__return" data-fs-return-field{% if search_defaults.trip_type != 'round' %} hidden{% endif %}>
                     <span class="fs-control fs-control--date">
                         <span class="fs-control__text" data-fs-return-label>{{ search_defaults.return_label }}</span>
-                        <input class="fs-date" type="date" id="fsReturn" name="return_date" value="{{ search_defaults.return_date }}" min="{{ search_defaults.departure_date }}" data-fs-return>
+                        <input class="fs-date" type="date" id="fsReturn" name="return_date" value="{{ search_defaults.return_date }}" min="{{ search_defaults.departure_date }}" data-fs-return{% if search_defaults.trip_type != 'round' %} disabled{% endif %}>
                     </span>
                 </span>
             </div>

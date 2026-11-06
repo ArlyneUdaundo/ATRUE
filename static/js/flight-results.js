@@ -642,6 +642,17 @@
         if (returnField) {
             returnField.hidden = trip !== 'round';
         }
+        if (returnInput) {
+            const roundTrip = trip === 'round';
+            returnInput.disabled = !roundTrip;
+            returnInput.required = roundTrip;
+            if (roundTrip && departInput) {
+                returnInput.min = departInput.value || departInput.min;
+            }
+            if (window.ATRUE_DATE_PICKER) {
+                window.ATRUE_DATE_PICKER.refresh(returnInput);
+            }
+        }
         if (multiPanel) {
             multiPanel.hidden = trip !== 'multicity';
         }
@@ -713,6 +724,9 @@
             if (returnInput.value && departInput.value
                     && returnInput.value < departInput.value) {
                 returnInput.value = departInput.value;
+                if (window.ATRUE_DATE_PICKER) {
+                    window.ATRUE_DATE_PICKER.refresh(returnInput);
+                }
             }
         }
         if (departLabel) {
