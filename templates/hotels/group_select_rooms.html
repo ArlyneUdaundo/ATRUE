@@ -6,7 +6,7 @@
 {% block content_class %}rm-wide{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261010-guest-info-unified">
+    <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261106-room-details-modal-1">
 {% endblock %}
 
 {% block content %}
@@ -318,12 +318,22 @@
             <button type="button" class="rm-modal-x" data-close-modal aria-label="Close room details"><i class="fas fa-xmark"></i></button>
         </div>
         <div class="rm-modal-body" id="roomModalBody"></div>
+        <div class="rm-modal-foot rmd-modal-foot">
+            <span class="rmd-footer-note"><i class="fas fa-circle-info" aria-hidden="true"></i> Review the room and stay details before selecting.</span>
+            <button type="button" class="ag-btn" id="roomModalSelect"><i class="fas fa-bed" aria-hidden="true"></i> Select Room</button>
+        </div>
+    </div>
+    <div class="rm-lightbox" id="roomLightbox" hidden role="dialog" aria-modal="true" aria-label="Room photo gallery">
+        <button type="button" class="rm-lightbox-close" data-lightbox-close aria-label="Close photo gallery"><i class="fas fa-xmark"></i></button>
+        <button type="button" class="rm-lightbox-nav rm-lightbox-prev" data-lightbox-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
+        <figure><img id="roomLightboxImage" src="" alt="Room photo"><figcaption id="roomLightboxCounter"></figcaption></figure>
+        <button type="button" class="rm-lightbox-nav rm-lightbox-next" data-lightbox-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
     </div>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/rooms.js' %}?v=20261017-live-summary-all-room-guests"></script>
+<script src="{% static 'js/rooms.js' %}?v=20261106-room-details-modal-1"></script>
 {% endblock %}
 

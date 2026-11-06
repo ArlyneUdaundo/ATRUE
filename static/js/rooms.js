@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    ATRUE — Rooms page behaviour
    Room photos & details · Compare rooms · room selection
    (Select toggle) · guest information · live computation · booking submit.
@@ -71,6 +71,13 @@
     var modalSub = document.getElementById('roomModalSub');
     var modalBody = document.getElementById('roomModalBody');
     var modalFull = document.getElementById('roomModalFull');
+    var modalSelect = document.getElementById('roomModalSelect');
+    var roomLightbox = document.getElementById('roomLightbox');
+    var roomLightboxImage = document.getElementById('roomLightboxImage');
+    var roomLightboxCounter = document.getElementById('roomLightboxCounter');
+    var activeModalRoomId = null;
+    var activeModalPhotos = [];
+    var activePhotoIndex = 0;
     var comparePanel = document.getElementById('comparePanel');
     var compareToggle = document.getElementById('compareToggle');
 
@@ -225,7 +232,22 @@
                 ? '<i class="fas fa-bed"></i> BOOK ' + SELECTED.length + ' ROOM' + (SELECTED.length === 1 ? '' : 'S')
                 : '<i class="fas fa-bed"></i> Book room(s)';
         }
+        syncRoomModalButton();
         computeAll();
+    }
+
+    function syncRoomModalButton() {
+        if (!modalSelect || activeModalRoomId === null) return;
+        var d = roomDetailsData()[String(activeModalRoomId)] || {};
+        var selected = findIndex(activeModalRoomId) !== -1;
+        modalSelect.disabled = !d.bookable;
+        modalSelect.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        modalSelect.classList.toggle('is-selected', selected);
+        modalSelect.innerHTML = !d.bookable
+            ? '<i class="fas fa-ban" aria-hidden="true"></i> Unavailable'
+            : selected
+                ? '<i class="fas fa-check" aria-hidden="true"></i> Selected · Remove room'
+                : '<i class="fas fa-bed" aria-hidden="true"></i> Select Room';
     }
 
     /* ------------------------------------------------------- card chrome */
@@ -737,96 +759,148 @@
 
     /* ------------------------------------------------------ details modal */
 
-    function amenityMarkup(list) {
-        if (!list || !list.length) return '<p class="rm-modal-text" style="color:var(--slate-500)">Not listed.</p>';
-        return '<div class="rm-modal-grid">' + list.map(function (label) {
-            return '<span class="rm-amen"><i class="fas fa-check"></i> ' + esc(label) + '</span>';
+    function amenityMarkup(list, className) {
+        if (!list || !list.length) return '<p class="rmd-empty">No amenities listed for this room.</p>';
+        return '<div class="rmd-amenities-grid ' + (className || '') + '">' + list.map(function (item) {
+            var label = typeof item === 'string' ? item : item.label;
+            var icon = typeof item === 'string' ? 'fa-check' : (item.icon || 'fa-check');
+            return '<span class="rmd-amenity"><i class="fas ' + esc(icon) + '" aria-hidden="true"></i>' + esc(label) + '</span>';
         }).join('') + '</div>';
+    }
+
+    function paintRoomPhoto(index) {
+        if (!activeModalPhotos.length) return;
+        activePhotoIndex = (index + activeModalPhotos.length) % activeModalPhotos.length;
+        var hero = modalBody.querySelector('[data-room-hero-image]');
+        if (hero) hero.src = activeModalPhotos[activePhotoIndex];
+        var count = modalBody.querySelector('[data-room-photo-count]');
+        if (count) count.textContent = (activePhotoIndex + 1) + ' / ' + activeModalPhotos.length;
+        Array.prototype.forEach.call(modalBody.querySelectorAll('[data-room-thumb]'), function (thumb) {
+            var active = Number(thumb.getAttribute('data-room-thumb')) === activePhotoIndex;
+            thumb.classList.toggle('is-active', active);
+            if (active) thumb.setAttribute('aria-current', 'true');
+            else thumb.removeAttribute('aria-current');
+        });
+        if (roomLightbox && !roomLightbox.hidden) {
+            roomLightboxImage.src = activeModalPhotos[activePhotoIndex];
+            roomLightboxCounter.textContent = (activePhotoIndex + 1) + ' / ' + activeModalPhotos.length;
+        }
+    }
+
+    function openRoomLightbox(index) {
+        if (!roomLightbox || !activeModalPhotos.length) return;
+        paintRoomPhoto(index);
+        roomLightbox.hidden = false;
+        document.body.classList.add('rm-lightbox-open');
+        var closeButton = roomLightbox.querySelector('[data-lightbox-close]');
+        if (closeButton) closeButton.focus({ preventScroll: true });
+    }
+
+    function closeRoomLightbox() {
+        if (!roomLightbox) return;
+        roomLightbox.hidden = true;
+        document.body.classList.remove('rm-lightbox-open');
     }
 
     function openDetails(roomId) {
         var d = roomDetailsData()[String(roomId)];
         if (!d || !modal) return;
+        activeModalRoomId = roomId;
+        activeModalPhotos = Array.isArray(d.photos) ? d.photos : [];
+        activePhotoIndex = 0;
         modalTitle.textContent = d.name + ' · Room ' + d.room_number;
-        modalSub.textContent = d.hotel_name + ' · ' + d.hotel_location + ' · ' + d.status;
+        modalSub.textContent = [d.hotel_name, d.hotel_location, d.status].filter(Boolean).join(' · ');
 
-        var hero = d.photos.length
-            ? '<div class="rm-modal-hero"><img src="' + esc(d.photos[0]) + '" alt="' + esc(d.name) + '"></div>' +
-              '<div class="rm-modal-strip">' + d.photos.map(function (src, i) {
-                  return '<img src="' + esc(src) + '" alt="Photo ' + (i + 1) + '" data-modal-shot="' + i + '"' +
-                      (i === 0 ? ' class="is-active"' : '') + '>';
-              }).join('') + '</div>'
-            : '<div class="rm-modal-hero"><i class="fas fa-bed"></i></div>';
+        var gallery = activeModalPhotos.length
+            ? '<div class="rmd-gallery">' +
+                '<button type="button" class="rmd-main-photo" data-room-open-lightbox aria-label="Open room photo gallery">' +
+                    '<img data-room-hero-image src="' + esc(activeModalPhotos[0]) + '" alt="' + esc(d.name) + ' room photo" loading="eager">' +
+                    '<span class="rmd-photo-count" data-room-photo-count>1 / ' + activeModalPhotos.length + '</span>' +
+                '</button>' +
+                (activeModalPhotos.length > 1 ? '<button type="button" class="rmd-gallery-arrow rmd-gallery-prev" data-room-photo-prev aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>' +
+                    '<button type="button" class="rmd-gallery-arrow rmd-gallery-next" data-room-photo-next aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>' : '') +
+                '<div class="rmd-thumbs">' + activeModalPhotos.slice(0, 4).map(function (src, i) {
+                    var remaining = activeModalPhotos.length - 4;
+                    return '<button type="button" class="rmd-thumb' + (i === 0 ? ' is-active' : '') + '" data-room-thumb="' + i + '" aria-label="Show photo ' + (i + 1) + '">' +
+                        '<img src="' + esc(src) + '" alt="" loading="lazy">' +
+                        (i === 3 && remaining > 0 ? '<span>+' + remaining + ' photos</span>' : '') + '</button>';
+                }).join('') + '</div></div>'
+            : '<div class="rmd-no-photo"><i class="fas fa-bed" aria-hidden="true"></i><span>No room photos available</span></div>';
 
-        var priceRows =
-            '<tr><td><b>Per night</b></td><td class="c-price"><b>₱ ' + peso(d.rate) + '</b></td></tr>' +
-            '<tr><td>Stay total (' + d.nights + ' night' + (d.nights === 1 ? '' : 's') + ')</td>' +
-                '<td class="c-price">₱ ' + peso(d.total) + '</td></tr>' +
-            '<tr><td>Extra guest</td><td>' +
-                (Number(d.additional_guest_charge) > 0
-                    ? '₱ ' + peso(d.additional_guest_charge) + ' per guest, per night'
-                    : 'No charge') +
-            '</td></tr>' +
-            '<tr><td>Payment</td><td>Pay online now or pay when you arrive</td></tr>';
+        var overview = [
+            ['fa-ruler-combined', d.size || 'Not specified', 'Room size'],
+            ['fa-bed', d.bed || 'Not specified', d.bed_count ? d.bed_count + ' bed' + (d.bed_count === 1 ? '' : 's') : 'Bed type'],
+            ['fa-user-group', 'Up to ' + d.max_guests, d.sleeps || 'Guest capacity'],
+            ['fa-eye', d.view_type || 'Not specified', 'Room view']
+        ];
+        var nights = Math.max(1, Number(d.nights) || 1);
+        var guests = (Number(d.adults) || 0) + (Number(d.children) || 0);
+        var requestedRooms = Math.max(1, Number(d.rooms_requested) || 1);
+        var dateLabel = function (iso) {
+            if (!iso) return 'Not selected';
+            var date = new Date(iso + 'T00:00:00');
+            return isNaN(date.getTime()) ? iso : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+        var amenities = (d.amenities || []).filter(function (item) {
+            return typeof item === 'string' || item.source === 'hotel';
+        });
+        var compactAmenities = amenities.slice(0, 8);
+        var amenityMore = amenities.length > 8
+            ? '<button class="rmd-text-button" type="button" data-room-amenity-toggle>View all ' + amenities.length + ' amenities</button>' : '';
+        var guestFee = Number(d.extra_guest_charge) > 0
+            ? '<div class="rmd-price-note">Extra guest charge: ₱ ' + peso(d.extra_guest_charge) + ' per guest, per night.</div>' : '';
 
-        modalBody.innerHTML =
-            hero +
-            '<div class="rm-badges">' +
-                (d.badges.length
-                    ? d.badges.map(function (b) { return '<span class="rm-badge rm-badge-blue"><i class="fas fa-check"></i> ' + esc(b) + '</span>'; }).join('')
-                    : '<span class="rm-badge rm-badge-muted">No highlights for this room</span>') +
-            '</div>' +
-            '<div class="rm-facts">' +
-                '<div class="rm-fact"><i class="fas fa-ruler-combined"></i><span><b>' + esc(d.size) + '</b><small>Room size</small></span></div>' +
-                '<div class="rm-fact"><i class="fas fa-bed"></i><span><b>' + esc(d.bed) + '</b><small>Bed type</small></span></div>' +
-                '<div class="rm-fact"><i class="fas fa-user-group"></i><span><b>Max ' + d.max_guests + ' guests</b><small>' + esc(d.sleeps) + '</small></span></div>' +
-                '<div class="rm-fact"><i class="fas fa-star"></i><span><b>' + d.score + ' / 10</b><small>' + esc(d.score_label) + ' · ' + esc(d.score_basis) + '</small></span></div>' +
-                '<div class="rm-fact"><i class="fas fa-tag"></i><span><b>₱ ' + peso(d.rate) + '</b><small>Standard nightly rate</small></span></div>' +
-                '<div class="rm-fact"><i class="fas fa-id-card"></i><span><b>' + esc(d.room_id) + '</b><small>Room ID</small></span></div>' +
-            '</div>' +
-            '<div class="rm-modal-sec"><h4>Description</h4><div class="rm-modal-text">' +
-                (d.description ? esc(d.description) : '<span style="color:var(--slate-500)">No description provided.</span>') +
-            '</div></div>' +
-            '<div class="rm-modal-sec"><h4>Room features</h4>' + amenityMarkup(d.features) + '</div>' +
-            '<div class="rm-modal-sec"><h4>Property amenities &amp; services</h4>' + amenityMarkup(d.amenities) + '</div>' +
-            '<div class="rm-modal-sec"><h4>What you will pay</h4>' +
-                '<div class="rm-compare-scroll"><table><tbody>' + priceRows + '</tbody></table></div>' +
-            '</div>';
+        modalBody.innerHTML = '<div class="rmd-layout"><div class="rmd-main-column">' + gallery +
+            '<section class="rmd-section rmd-overview"><h4>Room overview</h4><div class="rmd-overview-grid">' + overview.map(function (item) {
+                return '<div class="rmd-overview-item"><i class="fas ' + item[0] + '" aria-hidden="true"></i><span><b>' + esc(item[1]) + '</b><small>' + esc(item[2]) + '</small></span></div>';
+            }).join('') + '</div></section>' +
+            '<section class="rmd-section"><h4>About this room</h4><p class="rmd-description">' + esc(d.description || 'No room description has been provided.') + '</p></section>' +
+            (d.features && d.features.length ? '<section class="rmd-section"><h4>Room features</h4>' + amenityMarkup(d.features) + '</section>' : '') +
+            '<section class="rmd-section"><h4>Property amenities &amp; services</h4><div data-room-amenities-collapsed>' + amenityMarkup(compactAmenities) + '</div>' +
+                (amenityMore ? '<div data-room-amenities-expanded hidden>' + amenityMarkup(amenities) + '</div>' + amenityMore : '') + '</section>' +
+            '</div><aside class="rmd-booking-card"><div class="rmd-booking-top"><span>Room rate</span><div><b>₱ ' + peso(d.rate) + '</b><small>per night</small></div></div>' +
+            '<div class="rmd-booking-dates"><div><small>Check-in</small><b>' + esc(dateLabel(d.check_in)) + '</b></div><i class="fas fa-arrow-right" aria-hidden="true"></i><div><small>Check-out</small><b>' + esc(dateLabel(d.check_out)) + '</b></div></div>' +
+            '<div class="rmd-booking-row"><span>Length of stay</span><b>' + nights + ' night' + (nights === 1 ? '' : 's') + '</b></div>' +
+            '<div class="rmd-booking-row"><span>Guests</span><b>' + guests + ' guest' + (guests === 1 ? '' : 's') + '</b></div>' +
+            '<div class="rmd-booking-row"><span>Rooms requested</span><b>' + requestedRooms + '</b></div>' +
+            '<div class="rmd-booking-divider"></div><div class="rmd-booking-row"><span>Room subtotal</span><b>₱ ' + peso(d.total) + '</b></div>' + guestFee +
+            '<p class="rmd-booking-disclaimer">Room subtotal is based on the displayed nightly rate and stay length. Any applicable extra guest charge is calculated from the guest details you provide.</p>' +
+            '<a class="rmd-full-details" href="' + esc(d.detail_url || '#') + '">View full room details <i class="fas fa-arrow-up-right-from-square"></i></a></aside></div>';
 
-        if (modalFull) modalFull.href = d.detail_url;
+        if (modalSelect) syncRoomModalButton();
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
-        /* Always open on the header + top of the photo. innerHTML is rebuilt
-           above, but a previous room may have left the body scrolled, so reset
-           it explicitly after the new content is in place. */
         modalBody.scrollTop = 0;
         var closeBtn = modal.querySelector('.rm-modal-x');
-        /* preventScroll: a bare focus() can scroll the freshly rebuilt modal to
-           the X button, which would hide the top of the photo on open. */
-        if (closeBtn) { try { closeBtn.focus({ preventScroll: true }); }
-                         catch (err) { closeBtn.focus(); } }
+        if (closeBtn) { try { closeBtn.focus({ preventScroll: true }); } catch (err) { closeBtn.focus(); } }
         requestAnimationFrame(function () { modalBody.scrollTop = 0; });
-
-        Array.prototype.forEach.call(modalBody.querySelectorAll('[data-modal-shot]'), function (img) {
-            img.addEventListener('click', function () {
-                var heroImg = modalBody.querySelector('.rm-modal-hero img');
-                if (heroImg) {
-                    heroImg.src = img.getAttribute('src');
-                }
-                Array.prototype.forEach.call(modalBody.querySelectorAll('[data-modal-shot]'), function (o) {
-                    o.classList.remove('is-active');
-                });
-                img.classList.add('is-active');
-            });
+        Array.prototype.forEach.call(modalBody.querySelectorAll('[data-room-thumb]'), function (thumb) {
+            thumb.addEventListener('click', function () { paintRoomPhoto(Number(thumb.getAttribute('data-room-thumb'))); });
+        });
+        var prev = modalBody.querySelector('[data-room-photo-prev]');
+        var next = modalBody.querySelector('[data-room-photo-next]');
+        var openGallery = modalBody.querySelector('[data-room-open-lightbox]');
+        if (prev) prev.addEventListener('click', function () { paintRoomPhoto(activePhotoIndex - 1); });
+        if (next) next.addEventListener('click', function () { paintRoomPhoto(activePhotoIndex + 1); });
+        if (openGallery) openGallery.addEventListener('click', function () { openRoomLightbox(activePhotoIndex); });
+        var more = modalBody.querySelector('[data-room-amenity-toggle]');
+        if (more) more.addEventListener('click', function () {
+            var collapsed = modalBody.querySelector('[data-room-amenities-collapsed]');
+            var expanded = modalBody.querySelector('[data-room-amenities-expanded]');
+            var showAll = expanded.hidden;
+            expanded.hidden = !showAll;
+            collapsed.hidden = showAll;
+            more.textContent = showAll ? 'Show fewer amenities' : 'View all ' + amenities.length + ' amenities';
         });
     }
 
     function closeDetails() {
         if (!modal) return;
+        closeRoomLightbox();
         modal.classList.remove('open');
         document.body.style.overflow = '';
+        activeModalRoomId = null;
     }
-
     /* ------------------------------------------------------------- wiring */
 
     cards.forEach(function (card) {
@@ -910,6 +984,28 @@
         });
         modal.addEventListener('click', function (e) { if (e.target === modal) closeDetails(); });
     }
+    if (modalSelect) {
+        modalSelect.addEventListener('click', function () {
+            if (activeModalRoomId === null) return;
+            var d = roomDetailsData()[String(activeModalRoomId)] || {};
+            if (!d.bookable) return;
+            var card = cardOf(activeModalRoomId);
+            var selectButton = card && card.querySelector('[data-room-book]');
+            if (selectButton && !selectButton.disabled) {
+                selectButton.click();
+                closeDetails();
+            }
+        });
+    }
+    if (roomLightbox) {
+        var lightboxClose = roomLightbox.querySelector('[data-lightbox-close]');
+        var lightboxPrev = roomLightbox.querySelector('[data-lightbox-prev]');
+        var lightboxNext = roomLightbox.querySelector('[data-lightbox-next]');
+        if (lightboxClose) lightboxClose.addEventListener('click', closeRoomLightbox);
+        if (lightboxPrev) lightboxPrev.addEventListener('click', function () { paintRoomPhoto(activePhotoIndex - 1); });
+        if (lightboxNext) lightboxNext.addEventListener('click', function () { paintRoomPhoto(activePhotoIndex + 1); });
+        roomLightbox.addEventListener('click', function (e) { if (e.target === roomLightbox) closeRoomLightbox(); });
+    }
 
     // Guest information modal: opened by Guest info, closed by X / Cancel /
     // backdrop / Escape. It never scrolls the page, and the form inside it keeps
@@ -941,6 +1037,11 @@
         });
     }
     document.addEventListener('keydown', function (e) {
+        if (roomLightbox && !roomLightbox.hidden) {
+            if (e.key === 'Escape') { closeRoomLightbox(); return; }
+            if (e.key === 'ArrowLeft') { paintRoomPhoto(activePhotoIndex - 1); return; }
+            if (e.key === 'ArrowRight') { paintRoomPhoto(activePhotoIndex + 1); return; }
+        }
         if (e.key !== 'Escape') return;
         if (guestModalOpen()) { closeGuestModal(); return; }
         if (modal && modal.classList.contains('open')) closeDetails();

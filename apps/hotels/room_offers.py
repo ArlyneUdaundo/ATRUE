@@ -231,26 +231,22 @@ def guest_score(room, amenity_count):
     }
 
 
-def room_amenities(room, hotel_amenities, hotel_services, limit=10):
+def room_amenities(room, hotel_amenities, hotel_services):
     """De-duplicated amenity grid built from room features + hotel offerings."""
     items, seen = [], set()
-    for label in split_features(room.features)[:limit]:
+    for label in split_features(room.features):
         key = label.lower()
         if key in seen:
             continue
         seen.add(key)
         items.append({'label': label, 'icon': _icon_for(label), 'source': 'room'})
-    extra = 0
     for label in [a.name for a in hotel_amenities] + [s.name for s in hotel_services]:
         key = label.lower()
         if key in seen:
             continue
         seen.add(key)
         items.append({'label': label, 'icon': _icon_for(label), 'source': 'hotel'})
-        extra += 1
-        if len(items) >= limit + 4:
-            break
-    return items, extra
+    return items
 
 
 def hotel_has_dining(amenities):
@@ -317,10 +313,11 @@ def build_room_cards(rooms, bookable_flags, hotel_amenities, hotel_services, nig
     # Everything derived per room is computed once and reused.
     derived = {}
     for room in rooms:
-        amenity_items, hotel_extra = room_amenities(room, amenities, services)
+        amenity_items = room_amenities(room, amenities, services)
         derived[room.id] = {
             'amenities': amenity_items[:10],
-            'amenities_extra': max(0, len(amenity_items) - 10) + hotel_extra,
+            'amenities_all': amenity_items,
+            'amenities_extra': max(0, len(amenity_items) - 10),
             'score': guest_score(room, len(amenity_items)),
             'rate': build_rate(room, nights),
         }
@@ -350,6 +347,7 @@ def build_room_cards(rooms, bookable_flags, hotel_amenities, hotel_services, nig
                       f"{room.capacity_children} child{room.capacity_children == 1 and '' or 'ren'}",
             'score': info['score'],
             'amenities': info['amenities'],
+            'amenities_all': info['amenities_all'],
             'amenities_extra': info['amenities_extra'],
             'badges': room_badges(
                 room, room.id == best_id, len(same_type.get(room.room_type, [])), has_dining
@@ -396,12 +394,19 @@ def compare_rooms(cards, nights):
     return rows
 
 
-def details_payload(cards, hotel, room_detail_url_name, check_in, check_out):
+def details_payload(cards, hotel, room_detail_url_name, check_in, check_out,
+                    adults=1, children=0, rooms_requested=1):
     """JSON-serialisable snapshot per room, used by the "Photos & details" modal."""
     payload = {}
     for card in cards:
         room = card['room']
         rate = card['rate']
+        room_features = split_features(room.features)
+        bed_match = BED_RE.search(card['bed'] or '')
+        bed_count = int(bed_match.group(1) or 1) if bed_match else None
+        view_type = next(
+            (feature for feature in room_features if 'view' in feature.lower()), ''
+        )
         payload[str(room.id)] = {
             'name': card['name'],
             'room_number': room.room_number,
@@ -412,16 +417,26 @@ def details_payload(cards, hotel, room_detail_url_name, check_in, check_out):
             'bed': card['bed'],
             'sleeps': card['sleeps'],
             'max_guests': card['max_guests'],
+            'bed_count': bed_count,
+            'view_type': view_type,
             'rate': str(room.rate),
             'total': str(rate['total']),
             'rate_display': rate['rate_display'],
             'total_display': rate['total_display'],
             'nights': rate['nights'],
+            'check_in': check_in.isoformat(),
+            'check_out': check_out.isoformat(),
+            'adults': int(adults or 0),
+            'children': int(children or 0),
+            'rooms_requested': max(1, int(rooms_requested or 1)),
             'extra_guest_charge': str(room.additional_guest_charge),
             'has_extra': rate['has_extra'],
             'description': room.description or '',
-            'features': split_features(room.features),
-            'amenities': [a['label'] for a in card['amenities']],
+            'features': [
+                {'label': label, 'icon': _icon_for(label)}
+                for label in room_features
+            ],
+            'amenities': card['amenities_all'],
             'score': card['score']['score'],
             'score_label': card['score']['label'],
             'score_basis': card['score']['basis'],

@@ -1048,7 +1048,8 @@ def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, ad
         'room_cards': room_cards,
         'compare_rooms': room_offers.compare_rooms(room_cards, nights),
         'room_details': room_offers.details_payload(
-            room_cards, hotel, 'hotels:room_detail', check_in, check_out
+            room_cards, hotel, 'hotels:room_detail', check_in, check_out,
+            adults=adults, children=children, rooms_requested=rooms_needed,
         ),
         'check_in': check_in,
         'check_out': check_out,
