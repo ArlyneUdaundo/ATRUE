@@ -39,6 +39,11 @@ def backfill_booking_people(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    # PostgreSQL cannot create the subsequent FK/unique indexes while a single
+    # atomic migration still has pending trigger events from earlier ALTERs.
+    # Commit each schema operation before applying the next one.
+    atomic = False
+
     dependencies = [
         ('hotels', '0026_hotel_created_by'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
