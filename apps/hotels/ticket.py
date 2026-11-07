@@ -236,8 +236,9 @@ def build_ticket_context(booking):
         'check_out': dj_date(check_out, 'F d, Y') if check_out else '—',
         'lead': {
             'name': booking.primary_guest_name or '—',
-            'contact': booking.customer.contact_number or booking.payer_contact or '—',
-            'email': booking.customer.email or '—',
+            'contact': (booking.guest.contact if booking.guest_id else booking.customer.contact_number)
+                       or booking.payer_contact or '—',
+            'email': (booking.guest.email if booking.guest_id else booking.customer.email) or '—',
         },
         'booking_info': {
             'pnr': booking.booking_reference,

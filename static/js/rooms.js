@@ -99,12 +99,8 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    // Profile fields stay read-only only when the account has a value; an
-    // incomplete profile must still let the guest finish booking details.
-    function primaryReadonly(value, index) {
-        return index === 0 && String(value || '').trim() !== ''
-            ? ' readonly aria-readonly="true"' : '';
-    }
+    // Guest fields are always supplied by the person booking for the customer.
+    function primaryReadonly() { return ''; }
 
     function peso(n) {
         return Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
@@ -185,13 +181,6 @@
         if (idx === -1) return;
         var wasActive = (ACTIVE === idx);
         SELECTED.splice(idx, 1);
-        if (idx === 0 && SELECTED.length) {
-            SELECTED[0].guest.first_name = PRIMARY_GUEST.first_name || '';
-            SELECTED[0].guest.middle_name = PRIMARY_GUEST.middle_name || '';
-            SELECTED[0].guest.last_name = PRIMARY_GUEST.last_name || '';
-            SELECTED[0].guest.email = PRIMARY_GUEST.email || '';
-            SELECTED[0].guest.contact = PRIMARY_GUEST.contact || '';
-        }
         if (wasActive) ACTIVE = Math.min(idx, SELECTED.length - 1);
         else if (idx < ACTIVE) ACTIVE -= 1;
         if (ACTIVE < 0) ACTIVE = 0;
@@ -1031,9 +1020,9 @@
             syncFromDom();
             var errs = validateAll();
             if (errs.length) { showErrors(errs); return; }
-            closeGuestModal();
-            // Don't auto-proceed to summary; let user continue selecting rooms if desired
-            // document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
+            // Saving guest details submits the server form; Django persists the
+            // booking and sends the student straight to its review page.
+            if (form.requestSubmit) form.requestSubmit();
         });
     }
     document.addEventListener('keydown', function (e) {

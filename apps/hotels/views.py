@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import uuid
 from datetime import date, timedelta
 
 from transactions.cart import add_booking_to_cart
@@ -8,7 +9,7 @@ from transactions.establishment_flow import add_booking as add_establishment_boo
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction as db_transaction
+from django.db import IntegrityError, transaction as db_transaction
 from django.db.models import Q
 from django.core.validators import validate_email
 from decimal import Decimal, InvalidOperation
@@ -45,7 +46,7 @@ from atrue_core.location_hierarchy import location_errors
 from atrue_core.slugs import get_object_by_slug_or_404
 
 from . import pricing, room_offers
-from .models import AdditionalGuest, Amenity, Booking, Hotel, HotelPhoto, Room, RoomPhoto, Service
+from .models import AdditionalGuest, Amenity, Booking, Hotel, HotelGuest, HotelPhoto, Room, RoomPhoto, Service
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ def _room_date_conflict(room, start, end, exclude_pk=None):
     ).exclude(
         status__in=[Booking.Status.CANCELLED, Booking.Status.COMPLETED,
                     Booking.Status.CHECKED_OUT, Booking.Status.DECLINED]
-    )
+    ).exclude(status=Booking.Status.ON_HOLD, hold_expires_at__lt=timezone.now())
     if exclude_pk is not None:
         qs = qs.exclude(pk=exclude_pk)
     return qs.exists()
@@ -878,16 +879,12 @@ def _room_display_status(room, check_in, check_out):
 
 
 def _guest_line_defaults(rooms, user=None):
-    """Guest lines ordered by selected rooms, with account holder first."""
+    """Blank customer details, ordered by selected rooms."""
     lines = [{
         'first_name': '', 'middle_name': '', 'last_name': '',
         'email': '', 'contact': '', 'adults': 1, 'children': 0,
         'special_request': '', 'services': [], 'amenities': [],
     } for _ in rooms]
-    if lines and user is not None:
-        lines[0].update({'first_name': user.first_name or user.username,
-            'middle_name': user.middle_name or '', 'last_name': user.last_name or '',
-            'email': user.email or '', 'contact': user.contact_number or ''})
     return lines
 
 
@@ -907,12 +904,6 @@ def _parse_guest_lines(request, rooms):
         email = (request.POST.get(prefix + 'email') or '').strip()
         contact = (request.POST.get(prefix + 'contact') or '').strip()
         special = (request.POST.get(prefix + 'special_request') or '').strip()
-        if idx == 0:
-            first = request.user.first_name or request.user.username
-            middle = request.user.middle_name or ''
-            last = request.user.last_name or ''
-            email = request.user.email or ''
-            contact = request.user.contact_number or ''
         try:
             adults = max(0, int(request.POST.get(prefix + 'adults') or 0))
             children = max(0, int(request.POST.get(prefix + 'children') or 0))
@@ -1066,44 +1057,58 @@ def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, ad
         'services': services,
         'amenities': amenities,
         'preselected': _preselected_data(selected_rooms, guest_lines),
-        'primary_guest': {'first_name': request.user.first_name or request.user.username,
-            'middle_name': request.user.middle_name or '', 'last_name': request.user.last_name or '',
-            'email': request.user.email or '', 'contact': request.user.contact_number or ''},
+        'primary_guest': {},
         'errors': errors or [],
     })
 
 
-def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
-                          method='GCASH', pay_later=False):
-    """Create a multi-room hotel booking in ONE database transaction.
-
-    One Booking + one room entry per selected room + one bill + one payment
-    (when paying now) + one transaction record. Availability is re-verified
-    inside the transaction so no partial booking is ever left behind.
-    Returns (booking, error): booking is None when creation failed.
-    """
+def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines, draft_key):
+    """Persist the booking and actual guests before review; make submission idempotent."""
+    existing = Booking.objects.filter(draft_key=draft_key, customer=user).first()
+    if existing:
+        if not _update_hotel_booking_guests(existing, guest_lines):
+            return None, 'The saved booking no longer matches the selected rooms. Please start again.'
+        return existing, None
     nights = max(1, (check_out - check_in).days)
     date_errors = validate_stay_dates(check_in, check_out)
     if date_errors:
         return None, date_errors[0]
     try:
         with db_transaction.atomic():
+            locked = {
+                room.pk: room for room in Room.objects.select_for_update().filter(
+                    pk__in=[item.pk for item in rooms], hotel=hotel,
+                ).order_by('pk')
+            }
+            if len(locked) != len(rooms):
+                raise ValueError('One or more selected rooms are no longer available.')
+            rooms = [locked[item.pk] for item in rooms]
             for room in rooms:
                 if not _room_available_for_dates(room, check_in, check_out):
                     raise ValueError(f"Room {room.room_number} is no longer available for the selected dates.")
             booking = Booking.objects.create(
                 customer=user,
+                created_by=user,
+                draft_key=draft_key,
                 payer_name=user.full_profile,
                 payer_contact=user.contact_number or '',
-                status=Booking.Status.PENDING,
+                status=Booking.Status.ON_HOLD,
+                hold_expires_at=timezone.now() + timedelta(minutes=30),
             )
             bill_items = []
             for idx, room in enumerate(rooms):
                 g = guest_lines[idx]
+                guest = HotelGuest.objects.create(
+                    first_name=g['first_name'], middle_name=g.get('middle_name', ''),
+                    last_name=g['last_name'], email=g['email'], contact=g['contact'],
+                )
+                if idx == 0:
+                    booking.guest = guest
+                    booking.save(update_fields=['guest'])
                 adults = int(g['adults']); children = int(g['children'])
                 total_guests = adults + children
                 entry = booking.room_entries.create(
-                    room=room, selection_order=idx + 1, check_in=check_in, check_out=check_out,
+                    room=room, guest=guest, selection_order=idx + 1, check_in=check_in, check_out=check_out,
                     number_of_adults=adults, number_of_children=children,
                     guest_first_name=g.get('first_name', ''), guest_middle_name=g.get('middle_name', ''),
                     guest_last_name=g.get('last_name', ''), guest_email=g.get('email', ''),
@@ -1126,23 +1131,93 @@ def _create_hotel_booking(user, hotel, rooms, check_in, check_out, guest_lines,
                 for service in selected_services:
                     bill_items.append({'label': service.name, 'description': f'Room {room.room_number} hotel service', 'quantity': 1, 'rate': service.rate, 'amount': service.rate})
             total = bill_items_total(bill_items)
-            bill = create_bill(service='hotel', customer=user, items=bill_items, booking=booking)
-            if pay_later:
-                log_activity(user, 'Placed hotel group booking', f'{booking.booking_reference} - {len(rooms)} room(s) - pending payment')
-                record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference}')
-            else:
-                record_payment(customer=user, amount=total, method=method, service='hotel',
-                               description=f'Hotel group booking {booking.booking_reference}', bill=bill, booking=booking)
-                booking.status = Booking.Status.PENDING
-                booking.amount_paid = bill.amount_paid
-                # Hotel Booking.balance_due is a read-only derived property;
-                # the bill is the source of truth for the outstanding balance.
-                booking.save(update_fields=['status', 'amount_paid'])
-                log_activity(user, 'Submitted payment for hotel group booking', f'{booking.booking_reference} - {len(rooms)} room(s) - pending Billing Officer confirmation')
-                record_transaction('BOOKING', booking.booking_reference, user, f'Hotel group booking {booking.booking_reference} payment submitted')
+            create_bill(service='hotel', customer=user, items=bill_items, booking=booking)
             return booking, None
+    except IntegrityError:
+        existing = Booking.objects.filter(draft_key=draft_key, customer=user).first()
+        if existing:
+            return existing, None
+        raise
     except ValueError as exc:
         return None, str(exc)
+
+
+def _update_hotel_booking_guests(booking, guest_lines):
+    """Save edits from the review's Edit Booking action onto the same draft."""
+    with db_transaction.atomic():
+        booking = Booking.objects.select_for_update().get(pk=booking.pk)
+        return _save_hotel_booking_guest_edits(booking, guest_lines)
+
+
+def _save_hotel_booking_guest_edits(booking, guest_lines):
+    from transactions.models import Payment as TransactionPayment
+    bill = bill_for_booking(booking)
+    if bill and TransactionPayment.objects.filter(bill=bill).exists():
+        return True
+    entries = list(booking.room_entries.select_related('room', 'guest').order_by('selection_order', 'pk'))
+    if len(entries) != len(guest_lines):
+        return False
+    bill_items = []
+    for idx, (entry, data) in enumerate(zip(entries, guest_lines)):
+        guest = entry.guest
+        if guest is None:
+            guest = HotelGuest.objects.create(
+                first_name=data['first_name'], middle_name=data.get('middle_name', ''),
+                last_name=data['last_name'], email=data['email'], contact=data['contact'],
+            )
+            entry.guest = guest
+        else:
+            guest.first_name = data['first_name']
+            guest.middle_name = data.get('middle_name', '')
+            guest.last_name = data['last_name']
+            guest.email = data['email']
+            guest.contact = data['contact']
+            guest.save(update_fields=['first_name', 'middle_name', 'last_name', 'email', 'contact'])
+        entry.guest_first_name = guest.first_name
+        entry.guest_middle_name = guest.middle_name
+        entry.guest_last_name = guest.last_name
+        entry.guest_email = guest.email
+        entry.guest_contact = guest.contact
+        entry.guest_special_request = data.get('special_request', '')
+        entry.number_of_adults = int(data['adults'])
+        entry.number_of_children = int(data['children'])
+        entry.save()
+        if idx == 0:
+            booking.guest = guest
+        hotel = entry.room.hotel
+        services = list(hotel.services.filter(pk__in=data.get('services', []), status=Service.ServiceStatus.ACTIVE))
+        amenities = list(hotel.amenities.filter(pk__in=data.get('amenities', []), status=Amenity.AmenityStatus.ACTIVE))
+        entry.booked_services.all().delete()
+        entry.booked_amenities.all().delete()
+        entry.booked_services.bulk_create([
+            entry.booked_services.model(booking_room=entry, service=s, price_at_booking=s.rate)
+            for s in services
+        ])
+        entry.booked_amenities.bulk_create([
+            entry.booked_amenities.model(booking_room=entry, amenity=a, price_at_booking=0)
+            for a in amenities
+        ])
+        nights = max(1, (entry.check_out - entry.check_in).days)
+        extra_count = max(0, entry.total_guests - entry.room.capacity)
+        bill_items.append({'label': entry.room.get_room_type_display(),
+                           'description': f'Room {entry.room.room_number} x {nights} night(s)',
+                           'quantity': nights, 'rate': entry.room.rate,
+                           'amount': entry.room.rate * nights})
+        if extra_count:
+            bill_items.append({'label': 'Additional guest charge',
+                               'description': f'Room {entry.room.room_number}: {extra_count} extra guest(s) x {nights} night(s)',
+                               'quantity': extra_count * nights, 'rate': entry.room.additional_guest_charge,
+                               'amount': entry.room.additional_guest_charge * extra_count * nights})
+        bill_items.extend({'label': service.name, 'description': f'Room {entry.room.room_number} hotel service',
+                           'quantity': 1, 'rate': service.rate, 'amount': service.rate}
+                          for service in services)
+    booking.save(update_fields=['guest'])
+    if bill:
+        bill.items = bill_items
+        bill.total_amount = bill_items_total(bill_items)
+        bill.save(update_fields=['items', 'total_amount'])
+        bill._refresh()
+    return True
 
 
 @login_required
@@ -1159,6 +1234,7 @@ def hotel_group_start(request, hotel_id):
         Hotel.objects.filter(status=Hotel.Status.ACTIVE).prefetch_related('rooms', 'rooms__photos', 'services', 'amenities'),
         pk=hotel_id,
     )
+    request.session['hotel_group_draft_key'] = str(uuid.uuid4())
     check_in = _parse_date(request.GET.get('check_in'), date.today() + timedelta(days=1))
     check_out = _parse_date(request.GET.get('check_out'), check_in + timedelta(days=1))
     try:
@@ -1198,15 +1274,7 @@ def hotel_group_start(request, hotel_id):
 @login_required
 @student_booking_required
 def hotel_group_select_rooms(request, hotel_id):
-    """Single-page dynamic booking submission.
-
-    Validates the selected rooms, then either keeps the legacy multi-step
-    behaviour (room selection only -> guest info step) or, when the dynamic
-    form submits the per-room guest data (room_N_* fields), creates the whole
-    multi-room booking in ONE transaction and answers with the booking page.
-    On validation errors the page is re-rendered with the selection and the
-    entered guest information preserved for correction.
-    """
+    """Validate guest details, save an idempotent booking draft, then show review."""
     hotel = get_object_or_404(
         Hotel.objects.filter(status=Hotel.Status.ACTIVE).prefetch_related('rooms', 'rooms__photos', 'services', 'amenities'),
         pk=hotel_id,
@@ -1259,6 +1327,24 @@ def hotel_group_select_rooms(request, hotel_id):
         'payment_method': request.POST.get('payment_method', 'GCASH'),
         'pay_later': request.POST.get('pay_later') == 'on',
     }
+    draft_key = request.session.get('hotel_group_draft_key') or str(uuid.uuid4())
+    request.session['hotel_group_draft_key'] = draft_key
+    try:
+        booking, create_error = _create_hotel_booking(
+            request.user, hotel, rooms, check_in, check_out, guest_lines, draft_key,
+        )
+    except Exception:
+        logger.exception("Unable to save hotel booking draft (hotel_id=%s, user_id=%s)", hotel.pk, request.user.pk)
+        messages.error(request, "We couldn't save the guest details. Please review them and try again.")
+        return _render_room_selection(
+            request, hotel, check_in, check_out, rooms_needed, adults_search, children_search,
+            selected_rooms=rooms, guest_lines=guest_lines,
+            errors=["The booking could not be saved. Please try again."],
+        )
+    if create_error:
+        messages.error(request, create_error)
+        return redirect('hotels:group_start', hotel.id)
+    request.session['hotel_group_booking']['booking_id'] = booking.pk
     request.session.modified = True
     from simulation.completion import record_actor_task_event
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -1267,7 +1353,12 @@ def hotel_group_select_rooms(request, hotel_id):
         session=None,
         task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
     )
-    return redirect('hotels:group_payment')
+    record_actor_task_event(
+        request.user, 'HOTEL_GUEST_INFO_COMPLETED',
+        session=None,
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+    )
+    return redirect('hotels:group_review_booking', booking_id=booking.pk)
 
 
 @login_required
@@ -1288,7 +1379,25 @@ def hotel_group_guests(request):
                 'hotel': hotel, 'room_forms': list(zip(rooms, guest_lines)), 'check_in': check_in, 'check_out': check_out,
                 'nights': max(1, (check_out - check_in).days), 'errors': errors,
             })
-        request.session['hotel_group_booking']['guests'] = guest_lines
+        data['guests'] = guest_lines
+        draft_key = request.session.get('hotel_group_draft_key') or str(uuid.uuid4())
+        try:
+            booking, error = _create_hotel_booking(
+                request.user, hotel, rooms, check_in, check_out, guest_lines, draft_key,
+            )
+        except Exception:
+            logger.exception("Unable to save hotel guest information (user_id=%s)", request.user.pk)
+            messages.error(request, "We couldn't save the guest details. Please try again.")
+            return render(request, 'hotels/group_guests.html', {
+                'hotel': hotel, 'room_forms': list(zip(rooms, guest_lines)), 'check_in': check_in,
+                'check_out': check_out, 'nights': max(1, (check_out - check_in).days),
+                'errors': ["The booking could not be saved. Please try again."],
+            })
+        if error:
+            messages.error(request, error)
+            return redirect('hotels:group_start', hotel.id)
+        request.session['hotel_group_draft_key'] = draft_key
+        request.session['hotel_group_booking']['booking_id'] = booking.pk
         request.session.modified = True
         from simulation.completion import record_actor_task_event
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -1297,9 +1406,17 @@ def hotel_group_guests(request):
             session=None,
             task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
         )
-        return redirect('hotels:group_review')
+        return redirect('hotels:group_review_booking', booking_id=booking.pk)
+    guest_lines = _guest_line_defaults(rooms)
+    saved_booking_id = data.get('booking_id')
+    if saved_booking_id:
+        saved_booking = Booking.objects.filter(pk=saved_booking_id, customer=request.user).first()
+        if saved_booking:
+            saved_summary = _booking_summary(saved_booking)
+            if saved_summary:
+                guest_lines = [line['guest'] for line in saved_summary['lines']]
     return render(request, 'hotels/group_guests.html', {
-        'hotel': hotel, 'room_forms': list(zip(rooms, _guest_line_defaults(rooms, request.user))), 'check_in': check_in, 'check_out': check_out,
+        'hotel': hotel, 'room_forms': list(zip(rooms, guest_lines)), 'check_in': check_in, 'check_out': check_out,
         'nights': max(1, (check_out - check_in).days),
     })
 
@@ -1346,77 +1463,129 @@ def _hotel_group_summary(hotel, rooms, guest_lines, check_in, check_out):
     }
 
 
+def _booking_summary(booking):
+    entries = list(booking.room_entries.select_related('room__hotel', 'guest').prefetch_related(
+        'booked_services__service', 'booked_amenities__amenity'))
+    if not entries:
+        return None
+    hotel = entries[0].room.hotel
+    rooms = [entry.room for entry in entries]
+    guest_lines = []
+    for entry in entries:
+        guest = entry.guest
+        guest_lines.append({
+            'first_name': guest.first_name if guest else entry.guest_first_name,
+            'middle_name': guest.middle_name if guest else entry.guest_middle_name,
+            'last_name': guest.last_name if guest else entry.guest_last_name,
+            'email': guest.email if guest else entry.guest_email,
+            'contact': guest.contact if guest else entry.guest_contact,
+            'adults': entry.number_of_adults, 'children': entry.number_of_children,
+            'special_request': entry.guest_special_request,
+            'services': list(entry.booked_services.values_list('service_id', flat=True)),
+            'amenities': list(entry.booked_amenities.values_list('amenity_id', flat=True)),
+        })
+    summary = _hotel_group_summary(hotel, rooms, guest_lines,
+                                   entries[0].check_in, entries[0].check_out)
+    bill = bill_for_booking(booking)
+    if bill:
+        summary['grand_total'] = bill.total_amount
+    return summary
+
+
 @login_required
 @student_booking_required
-def hotel_group_review(request):
-    data = request.session.get('hotel_group_booking') or {}
-    if not data.get('room_ids') or not data.get('guests'):
+def hotel_group_review(request, booking_id=None):
+    if booking_id is None:
+        booking_id = (request.session.get('hotel_group_booking') or {}).get('booking_id')
+    if not booking_id:
         return redirect('hotels:list')
-    hotel = get_object_or_404(
-        Hotel.objects.filter(status=Hotel.Status.ACTIVE).prefetch_related('services', 'amenities'),
-        pk=data['hotel_id'],
-    )
-    rooms = list(Room.objects.filter(hotel=hotel, pk__in=data['room_ids']).prefetch_related('photos'))
-    rooms.sort(key=lambda r: data['room_ids'].index(r.pk))
-    check_in = date.fromisoformat(data['check_in'])
-    check_out = date.fromisoformat(data['check_out'])
-    summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
+    booking = get_object_or_404(Booking.objects.filter(customer=request.user), pk=booking_id)
+    if booking.status == Booking.Status.ON_HOLD and booking.hold_expires_at and booking.hold_expires_at < timezone.now():
+        messages.error(request, 'This booking draft expired. Please select a room again.')
+        return redirect('hotels:list')
+    summary = _booking_summary(booking)
+    if summary is None:
+        messages.error(request, 'This booking has no saved room details.')
+        return redirect('hotels:list')
+    summary['booking'] = booking
     if request.method == 'POST':
         if request.POST.get('action') == 'edit':
             return redirect('hotels:group_guests')
         if request.POST.get('action') == 'proceed_payment':
-            summary.update({
-                'default_payment_method': data.get('payment_method', 'GCASH'),
-                'default_pay_later': bool(data.get('pay_later')),
-            })
-            return render(request, 'hotels/group_payment.html', summary)
+            for entry in booking.room_entries.select_related('room'):
+                if not _room_available_for_dates(entry.room, entry.check_in, entry.check_out):
+                    # The current draft itself occupies the room; exclude it during recheck.
+                    if (_room_date_conflict(entry.room, entry.check_in, entry.check_out, exclude_pk=booking.pk)
+                            or _room_turnover_conflict(entry.room, entry.check_in, exclude_pk=booking.pk)
+                            or entry.room.status != Room.RoomStatus.AVAILABLE):
+                        messages.error(request, f'Room {entry.room.room_number} is no longer available.')
+                        return redirect('hotels:group_start', entry.room.hotel_id)
+            return redirect('hotels:group_payment_booking', booking_id=booking.pk)
     return render(request, 'hotels/group_review.html', summary)
 
 
 @login_required
 @student_booking_required
-def hotel_group_payment(request):
-    data = request.session.get('hotel_group_booking') or {}
-    if not data.get('room_ids') or not data.get('guests'):
+def hotel_group_payment(request, booking_id=None):
+    if booking_id is None:
+        booking_id = (request.session.get('hotel_group_booking') or {}).get('booking_id')
+    if not booking_id:
         return redirect('hotels:list')
-    hotel = get_object_or_404(
-        Hotel.objects.filter(status=Hotel.Status.ACTIVE).prefetch_related('services', 'amenities'),
-        pk=data['hotel_id'],
-    )
-    rooms = list(Room.objects.filter(hotel=hotel, pk__in=data['room_ids']).prefetch_related('photos'))
-    rooms.sort(key=lambda r: data['room_ids'].index(r.pk))
-    check_in = date.fromisoformat(data['check_in']); check_out = date.fromisoformat(data['check_out'])
-    if len(rooms) != len(data['room_ids']):
-        messages.error(request, 'One or more rooms are no longer available.')
-        return redirect('hotels:group_start', hotel.id)
+    booking = get_object_or_404(Booking.objects.filter(customer=request.user), pk=booking_id)
+    summary = _booking_summary(booking)
+    if summary is None:
+        return redirect('hotels:list')
+    if booking.status in (Booking.Status.CONFIRMED, Booking.Status.CANCELLED):
+        return redirect('hotels:booking_detail', booking.pk)
+    if booking.status == Booking.Status.ON_HOLD and booking.hold_expires_at and booking.hold_expires_at < timezone.now():
+        messages.error(request, 'This booking draft expired. Please select a room again.')
+        return redirect('hotels:list')
+    bill = bill_for_booking(booking)
+    if bill and bill.payments.exists():
+        return redirect('hotels:booking_detail', booking.pk)
     if request.method != 'POST':
-        summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
-        summary.update({
-            'default_payment_method': data.get('payment_method', 'GCASH'),
-            'default_pay_later': bool(data.get('pay_later')),
-        })
+        summary.update({'booking': booking, 'default_payment_method': 'GCASH'})
         return render(request, 'hotels/group_payment.html', summary)
     method = request.POST.get('payment_method', 'GCASH')
-    pay_later = request.POST.get('pay_later') == 'on'
     try:
-        booking, create_error = _create_hotel_booking(
-            request.user, hotel, rooms, check_in, check_out, data['guests'], method, pay_later,
-        )
+        with db_transaction.atomic():
+            booking = Booking.objects.select_for_update().get(pk=booking.pk)
+            from transactions.models import Payment as TransactionPayment
+            bill = bill_for_booking(booking)
+            if bill is None:
+                raise ValueError('The booking bill is missing. Please return to review.')
+            if TransactionPayment.objects.filter(bill=bill).exists():
+                return redirect('hotels:booking_detail', booking.pk)
+            locked_room_ids = list(booking.room_entries.values_list('room_id', flat=True))
+            locked_rooms = {room.pk: room for room in Room.objects.select_for_update().filter(
+                pk__in=locked_room_ids).order_by('pk')}
+            for entry in booking.room_entries.select_related('room'):
+                entry.room = locked_rooms[entry.room_id]
+                if (entry.room.status != Room.RoomStatus.AVAILABLE
+                        or _room_date_conflict(entry.room, entry.check_in, entry.check_out, exclude_pk=booking.pk)
+                        or _room_turnover_conflict(entry.room, entry.check_in, exclude_pk=booking.pk)):
+                    raise ValueError(f'Room {entry.room.room_number} is no longer available for those dates.')
+            if request.POST.get('save_later') != 'on':
+                record_payment(
+                    customer=request.user, amount=bill.total_amount, method=method, service='hotel',
+                    description=f'Hotel booking {booking.booking_reference}', bill=bill, booking=booking,
+                )
+            booking.status = Booking.Status.PENDING
+            booking.save(update_fields=['status'])
+            log_activity(request.user, 'Submitted hotel booking', booking.booking_reference)
+            record_transaction('BOOKING', booking.booking_reference, request.user,
+                               f'Hotel booking {booking.booking_reference} submitted')
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('hotels:group_review_booking', booking_id=booking.pk)
     except Exception:
         logger.exception(
-            "Unexpected error creating hotel group booking from payment step "
-            "(hotel_id=%s, user_id=%s)", hotel.pk, request.user.pk,
+            "Unexpected error submitting hotel booking payment "
+            "(booking_id=%s, user_id=%s)", booking.pk, request.user.pk,
         )
         messages.error(request, "We couldn't submit your booking due to a server issue. Please try again.")
-        summary = _hotel_group_summary(hotel, rooms, data['guests'], check_in, check_out)
-        summary.update({
-            'default_payment_method': method,
-            'default_pay_later': pay_later,
-        })
+        summary.update({'booking': booking, 'default_payment_method': method})
         return render(request, 'hotels/group_payment.html', summary)
-    if create_error:
-        messages.error(request, create_error)
-        return redirect('hotels:group_start', hotel.id)
     from simulation.completion import record_hotel_guest_booking
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
@@ -1432,6 +1601,7 @@ def hotel_group_payment(request):
             "(booking_id=%s, user_id=%s)", booking.pk, request.user.pk,
         )
     request.session.pop('hotel_group_booking', None)
+    request.session.pop('hotel_group_draft_key', None)
     request.session.modified = True
     if booking.status == Booking.Status.CONFIRMED:
         messages.success(request, f'Hotel booking confirmed! Reference: {booking.booking_reference}')
@@ -1452,7 +1622,7 @@ def book_hotel(request, room_id):
 @manager_required
 @hotel_scoped
 def bookings(request):
-    qs = Booking.objects.select_related('customer').prefetch_related(
+    qs = Booking.objects.select_related('customer', 'guest', 'created_by').prefetch_related(
         'rooms__hotel', 'rooms__hotel__photos', 'room_entries', 'room_entries__room',
     )
     qs = scope_qs(request, qs, field='rooms__hotel_id')
@@ -1472,6 +1642,9 @@ def bookings(request):
             | Q(customer__username__icontains=q)
             | Q(customer__first_name__icontains=q)
             | Q(customer__last_name__icontains=q)
+            | Q(guest__first_name__icontains=q)
+            | Q(guest__last_name__icontains=q)
+            | Q(guest__email__icontains=q)
         )
     from datetime import date
     if check_in:
@@ -1507,7 +1680,7 @@ def bookings(request):
 @hotel_scoped
 def booking_detail(request, booking_id):
     booking = get_object_or_404(
-        Booking.objects.select_related('customer').prefetch_related(
+        Booking.objects.select_related('customer', 'guest', 'created_by').prefetch_related(
             'rooms__hotel', 'rooms__hotel__photos', 'room_entries', 'room_entries__room',
             'room_entries__services', 'room_entries__amenities',
             'additional_guests',
@@ -1648,7 +1821,7 @@ def _get_ticket_booking(request, booking_id):
     from accounts.roles import can_manage_booking
 
     booking = get_object_or_404(
-        Booking.objects.select_related('customer').prefetch_related(
+        Booking.objects.select_related('customer', 'guest', 'created_by').prefetch_related(
             'room_entries__room__hotel__photos',
             'room_entries__booked_services__service',
             'room_entries__booked_amenities__amenity',

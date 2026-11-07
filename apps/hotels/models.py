@@ -263,10 +263,33 @@ class Amenity(models.Model):
         return self.name
 
 
+class HotelGuest(models.Model):
+    """Customer details entered for a hotel reservation, separate from its creator."""
+
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100)
+    email = models.EmailField()
+    contact = models.CharField(max_length=30)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    @property
+    def full_name(self):
+        return ' '.join(part for part in (self.first_name, self.middle_name, self.last_name) if part)
+
+    def __str__(self):
+        return self.full_name
+
+
 class Booking(BookingFieldsMixin):
     Status = BookingStatus
 
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='hotel_bookings')
+    guest = models.ForeignKey(HotelGuest, null=True, blank=True, on_delete=models.PROTECT,
+                              related_name='bookings')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='created_hotel_bookings')
+    draft_key = models.CharField(max_length=36, null=True, blank=True, unique=True, editable=False)
     rooms = models.ManyToManyField(Room, through='BookingRoom', related_name='bookings')
     checked_in_at = models.DateTimeField(null=True, blank=True, editable=False)
     checked_out_at = models.DateTimeField(null=True, blank=True, editable=False)
@@ -276,8 +299,8 @@ class Booking(BookingFieldsMixin):
 
     @property
     def primary_guest_name(self):
-        """Primary guest = the account holder (BR-029)."""
-        return self.customer.get_full_name() or self.customer.username
+        """Primary guest is the person entered in the booking, not its creator."""
+        return self.guest.full_name if self.guest_id else (self.customer.get_full_name() or self.customer.username)
 
     @property
     def check_in(self):
@@ -367,6 +390,8 @@ class BookingRoom(models.Model):
 
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='room_entries')
     room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name='booking_entries')
+    guest = models.ForeignKey(HotelGuest, null=True, blank=True, on_delete=models.PROTECT,
+                              related_name='room_reservations')
     selection_order = models.PositiveSmallIntegerField(null=True, blank=True)
     check_in = models.DateField()
     check_out = models.DateField()

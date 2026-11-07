@@ -6,7 +6,7 @@
 {% block content_class %}rm-wide{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261106-room-details-modal-1">
+    <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261106-guest-information-modal-1">
 {% endblock %}
 
 {% block content %}
@@ -272,8 +272,8 @@
             <div class="ag-pb-secure">Choose your payment method on the next screen.</div>
         </div>
         <div class="ag-pb-actions">
-            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas fa-bed"></i> Confirm Booking</button>
-            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Review your total and continue to payment.</div>
+            <button class="ag-btn ag-btn-block" id="continueBtn" type="submit" disabled><i class="fas fa-bed"></i> Save Guest Information &amp; Review</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Your guest and booking details are saved before review.</div>
             <div class="ag-pb-note"><a href="{% url 'hotels:list' %}">Back to all hotels</a></div>
         </div>
     </aside>
@@ -293,8 +293,8 @@
     <div class="rm-modal-card">
         <div class="rm-modal-head">
             <div>
-                <h3 id="guestModalTitle"><i class="fas fa-user-check"></i> Guest Information</h3>
-                <p id="guestModalSub">Please provide the guest details below.</p>
+                <h3 id="guestModalTitle"><i class="fas fa-user-circle"></i> Guest Information</h3>
+                <p id="guestModalSub">Enter the customer who will stay in this room.</p>
             </div>
             <button type="button" class="rm-modal-x" data-guest-close aria-label="Close guest information"><i class="fas fa-xmark"></i></button>
         </div>
@@ -303,7 +303,7 @@
         </div>
         <div class="rm-modal-foot">
             <button type="button" class="ag-btn ag-btn-muted" data-guest-close><i class="fas fa-xmark"></i> Cancel</button>
-             <button type="button" class="ag-btn" id="guestModalSave"><i class="fas fa-check"></i> Save &amp; Continue</button>
+             <button type="button" class="ag-btn" id="guestModalSave"><i class="fas fa-check"></i> Save Guest Information</button>
         </div>
     </div>
 </div>
@@ -334,6 +334,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/rooms.js' %}?v=20261106-room-details-modal-1"></script>
+<script src="{% static 'js/rooms.js' %}?v=20261106-guest-information-modal-1"></script>
 {% endblock %}
 

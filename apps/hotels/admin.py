@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import HotelPhoto, Booking, BookingRoom, Hotel, Room, RoomPhoto, Service
+from .models import HotelGuest, HotelPhoto, Booking, BookingRoom, Hotel, Room, RoomPhoto, Service
 
 
 @admin.register(Hotel)
@@ -37,10 +37,15 @@ class BookingRoomInline(admin.TabularInline):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('pk', 'customer', 'rooms_list', 'dates', 'number_of_guests', 'status', 'created_at')
+    list_display = ('pk', 'guest', 'created_by', 'rooms_list', 'dates', 'number_of_guests', 'status', 'created_at')
     list_filter = ('status',)
-    list_select_related = ('customer',)
+    list_select_related = ('customer', 'guest', 'created_by')
     inlines = (BookingRoomInline,)
+
+    def guest(self, obj):
+        return obj.primary_guest_name
+
+    guest.short_description = 'Customer / Guest'
 
     def rooms_list(self, obj):
         return ", ".join(room.room_number for room in obj.rooms.all())
@@ -54,6 +59,13 @@ class BookingAdmin(admin.ModelAdmin):
         return f"{entry.check_in:%Y-%m-%d} → {entry.check_out:%Y-%m-%d}"
 
     dates.short_description = 'Dates'
+
+
+@admin.register(HotelGuest)
+class HotelGuestAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'email', 'contact', 'created_at')
+    search_fields = ('first_name', 'last_name', 'email')
+    readonly_fields = ('created_at',)
 
 @admin.register(HotelPhoto)
 class HotelPhotoAdmin(admin.ModelAdmin):
