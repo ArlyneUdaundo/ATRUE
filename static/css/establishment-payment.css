@@ -74,6 +74,22 @@
 .ep-confirm:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }.ep-confirm:disabled { cursor: wait; opacity: .78; }
 .ep-confirm-note { display: flex; gap: 6px; align-items: flex-start; margin: 9px 0 0; color: #788a9b; font-size: 9.5px; line-height: 1.4; }.ep-confirm-note i { color: #4f8cbe; }
 .ep-back-link, .ep-clear { display: inline-flex; align-items: center; gap: 6px; margin-top: 13px; border: 0; background: none; color: #3977b3; font: inherit; font-size: 10.5px; font-weight: 700; text-decoration: none; cursor: pointer; }.ep-clear { float: right; color: #76889a; }
+.ep-hotel-progress { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 0 0 16px; padding: 12px 15px; border: 1px solid #e2eaf3; border-radius: 13px; background: #fff; color: #75869a; font-size: 11px; font-weight: 750; }
+.ep-hotel-progress > span { padding: 6px 10px; border-radius: 999px; background: #effaf5; color: #20815f; }
+.ep-hotel-progress > span.is-current { background: #edf4ff; color: #246bc1; }
+.ep-hotel-progress > i { color: #71849a; font-size: 10px; }
+.ep-hotel-payment .ep-method { min-height: 46px; }
+.ep-hotel-payment .ep-details { min-height: 280px; }
+.ep-hotel-amount { display: grid; gap: 7px; margin-bottom: 18px; padding: 14px; border-radius: 12px; background: #f4f8fc; }
+.ep-hotel-amount > span { color: #718397; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.ep-hotel-amount > b { color: #193858; font-size: 23px; }
+.ep-hotel-amount > small { color: #718397; font-size: 10px; line-height: 1.45; }
+.ep-hotel-room-list { display: grid; max-height: 230px; overflow-y: auto; overscroll-behavior: contain; }
+.ep-hotel-room { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf1f5; }
+.ep-hotel-room > div { display: grid; gap: 4px; min-width: 0; }
+.ep-hotel-room b { color: #344b62; font-size: 10px; overflow-wrap: anywhere; }
+.ep-hotel-room span { color: #7a8b9d; font-size: 9px; }
+.ep-hotel-room > strong { color: #344b62; font-size: 10px; white-space: nowrap; }
 @media (max-width: 1120px) { .ep-layout { grid-template-columns: minmax(200px,.8fr) minmax(280px,1.2fr); }.ep-summary { position: static; grid-column: 1 / -1; }.ep-booking-list { max-height: 240px; } }
 @media (max-width: 680px) { .ep-layout { grid-template-columns: minmax(0,1fr); gap: 12px; }.ep-panel { padding: 15px; border-radius: 14px; }.ep-summary { grid-column: auto; }.ep-method { gap: 7px; min-height: 47px; padding: 7px; font-size: 10.5px; }.ep-method-icon { width: 27px; height: 27px; }.ep-details { min-height: 0; }.ep-fields-grid, .ep-demo-fields { grid-template-columns: minmax(0,1fr); gap: 10px; }.ep-booking-list { max-height: 270px; } }
 @media (prefers-reduced-motion: reduce) { .ep-method, .ep-confirm { transition: none; } }

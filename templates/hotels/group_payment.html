@@ -1,6 +1,77 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
+
 {% block title %}Payment — {{ hotel.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/establishment-payment.css' %}?v=20261109-5">{% endblock %}
+
 {% block content %}
-<div class="page-head"><div><h1>Payment</h1><p>Complete this simulated payment to submit your hotel booking.</p></div></div>
-<div class="card card-pad" style="max-width:850px;margin:auto"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px"><span class="badge badge-green">Search</span><i class="fas fa-arrow-right"></i><span class="badge badge-green">Rooms</span><i class="fas fa-arrow-right"></i><span class="badge badge-green">Guest Info</span><i class="fas fa-arrow-right"></i><span class="badge badge-blue">Payment</span></div><h2>{{ hotel.name }}</h2><div class="meta">Booking {{ booking.booking_reference }} · {{ check_in|date:'M d, Y' }} – {{ check_out|date:'M d, Y' }} · {{ lines|length }} room(s)</div><div style="margin:18px 0;padding:18px;border-radius:14px;background:#f8fafc"><div class="meta">TOTAL TO PAY</div><div style="font-size:36px;font-weight:800">₱ {{ grand_total }}</div><div class="meta" style="margin-top:6px">This simulated payment covers all selected rooms, services, and additional guest charges.</div></div><form method="post" data-submit-loading>{% csrf_token %}<div class="form-group"><label>Payment Method</label><select name="payment_method" class="form-input" required><option value="GCASH" {% if default_payment_method == 'GCASH' %}selected{% endif %}>GCash</option><option value="MAYA" {% if default_payment_method == 'MAYA' %}selected{% endif %}>Maya</option><option value="BANK_TRANSFER" {% if default_payment_method == 'BANK_TRANSFER' %}selected{% endif %}>Bank Transfer</option><option value="CREDIT_CARD" {% if default_payment_method == 'CREDIT_CARD' %}selected{% endif %}>Credit Card</option><option value="DEBIT_CARD" {% if default_payment_method == 'DEBIT_CARD' %}selected{% endif %}>Debit Card</option><option value="PAYPAL" {% if default_payment_method == 'PAYPAL' %}selected{% endif %}>PayPal</option><option value="QR_PH" {% if default_payment_method == 'QR_PH' %}selected{% endif %}>QR Ph</option></select></div><button type="submit" class="btn btn-brand" style="width:100%;padding:14px"><i class="fas fa-lock"></i> Complete Simulated Payment · ₱ {{ grand_total }}</button></form></div>
+<div class="page-head ep-page-head">
+    <div><span class="ep-eyebrow"><i class="fas fa-shield-halved"></i> Secure training checkout</span><h1>Complete your payment</h1><p>Booking {{ booking.booking_reference }} · Choose a simulated payment method.</p></div>
+</div>
+
+<div class="ep-hotel-progress" aria-label="Booking progress">
+    <span>Search</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span>Rooms</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span>Guest Info</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span class="is-current">Payment</span>
+</div>
+
+<form method="post" class="ep-layout ep-hotel-payment" id="establishmentPaymentForm" data-submit-loading data-total="₱ {{ grand_total|floatformat:2 }}">
+    {% csrf_token %}
+    <section class="ep-panel ep-methods" aria-labelledby="epMethodsTitle">
+        <div class="ep-panel-title"><span class="ep-step">1</span><div><h2 id="epMethodsTitle">Payment method</h2><p>Choose one option</p></div></div>
+        <div class="ep-method-list" role="radiogroup" aria-labelledby="epMethodsTitle">
+            <label class="ep-method is-selected"><input type="radio" name="payment_method" value="GCASH" {% if default_payment_method == 'GCASH' %}checked{% endif %} required><span class="ep-method-icon ep-gcash"><i class="fas fa-mobile-screen-button"></i></span><span>GCash</span></label>
+            <label class="ep-method{% if default_payment_method == 'MAYA' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="MAYA" {% if default_payment_method == 'MAYA' %}checked{% endif %}><span class="ep-method-icon ep-maya"><i class="fas fa-wallet"></i></span><span>Maya</span></label>
+            <label class="ep-method{% if default_payment_method == 'BANK_TRANSFER' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="BANK_TRANSFER" {% if default_payment_method == 'BANK_TRANSFER' %}checked{% endif %}><span class="ep-method-icon ep-bank"><i class="fas fa-building-columns"></i></span><span>Bank Transfer</span></label>
+            <label class="ep-method{% if default_payment_method == 'CREDIT_CARD' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="CREDIT_CARD" {% if default_payment_method == 'CREDIT_CARD' %}checked{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Credit Card</span></label>
+            <label class="ep-method{% if default_payment_method == 'DEBIT_CARD' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="DEBIT_CARD" {% if default_payment_method == 'DEBIT_CARD' %}checked{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Debit Card</span></label>
+            <label class="ep-method{% if default_payment_method == 'PAYPAL' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="PAYPAL" {% if default_payment_method == 'PAYPAL' %}checked{% endif %}><span class="ep-method-icon ep-paypal"><i class="fab fa-paypal"></i></span><span>PayPal</span></label>
+            <label class="ep-method{% if default_payment_method == 'QR_PH' %} is-selected{% endif %}"><input type="radio" name="payment_method" value="QR_PH" {% if default_payment_method == 'QR_PH' %}checked{% endif %}><span class="ep-method-icon ep-qr"><i class="fas fa-qrcode"></i></span><span>QR Ph</span></label>
+        </div>
+        <div class="ep-training-note"><i class="fas fa-circle-info"></i><span>Simulation only. No real payment details are accepted.</span></div>
+    </section>
+
+    <section class="ep-panel ep-details" aria-labelledby="epDetailsTitle">
+        <div class="ep-panel-title"><span class="ep-step">2</span><div><h2 id="epDetailsTitle">Payer information</h2><p id="epMethodHint">Enter the details for your selected method.</p></div></div>
+        <div class="ep-hotel-amount"><span>Amount to pay</span><b>₱ {{ grand_total|floatformat:2 }}</b><small>Covers the selected rooms, services, and additional guest charges.</small></div>
+        <div id="epDynamicFields" class="ep-dynamic-fields" aria-live="polite"></div>
+    </section>
+
+    <aside class="ep-panel ep-summary" aria-labelledby="epSummaryTitle">
+        <div class="ep-panel-title"><span class="ep-step">3</span><div><h2 id="epSummaryTitle">Confirm to pay</h2><p>Review your hotel booking</p></div></div>
+        <div class="ep-establishment">
+            <div class="ep-establishment-placeholder" aria-hidden="true"><i class="fas fa-hotel"></i></div>
+            <div><span class="ep-summary-kicker">Selected hotel</span><b>{{ hotel.name }}</b></div>
+        </div>
+        <div class="ep-booking-item">
+            <div class="ep-booking-item-title"><b>{{ booking.booking_reference }}</b><span>Booking reference</span></div>
+            <dl>
+                <div><dt>Check-in</dt><dd>{{ check_in|date:'M d, Y' }}</dd></div>
+                <div><dt>Check-out</dt><dd>{{ check_out|date:'M d, Y' }}</dd></div>
+                <div><dt>Nights</dt><dd>{{ nights }}</dd></div>
+                <div><dt>Rooms</dt><dd>{{ lines|length }}</dd></div>
+            </dl>
+        </div>
+        <div class="ep-hotel-room-list">
+            {% for line in lines %}
+            <div class="ep-hotel-room">
+                <div><b>Room {{ line.room.room_number }} · {{ line.room.get_room_type_display }}</b><span>Guest: {{ line.guest.first_name }} {{ line.guest.last_name }}</span></div>
+                <strong>₱ {{ line.amount|floatformat:2 }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="ep-totals">
+            <div><span>Room charges</span><b>₱ {{ room_subtotal|floatformat:2 }}</b></div>
+            {% if extra_subtotal %}<div><span>Additional guest charges</span><b>₱ {{ extra_subtotal|floatformat:2 }}</b></div>{% endif %}
+            {% if services_subtotal %}<div><span>Services</span><b>₱ {{ services_subtotal|floatformat:2 }}</b></div>{% endif %}
+            <div class="ep-total"><span>Total to pay</span><b id="epTotalDue">₱ {{ grand_total|floatformat:2 }}</b></div>
+        </div>
+        <button type="submit" class="ep-confirm" id="epConfirm"><i class="fas fa-lock"></i><span>Confirm to Pay · ₱ {{ grand_total|floatformat:2 }}</span></button>
+        <p class="ep-confirm-note"><i class="fas fa-shield-halved"></i> Simulated payment only. No real transaction will be made.</p>
+        <a href="{% url 'hotels:group_review_booking' booking.pk %}" class="ep-back-link"><i class="fas fa-arrow-left"></i> Back to booking review</a>
+    </aside>
+</form>
+
+<script src="{% static 'js/establishment-payment.js' %}?v=20261109-5" defer></script>
 {% endblock %}
