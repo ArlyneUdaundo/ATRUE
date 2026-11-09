@@ -9,14 +9,21 @@
             <h3><i class="fas fa-suitcase-rolling"></i> Extra Baggage</h3>
             <span class="pd-chip pd-chip--soft">per 5&nbsp;kg</span>
         </div>
-        <label class="pd-field">
-            <span class="pd-field__label">Extra Baggage (per 5 kg)</span>
-            <select data-pd-baggage>
+        <fieldset class="pd-baggage-picker" data-pd-baggage-group>
+            <legend class="pd-field__label">Choose the baggage allowance you need</legend>
+            <div class="pd-baggage-options">
                 {% for opt in fare.baggage_options %}
-                <option value="{{ opt.kg }}" data-price="{{ opt.price }}">{{ opt.label }} &mdash; {{ opt.price_text }}{% if opt.kg %} {% endif %}</option>
+                <label class="pd-baggage-option">
+                    <input type="checkbox" data-pd-baggage-option value="{{ opt.kg }}"
+                           data-price="{{ opt.price }}"{% if not opt.kg %} checked{% endif %}>
+                    <span class="pd-baggage-option__text">
+                        <span class="pd-baggage-option__name">{{ opt.label }}</span>
+                        <span class="pd-baggage-option__price">{{ opt.price_text }}</span>
+                    </span>
+                </label>
                 {% endfor %}
-            </select>
-        </label>
+            </div>
+        </fieldset>
         <p class="pd-field__hint">
             {% if fare.baggage_basis == 'per_passenger' %}
             Charged <b>per passenger</b>. The total below multiplies the price by the number of travellers.
