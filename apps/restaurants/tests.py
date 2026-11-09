@@ -3,10 +3,11 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from atrue_core.services import bill_for_booking
 from establishments.models import establishment_for_instance
 from notifications.models import Notification
 from simulation.models import ActivityLog, SimulationRoleAssignment
@@ -241,6 +242,11 @@ class RestaurantReservationWorkflowTests(TestCase):
             1,
         )
 
+    @override_settings(STORAGES={
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    })
     def test_shared_restaurant_flow_also_submits_pending_without_fake_confirmation(self):
         self.client.force_login(self.guest)
         self.activate_assignment(self.client, self.guest_assignment)
@@ -261,6 +267,10 @@ class RestaurantReservationWorkflowTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         reservation = Reservation.objects.get(customer=self.guest)
+        self.assertRedirects(
+            response,
+            reverse('establishment_booking_review', args=['restaurant', reservation.pk]),
+        )
         self.assertEqual(reservation.status, Reservation.Status.PENDING)
         self.assertEqual(reservation.number_of_guests, 2)
         self.assertEqual(reservation.special_requests, 'Window seat')
@@ -275,6 +285,18 @@ class RestaurantReservationWorkflowTests(TestCase):
                 recipient=self.officer,
                 notification_type=Notification.Type.RESTAURANT_RESERVATION_SUBMITTED,
             ).exists()
+        )
+        review = self.client.get(response.url)
+        self.assertContains(review, 'Review Your Booking')
+        self.assertContains(review, 'Price Breakdown')
+        self.assertContains(review, 'Casa Test')
+        self.assertContains(review, 'Table A1')
+        self.assertContains(review, 'Rae Guest')
+
+        payment = self.client.post(response.url, {'action': 'proceed_payment'})
+        self.assertRedirects(
+            payment,
+            reverse('transactions:bill_detail', args=[bill_for_booking(reservation).pk]),
         )
 
     def test_shared_restaurant_flow_saves_every_selected_table_in_one_submit(self):

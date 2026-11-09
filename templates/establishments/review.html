@@ -1,0 +1,89 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Review {{ category_label }} Booking{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-review.css' %}?v=20261110-1">{% endblock %}
+
+{% block content %}
+<div class="page-head hbr-page-head">
+    <div>
+        <span class="hbr-eyebrow"><i class="fas fa-clipboard-check"></i> Booking review</span>
+        <h1>Review Your Booking</h1>
+        <p>Check your booking and guest information before continuing to payment.</p>
+    </div>
+</div>
+
+<nav class="hbr-progress" aria-label="Booking progress">
+    <span class="is-done">Search</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span class="is-done">{{ item_noun_plural }}</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span class="is-done">Guest Info</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span class="is-current">Review</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span>Payment</span>
+</nav>
+
+<div class="hbr-layout">
+    <section class="hbr-booking-column" aria-label="Booking details">
+        <article class="hbr-hotel-card">
+            <div class="hbr-hotel-icon"><i class="fas {{ adapter.icon }}" aria-hidden="true"></i></div>
+            <div class="hbr-hotel-copy">
+                <h2>{{ est_name }}</h2>
+                {% if est_location %}<p><i class="fas fa-location-dot" aria-hidden="true"></i> {{ est_location }}</p>{% endif %}
+                <p><i class="fas fa-calendar-days" aria-hidden="true"></i> Booking {{ booking.booking_reference }} · Guest: {{ guest_rows.0.value }}</p>
+                <div class="hbr-trip-meta">
+                    {% for label, value in booking_details %}
+                    <span><i class="fas fa-circle-info" aria-hidden="true"></i> {{ label }}: {{ value }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if est_photo_url %}<img class="hbr-hotel-photo" src="{{ est_photo_url }}" alt="{{ est_name }}">{% else %}<div class="hbr-hotel-photo hbr-photo-placeholder" aria-label="Photo unavailable"><i class="fas {{ adapter.icon }}" aria-hidden="true"></i></div>{% endif %}
+        </article>
+
+        <div class="hbr-room-list">
+            <article class="hbr-room-card">
+                <div class="hbr-room-content">
+                    <span class="hbr-room-label">{{ category_label }} booking</span>
+                    <h3>{{ item_noun_plural }}</h3>
+                    {% for name in item_names %}
+                    <p><i class="fas {{ adapter.icon }}" aria-hidden="true"></i> {{ name }}</p>
+                    {% endfor %}
+                    {% for guest in guest_rows %}
+                    <p><i class="fas fa-user" aria-hidden="true"></i> {{ guest.label }}: {{ guest.value }}</p>
+                    {% endfor %}
+                </div>
+                <div class="hbr-room-charge">
+                    <i class="fas fa-tag" aria-hidden="true"></i>
+                    <span>Booking charges</span>
+                    <b>₱ {{ bill.total_amount|floatformat:2 }}</b>
+                </div>
+                <div class="hbr-room-breakdown">
+                    {% for item in bill_items %}
+                    <span>{{ item.label }}{% if item.description %}: {{ item.description }}{% endif %} — ₱ {{ item.amount|floatformat:2 }}</span>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <aside class="hbr-price-card" aria-labelledby="hbrPriceTitle">
+        <header><i class="fas fa-calculator" aria-hidden="true"></i><h2 id="hbrPriceTitle">Price Breakdown</h2></header>
+        <div class="hbr-price-content">
+            {% for item in bill_items %}
+            <div class="hbr-price-row"><span>{{ item.label }}{% if item.quantity %} × {{ item.quantity }}{% endif %}</span><b>₱ {{ item.amount|floatformat:2 }}</b></div>
+            {% empty %}
+            <div class="hbr-price-row"><span>Booking charges</span><b>₱ {{ bill.total_amount|floatformat:2 }}</b></div>
+            {% endfor %}
+            <div class="hbr-total-row"><b>Total</b><strong>₱ {{ bill_total|floatformat:2 }}</strong></div>
+            <div class="hbr-actions">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <button name="action" value="edit" class="hbr-edit-button" type="submit"><i class="fas fa-chevron-left" aria-hidden="true"></i> Edit Booking</button>
+                </form>
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <button name="action" value="proceed_payment" class="hbr-continue-button" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Confirm &amp; Continue</button>
+                </form>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

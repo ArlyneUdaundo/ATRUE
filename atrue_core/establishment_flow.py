@@ -39,7 +39,11 @@ from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES
 
 import logging
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+
+from atrue_core.decorators import student_booking_required
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +53,7 @@ logger = logging.getLogger(__name__)
 from hotels.room_offers import _icon_for, split_features
 
 from atrue_core.services import (
-    compute_transport_bill, create_bill, log_activity, record_payment,
+    bill_for_booking, compute_transport_bill, create_bill, log_activity, record_payment,
     record_transaction,
 )
 
@@ -1889,14 +1893,219 @@ def _record_guest_booking_progress(request, booking):
     )
 
 
+REVIEW_FLOW_KEYS = {'resort', 'restaurant', 'staycation', 'landmark', 'activity', 'package'}
+
+
+def _review_url(adapter, booking):
+    return reverse(
+        'establishment_booking_review',
+        kwargs={'category': adapter.key, 'booking_id': booking.pk},
+    )
+
+
+def _review_booking_model(category):
+    if category == 'resort':
+        from resorts.models import Reservation
+        return Reservation
+    if category == 'restaurant':
+        from restaurants.models import Reservation
+        return Reservation
+    if category == 'staycation':
+        from staycations.models import Reservation
+        return Reservation
+    if category == 'landmark':
+        from landmarks.models import Ticket
+        return Ticket
+    if category == 'activity':
+        from activities.models import Booking
+        return Booking
+    if category == 'package':
+        from tour_package.models import Booking
+        return Booking
+    return None
+
+
+def _review_establishment(adapter, booking):
+    if adapter.key == 'resort':
+        return booking.unit.resort
+    if adapter.key == 'restaurant':
+        return booking.table.restaurant
+    if adapter.key == 'staycation':
+        return booking.staycation
+    if adapter.key == 'landmark':
+        return booking.destination
+    if adapter.key == 'activity':
+        return booking.activity
+    return booking.package
+
+
+def _review_booking_details(adapter, booking):
+    rows = []
+    if adapter.key in ('resort', 'staycation'):
+        rows.extend([
+            ('Check-in', booking.check_in),
+            ('Check-out', booking.check_out),
+            ('Nights', max(1, (booking.check_out - booking.check_in).days)),
+        ])
+        if adapter.key == 'resort':
+            rows.append(('Units', booking.number_of_units))
+            units = [booking.unit]
+            units.extend(
+                guest.unit for guest in booking.additional_guests.select_related('unit')
+                if guest.unit_id
+            )
+            item_names = [str(unit) for unit in units]
+        else:
+            item_names = [booking.staycation.name]
+        rows.append(('Guests', booking.number_of_adults + booking.number_of_children))
+    elif adapter.key == 'restaurant':
+        rows.extend([
+            ('Reservation date', booking.reservation_datetime),
+            ('Guests', booking.number_of_guests),
+            ('Table', booking.table.table_number),
+        ])
+        item_names = [f'Table {booking.table.table_number}']
+    elif adapter.key == 'landmark':
+        rows.extend([
+            ('Visit', booking.visit_datetime),
+            ('Visitors', booking.number_of_visitors),
+            ('Guided tour', booking.get_guided_tour_display()),
+        ])
+        item_names = [booking.destination.name]
+    elif adapter.key == 'activity':
+        rows.extend([
+            ('Activity date', booking.schedule_date),
+            ('Start time', booking.start_time),
+            ('Participants', booking.participant_count),
+            ('Duration', booking.activity.duration),
+        ])
+        item_names = [booking.activity.name]
+    else:
+        rows.extend([
+            ('Travel date', booking.travel_date),
+            ('Start time', booking.start_time),
+            ('Travelers', booking.number_of_travelers),
+            ('Duration', f'{booking.package.duration_days} day(s)'),
+        ])
+        item_names = [booking.package.name]
+
+    guest_name = (
+        getattr(booking, 'payer_name', '')
+        or getattr(booking, 'primary_guest_name', '')
+        or booking.customer.get_full_name()
+        or booking.customer.username
+    )
+    guest_contact = (
+        getattr(booking, 'payer_contact', '')
+        or getattr(booking, 'contact_number', '')
+        or booking.customer.contact_number
+    )
+    guest_rows = [
+        {'label': 'Guest', 'value': guest_name},
+        {'label': 'Email', 'value': booking.customer.email},
+        {'label': 'Contact', 'value': guest_contact},
+    ]
+    if getattr(booking, 'special_requests', ''):
+        guest_rows.append({
+            'label': 'Special request',
+            'value': booking.special_requests,
+        })
+    if adapter.key == 'package':
+        for guest in booking.guests.all():
+            guest_rows.append({'label': 'Traveler', 'value': guest.full_name})
+            if guest.emergency_contact_number:
+                guest_rows.append({
+                    'label': 'Emergency contact',
+                    'value': f'{guest.emergency_contact_name} · {guest.emergency_contact_number}',
+                })
+
+    rows = [(label, value) for label, value in rows if value is not None and value != '']
+    return item_names, rows, guest_rows
+
+
+@login_required
+@student_booking_required
+def review_booking(request, category, booking_id):
+    from django.http import Http404
+
+    if category not in REVIEW_FLOW_KEYS:
+        raise Http404('Booking review not found.')
+    adapter = get_adapter(category)
+    model = _review_booking_model(category)
+    if model is None:
+        raise Http404('Booking review not found.')
+    booking = get_object_or_404(model, pk=booking_id, customer=request.user)
+    bill = bill_for_booking(booking)
+    if bill is None:
+        raise Http404('The booking bill could not be found.')
+
+    est = _review_establishment(adapter, booking)
+    item_names, booking_details, guest_rows = _review_booking_details(adapter, booking)
+    photos = getattr(est, 'photos', None)
+    photo = photos.first() if photos is not None else None
+    photo_url = photo.image.url if photo is not None and photo.image else ''
+    location = adapter.est_location(est)
+    if adapter.key == 'activity' and est.provider_id:
+        location = f'{est.provider.name} · {location}'
+
+    start_date = next(
+        (value for label, value in booking_details if label in (
+            'Check-in', 'Reservation date', 'Visit', 'Activity date', 'Travel date',
+        )),
+        None,
+    )
+    end_date = next(
+        (value for label, value in booking_details if label == 'Check-out'),
+        None,
+    )
+    edit_url = adapter.select_url(est)
+    if start_date:
+        edit_url += f'?check_in={start_date:%Y-%m-%d}'
+    if end_date:
+        edit_url += f'&check_out={end_date:%Y-%m-%d}'
+    selected_time = ''
+    if adapter.key == 'restaurant':
+        selected_time = booking.reservation_datetime.strftime('%H:%M')
+    elif adapter.key == 'landmark':
+        selected_time = booking.visit_datetime.strftime('%H:%M')
+    elif adapter.key in ('activity', 'package') and booking.start_time:
+        selected_time = booking.start_time.strftime('%H:%M')
+    if selected_time:
+        edit_url += f'{"&" if "?" in edit_url else "?"}time={selected_time}'
+
+    if request.method == 'POST':
+        if request.POST.get('action') == 'edit':
+            return redirect(edit_url)
+        if request.POST.get('action') == 'proceed_payment':
+            return redirect('transactions:bill_detail', bill.pk)
+
+    return render(request, 'establishments/review.html', {
+        'adapter': adapter,
+        'booking': booking,
+        'bill': bill,
+        'est': est,
+        'est_name': adapter.est_name(est),
+        'est_location': location,
+        'est_photo_url': photo_url,
+        'item_names': item_names,
+        'booking_details': booking_details,
+        'guest_rows': guest_rows,
+        'edit_url': edit_url,
+        'bill_items': bill.items,
+        'bill_total': bill.total_amount,
+        'category_label': adapter.label,
+        'item_noun_plural': adapter.item_noun_plural,
+    })
+
+
 def handle_flow(request, adapter_key, pk):
     """The single view body behind every non-hotel establishment booking page.
 
     GET  -> renders the shared selection page for that establishment.
-    POST -> validates, creates the category's own booking record in one
-            transaction, issues the bill / payment / transaction record, and
-            redirects to that category's booking detail page.  A validation
-            error re-renders the page with the selection and guest data kept.
+    POST -> validates, creates the category's own booking record, issues its
+            bill, and redirects review-flow categories to a booking review
+            before payment.  A validation error re-renders the page with the
+            selection and guest data kept.
     """
     from datetime import date, timedelta
 
@@ -2056,7 +2265,7 @@ def handle_flow(request, adapter_key, pk):
             'Reservation details saved. Submit payment for Billing Officer verification; '
             'the Restaurant Reservation Officer can confirm it after payment is verified.',
         )
-        return redirect('transactions:bill_detail', bill.id)
+        return redirect(_review_url(adapter, booking))
     elif total <= Decimal('0.00'):
         # A free landmark/entry pass has a fully paid zero-balance bill but
         # cannot create a zero-value Payment (record_payment rejects <= 0).
@@ -2094,9 +2303,13 @@ def handle_flow(request, adapter_key, pk):
             f'Booking {booking.booking_reference} saved. Submit payment for Billing Officer verification before the Reservation Officer confirms it.',
         )
         _record_guest_booking_progress(request, booking)
+        if adapter.key in REVIEW_FLOW_KEYS:
+            return redirect(_review_url(adapter, booking))
         return redirect('transactions:bill_detail', bill.id)
 
     _record_guest_booking_progress(request, booking)
+    if adapter.key in REVIEW_FLOW_KEYS:
+        return redirect(_review_url(adapter, booking))
     return redirect(adapter.booking_detail_url(booking))
 
 

@@ -6,6 +6,7 @@ import time as monotonic_time
 
 from django.shortcuts import render
 from django.urls import include, path, re_path, reverse
+from atrue_core.establishment_flow import review_booking
 from django.views.static import serve
 
 from accounts import views as accounts_views
@@ -395,6 +396,11 @@ urlpatterns = [
     path('activities/', include(('activities.urls', 'activities'), namespace='activities')),
     path('packages/', include(('tour_package.urls', 'tour_package'), namespace='tour_package')),
     path('transactions/', include(('transactions.urls', 'transactions'), namespace='transactions')),
+    path(
+        'booking-review/<str:category>/<int:booking_id>/',
+        review_booking,
+        name='establishment_booking_review',
+    ),
 ]
 try:
     from django.urls import include
