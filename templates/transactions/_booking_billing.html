@@ -7,7 +7,10 @@
     @media(max-width:380px){.booking-billing-summary{grid-template-columns:1fr}}
 </style>
 <div class="card card-pad booking-billing-card">
-    <h3><i class="fas fa-file-invoice"></i> Billing &amp; Payments</h3>
+    <div class="hbd-billing-head">
+        <h3><i class="fas {% if is_hotel_booking %}fa-wallet{% else %}fa-file-invoice{% endif %}"></i> Billing &amp; Payments</h3>
+        {% if is_hotel_booking and receipts %}<a href="{% url 'transactions:receipt_detail' receipts.0.pk %}" class="hbd-receipt-link"><i class="fas fa-file-invoice"></i> View Receipt</a>{% endif %}
+    </div>
     {% if bill %}
     <div class="table-wrap">
         <table class="table">
@@ -25,11 +28,12 @@
         </table>
     </div>
     <div class="booking-billing-summary">
-        <div class="booking-billing-stat"><small>Total bill</small><strong>₱ {{ bill.total_amount|floatformat:2 }}</strong></div>
-        <div class="booking-billing-stat"><small>Paid</small><strong>₱ {{ bill.amount_paid|floatformat:2 }}</strong></div>
-        <div class="booking-billing-stat"><small>Balance</small><strong>₱ {{ bill.balance_due|floatformat:2 }}</strong></div>
-        <div class="booking-billing-stat"><small>Verification</small><strong><span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Verified{% else %}Pending{% endif %}</span></strong></div>
+        <div class="booking-billing-stat hbd-stat-total"><small>{% if is_hotel_booking %}<i class="fas fa-receipt"></i>{% endif %} Total bill</small><strong>₱ {{ bill.total_amount|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat hbd-stat-paid"><small>{% if is_hotel_booking %}<i class="fas fa-circle-check"></i>{% endif %} Paid</small><strong>₱ {{ bill.amount_paid|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat hbd-stat-balance"><small>{% if is_hotel_booking %}<i class="fas fa-clock"></i>{% endif %} Balance</small><strong>₱ {{ bill.balance_due|floatformat:2 }}</strong></div>
+        <div class="booking-billing-stat hbd-stat-verify"><small>{% if is_hotel_booking %}<i class="fas fa-circle-info"></i>{% endif %} Verification</small><strong><span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Verified{% else %}Pending{% endif %}</span></strong></div>
     </div>
+    {% if is_hotel_booking and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="hbd-proceed-payment"><i class="fas fa-credit-card"></i> Proceed to Payment <i class="fas fa-chevron-right"></i></a>{% endif %}
     {% else %}
     <div class="empty"><h3>No bill generated</h3></div>
     {% endif %}

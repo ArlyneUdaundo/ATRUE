@@ -3,11 +3,16 @@
 
 {% block title %}Hotel Booking Detail{% endblock %}
 
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-1">{% endblock %}
+
 {% block content %}
-<div class="page-head">
-    <div><h1>Booking {{ booking.booking_reference }}</h1><p>Hotel reservation details, billing and status.</p></div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
+<div class="hbd-page">
+<div class="page-head hbd-page-head">
+    <div class="hbd-heading">
+        <a href="{% url 'hotels:bookings' %}" class="hbd-back" aria-label="Back to hotel bookings"><i class="fas fa-arrow-left"></i></a>
+        <div><h1>Booking {{ booking.booking_reference }}</h1><p>Hotel reservation details, billing and status.</p></div>
+    </div>
+    <div class="hbd-heading-actions">
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
         <a href="{% url 'hotels:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -15,7 +20,7 @@
         <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
         {% endif %}
         {% endif %}
-        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+        <span class="hbd-status {% if booking.status == 'CONFIRMED' %}is-confirmed{% elif booking.status == 'CANCELLED' %}is-cancelled{% elif booking.status == 'CHECKED_IN' %}is-active{% else %}is-pending{% endif %}"><i class="fas {% if booking.status == 'CONFIRMED' %}fa-circle-check{% elif booking.status == 'CANCELLED' %}fa-circle-xmark{% else %}fa-clock{% endif %}"></i>{{ booking.get_status_display }}</span>
     </div>
 </div>
 
@@ -26,38 +31,54 @@
 </div>
 {% endif %}
 
-<div class="grid-2">
-    <div class="card card-pad">
+<div class="hbd-main-grid">
+    <section class="hbd-panel hbd-stay-panel">
         {% with room=booking.rooms.all|first %}
-        {% with photo=room.hotel.photos.all|first %}
-        {% if photo %}<img src="{{ photo.image.url }}" alt="{{ room.hotel.name }}" style="width:100%;height:220px;object-fit:cover;border-radius:14px;margin-bottom:14px">{% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ room.hotel.name }}" style="width:100%;height:220px;object-fit:cover;border-radius:14px;margin-bottom:14px">{% endif %}
-        {% endwith %}
-        {% endwith %}
-        <h3><i class="fas fa-hotel"></i> Guest &amp; Room</h3>
-        <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
-        <div class="meta">Booked by student: {% if booking.created_by %}{{ booking.created_by.full_profile }}{% else %}{{ booking.customer.full_profile }}{% endif %}</div>
-        <div class="meta">Guest contact: {{ booking.guest.email|default:booking.customer.email }} · {{ booking.guest.contact|default:booking.customer.contact_number }}</div>
-        <div class="meta"><b>Guest assigned to each room:</b>
-            {% for entry in booking.room_entries.all %}
-            <div>Room {{ forloop.counter }}{% if forloop.first %} — Primary Guest{% else %} — Additional Guest{% endif %}: {{ entry.room.hotel.name }} — {{ entry.room.room_number }} · {{ entry.guest_first_name }} {{ entry.guest_middle_name }} {{ entry.guest_last_name }} · {{ entry.guest_email }} · {{ entry.guest_contact }}</div>
+        {% with hotel=room.hotel %}
+        <div class="hbd-gallery" data-hbd-gallery aria-label="{{ hotel.name }} property photos">
+            {% for photo in hotel.photos.all %}
+            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:hotel.name }}" class="hbd-gallery-image{% if forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
+            {% empty %}
+            <img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ hotel.name }}" class="hbd-gallery-image is-active" data-hbd-image>
             {% endfor %}
+            <div class="hbd-gallery-label"><i class="fas fa-camera"></i> Property Photos</div>
+            {% if hotel.photos.all|length > 1 %}
+            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ hotel.photos.all|length }}</div>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous property photo"><i class="fas fa-chevron-left"></i></button>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next property photo"><i class="fas fa-chevron-right"></i></button>
+            {% endif %}
         </div>
-        <div class="meta">Rooms:
-            {% for r in booking.rooms.all %}{{ r.hotel.name }} — {{ r.room_number }} ({{ r.get_room_type_display }}){% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}
-        </div>
-        <div class="meta">Check-in: {{ booking.check_in|date:"M d, Y" }} · Check-out: {{ booking.check_out|date:"M d, Y" }} · {{ booking.nights }} night(s)</div>
-        {% if booking.checked_in_at %}<div class="meta"><i class="fas fa-sign-in-alt"></i> Actual check-in: {{ booking.checked_in_at|date:"M d, Y H:i" }}</div>{% endif %}
-        {% if booking.checked_out_at %}<div class="meta"><i class="fas fa-sign-out-alt"></i> Actual check-out: {{ booking.checked_out_at|date:"M d, Y H:i" }}</div>{% endif %}
-        <div class="meta">Guests: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C</div>
-        {% if booking.additional_guests.all %}
-        <div class="meta">Additional Guests:
-            {% for g in booking.additional_guests.all %}<span class="service-chip">{{ g.first_name }} {{ g.last_name }}{% if g.country %} ({{ g.country }}){% endif %}</span>{% endfor %}
-        </div>
-        {% endif %}
-        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
-    </div>
 
-    {% include 'transactions/_booking_billing.html' %}
+        <div class="hbd-section-title"><i class="fas fa-bed"></i><h2>Guest &amp; Room</h2></div>
+        <div class="hbd-info-list">
+            <div class="hbd-info-row"><i class="fas fa-user"></i><span>Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></span></div>
+            <div class="hbd-info-row"><i class="fas fa-user-graduate"></i><span>Booked by student: <b>{% if booking.created_by %}{{ booking.created_by.full_profile }}{% else %}{{ booking.customer.full_profile }}{% endif %}</b></span></div>
+            <div class="hbd-info-row"><i class="fas fa-phone"></i><span>Guest contact: {{ booking.guest.email|default:booking.customer.email }}{% if booking.guest.contact|default:booking.customer.contact_number %} · {{ booking.guest.contact|default:booking.customer.contact_number }}{% endif %}</span></div>
+        </div>
+
+        <div class="hbd-divider"></div>
+        <div class="hbd-section-title hbd-room-title"><i class="fas fa-door-open"></i><h2>Room Details</h2></div>
+        <div class="hbd-info-list">
+            {% for entry in booking.room_entries.all %}
+            <div class="hbd-info-row"><i class="fas fa-hotel"></i><span>Room Type: <b>{{ entry.room.get_room_type_display }}</b> — {{ entry.room.hotel.name }} · {{ entry.room.room_number }}</span></div>
+            <div class="hbd-info-row"><i class="fas fa-user-group"></i><span>Guests: {{ entry.number_of_adults }}A / {{ entry.number_of_children }}C{% if entry.guest_first_name or entry.guest_last_name %} · {{ entry.guest_first_name }} {{ entry.guest_middle_name }} {{ entry.guest_last_name }}{% endif %}</span></div>
+            {% endfor %}
+            <div class="hbd-info-row"><i class="fas fa-calendar-check"></i><span>Check-in: <b>{{ booking.check_in|date:'M d, Y' }}</b> · Check-out: <b>{{ booking.check_out|date:'M d, Y' }}</b> ({{ booking.nights }} night{{ booking.nights|pluralize }})</span></div>
+            {% if booking.checked_in_at %}<div class="hbd-info-row"><i class="fas fa-right-to-bracket"></i><span>Actual check-in: {{ booking.checked_in_at|date:'M d, Y H:i' }}</span></div>{% endif %}
+            {% if booking.checked_out_at %}<div class="hbd-info-row"><i class="fas fa-right-from-bracket"></i><span>Actual check-out: {{ booking.checked_out_at|date:'M d, Y H:i' }}</span></div>{% endif %}
+            {% for entry in booking.room_entries.all %}
+                {% if entry.services.all %}<div class="hbd-info-row"><i class="fas fa-concierge-bell"></i><span>Services: {% for service in entry.services.all %}{{ service.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+                {% if entry.amenities.all %}<div class="hbd-info-row"><i class="fas fa-sparkles"></i><span>Amenities: {% for amenity in entry.amenities.all %}{{ amenity.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+            {% endfor %}
+            {% if booking.special_requests %}<div class="hbd-info-row"><i class="fas fa-message"></i><span>Requests: {{ booking.special_requests }}</span></div>{% endif %}
+            {% if booking.additional_guests.all %}<div class="hbd-info-row"><i class="fas fa-users"></i><span>Additional guests: {% for guest in booking.additional_guests.all %}{{ guest.first_name }} {{ guest.last_name }}{% if guest.country %} ({{ guest.country }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+        </div>
+        <div class="hbd-location"><i class="fas fa-location-dot"></i><div><b>{{ hotel.name }}{% if hotel.municipality %} · {{ hotel.municipality }}{% endif %}</b><span>{{ hotel.location }}</span></div></div>
+        {% endwith %}
+        {% endwith %}
+    </section>
+
+    <div class="hbd-billing-wrap">{% include 'transactions/_booking_billing.html' %}</div>
 </div>
 
 {% if can_manage_lifecycle %}
@@ -133,4 +154,6 @@
 </div>
 {% endif %}
 
+<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>
+</div>
 {% endblock %}
