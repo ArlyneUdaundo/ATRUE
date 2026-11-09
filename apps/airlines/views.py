@@ -3901,6 +3901,20 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                 description=f'{flight.flight_number} · {len(cleaned)} passenger(s)', items=items)
     except (IntegrityError, ValueError) as exc:
         return HttpResponseBadRequest(str(exc) or 'A selected seat is no longer available.')
+    from simulation.completion import complete_guest_booking
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+    complete_guest_booking(
+        request.user,
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=booking.booking_reference,
+    )
+    from simulation.completion import record_actor_task_event
+    record_actor_task_event(
+        request.user, 'PASSENGER_SEAT_SELECTED',
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=booking.booking_reference,
+    )
     request.session['airlines_passenger_ticket'] = _database_ticket_context(
         booking, order, flight, cleaned, total, baggage_charge, fare_class, legs)
     return redirect('airlines:passenger_payment')
@@ -4391,6 +4405,12 @@ def book_flight(request, flight_id):
             task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
             booking_reference=booking.booking_reference,
         )
+        from simulation.completion import record_actor_task_event
+        record_actor_task_event(
+            request.user, 'PASSENGER_SEAT_SELECTED',
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            booking_reference=booking.booking_reference,
+        )
 
         if request.POST.get('book_and_add') == '1':
             try:
@@ -4689,6 +4709,12 @@ def book_itinerary(request, itinerary_id):
             task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
             booking_reference=booking.booking_reference,
         )
+        from simulation.completion import record_actor_task_event
+        record_actor_task_event(
+            request.user, 'PASSENGER_SEAT_SELECTED',
+            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            booking_reference=booking.booking_reference,
+        )
 
         if request.POST.get('book_and_add') == '1':
             try:
@@ -4961,6 +4987,13 @@ def booking_detail(request, booking_id):
                 log_activity(request.user, "Flight booking modified", booking.booking_reference)
                 log_activity(booking.passenger, f"Flight {booking.booking_reference} modified",
                              f"Now {new_count} passenger(s)", )
+                from simulation.completion import record_actor_task_event
+                record_actor_task_event(
+                    request.user, 'PASSENGER_BOOKING_MANAGED',
+                    task_assignment_id=request.session.get(
+                        'active_simulation_task_assignment'),
+                    booking_reference=booking.booking_reference,
+                )
             else:
                 messages.error(request, f"Invalid passenger count (max {flight.capacity}).")
         elif action == 'cancel':

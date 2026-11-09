@@ -4040,3 +4040,84 @@ class PassengerDetailsPreviewTests(TestCase):
         self.assertIn('Back to details', review)
         self.assertIn('Confirm Details', review)
         self.assertNotIn('Back to Flight Details', review)
+
+
+class PassengerCheckoutAssignmentTrackingTests(TestCase):
+    def test_persisted_passenger_checkout_tracks_booking_and_seat_selection(self):
+        from simulation.models import (
+            SimulationAssignmentTaskCompletion,
+            SimulationRoleAssignment,
+            SimulationSession,
+        )
+        from simulation.role_catalogue import sync_role_catalogue
+        from simulation.views import assignment_progress_data
+
+        sync_role_catalogue()
+        instructor = get_user_model().objects.create_user(
+            username='flight-task-instructor', password='pw',
+            account_type=get_user_model().AccountType.INSTRUCTOR)
+        passenger = get_user_model().objects.create_user(
+            username='flight-task-passenger', password='pw',
+            account_type=get_user_model().AccountType.STUDENT)
+        session = SimulationSession.objects.create(
+            name='Passenger Checkout', instructor=instructor,
+            status=SimulationSession.Status.ACTIVE)
+        assignment = SimulationRoleAssignment.objects.create(
+            student=passenger, assigned_by=instructor,
+            role='PASSENGER_AIRLINE', activity_name=session.name,
+            session=session)
+
+        airline, _ = make_airline('Tracking Airline')
+        origin = Airport.objects.create(
+            airport_name='Manila Airport', iata_code='MNL', city='Manila',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        destination = Airport.objects.create(
+            airport_name='Cebu Airport', iata_code='CEB', city='Cebu',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        departure = timezone.now() + timedelta(days=30)
+        flight = Flight.objects.create(
+            airline=airline, flight_number='TRK-101', origin='Manila',
+            destination='Cebu', origin_airport=origin,
+            destination_airport=destination, departure_time=departure,
+            arrival_time=departure + timedelta(hours=1),
+            status=Flight.Status.SCHEDULED, economy_fare=1500)
+
+        self.client.force_login(passenger)
+        task_session = self.client.session
+        task_session['active_simulation_task_assignment'] = assignment.pk
+        task_session.save()
+        travel_date = timezone.localtime(departure).date()
+        payload = {
+            'flight': {'id': str(flight.pk), 'fare_class_key': 'ECONOMY'},
+            'passengers': [{
+                'name': 'Test Passenger',
+                'category': 'adult',
+                'details': {
+                    'full_name': 'Test Passenger',
+                    'dob': date(travel_date.year - 25, travel_date.month,
+                                travel_date.day).isoformat(),
+                    'gender': 'male',
+                    'nationality': 'Philippines',
+                    'email': 'passenger@example.com',
+                    'phone': '9123456789',
+                },
+            }],
+            'insurance_key': 'none',
+            'policy_acknowledged': True,
+            'baggage_kg': 0,
+        }
+
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(payload)})
+
+        self.assertEqual(response.status_code, 302)
+        completions = SimulationAssignmentTaskCompletion.objects.filter(
+            assignment=assignment)
+        self.assertEqual(
+            set(completions.values_list('task_key', flat=True)),
+            {'passenger_airline.book_flight', 'passenger_airline.select_seat'},
+        )
+        self.assertTrue(all(completion.booking_reference for completion in completions))
+        progress = assignment_progress_data(assignment)
+        self.assertEqual((progress['completed'], progress['tracked']), (2, 3))

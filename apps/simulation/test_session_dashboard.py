@@ -322,10 +322,10 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
         response = client.get(reverse('simulation:workspace'))
         self.assertContains(response, 'Hotel Booking Progress')
         self.assertContains(response, 'Task is finished and verified.')
-        self.assertContains(response, 'Task is currently being done.')
+        self.assertNotContains(response, 'Task is currently being done.')
         self.assertContains(
             response, 'Waiting for another role (e.g., Billing Officer).')
-        self.assertContains(response, 'Task has not been started yet.')
+        self.assertContains(response, 'No verified completion has been recorded yet.')
         self.assertContains(
             response,
             'Progress is based on actual verified task completion records, '

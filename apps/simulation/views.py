@@ -634,6 +634,14 @@ def _attach_session_student_rows(sessions, students):
                 'student': student,
                 'assignment': bucket.get(student.pk),
                 'progress': assignment_progress_data(bucket.get(student.pk)),
+                'assignments': [
+                    {
+                        'assignment': assignment,
+                        'progress': assignment_progress_data(assignment),
+                    }
+                    for assignment in session_assignments_for_card
+                    if assignment.student_id == student.pk
+                ],
                 'count': counts.get((session.pk, student.pk), 0),
                 'initials': _initials(student),
                 'display_name': _student_display_name(student),
@@ -647,7 +655,6 @@ def _attach_session_student_rows(sessions, students):
 
 _TASK_STATE_LABELS = {
     'completed': 'Completed',
-    'in_progress': 'In Progress',
     'awaiting': 'Awaiting Confirmation',
     'pending': 'Pending',
     'pending_verification': 'Pending verification',
@@ -794,8 +801,6 @@ def assignment_progress_data(assignment):
                 }.get(completion.status, 'completed')
             elif assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
                 state = 'pending_verification'
-            elif assignment.started_at is not None:
-                state = 'in_progress'
             else:
                 state = 'pending'
             if state == 'completed':
@@ -1584,7 +1589,8 @@ def role_detail(request, assignment_id):
     assignment = get_object_or_404(
         SimulationRoleAssignment.objects.select_related(
             'establishment', 'session', 'session__instructor', 'assigned_by',
-            'role_ref', 'hotel'),
+            'role_ref', 'hotel')
+        .prefetch_related('task_completions'),
         pk=assignment_id,
     )
     if assignment.student != request.user and not is_manager(request.user):
@@ -1603,6 +1609,7 @@ def role_detail(request, assignment_id):
         task_status = 'Not Started'
     return render(request, 'simulation/role_detail.html', {
         'assignment': assignment,
+        'progress': assignment_progress_data(assignment),
         'task_operation': task_operation,
         'task_status': task_status,
         'permissions': assignment.role_permissions(),

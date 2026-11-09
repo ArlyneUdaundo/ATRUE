@@ -52,7 +52,9 @@ _TRANSPORT_MANAGER_ROUTES = {
     'manage', 'agency_vehicles', 'update_agency', 'add_vehicle',
     'update_vehicle', 'add_driver', 'update_driver', 'bookings', 'booking_detail',
 }
-_PACKAGE_MANAGER_ROUTES = {'manage', 'update_package', 'bookings', 'booking_detail'}
+_PACKAGE_MANAGER_ROUTES = {
+    'manage', 'add_package', 'update_package', 'bookings', 'booking_detail',
+}
 _ACTIVITY_MANAGER_ROUTES = {
     'manage', 'update_activity', 'bookings', 'booking_detail',
 }
@@ -912,8 +914,14 @@ def assignment_tasks_for(assignment):
             item['description'] = 'Create and save the assigned business entity.'
             item['completion_events'].append(f"WORKFLOW_TASK:{item['key']}")
         elif task['route'].endswith(':manage') and category == Role.OperationCategory.MANAGER:
-            item['completion_events'] = ['ESTABLISHMENT_UPDATED']
-            item['description'] = 'Save a valid update to the assigned establishment.'
+            if (role_code in {'TOUR_OPERATOR_MANAGER', 'TOUR_MANAGER',
+                              'TRAVEL_AGENCY_MANAGER'}
+                    and task['route'] == 'tour_package:manage'):
+                item['completion_events'] = [f"WORKFLOW_TASK:{item['key']}"]
+                item['description'] = 'Create or save a valid change to a tour package.'
+            else:
+                item['completion_events'] = ['ESTABLISHMENT_UPDATED']
+                item['description'] = 'Save a valid update to the assigned establishment.'
         if role_code == 'GUEST_HOTEL':
             item['description'] = HOTEL_GUEST_TASK_DESCRIPTIONS.get(item['label'], '')
         if role_code == 'GUEST_HOTEL' and item['label'] in HOTEL_GUEST_TASK_RULES:
@@ -921,6 +929,12 @@ def assignment_tasks_for(assignment):
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Book Flight':
             item['key'] = 'passenger_airline.book_flight'
             item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Manage Booking':
+            item['key'] = 'passenger_airline.manage_booking'
+            item['completion_events'] = ['PASSENGER_BOOKING_MANAGED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Seat':
+            item['key'] = 'passenger_airline.select_seat'
+            item['completion_events'] = ['PASSENGER_SEAT_SELECTED']
         elif (GUEST_ROLE_ALIASES.get(role_code, role_code) in GUEST_MODULES
               and item['label'] in GUEST_TASK_RULES):
             suffix, events, description = GUEST_TASK_RULES[item['label']]

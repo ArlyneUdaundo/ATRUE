@@ -61,6 +61,18 @@ def _parse_time(value, fallback=None):
         return fallback
 
 
+def _record_package_booking_fulfilled(request, booking):
+    from simulation.completion import record_actor_task_event
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+    record_actor_task_event(
+        request.user,
+        'BOOKING_FULFILLED',
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=booking.booking_reference,
+    )
+
+
 def _save_guests(booking, request):
     """Persist other-traveler names and their emergency contacts from the form."""
     names = request.POST.getlist('guest_full_name')
@@ -128,10 +140,13 @@ def manage(request):
         raise PermissionDenied('Only an assigned Tour Package Manager may manage package details.')
     packages = scope_packages(
         request, TourPackage.objects.prefetch_related('photos').all(), PACKAGE_MANAGER_ROLES)
+    can_manage_packages = may_manage_package(request) or is_platform_operator(request.user)
     return render(request, 'tour_package/manage.html', {
         'packages': packages,
-        'can_create_package': can_create_establishment(request.user, 'tour_package'),
-        'package_owner': can_create_establishment(request.user, 'tour_package'),
+        'can_create_package': (
+            can_create_establishment(request.user, 'tour_package') or can_manage_packages),
+        'package_owner': (
+            can_create_establishment(request.user, 'tour_package') or can_manage_packages),
         'can_delete_package': is_platform_operator(request.user),
     })
 
@@ -219,7 +234,8 @@ def _save_package(request, instance=None):
 
 @manager_required
 def add_package(request):
-    if not can_create_establishment(request.user, 'tour_package'):
+    if not (can_create_establishment(request.user, 'tour_package')
+            or may_manage_package(request)):
         raise PermissionDenied('You are not authorised to create tour packages.')
     if request.method == 'POST':
         try:
@@ -468,6 +484,16 @@ def booking_detail(request, booking_id):
             raise PermissionDenied('Your Tour Package role does not permit this booking action.')
         if action == 'confirm':
             confirm_booking(booking, request.user)
+            if booking.status == Booking.Status.CONFIRMED:
+                from simulation.completion import record_actor_task_event
+                from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+                record_actor_task_event(
+                    request.user,
+                    'BOOKING_CONFIRMED',
+                    task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+                    booking_reference=booking.booking_reference,
+                )
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
@@ -480,9 +506,7 @@ def booking_detail(request, booking_id):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
-            from simulation.completion import record_booking_fulfilled
-            record_booking_fulfilled(booking, actor=request.user,
-                task_assignment_id=request.session.get('active_simulation_task_assignment'))
+            _record_package_booking_fulfilled(request, booking)
         elif action == 'modify':
             booking.travel_date = _parse_date(request.POST.get('travel_date'), booking.travel_date)
             booking.number_of_travelers = int(request.POST.get('travelers') or booking.number_of_travelers)
@@ -602,9 +626,7 @@ def operate(request):
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
             booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
-            from simulation.completion import record_booking_fulfilled
-            record_booking_fulfilled(booking, actor=request.user,
-                task_assignment_id=request.session.get('active_simulation_task_assignment'))
+            _record_package_booking_fulfilled(request, booking)
             log_activity(request.user, "Package booking completed", str(booking.pk))
         elif action == 'update_status':
             new_status = request.POST.get('status')

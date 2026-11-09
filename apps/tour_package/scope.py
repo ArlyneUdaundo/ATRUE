@@ -9,15 +9,26 @@ ESTABLISHMENT_TYPE = 'TOUR_PACKAGE'
 
 PACKAGE_MANAGER_ROLES = frozenset({
     'TOUR_PACKAGE_MANAGER', 'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
-    'TRAVEL_AGENCY_OWNER',
+    'TRAVEL_AGENCY_OWNER', 'TOUR_OPERATOR_MANAGER', 'TOUR_MANAGER',
+    'TRAVEL_AGENCY_MANAGER',
 })
 RESERVATION_ROLES = frozenset({
-    'TOUR_PACKAGE_RESERVATION_OFFICER',
+    'TOUR_PACKAGE_RESERVATION_OFFICER', 'TOUR_RESERVATION_AGENT',
+    'TOUR_COORDINATOR', 'TRAVEL_AGENCY_RESERVATION_AGENT',
+    'TRAVEL_AGENCY_RESERVATION_OFFICER',
 })
 FRONTDESK_ROLES = frozenset({
     'TOUR_PACKAGE_FRONT_DESK_OFFICER', 'TOUR_PACKAGE_OPERATOR',
+    'TOUR_FRONT_DESK', 'TOUR_GUIDE', 'TRAVEL_AGENCY_FRONT_DESK',
 })
 GUEST_ROLES = frozenset({'TOUR_GUEST', 'CUSTOMER_TOUR'})
+
+SIMULATION_WIDE_PACKAGE_ROLES = frozenset({
+    'TOUR_OPERATOR_MANAGER', 'TOUR_MANAGER', 'TRAVEL_AGENCY_MANAGER',
+    'TOUR_RESERVATION_AGENT', 'TOUR_COORDINATOR',
+    'TRAVEL_AGENCY_RESERVATION_AGENT', 'TRAVEL_AGENCY_RESERVATION_OFFICER',
+    'TOUR_FRONT_DESK', 'TOUR_GUIDE', 'TRAVEL_AGENCY_FRONT_DESK',
+})
 
 
 def is_platform_operator(user):
@@ -33,7 +44,8 @@ def has_package_role(request, roles):
     if owner_role_keys(request.user).intersection(
             {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER', 'TRAVEL_AGENCY_OWNER'}):
         return True
-    return bool(package_ids_for_roles(request, roles))
+    allowed = package_ids_for_roles(request, roles)
+    return allowed is None or bool(allowed)
 
 
 def package_ids_for_roles(request, roles):
@@ -42,9 +54,21 @@ def package_ids_for_roles(request, roles):
     if is_platform_operator(request.user):
         return None
     active = getattr(request, 'active_simulation_assignment', None)
+    if active is None:
+        assignment_id = request.session.get('active_simulation_task_assignment')
+        if assignment_id:
+            from simulation.models import SimulationRoleAssignment
+
+            active = SimulationRoleAssignment.objects.filter(
+                pk=assignment_id,
+                student=request.user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            ).select_related('establishment').first()
     if active is not None:
         if active.role in {'TOUR_PACKAGE_OWNER', 'TOUR_OPERATOR_OWNER',
                            'TRAVEL_AGENCY_OWNER'}:
+            return None
+        if active.role in SIMULATION_WIDE_PACKAGE_ROLES and active.role in roles:
             return None
         establishment = active.establishment
         if (establishment and establishment.type == ESTABLISHMENT_TYPE
@@ -67,7 +91,8 @@ def package_ids_for_roles(request, roles):
 def package_has_role(request, package_id, roles):
     if is_platform_operator(request.user):
         return True
-    return package_id in (package_ids_for_roles(request, roles) or set())
+    allowed = package_ids_for_roles(request, roles)
+    return allowed is None or package_id in allowed
 
 
 def may_manage_package(request, package_id=None):
@@ -132,4 +157,8 @@ def scope_bookings(request, queryset, roles=None):
 
 
 def assigned_operator_for_write(request):
+    active = getattr(request, 'active_simulation_assignment', None)
+    if active and active.role in (
+            SIMULATION_WIDE_PACKAGE_ROLES & PACKAGE_MANAGER_ROLES):
+        return None
     return assigned_establishment_for_write(request, ESTABLISHMENT_TYPE)

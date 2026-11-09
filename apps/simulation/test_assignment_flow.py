@@ -1137,6 +1137,25 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         self.assertContains(response, 'Not Started')
         self.assertContains(response, reverse('simulation:do_task', args=[self.assignment.pk]))
         self.assertContains(response, 'Do the Task')
+        self.assertContains(response, 'Verified Task Progress')
+        self.assertContains(response, 'Pending')
+
+    def test_instructor_roster_links_to_each_student_assignment(self):
+        session = SimulationSession.objects.create(
+            name='Multiple Role Session', instructor=self.instructor,
+        )
+        for assignment in (self.assignment, self.tour):
+            assignment.session = session
+            assignment.activity_name = session.name
+            assignment.save(update_fields=['session', 'activity_name'])
+
+        self.client.force_login(self.instructor)
+        response = self.client.get(reverse('simulation:workspace'))
+
+        self.assertEqual(response.status_code, 200)
+        for assignment in (self.assignment, self.tour):
+            self.assertContains(
+                response, reverse('simulation:role_detail', args=[assignment.pk]))
 
     def test_task_start_timestamp_and_activity_log_are_written_once(self):
         url = reverse('simulation:do_task', args=[self.assignment.pk])

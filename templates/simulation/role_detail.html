@@ -72,6 +72,32 @@
     </div>
 </div>
 
+<div class="card card-pad" style="margin-top:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+            <h3 style="margin:0"><i class="fas fa-list-check"></i> Verified Task Progress</h3>
+            <p style="margin:6px 0 0;color:var(--slate-600)">
+                {% if progress.required %}{{ progress.completed_required }} of {{ progress.required }} required tasks completed · {{ progress.percent }}%{% else %}No required tasks are configured for this role.{% endif %}
+            </p>
+        </div>
+        <span class="badge {% if assignment.status == 'DONE' %}badge-green{% elif assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ assignment.get_status_display }}</span>
+    </div>
+    {% if progress.tasks %}
+    <ol class="sim-task-list" style="margin-top:16px">
+        {% for task in progress.tasks %}
+        <li class="sim-task sim-task--{{ task.state }}" data-task-key="{{ task.key }}">
+            <span class="sim-task-number">{{ forloop.counter }}</span>
+            <span class="sim-task-copy">
+                <span class="sim-task-label">{{ task.label }}</span>
+                {% if task.description %}<span class="sim-task-description">{{ task.description }}</span>{% endif %}
+            </span>
+            <span class="sim-task-status">{{ task.status }}</span>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+</div>
+
 <div class="grid-2">
     <div class="card">
         <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">

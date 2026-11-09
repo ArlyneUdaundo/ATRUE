@@ -171,7 +171,19 @@
                             <div class="simulation-student-detail-item"><span>Simulation Time</span><strong class="simulation-student-time-value">{% if row.assignment.start_time and row.assignment.end_time %}{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned By</span><strong class="simulation-student-assigned-by-value">{% if row.assignment.assigned_by %}{{ row.assignment.assigned_by.get_full_name|default:row.assignment.assigned_by.username }}{% else %}Not assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned On</span><strong class="simulation-student-assigned-at-value">{% if row.assignment %}{{ row.assignment.assigned_at|date:"M d, Y H:i" }}{% else %}Not assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Assignments</span><strong class="simulation-student-assignment-count">{{ row.count }} assignment{{ row.count|pluralize }} in this session</strong></div>
+                            <div class="simulation-student-detail-item">
+                                <span>Role Assignments</span>
+                                <strong class="simulation-student-assignment-count">
+                                    {% for item in row.assignments %}
+                                    <span style="display:block;margin-bottom:6px">
+                                        <a href="{% url 'simulation:role_detail' item.assignment.id %}">{{ item.assignment.get_role_display }}</a>
+                                        <small style="display:block;color:var(--slate-500)">
+                                            {% if item.progress.required %}{{ item.progress.completed_required }}/{{ item.progress.required }} required tasks · {% endif %}{{ item.assignment.get_status_display }}
+                                        </small>
+                                    </span>
+                                    {% empty %}No role assignments in this session{% endfor %}
+                                </strong>
+                            </div>
                         </div>
                         <div class="sim-student-meta">
                             <h4><i class="fas fa-id-card" aria-hidden="true"></i> Student information</h4>
@@ -224,9 +236,8 @@
                             <div class="sim-progress-legend" data-progress-legend aria-label="Progress legend">
                                 <div class="sim-legend-groups">
                                     <span class="sim-legend-item sim-legend-item--completed"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Completed</strong><small>Task is finished and verified.</small></span></span>
-                                    <span class="sim-legend-item sim-legend-item--in-progress"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>In Progress</strong><small>Task is currently being done.</small></span></span>
                                     <span class="sim-legend-item sim-legend-item--awaiting"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Awaiting Confirmation</strong><small>Waiting for another role (e.g., Billing Officer).</small></span></span>
-                                    <span class="sim-legend-item sim-legend-item--pending"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Pending</strong><small>Task has not been started yet.</small></span></span>
+                                    <span class="sim-legend-item sim-legend-item--pending"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Pending</strong><small>No verified completion has been recorded yet.</small></span></span>
                                     {% if row.progress.untracked %}<span class="sim-legend-item sim-legend-item--untracked"><span class="sim-legend-dot" aria-hidden="true"></span><span class="sim-legend-copy"><strong>Not tracked</strong><small>No verified completion rule yet.</small></span></span>{% endif %}
                                 </div>
                                 <p class="sim-legend-note"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Progress is based on actual verified task completion records, not just page visits.</span></p>
@@ -764,10 +775,9 @@
             legendGroups.className = 'sim-legend-groups';
             [
                 ['completed', 'Completed', 'Task is finished and verified.'],
-                ['in-progress', 'In Progress', 'Task is currently being done.'],
                 ['awaiting', 'Awaiting Confirmation',
                  'Waiting for another role (e.g., Billing Officer).'],
-                ['pending', 'Pending', 'Task has not been started yet.']
+                ['pending', 'Pending', 'No verified completion has been recorded yet.']
             ].forEach(function (entry) {
                 appendLegendItem(legendGroups, entry[0], entry[1], entry[2]);
             });

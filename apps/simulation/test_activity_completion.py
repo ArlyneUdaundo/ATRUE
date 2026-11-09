@@ -32,6 +32,7 @@ from simulation.completion import (
     complete_guest_booking,
     complete_reservation_confirmation,
     establishment_for_booking,
+    _workflow_route_matches,
 )
 from simulation.models import (
     ActivityLog,
@@ -43,6 +44,13 @@ from simulation.models import (
 )
 from simulation.role_catalogue import sync_role_catalogue
 from simulation.task_routing import assignment_tasks_for
+from simulation.task_routing import (
+    _GUEST_OPERATIONS,
+    _OPERATIONS,
+    GUEST_ROLE_ALIASES,
+    assignment_tasks_for,
+    task_operation_for,
+)
 from travel_agencies.models import TravelAgencyRequest
 
 User = get_user_model()
@@ -347,9 +355,98 @@ class SessionProgressTests(CompletionTestCase):
         self.assertEqual(tasks[0]['key'], 'passenger_airline.book_flight')
         self.assertEqual(tasks[0]['completion_events'], ['CUSTOMER_BOOKING_SUBMITTED'])
         self.assertEqual(tasks[1]['completion_events'], [])
-        self.assertTrue(tasks[2]['completion_events'][0].startswith('WORKFLOW_TASK:'))
-        self.assertTrue(tasks[3]['completion_events'][0].startswith('WORKFLOW_TASK:'))
+        self.assertEqual(tasks[2]['completion_events'], ['PASSENGER_BOOKING_MANAGED'])
+        self.assertEqual(tasks[3]['completion_events'], ['PASSENGER_SEAT_SELECTED'])
         self.assertEqual(tasks[4]['completion_events'], [])
+
+    def test_every_configured_role_task_has_a_trackable_and_unambiguous_action_route(self):
+        configured_roles = [
+            (establishment_type, role_code)
+            for establishment_type, role_operations in _OPERATIONS.items()
+            for role_code in role_operations
+        ]
+        configured_roles.extend(
+            ('GUEST', role_code) for role_code in _GUEST_OPERATIONS
+        )
+        configured_roles.extend(
+            ('GUEST', role_code) for role_code in GUEST_ROLE_ALIASES
+        )
+        configured_roles.append(('AIRLINE', 'PASSENGER_AIRLINE'))
+
+        for establishment_type, role_code in configured_roles:
+            with self.subTest(role=role_code):
+                role_ref = Role.objects.get(code=role_code)
+                needs_context = (
+                    establishment_type != 'GUEST'
+                    and (role_ref.requires_establishment
+                         or role_ref.operation_category == Role.OperationCategory.BILLING)
+                )
+                assigned_establishment = (
+                    SimpleNamespace(
+                        type=(role_ref.establishment_category
+                              or role_ref.establishment_type or 'HOTEL'))
+                    if needs_context else None
+                )
+                assignment = SimpleNamespace(
+                    role=role_code,
+                    role_ref=role_ref,
+                    role_ref_id=role_ref.pk,
+                    operation_category=role_ref.operation_category,
+                    establishment_id=1 if assigned_establishment is not None else None,
+                    establishment=assigned_establishment,
+                    hotel_id=None,
+                )
+                operation = task_operation_for(assignment)
+                tasks = assignment_tasks_for(assignment)
+                self.assertIsNotNone(operation, role_code)
+
+                def route_uniquely_tracks(task, route):
+                    matches = [
+                        other for other in tasks
+                        if other.get('completion_events')
+                        and any(event.startswith('WORKFLOW_TASK:')
+                                for event in other['completion_events'])
+                        and _workflow_route_matches(other['route'], route)
+                    ]
+                    exact = [other for other in matches if other['route'] == route]
+                    if exact:
+                        matches = exact
+                    return len(matches) == 1 and matches[0]['key'] == task['key']
+
+                for task in tasks:
+                    if task['classification'] == 'INFORMATIONAL':
+                        self.assertFalse(task['completion_events'], role_code)
+                        continue
+                    self.assertTrue(task['completion_events'], role_code)
+                    if not any(
+                            event.startswith('WORKFLOW_TASK:')
+                            for event in task['completion_events']):
+                        continue
+                    unique_routes = [
+                        route for route in operation['allowed_routes']
+                        if route_uniquely_tracks(task, route)
+                    ]
+                    self.assertTrue(
+                        unique_routes,
+                        f'{establishment_type}/{role_code}: '
+                        f'{task["label"]} has no unique tracked route',
+                    )
+
+    def test_passenger_task_completions_are_visible_in_assignment_progress(self):
+        from simulation.completion import record_actor_task_event
+        from simulation.views import assignment_progress_data
+
+        assignment = self.assign(self.guest, 'PASSENGER_AIRLINE')
+        record_actor_task_event(
+            self.guest, 'PASSENGER_BOOKING_MANAGED', assignment=assignment)
+        record_actor_task_event(
+            self.guest, 'PASSENGER_SEAT_SELECTED', assignment=assignment)
+
+        progress = assignment_progress_data(assignment)
+        states = {task['key']: task['state'] for task in progress['tasks']}
+        self.assertEqual(states['passenger_airline.manage_booking'], 'completed')
+        self.assertEqual(states['passenger_airline.select_seat'], 'completed')
+        self.assertEqual((progress['completed'], progress['tracked']), (2, 3))
 
     def test_reservation_role_uses_its_configured_booking_task(self):
         restaurant = Restaurant.objects.create(
@@ -399,6 +496,36 @@ class SessionProgressTests(CompletionTestCase):
         service_task = next(task for task in progress['tasks']
                             if task['key'] == 'hotels.task.03')
         self.assertEqual(service_task['state'], 'completed')
+
+    def test_generic_tracking_uses_the_active_assignment_when_routes_overlap(self):
+        from simulation.completion import record_workflow_action
+        first_hotel = Hotel.objects.create(name='First Tracking Hotel')
+        second_hotel = Hotel.objects.create(name='Second Tracking Hotel')
+        first = self.assign(
+            self.manager, 'HOTEL_MANAGER',
+            establishment_for_instance(first_hotel, create=True))
+        second = self.assign(
+            self.manager, 'HOTEL_MANAGER',
+            establishment_for_instance(second_hotel, create=True))
+
+        self.assertIsNotNone(record_workflow_action(
+            self.manager, 'hotels:update_service',
+            task_assignment_id=second.pk))
+
+        self.assertFalse(first.task_completions.exists())
+        self.assertTrue(second.task_completions.exists())
+
+    def test_airline_schedule_creation_matches_flight_management_task(self):
+        from simulation.completion import record_workflow_action
+        airline = Airline.objects.create(name='Schedule Tracking Airline')
+        establishment = establishment_for_instance(airline, create=True)
+        assignment = self.assign(self.manager, 'AIRLINE_MANAGER', establishment)
+
+        self.assertIsNotNone(record_workflow_action(
+            self.manager, 'airlines:add_flight_schedule',
+            task_assignment_id=assignment.pk))
+        self.assertTrue(assignment.task_completions.filter(
+            completion_event='WORKFLOW_TASK:airlines.task.04').exists())
 
     def test_generic_crud_tracking_does_not_require_task_page_navigation(self):
         from simulation.completion import record_workflow_action
@@ -539,8 +666,18 @@ class SessionProgressTests(CompletionTestCase):
         assignment.refresh_from_db()
         from simulation.views import assignment_progress_data
         progress = assignment_progress_data(assignment)
-        self.assertEqual(progress['tasks'][0]['state'], 'in_progress')
+        self.assertEqual(progress['tasks'][0]['state'], 'pending')
         self.assertEqual(progress['completed'], 0)
+
+    def test_completed_task_is_shown_as_completed_after_verified_action(self):
+        assignment = self.assign(self.guest, 'PASSENGER_AIRLINE')
+        complete_guest_booking(self.guest, assignment=assignment)
+
+        from simulation.views import assignment_progress_data
+        progress = assignment_progress_data(assignment)
+        self.assertEqual(progress['tasks'][0]['state'], 'completed')
+        self.assertEqual(progress['tasks'][0]['status'], 'Completed')
+        self.assertEqual(progress['completed'], 1)
 
     def test_task_completion_isolated_between_assignments(self):
         first = self.assign(self.guest, 'PASSENGER_AIRLINE')

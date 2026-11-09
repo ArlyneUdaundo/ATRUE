@@ -231,7 +231,13 @@ def _workflow_route_matches(task_route, route_name):
         return True
     if task_base == 'manage':
         singular = namespace.rstrip('s')
-        return current_base in {'manage', f'update_{singular}', f'add_{singular}'}
+        manage_routes = {
+            'tour_package': {'add_package', 'update_package'},
+        }
+        return current_base in (
+            {'manage', f'update_{singular}', f'add_{singular}'}
+            | manage_routes.get(namespace, set())
+        )
     stem = task_base.rstrip('s')
     aliases = {stem}
     if stem.endswith('_schedule'):
@@ -240,6 +246,11 @@ def _workflow_route_matches(task_route, route_name):
         any(
             current_base == alias
             or current_base.startswith(f'{alias}_')
+            or any(
+                current_base == f'{action}_{alias}'
+                or current_base.startswith(f'{action}_{alias}_')
+                for action in ('add', 'update', 'delete')
+            )
             or current_base in {
                 f'add_{alias}', f'update_{alias}', f'delete_{alias}'
             }
@@ -264,23 +275,28 @@ def record_workflow_action(user, route_name, *, session=None,
         assignments = assignments.filter(session=session)
     candidates = []
     for assignment in assignments.order_by('assigned_at', 'id')[:20]:
-        matches = [
-            task for task in assignment_tasks_for(assignment)
-            if any(
-                event.startswith('WORKFLOW_TASK:')
-                for event in task.get('completion_events', ())
+        task_matches = []
+        for task in assignment_tasks_for(assignment):
+            events = task.get('completion_events', ())
+            if not _workflow_route_matches(task.get('route'), route_name):
+                continue
+            workflow_event = next(
+                (event for event in events
+                 if event.startswith('WORKFLOW_TASK:')),
+                None,
             )
-            and _workflow_route_matches(task.get('route'), route_name)
-        ]
-        if len(matches) == 1:
-            candidates.append((assignment, matches[0]))
+            if workflow_event:
+                task_matches.append((
+                    task['route'] == route_name,
+                    assignment,
+                    workflow_event,
+                ))
+        if task_matches:
+            exact_matches = [match for match in task_matches if match[0]]
+            candidates.extend(exact_matches or task_matches)
     if len(candidates) != 1:
         return None
-    assignment, task = candidates[0]
-    workflow_event = next(
-        event for event in task['completion_events']
-        if event.startswith('WORKFLOW_TASK:')
-    )
+    _, assignment, workflow_event = candidates[0]
     return _record_task_event(
         assignment, workflow_event, user)
 

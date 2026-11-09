@@ -3,9 +3,13 @@ from datetime import date
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 
 from establishments.models import Establishment, establishment_for_instance
-from simulation.models import SimulationRoleAssignment
+from simulation.models import (
+    SimulationAssignmentTaskCompletion,
+    SimulationRoleAssignment,
+)
 
 Role = SimulationRoleAssignment.Role
 from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -284,6 +288,124 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertEqual(denied.status_code, 404)
         self.package.refresh_from_db()
         self.assertEqual(self.package.name, 'Updated Assigned Package')
+
+    def test_tour_operator_manager_can_manage_all_packages_and_create_one(self):
+        user = User.objects.create_user(
+            'tour-operator-package-manager', password='pw',
+            account_type=User.AccountType.STUDENT)
+        operator = Establishment.objects.create(
+            name='Assigned Tour Operator', type=Establishment.Type.TOUR_OPERATOR,
+            address='Baguio', contact_number='1', email='operator@example.test')
+        assignment = self.assignment_for(
+            user, Role.TOUR_OPERATOR_MANAGER, operator)
+        from simulation.task_routing import task_operation_for
+        self.assertIn(
+            'tour_package:add_package',
+            task_operation_for(assignment)['allowed_routes'],
+        )
+        self.client.force_login(user)
+        self.set_task(assignment)
+
+        manage = self.client.get(reverse('tour_package:manage'))
+        self.set_task(assignment)
+        create = self.client.post(reverse('tour_package:add_package'), {
+            'name': 'New Simulation Package',
+            'price': '250.00',
+        })
+
+        self.assertContains(manage, self.package.name)
+        self.assertContains(manage, self.other_package.name)
+        self.assertEqual(create.status_code, 302)
+        self.assertTrue(TourPackage.objects.filter(
+            name='New Simulation Package').exists())
+        self.assertTrue(SimulationAssignmentTaskCompletion.objects.filter(
+            assignment=assignment,
+            task_key='tour_package.task.01',
+            completion_event='WORKFLOW_TASK:tour_package.task.01',
+        ).exists())
+
+    def test_travel_agency_reservation_agent_can_confirm_any_package_booking(self):
+        user = User.objects.create_user(
+            'travel-agency-reservation-agent', password='pw',
+            account_type=User.AccountType.STUDENT)
+        agency = Establishment.objects.create(
+            name='Assigned Travel Agency', type=Establishment.Type.TRAVEL_AGENCY,
+            address='Baguio', contact_number='1', email='agency@example.test')
+        assignment = self.assignment_for(
+            user, SimulationRoleAssignment.Role.TRAVEL_AGENCY_RESERVATION_AGENT,
+            agency)
+        booking = self.make_booking(self.other_package, status=Booking.Status.PENDING)
+        bill = Bill(
+            customer=self.customer, service='tour_package', total_amount=100,
+            amount_paid=100, status=Bill.Status.FULLY_PAID,
+            verified_at=timezone.now(),
+        )
+        bill.link_to_booking(booking)
+        bill.save()
+        self.client.force_login(user)
+        self.set_task(assignment)
+
+        listing = self.client.get(reverse('tour_package:bookings'))
+        self.set_task(assignment)
+        response = self.client.post(
+            reverse('tour_package:booking_detail', args=[booking.pk]),
+            {'action': 'confirm'},
+        )
+
+        self.assertContains(listing, booking.booking_reference)
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertTrue(SimulationAssignmentTaskCompletion.objects.filter(
+            assignment=assignment,
+            task_key='travel_agency_reservation_agent.booking_work',
+            completion_event='BOOKING_CONFIRMED',
+        ).exists())
+
+    def test_travel_agency_manager_can_manage_all_packages(self):
+        user = User.objects.create_user(
+            'travel-agency-package-manager', password='pw',
+            account_type=User.AccountType.STUDENT)
+        agency = Establishment.objects.create(
+            name='Assigned Travel Agency Manager', type=Establishment.Type.TRAVEL_AGENCY,
+            address='Baguio', contact_number='1', email='manager@example.test')
+        self.client.force_login(user)
+        self.set_task(self.assignment_for(
+            user, Role.TRAVEL_AGENCY_MANAGER, agency))
+
+        response = self.client.get(reverse('tour_package:manage'))
+
+        self.assertContains(response, self.package.name)
+        self.assertContains(response, self.other_package.name)
+
+    def test_travel_agency_frontdesk_can_complete_any_package_booking(self):
+        user = User.objects.create_user(
+            'travel-agency-frontdesk', password='pw',
+            account_type=User.AccountType.STUDENT)
+        agency = Establishment.objects.create(
+            name='Assigned Travel Agency Front Desk',
+            type=Establishment.Type.TRAVEL_AGENCY,
+            address='Baguio', contact_number='1', email='frontdesk@example.test')
+        assignment = self.assignment_for(
+            user, Role.TRAVEL_AGENCY_FRONT_DESK, agency)
+        booking = self.make_booking(
+            self.other_package, status=Booking.Status.CHECKED_IN)
+        self.client.force_login(user)
+        self.set_task(assignment)
+
+        response = self.client.post(
+            reverse('tour_package:booking_detail', args=[booking.pk]),
+            {'action': 'complete'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.COMPLETED)
+        self.assertTrue(SimulationAssignmentTaskCompletion.objects.filter(
+            assignment=assignment,
+            task_key='travel_agency_front_desk.service_fulfilment',
+            completion_event='BOOKING_FULFILLED',
+        ).exists())
 
     def test_guest_assignment_does_not_expand_manager_role_to_another_package(self):
         user = User.objects.create_user(

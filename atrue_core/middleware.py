@@ -162,8 +162,14 @@ class SimulationWorkflowTrackingMiddleware:
         if not route_name:
             return response
         from simulation.completion import record_workflow_action
+        assignment = getattr(request, 'active_simulation_assignment', None)
+        if assignment is None:
+            from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+            task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+        else:
+            task_assignment_id = assignment.pk
         record_workflow_action(
-            request.user, route_name)
+            request.user, route_name, task_assignment_id=task_assignment_id)
         return response
 
 

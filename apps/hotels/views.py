@@ -986,16 +986,26 @@ def _rooms_meta_dict(rooms, cards=None):
             'additional_charge': str(r.additional_guest_charge),
             'bookable': bool(card.get('bookable', True)),
             'max_rooms': card.get('max_rooms', 1),
+            'photos': [photo.image.url for photo in card.get('photos', [])],
+            'features': [
+                feature.strip()
+                for feature in (r.features or '').replace('\r', '').replace(',', '\n').split('\n')
+                if feature.strip()
+            ],
         }
     return meta
 
 
 def _services_map(services):
-    return {str(s.id): {'name': s.name, 'rate': str(s.rate)} for s in services}
+    return {str(s.id): {
+        'name': s.name, 'description': s.description or '', 'rate': str(s.rate),
+    } for s in services}
 
 
 def _amenities_map(amenities):
-    return {str(a.id): {'name': a.name} for a in amenities}
+    return {str(a.id): {
+        'name': a.name, 'description': a.description or '',
+    } for a in amenities}
 
 
 def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, adults, children,
@@ -1803,6 +1813,8 @@ def booking_detail(request, booking_id):
         'booking': booking,
         'bill': bill,
         'payments': payments,
+        'receipts': bill.receipts.all() if bill else [],
+        'is_hotel_booking': True,
         'can_manage': can_manage,
         'is_reservation_officer': reservation_officer,
         'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
