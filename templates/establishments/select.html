@@ -34,6 +34,7 @@ same markup, and any block with no real data behind it is simply not rendered.
     <a href="{{ detail_url }}" class="btn btn-ghost"><i class="fas fa-building"></i> {{ category_label }} Overview</a>
 </div>
 
+{% if category != 'staycation' %}
 <div class="card card-pad" style="margin-bottom:18px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         {% if category == 'restaurant' %}
@@ -82,6 +83,7 @@ same markup, and any block with no real data behind it is simply not rendered.
         <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Update</button>
     </div>
 </form>
+{% endif %}
 
 <form method="post" action="{{ select_url }}" id="bookingForm" novalidate>
 {% csrf_token %}

@@ -103,6 +103,20 @@ class StaycationScopingTests(TestCase):
         self.assertIn('Cebu Getaway', body)
         self.assertIn('Add Staycation', body)
 
+    def test_booking_flow_hides_search_controls_but_keeps_default_booking_dates(self):
+        self._login(self.student)
+        response = self.client.get(reverse(
+            'staycations:flow_select', args=[self.assigned_staycation.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Stays')
+        self.assertNotContains(response, '1 Search')
+        self.assertNotContains(response, 'id="searchCheckIn"')
+        self.assertNotContains(response, 'id="searchCheckOut"')
+        self.assertNotContains(response, 'class="ag-search-btn"')
+        self.assertContains(response, 'id="bkCheckIn"')
+        self.assertContains(response, 'id="bkCheckOut"')
+
     def test_booking_filters_omit_staycation_and_fit_two_rows(self):
         self._login(self.instructor)
         response = self.client.get(reverse('staycations:bookings'))
