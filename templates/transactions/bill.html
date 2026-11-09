@@ -1,172 +1,112 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
-{% block title %}Bill {{ bill.bill_reference }}{% endblock %}
+{% block title %}Payment — {{ payment_summary.establishment_name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/establishment-payment.css' %}?v=20261109-3">{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div><h1>Bill {{ bill.bill_reference }}</h1><p>{{ bill.service|title }} billing and payment records.</p></div>
-    <span class="badge {% if bill.verified_at %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:14px">{% if bill.verified_at %}Paid{% else %}Pending{% endif %}</span>
+<div class="page-head ep-page-head">
+    <div><span class="ep-eyebrow"><i class="fas fa-shield-halved"></i> Secure training checkout</span><h1>Complete your payment</h1><p>Bill {{ bill.bill_reference }} · Review the booking and choose a simulated payment method.</p></div>
+    <span class="badge {% if bill.verified_at %}badge-green{% elif bill.status == 'PARTIALLY_PAID' %}badge-yellow{% else %}badge-gray{% endif %}" style="font-size:13px">{% if bill.verified_at %}Paid{% elif has_pending_payment %}Payment Pending{% else %}Balance Due{% endif %}</span>
 </div>
 
-<div class="grid-2">
-    <div class="card card-pad">
-        <h3><i class="fas fa-file-invoice"></i> Line Items</h3>
-        <div class="table-wrap">
-            <table class="table">
-                <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-                <tbody>
-                    {% for item in bill.items %}
-                    <tr>
-                        <td>{{ item.label }}{% if item.description %}<small class="meta"> — {{ item.description }}</small>{% endif %}</td>
-                        <td>{{ item.quantity|default:"—" }}</td>
-                        <td>₱ {{ item.rate }}</td>
-                        <td>₱ {{ item.amount }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4">No line items.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<form method="post" class="ep-layout" id="establishmentPaymentForm" data-submit-loading data-total="₱ {{ bill.balance_due|floatformat:2 }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="pay">
+    <section class="ep-panel ep-methods" aria-labelledby="epMethodsTitle">
+        <div class="ep-panel-title"><span class="ep-step">1</span><div><h2 id="epMethodsTitle">Payment method</h2><p>Choose one option</p></div></div>
+        <div class="ep-method-list" role="radiogroup" aria-labelledby="epMethodsTitle">
+            <label class="ep-method is-selected"><input type="radio" name="payment_method" value="GCASH" checked {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-gcash"><i class="fas fa-mobile-screen-button"></i></span><span>GCash</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="MAYA" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-maya"><i class="fas fa-wallet"></i></span><span>Maya</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="BANK_TRANSFER" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-bank"><i class="fas fa-building-columns"></i></span><span>Bank Transfer</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="CREDIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Credit Card</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="DEBIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Debit Card</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="PAYPAL" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-paypal"><i class="fab fa-paypal"></i></span><span>PayPal</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="QR_PH" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-qr"><i class="fas fa-qrcode"></i></span><span>QR Ph</span><i class="fas fa-circle-check ep-method-check"></i></label>
         </div>
-        <div class="meta" style="margin-top:14px">
-            Total: <b>₱ {{ bill.total_amount }}</b> ·
-            Paid: ₱ {{ bill.amount_paid }} ·
-            Balance: <b>₱ {{ bill.balance_due }}</b>
-        </div>
-        {% if booking %}
-        <div class="meta" style="margin-top:6px">Linked booking: <b>{{ booking.booking_reference }}</b> ({{ bill.service|title }})</div>
-        {% endif %}
-    </div>
+        <div class="ep-training-note"><i class="fas fa-circle-info"></i><span>Simulation only. No real payment details are accepted.</span></div>
+    </section>
 
-    <div class="card card-pad">
-        <h3><i class="fas fa-credit-card"></i> Payments &amp; Receipts</h3>
-        <div class="table-wrap"><table class="table">
-            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>Status</th><th>On</th><th></th></tr></thead>
-            <tbody>
-                {% for p in payments %}
-                <tr>
-                    <td class="mono">{{ p.payment_reference }}</td>
-                    <td>₱ {{ p.amount }}</td>
-                    <td>{{ p.get_method_display }}</td>
-                    <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
-                    <td>{{ p.paid_at|date:"M d, Y H:i" }}</td>
-                    <td>
-                        {% if p.status == 'PAID' %}
-                        <form method="post" onsubmit="return confirm('Refund this payment of ₱ {{ p.amount }}?')">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="refund">
-                            <input type="hidden" name="payment_id" value="{{ p.pk }}">
-                            <button class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Refund</button>
-                        </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6"><div class="empty"><h3>No payments on this bill yet</h3></div></td></tr>
-                {% endfor %}
-            </tbody>
-        </table></div>
-        {% if receipts %}
-        <h4 style="margin-top:16px">Official Receipts</h4>
-        <div class="table-wrap"><table class="table">
-            <thead><tr><th>Receipt</th><th>Amount</th><th>Issued</th><th></th></tr></thead>
-            <tbody>
-                {% for r in receipts %}
-                <tr>
-                    <td class="mono">{{ r.receipt_reference }}</td>
-                    <td>₱ {{ r.amount }}</td>
-                    <td>{{ r.issued_at|date:"M d, Y H:i" }}</td>
-                    <td><a class="btn btn-outline btn-sm" href="{% url 'transactions:receipt_detail' r.pk %}" target="_blank"><i class="fas fa-print"></i></a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table></div>
-        {% endif %}
-    </div>
-</div>
-
-<div class="grid-2" style="margin-top:18px">
-    <div class="card card-pad">
-        <h3><i class="fas fa-credit-card"></i> Submit Payment</h3>
+    <section class="ep-panel ep-details" aria-labelledby="epDetailsTitle">
+        <div class="ep-panel-title"><span class="ep-step">2</span><div><h2 id="epDetailsTitle">Payment information</h2><p id="epMethodHint">Enter the details for your selected method.</p></div></div>
         {% if has_pending_payment %}
-        <p class="meta">Your payment submission is pending Billing Officer confirmation. It will not count as paid until confirmed.</p>
+        <div class="ep-state-message"><i class="fas fa-clock"></i><div><b>Payment submitted</b><p>Your payment is pending Billing Officer confirmation. It will not count as paid until confirmed.</p></div></div>
         {% elif bill.balance_due > 0 %}
-        <form method="post" data-submit-loading>
-            {% csrf_token %}
-            <input type="hidden" name="action" value="pay">
-            <div class="form-grid">
-                <div class="form-group"><label>Amount</label><input type="number" name="amount" step="0.01" class="form-input" value="{{ bill.balance_due }}"></div>
-                <div class="form-group"><label>Method</label>
-                    <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-paper-plane"></i> Submit Payment for Confirmation</button>
-        </form>
+        <label class="ep-field ep-amount-field" for="epAmount"><span>Amount to pay <b aria-hidden="true">*</b></span><input id="epAmount" type="number" name="amount" min="0.01" max="{{ bill.balance_due }}" step="0.01" value="{{ bill.balance_due }}" required inputmode="decimal" aria-describedby="epAmountHelp"><small id="epAmountHelp">You may make a partial payment up to the outstanding balance.</small></label>
+        <div id="epDynamicFields" class="ep-dynamic-fields" aria-live="polite"></div>
         {% else %}
-        <div class="empty"><h3>Bill is fully settled</h3><p>No balance due.</p></div>
+        <div class="ep-state-message is-settled"><i class="fas fa-circle-check"></i><div><b>This bill is fully settled</b><p>No further payment is due.</p></div></div>
         {% endif %}
-    </div>
+    </section>
 
-    <div class="card card-pad">
-        <h3><i class="fas fa-plus-circle"></i> Add Additional Transaction</h3>
-        {% if booking %}
-        <form method="post" data-submit-loading>
-            {% csrf_token %}
-            <input type="hidden" name="action" value="additional">
-            <div class="form-group">
-                <label>Type</label>
-                <select name="transaction_type" class="form-input">
-                    {% for value, label in additional_types %}
-                    <option value="{{ value }}">{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-input" placeholder="e.g. Extra night, airport transfer..." required></div>
-            <div class="form-grid">
-                <div class="form-group"><label>Quantity</label><input type="number" name="quantity" min="1" value="1" class="form-input"></div>
-                <div class="form-group"><label>Rate</label><input type="number" name="rate" step="0.01" class="form-input" required></div>
-            </div>
-            <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-plus"></i> Add to this booking</button>
-        </form>
+    <aside class="ep-panel ep-summary" aria-labelledby="epSummaryTitle">
+        <div class="ep-panel-title"><span class="ep-step">3</span><div><h2 id="epSummaryTitle">Booking summary</h2><p>{{ payment_summary.establishment_name }}</p></div></div>
+        <div class="ep-establishment">
+            {% if payment_summary.establishment_image %}<img src="{{ payment_summary.establishment_image }}" alt="{{ payment_summary.establishment_name }}" class="ep-establishment-image">{% else %}<div class="ep-establishment-placeholder" aria-label="Establishment image unavailable"><i class="fas fa-building"></i></div>{% endif %}
+            <div><span class="ep-summary-kicker">Selected establishment</span><b>{{ payment_summary.establishment_name }}</b></div>
+        </div>
+        <div class="ep-booking-item">
+            <div class="ep-booking-item-title"><b>{{ payment_summary.reference }}</b><span>Booking reference</span></div>
+            <dl>
+                <div><dt>{{ payment_summary.quantity_label }}</dt><dd>{{ payment_summary.quantity }}</dd></div>
+                {% if payment_summary.start_date %}<div><dt>{% if payment_summary.end_date %}Check-in{% else %}Date{% endif %}</dt><dd>{{ payment_summary.start_date|date:'M d, Y' }}</dd></div>{% endif %}
+                {% if payment_summary.end_date %}<div><dt>Check-out</dt><dd>{{ payment_summary.end_date|date:'M d, Y' }}</dd></div>{% endif %}
+                {% for detail in payment_summary.details %}<div><dt>Selected details</dt><dd>{{ detail }}</dd></div>{% endfor %}
+            </dl>
+        </div>
+        <div class="ep-bill-lines">
+            <span class="ep-summary-kicker">Bill items</span>
+            {% for item in bill.items %}<div><span>{{ item.label }}{% if item.quantity %} × {{ item.quantity }}{% endif %}</span><b>₱ {{ item.amount|floatformat:2 }}</b></div>{% empty %}<div><span>Booking charges</span><b>₱ {{ bill.total_amount|floatformat:2 }}</b></div>{% endfor %}
+        </div>
+        <div class="ep-totals">
+            <div><span>Bill total</span><b>₱ {{ bill.total_amount|floatformat:2 }}</b></div>
+            <div><span>Already paid</span><b>₱ {{ bill.amount_paid|floatformat:2 }}</b></div>
+            <div><span>Remaining balance</span><b>₱ {{ bill.balance_due|floatformat:2 }}</b></div>
+            <div class="ep-total"><span>Amount to pay</span><b id="epTotalDue">₱ {{ bill.balance_due|floatformat:2 }}</b></div>
+        </div>
+        {% if has_pending_payment %}
+        <button type="button" class="ep-confirm" disabled><i class="fas fa-clock"></i><span>Waiting for Payment Verification</span></button>
+        {% elif bill.balance_due > 0 %}
+        <button type="submit" class="ep-confirm" id="epConfirm"><i class="fas fa-lock"></i><span>Confirm Payment · ₱ {{ bill.balance_due|floatformat:2 }}</span></button>
         {% else %}
-        <p class="meta">This bill is not linked to a booking.</p>
+        <button type="button" class="ep-confirm" disabled><i class="fas fa-circle-check"></i><span>Bill Fully Settled</span></button>
         {% endif %}
-    </div>
-</div>
+        <p class="ep-confirm-note"><i class="fas fa-shield-halved"></i> Payment stays pending until staff confirms receipt.</p>
+        <a href="{% url 'transactions:list' %}" class="ep-back-link"><i class="fas fa-arrow-left"></i> Back to transactions</a>
+    </aside>
+</form>
 
-{% if additional_transactions %}
-<div class="card card-pad" style="margin-top:18px">
-    <h3><i class="fas fa-list"></i> Additional Transactions on this booking</h3>
+<details class="card card-pad ep-history">
+    <summary><i class="fas fa-clock-rotate-left"></i> Payment history &amp; receipts</summary>
     <div class="table-wrap"><table class="table">
-        <thead><tr><th>Ref</th><th>Type</th><th>Description</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th></tr></thead>
+        <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>Status</th><th>On</th><th></th></tr></thead>
         <tbody>
-            {% for at in additional_transactions %}
-            <tr>
-                <td class="mono">{{ at.transaction_reference }}</td>
-                <td>{{ at.get_transaction_type_display }}</td>
-                <td>{{ at.description }}</td>
-                <td>{{ at.quantity }}</td>
-                <td>₱ {{ at.rate }}</td>
-                <td><b>₱ {{ at.total_amount }}</b></td>
-                <td><span class="badge {% if at.status == 'PAID' %}badge-green{% elif at.status == 'CANCELLED' or at.status == 'REFUNDED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ at.get_status_display }}</span></td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7">None yet.</td></tr>
-            {% endfor %}
+            {% for p in payments %}<tr>
+                <td class="mono">{{ p.payment_reference }}</td><td>₱ {{ p.amount|floatformat:2 }}</td><td>{{ p.get_method_display }}</td>
+                <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
+                <td>{{ p.paid_at|date:'M d, Y H:i'|default:'Pending' }}</td><td>{% if p.status == 'PAID' %}<form method="post" onsubmit="return confirm('Refund this payment of ₱ {{ p.amount }}?')">{% csrf_token %}<input type="hidden" name="action" value="refund"><input type="hidden" name="payment_id" value="{{ p.pk }}"><button class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Refund</button></form>{% endif %}</td>
+            </tr>{% empty %}<tr><td colspan="6">No payments on this bill yet.</td></tr>{% endfor %}
         </tbody>
     </table></div>
-</div>
-{% endif %}
+    {% if receipts %}<h4>Official receipts</h4><div class="table-wrap"><table class="table"><thead><tr><th>Receipt</th><th>Amount</th><th>Issued</th><th></th></tr></thead><tbody>{% for r in receipts %}<tr><td class="mono">{{ r.receipt_reference }}</td><td>₱ {{ r.amount|floatformat:2 }}</td><td>{{ r.issued_at|date:'M d, Y H:i' }}</td><td><a class="btn btn-outline btn-sm" href="{% url 'transactions:receipt_detail' r.pk %}" target="_blank"><i class="fas fa-print"></i></a></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+</details>
 
-<div style="margin-top:18px">
-    <a href="{% url 'transactions:list' %}" class="btn btn-outline">Back to transactions</a>
-    <a href="{% url 'transactions:additional_add' %}" class="btn btn-outline">All additional transactions</a>
+<div class="ep-additional-grid">
+    <section class="card card-pad">
+        <h3><i class="fas fa-plus-circle"></i> Add Additional Transaction</h3>
+        {% if booking %}
+        <form method="post" data-submit-loading>{% csrf_token %}<input type="hidden" name="action" value="additional">
+            <div class="form-group"><label>Type</label><select name="transaction_type" class="form-input">{% for value, label in additional_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-input" placeholder="e.g. Extra night, airport transfer..." required></div>
+            <div class="form-grid"><div class="form-group"><label>Quantity</label><input type="number" name="quantity" min="1" value="1" class="form-input"></div><div class="form-group"><label>Rate</label><input type="number" name="rate" step="0.01" class="form-input" required></div></div>
+            <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-plus"></i> Add to this booking</button>
+        </form>
+        {% else %}<p class="meta">This bill is not linked to a booking; additional transactions cannot be added.</p>{% endif %}
+    </section>
+    {% if additional_transactions %}<section class="card card-pad"><h3><i class="fas fa-list"></i> Additional Transactions</h3><div class="table-wrap"><table class="table"><thead><tr><th>Ref</th><th>Type</th><th>Description</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for at in additional_transactions %}<tr><td class="mono">{{ at.transaction_reference }}</td><td>{{ at.get_transaction_type_display }}</td><td>{{ at.description }}</td><td>{{ at.quantity }}</td><td>₱ {{ at.rate }}</td><td><b>₱ {{ at.total_amount }}</b></td><td><span class="badge {% if at.status == 'PAID' %}badge-green{% elif at.status == 'CANCELLED' or at.status == 'REFUNDED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ at.get_status_display }}</span></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
 </div>
+
+<div class="ep-page-links"><a href="{% url 'transactions:list' %}" class="btn btn-outline">Back to transactions</a><a href="{% url 'transactions:additional_add' %}" class="btn btn-outline">All additional transactions</a></div>
+
+<script src="{% static 'js/establishment-payment.js' %}?v=20261109-3" defer></script>
 {% endblock %}

@@ -51,7 +51,7 @@
       </article>
       {% endfor %}
     </div>
-    <div class="ep-totals"><div><span>Booking subtotal</span><b>₱ {{ total|floatformat:2 }}</b></div><div><span>Additional charges</span><b>Included in booking totals</b></div><div class="ep-total"><span>Total due</span><b>₱ {{ total|floatformat:2 }}</b></div></div>
+    <div class="ep-totals"><div><span>Booking subtotal</span><b>₱ {{ total|floatformat:2 }}</b></div><div><span>Additional charges</span><b>Included in booking totals</b></div><div class="ep-total"><span>Total due</span><b id="epTotalDue">₱ {{ total|floatformat:2 }}</b></div></div>
     <button type="submit" class="ep-confirm" id="epConfirm"><i class="fas fa-lock"></i><span>Confirm Payment · ₱ {{ total|floatformat:2 }}</span></button>
     <p class="ep-confirm-note"><i class="fas fa-shield-halved"></i> Your booking remains pending until staff confirmation.</p>
     <a href="{{ meta.return_url }}" class="ep-back-link"><i class="fas fa-arrow-left"></i> Add another booking</a>

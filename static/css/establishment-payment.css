@@ -37,6 +37,23 @@
 .ep-demo-card p { display: flex; justify-content: space-between; margin: 0; color: #e6f2ff; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
 .ep-security-note { display: flex; gap: 7px; align-items: flex-start; color: #63788e; font-size: 11px; line-height: 1.5; }
 .ep-security-note i { margin-top: 2px; color: #2b78c3; }
+.ep-amount-field { margin-bottom: 16px; }
+.ep-amount-field small { color: #78899b; font-size: 10px; font-weight: 500; line-height: 1.4; }
+.ep-state-message { display: flex; gap: 11px; align-items: flex-start; padding: 15px; border: 1px solid #f1dfba; border-radius: 11px; background: #fff8eb; color: #8d641c; }
+.ep-state-message > i { margin-top: 2px; font-size: 17px; }
+.ep-state-message b { font-size: 12px; }.ep-state-message p { margin: 4px 0 0; color: #7b715e; font-size: 10.5px; line-height: 1.5; }
+.ep-state-message.is-settled { border-color: #d8eee3; background: #effaf4; color: #18835f; }
+.ep-bill-lines { display: grid; gap: 8px; margin-top: 14px; padding-top: 11px; border-top: 1px solid #edf1f5; }
+.ep-bill-lines > .ep-summary-kicker { margin-bottom: 1px; }
+.ep-bill-lines > div { display: flex; justify-content: space-between; gap: 10px; color: #718397; font-size: 9.5px; }
+.ep-bill-lines > div span { min-width: 0; overflow-wrap: anywhere; }.ep-bill-lines > div b { color: #344b62; white-space: nowrap; }
+.ep-history { margin-top: 15px; }
+.ep-history summary { display: flex; align-items: center; gap: 8px; color: #254663; font-weight: 750; cursor: pointer; }
+.ep-history .table-wrap { margin-top: 14px; }
+.ep-history h4 { margin: 16px 0 9px; color: #365571; font-size: 13px; }
+.ep-additional-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 15px; margin-top: 15px; }
+.ep-additional-grid h3 { color: #284764; font-size: 15px; }
+.ep-page-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
 .ep-qr-panel { display: flex; align-items: center; gap: 13px; margin-bottom: 15px; padding: 13px; border: 1px dashed #c9d9eb; border-radius: 12px; background: #f8fbff; }
 .ep-qr-mark { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 1px solid #dfebf7; border-radius: 9px; background: repeating-linear-gradient(45deg,#eef5fc,#eef5fc 4px,#fff 4px,#fff 8px); color: #2a6195; font-size: 27px; }
 .ep-qr-panel b { color: #234465; font-size: 12px; }.ep-qr-panel p { margin: 4px 0; color: #718398; font-size: 10px; }.ep-qr-panel span { color: #3476b6; font-size: 10px; font-weight: 750; }

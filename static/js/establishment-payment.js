@@ -5,8 +5,9 @@
   var fieldHost = document.getElementById('epDynamicFields');
   var hint = document.getElementById('epMethodHint');
   var payLater = document.getElementById('epPayLater');
+  var amountInput = form ? form.querySelector('input[name="amount"]') : null;
   var confirmButton = document.getElementById('epConfirm');
-  if (!form || !fieldHost || !hint || !payLater || !confirmButton) return;
+  if (!form || !fieldHost || !hint || !confirmButton) return;
 
   var total = form.dataset.total || '';
   var definitions = {
@@ -50,14 +51,25 @@
     fieldHost.innerHTML = html;
   }
 
+  function updateAmountDisplay() {
+    var amount = total;
+    if (amountInput) {
+      var numericAmount = Number(amountInput.value);
+      amount = Number.isFinite(numericAmount) && numericAmount > 0
+        ? '₱ ' + numericAmount.toFixed(2)
+        : '₱ 0.00';
+    }
+    var totalDisplay = document.getElementById('epTotalDue');
+    if (totalDisplay) totalDisplay.textContent = amount;
+    var action = payLater && payLater.checked ? 'Save Booking · ' : 'Confirm Payment · ';
+    confirmButton.querySelector('span').textContent = action + amount;
+  }
+
   form.querySelectorAll('input[name="payment_method"]').forEach(function (radio) {
     radio.addEventListener('change', render);
   });
-  payLater.addEventListener('change', function () {
-    confirmButton.querySelector('span').textContent = payLater.checked
-      ? 'Save Booking · ' + total
-      : 'Confirm Payment · ' + total;
-  });
+  if (payLater) payLater.addEventListener('change', updateAmountDisplay);
+  if (amountInput) amountInput.addEventListener('input', updateAmountDisplay);
   form.addEventListener('submit', function (event) {
     if (event.submitter && event.submitter.name === 'clear_selection') return;
     if (!form.reportValidity()) {
@@ -73,4 +85,5 @@
     confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Processing…</span>';
   });
   render();
+  updateAmountDisplay();
 }());

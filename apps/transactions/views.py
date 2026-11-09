@@ -652,9 +652,87 @@ def bill_detail(request, bill_id):
     ).order_by('-created_at') if bill.content_type_id else AdditionalTransaction.objects.none()
     pending_payments = bill.payments.filter(status=Payment.Status.PENDING)
 
+    payment_summary = {
+        'establishment_name': bill.service.replace('_', ' ').title(),
+        'establishment_image': '',
+        'reference': getattr(booking, 'booking_reference', '') or bill.bill_reference,
+        'quantity': 1,
+        'quantity_label': 'Selected items',
+        'start_date': None,
+        'end_date': None,
+        'details': [],
+    }
+    if booking is not None:
+        app = booking._meta.app_label
+        establishment = None
+        if app == 'hotels':
+            entry = booking.room_entries.select_related('room__hotel').first()
+            establishment = entry.room.hotel if entry else None
+            payment_summary['quantity'] = getattr(booking, 'number_of_rooms', 1) or 1
+            payment_summary['quantity_label'] = 'Rooms'
+            payment_summary['start_date'] = getattr(booking, 'check_in', None)
+            payment_summary['end_date'] = getattr(booking, 'check_out', None)
+            payment_summary['details'] = [
+                f"{entry.room.get_room_type_display()} · Room {entry.room.room_number}"
+                for entry in booking.room_entries.select_related('room').all()
+            ]
+        elif app == 'resorts':
+            establishment = booking.unit.resort
+            payment_summary['start_date'] = getattr(booking, 'check_in', None)
+            payment_summary['end_date'] = getattr(booking, 'check_out', None)
+            payment_summary['details'] = [str(booking)]
+        elif app == 'staycations':
+            establishment = booking.staycation
+            payment_summary['start_date'] = getattr(booking, 'check_in', None)
+            payment_summary['end_date'] = getattr(booking, 'check_out', None)
+            payment_summary['details'] = [str(booking)]
+        elif app == 'restaurants':
+            establishment = booking.table.restaurant
+            payment_summary['details'] = [str(booking)]
+        elif app == 'activities':
+            establishment = booking.activity.provider
+            payment_summary['details'] = [str(booking)]
+        elif app == 'tour_package':
+            establishment = booking.package
+            payment_summary['details'] = [str(booking)]
+        elif app == 'landmarks':
+            establishment = booking.destination
+            payment_summary['details'] = [str(booking)]
+        elif app == 'airlines':
+            establishment = booking.flight.airline
+            payment_summary['start_date'] = getattr(booking.flight, 'departure_time', None)
+            payment_summary['details'] = [str(booking)]
+        elif app == 'transportation':
+            establishment = booking.vehicle.agency
+            payment_summary['details'] = [str(booking)]
+        else:
+            payment_summary['details'] = [str(booking)]
+
+        if establishment is not None:
+            payment_summary['establishment_name'] = establishment.name
+            if app == 'airlines':
+                photo = getattr(establishment, 'logo_photo', None)
+            else:
+                photos = getattr(establishment, 'photos', None)
+                photo = photos.first() if photos is not None else None
+            image = getattr(photo, 'image', None)
+            if image and getattr(image, 'name', ''):
+                try:
+                    payment_summary['establishment_image'] = image.url
+                except (ValueError, OSError):
+                    pass
+        if not payment_summary['establishment_image'] and app == 'activities':
+            image = getattr(booking.activity, 'image', None)
+            if image and getattr(image, 'name', ''):
+                try:
+                    payment_summary['establishment_image'] = image.url
+                except (ValueError, OSError):
+                    pass
+
     return render(request, 'transactions/bill.html', {
         'bill': bill,
         'booking': booking,
+        'payment_summary': payment_summary,
         'payments': bill.payments.all(),
         'receipts': bill.receipts.all() if bill.pk else [],
         'additional_transactions': additional_transactions,
