@@ -71,7 +71,7 @@
             {% if request.user.is_platform_manager %}
             <a href="{% url 'transportation:update_vehicle' v.id %}" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" data-establishment-create><i class="fas fa-cog"></i> Manage vehicle</a>
             {% elif item.available %}
-            <a href="{% url 'transportation:book' v.id %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-brand btn-sm" style="margin-top:12px;width:100%" data-landtransport-booking><i class="fas fa-road"></i> Book this car</a>
+            <a href="{% url 'transportation:flow_select' agency.id %}?check_in={{ schedule|date:'Y-m-d'|urlencode }}&amp;time={{ schedule|date:'H:i'|urlencode }}" class="btn btn-brand btn-sm" style="margin-top:12px;width:100%"><i class="fas fa-road"></i> Book this car</a>
             {% else %}
             <button class="btn btn-muted btn-sm" style="margin-top:12px;width:100%" disabled><i class="fas fa-ban"></i> {{ v.status|title }}</button>
             {% endif %}
@@ -211,7 +211,6 @@
 })();
 </script>
 {% endblock %}
-
 
 
 

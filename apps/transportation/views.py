@@ -147,6 +147,16 @@ def agency_vehicles(request, agency_id):
     })
 
 
+@login_required
+@student_booking_required
+@db_transaction.atomic
+def transport_flow_select(request, agency_id):
+    """Use the shared establishment selection and guest-details flow."""
+    from atrue_core.establishment_flow import handle_flow
+
+    return handle_flow(request, 'transport', agency_id)
+
+
 @manager_required
 def manage(request):
     agencies = scope_agencies(

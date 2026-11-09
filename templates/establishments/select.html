@@ -3,7 +3,8 @@
 
 {% comment %}
 Shared establishment selection page for every non-hotel category
-(Resorts, Staycations, Restaurants, Tour Packages, Landmarks, Activities).
+(Resorts, Staycations, Restaurants, Tour Packages, Landmarks, Activities and
+Land Transportation).
 
 This is the same interaction structure as templates/hotels/group_select_rooms.html
 and is driven entirely by the normalised cards produced by
@@ -86,7 +87,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 {% csrf_token %}
 <input type="hidden" name="check_in" id="bkCheckIn" value="{{ check_in|date:'Y-m-d' }}">
 <input type="hidden" name="check_out" id="bkCheckOut" value="{{ check_out|date:'Y-m-d' }}">
-{% if show_time %}<input type="hidden" name="time" id="bkTime" value="{{ request.GET.time|default:'' }}">{% endif %}
+{% if show_time %}<input type="hidden" name="time" id="bkTime" value="{{ selected_time|default:'' }}">{% endif %}
 <div id="itemIdsInputs"></div>
 {% if category == 'restaurant' %}<div id="restaurantPartyAllocationError" class="alert alert-danger" role="alert" hidden></div>{% endif %}
 
@@ -256,6 +257,45 @@ same markup, and any block with no real data behind it is simply not rendered.
             {% endfor %}
         </div>
 
+        {% if category == 'transport' %}
+        <section class="card card-pad" style="margin:18px 0" aria-labelledby="transportTripDetailsTitle">
+            <h3 id="transportTripDetailsTitle"><i class="fas fa-route"></i> Trip details</h3>
+            <p class="meta">Provide the route and distance so we can calculate your fare.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="transportPickup">Pickup location</label>
+                    <input id="transportPickup" type="text" name="pickup_location" class="form-input"
+                           maxlength="255" required value="{{ transport_values.pickup_location }}">
+                </div>
+                <div class="form-group">
+                    <label for="transportDropoff">Drop-off location</label>
+                    <input id="transportDropoff" type="text" name="drop_off_location" class="form-input"
+                           maxlength="255" required value="{{ transport_values.drop_off_location }}">
+                </div>
+                <div class="form-group">
+                    <label for="transportDistance">Distance (km)</label>
+                    <input id="transportDistance" type="number" name="distance_km" class="form-input"
+                           min="0.01" max="999999.99" step="0.01" required
+                           value="{{ transport_values.distance_km }}">
+                </div>
+                <div class="form-group">
+                    <label for="transportDuration">Duration (hours)</label>
+                    <input id="transportDuration" type="number" name="duration_hours" class="form-input"
+                           min="1" required value="{{ transport_values.duration_hours|default:'3' }}">
+                </div>
+                <div class="form-group">
+                    <label for="transportDriver">Preferred driver</label>
+                    <select id="transportDriver" name="driver_id" class="form-input">
+                        <option value="">No preference</option>
+                        {% for driver in transport_drivers %}
+                        <option value="{{ driver.pk }}"{% if transport_values.driver_id == driver.pk|stringformat:'s' %} selected{% endif %}>{{ driver.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         {% if tour_options %}
         <div class="card card-pad" style="margin:18px 0">
             <h3 style="margin:0 0 10px"><i class="fas fa-sliders"></i> {{ tour_options.0.label }}</h3>
@@ -294,7 +334,7 @@ same markup, and any block with no real data behind it is simply not rendered.
                 <div class="ag-pb-row"><span>Nights</span><b id="pbNights">{{ nights }}</b></div>
                 {% endif %}
                 {% if show_time %}
-                <div class="ag-pb-row"><span>{{ time_label }}</span><b id="pbTime">{{ request.GET.time|default:'—' }}</b></div>
+                <div class="ag-pb-row"><span>{{ time_label }}</span><b id="pbTime">{{ selected_time|default:'—' }}</b></div>
                 {% endif %}
                 <div class="ag-pb-row"><span>Guests</span><b id="pbGuests">0 adult{{ 0|pluralize }}{% if children %}, {{ children }} child{{ children|pluralize }}{% endif %}</b></div>
                 <div class="ag-pb-row"><span>{{ item_noun_plural }} to book</span><b id="pbItemsSelected">0</b></div>

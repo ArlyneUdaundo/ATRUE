@@ -642,7 +642,7 @@ _GUEST_OPERATIONS = {
     ),
     'PASSENGER_TRANSPORT': _operation(
         'Transport Guest Operations', 'transportation:list', 'transportation',
-        {'list', 'agency_vehicles', 'book', 'booking_detail', 'ticket'},
+        {'list', 'agency_vehicles', 'flow_select', 'book', 'booking_detail', 'ticket'},
         'fa-bus',
         tasks=(
             ('Submit booking request', 'transportation:list', 'fa-paper-plane'),

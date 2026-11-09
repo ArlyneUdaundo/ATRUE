@@ -14,6 +14,7 @@ urlpatterns = [
     path('vehicle/<int:vehicle_id>/update/', views.update_vehicle, name='update_vehicle'),
     path('<int:agency_id>/driver/add/', views.add_driver, name='add_driver'),
     path('driver/<int:driver_id>/update/', views.update_driver, name='update_driver'),
+    path('book/flow/<int:agency_id>/', views.transport_flow_select, name='flow_select'),
     path('book/<int:vehicle_id>/', views.book_vehicle, name='book'),
     path('bookings/', views.bookings, name='bookings'),
     path('booking/<int:booking_id>/', views.booking_detail, name='booking_detail'),

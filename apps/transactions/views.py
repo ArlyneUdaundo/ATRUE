@@ -704,7 +704,17 @@ def bill_detail(request, bill_id):
             payment_summary['details'] = [str(booking)]
         elif app == 'transportation':
             establishment = booking.vehicle.agency
-            payment_summary['details'] = [str(booking)]
+            payment_summary['quantity'] = booking.passengers
+            payment_summary['quantity_label'] = 'Passengers'
+            payment_summary['start_date'] = booking.schedule
+            payment_summary['details'] = [
+                f'{booking.vehicle.label} · {booking.vehicle.plate_number}',
+                f'{booking.pickup_location} → {booking.drop_off_location}',
+                f'{booking.distance_km} km · {booking.duration_hours} hour(s)',
+            ]
+            if booking.driver_id:
+                payment_summary['details'].append(
+                    f'Driver: {booking.driver.full_name}')
         else:
             payment_summary['details'] = [str(booking)]
 

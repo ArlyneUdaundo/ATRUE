@@ -1,7 +1,7 @@
 /* ============================================================
    ATRUE — Establishment selection page behaviour
    Resorts · Staycations · Restaurants · Tour Packages ·
-   Landmarks · Activities
+   Landmarks · Activities · Land Transportation
 
    THE HOTEL PAGE IS THE MASTER TEMPLATE.
    -----------------------------------------
@@ -79,6 +79,7 @@
     var divider = document.getElementById('pbDivider');
     var checkInEl = document.getElementById('bkCheckIn');
     var checkOutEl = document.getElementById('bkCheckOut');
+    var transportDistanceEl = document.getElementById('transportDistance');
 
     var SELECTED = [];   // one entry per booked item, in selection order
 
@@ -178,7 +179,9 @@
         var unit = c.unit_noun || 'night';
 
         var units = c.mode === 'nights' ? nights
-            : c.mode === 'guests' ? Math.max(1, guests) : 1;
+            : c.mode === 'guests' ? Math.max(1, guests)
+            : c.mode === 'distance' ? Math.max(0, Number(transportDistanceEl && transportDistanceEl.value) || 0)
+            : 1;
         var base = rate * units;
 
         var included = Number(c.included || 0);
@@ -232,6 +235,9 @@
 
     function toggleItem(id) {
         if (meta(id).bookable === false) { return; }
+        if (CATEGORY === 'transport' && findIndex(id) === -1) {
+            SELECTED = [];
+        }
         if (findIndex(id) === -1) { addItem(id); } else { removeItem(id); }
         if (CATEGORY === 'restaurant' && INITIAL_GUEST_COMPLETE) { allocateRestaurantParty(); }
     }
@@ -1084,6 +1090,10 @@ if (!guestBox) { return; }
     }
     if (searchCi) { searchCi.addEventListener('change', syncDates); }
     if (searchCo) { searchCo.addEventListener('change', syncDates); }
+    if (transportDistanceEl) {
+        transportDistanceEl.addEventListener('input', computeAll);
+        transportDistanceEl.addEventListener('change', computeAll);
+    }
 
     form.addEventListener('submit', function (ev) {
         if (!SELECTED.length) { ev.preventDefault(); return; }

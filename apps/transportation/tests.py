@@ -1,8 +1,8 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -96,3 +96,111 @@ class VehicleBookingViewTests(TestCase):
         self.vehicle.save(update_fields=['status'])
         response = self.client.get(self.url)
         self.assertRedirects(response, reverse('transportation:list'))
+
+
+class SharedTransportBookingFlowTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.student = User.objects.create_user(
+            'shared-transport-booker', password='pw',
+            account_type=User.AccountType.STUDENT,
+            first_name='Taylor', last_name='Rider', contact_number='09171234567',
+        )
+        cls.agency = Agency.objects.create(name='Shared Flow Transport')
+        cls.vehicle = Vehicle.objects.create(
+            agency=cls.agency, vehicle_name='Route Van', plate_number='FLOW-101',
+            capacity=10, rate_per_km=Decimal('15.00'),
+        )
+
+    def setUp(self):
+        self.client.force_login(self.student)
+        self.url = reverse('transportation:flow_select', args=[self.agency.pk])
+        self.schedule = timezone.localdate() + timedelta(days=2)
+
+    def _payload(self, **overrides):
+        data = {
+            'check_in': self.schedule.isoformat(),
+            'time': '10:00',
+            'item_ids': [str(self.vehicle.pk)],
+            'item_0_first_name': 'Taylor',
+            'item_0_last_name': 'Rider',
+            'item_0_contact': '09171234567',
+            'item_0_adults': '2',
+            'item_0_children': '1',
+            'pickup_location': 'Tuguegarao City',
+            'drop_off_location': 'Aparri',
+            'distance_km': '100',
+            'duration_hours': '4',
+            'driver_id': '',
+        }
+        data.update(overrides)
+        return data
+
+    def test_agency_flow_uses_shared_selection_and_trip_details_screen(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'establishments/select.html')
+        self.assertContains(response, 'Route Van')
+        self.assertContains(response, 'Pickup location')
+        self.assertContains(response, 'Distance (km)')
+        self.assertContains(response, 'Pickup time')
+
+    @override_settings(STORAGES={
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    })
+    def test_booking_creates_transport_record_order_and_bill_then_continues_to_payment(self):
+        from transactions.models import TravelOrder, TravelOrderItem
+        from atrue_core.services import bill_for_booking
+
+        response = self.client.post(self.url, self._payload())
+
+        booking = Booking.objects.get(vehicle=self.vehicle)
+        self.assertRedirects(
+            response, reverse('transactions:bill_detail', args=[bill_for_booking(booking).pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(booking.pickup_location, 'Tuguegarao City')
+        self.assertEqual(booking.drop_off_location, 'Aparri')
+        self.assertEqual(booking.distance_km, Decimal('100.00'))
+        self.assertEqual(booking.passengers, 3)
+        self.assertEqual(booking.duration_hours, 4)
+        self.assertEqual(booking.total_bill, Decimal('1500.00'))
+        order = TravelOrder.objects.get(customer=self.student)
+        self.assertEqual(order.bill, bill_for_booking(booking))
+        self.assertTrue(TravelOrderItem.objects.filter(
+            order=order, object_id=booking.pk, service='transport',
+        ).exists())
+        payment_page = self.client.get(response.url)
+        self.assertEqual(payment_page.status_code, 200)
+        self.assertEqual(
+            payment_page.context['payment_summary']['quantity_label'], 'Passengers')
+        self.assertIn(
+            'Tuguegarao City → Aparri',
+            payment_page.context['payment_summary']['details'])
+
+    def test_shared_flow_rejects_an_overlapping_vehicle_booking(self):
+        schedule = timezone.make_aware(datetime.combine(
+            self.schedule, datetime.min.time().replace(hour=10),
+        ))
+        Booking.objects.create(
+            customer=self.student, vehicle=self.vehicle,
+            pickup_location='A', drop_off_location='B',
+            schedule=schedule, duration_hours=4, passengers=1,
+        )
+
+        response = self.client.post(self.url, self._payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already reserved for the selected schedule')
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_shared_flow_rejects_a_malformed_driver_id_without_creating_a_booking(self):
+        response = self.client.post(
+            self.url, self._payload(driver_id='not-a-driver-id'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Choose an active driver from this agency')
+        self.assertFalse(Booking.objects.exists())

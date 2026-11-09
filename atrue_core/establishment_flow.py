@@ -8,8 +8,8 @@ live booking panel -> guest information -> optional services/amenities ->
 computation -> final action).  It lives in ``apps/hotels`` and is NOT touched
 by this module.
 
-The remaining six categories (Resorts, Staycations, Restaurants, Tour
-Packages, Landmarks, Activities) previously each had their own unrelated
+The remaining seven categories (Resorts, Staycations, Restaurants, Tour
+Packages, Landmarks, Activities, Land Transportation) previously each had their own unrelated
 single-item ``book.html`` page, and Landmarks / Activities had no detail
 page at all.  This module gives them the SAME interaction structure.
 
@@ -49,7 +49,8 @@ logger = logging.getLogger(__name__)
 from hotels.room_offers import _icon_for, split_features
 
 from atrue_core.services import (
-    create_bill, log_activity, record_payment, record_transaction,
+    compute_transport_bill, create_bill, log_activity, record_payment,
+    record_transaction,
 )
 
 
@@ -1449,6 +1450,188 @@ class ActivityAdapter(BaseAdapter):
             return None, [], 'We could not complete this booking. Please try again.'
 
 
+class TransportAdapter(BaseAdapter):
+    key = 'transport'
+    label = 'Land Transportation'
+    singular = 'Transport agency'
+    item_noun = 'Vehicle'
+    item_noun_plural = 'Vehicles'
+    item_badge = 'VEHICLE'
+    charge_section = 'Transport charges'
+    icon = 'fa-car-side'
+    unit_noun = 'km'
+    duration_noun = 'Hours'
+    date_label = 'Pickup date'
+    time_label = 'Pickup time'
+    show_time = True
+    use_account_primary_guest = False
+
+    def get_est(self, pk):
+        from transportation.models import Agency
+        return Agency.objects.filter(status=Agency.Status.ACTIVE).get(pk=pk)
+
+    def list_url(self):
+        return reverse('transportation:list')
+
+    def detail_url(self, est):
+        return reverse('transportation:agency_vehicles', args=[est.pk])
+
+    def select_url(self, est):
+        return reverse('transportation:flow_select', args=[est.pk])
+
+    def booking_detail_url(self, booking):
+        return reverse('transportation:booking_detail', args=[booking.pk])
+
+    def default_date(self, est, fallback):
+        from datetime import timedelta
+        from django.utils import timezone
+        return timezone.localdate() + timedelta(days=1)
+
+    def driver_options(self, est):
+        from transportation.models import Driver
+        return list(est.drivers.filter(status=Driver.Status.ACTIVE).order_by('full_name'))
+
+    def items(self, est, check_in, check_out, nights):
+        from transportation.models import Vehicle
+
+        rows = []
+        for vehicle in est.vehicles.all():
+            rate = dec(vehicle.rate_per_km)
+            roadworthy = vehicle.roadworthiness == 'ROADWORTHY'
+            available = (
+                est.status == est.Status.ACTIVE
+                and vehicle.status == Vehicle.VehicleStatus.AVAILABLE
+                and roadworthy
+            )
+            status = (
+                vehicle.get_status_display()
+                if vehicle.status != Vehicle.VehicleStatus.AVAILABLE
+                else vehicle.get_roadworthiness_display()
+                if not roadworthy
+                else 'Available'
+            )
+            rows.append({
+                'id': vehicle.pk,
+                'obj': vehicle,
+                'name': vehicle.label,
+                'number': vehicle.plate_number,
+                'display_status': status,
+                'raw_status': vehicle.status,
+                'bookable': available,
+                'facts': [
+                    ('fa-car', vehicle.get_vehicle_type_display(), 'Vehicle type'),
+                    ('fa-users', vehicle.capacity, 'Passenger capacity'),
+                    ('fa-shield-alt', vehicle.get_roadworthiness_display(), 'Roadworthiness'),
+                ],
+                'max_guests': vehicle.capacity,
+                'sleeps': f'Up to {vehicle.capacity} passenger(s)',
+                'feature_labels': [],
+                'photos': [],
+                'rate': _rate_block(rate, 1, 'km'),
+                'charge': self.charge_plan(
+                    rate, 'km', 0, vehicle.capacity, mode='distance',
+                ),
+                '_rate_value': rate,
+                'siblings_available': 1,
+                'description': f'{est.name} · Plate {vehicle.plate_number}',
+            })
+        return rows
+
+    def build_booking(self, user, est, selections, ctx):
+        from datetime import timedelta
+        from django.db import transaction
+        from django.utils import timezone
+        from transportation.models import Agency, Booking, Driver, Vehicle
+
+        if len(selections) != 1:
+            return None, [], 'Select exactly one vehicle for each transport booking.'
+
+        selection = selections[0]
+        vehicle_id = selection['card']['id']
+        guest = selection['guest']
+        pickup = (ctx.get('pickup_location') or '').strip()
+        drop_off = (ctx.get('drop_off_location') or '').strip()
+        distance = dec(ctx.get('distance_km'))
+        duration = ctx.get('duration_hours', 3)
+        schedule = ctx.get('schedule')
+        driver_id = ctx.get('driver_id')
+        passengers = max(0, int(guest.get('adults', 0))) + max(
+            0, int(guest.get('children', 0)))
+
+        if not pickup or not drop_off:
+            return None, [], 'Enter both pickup and drop-off locations.'
+        if len(pickup) > 255 or len(drop_off) > 255:
+            return None, [], 'Pickup and drop-off locations must be 255 characters or fewer.'
+        if (not distance.is_finite() or distance <= 0
+                or distance > Decimal('999999.99')):
+            return None, [], 'Enter a valid travel distance between 0 and 999999.99 kilometres.'
+        if not isinstance(duration, int) or duration < 1:
+            return None, [], 'Rental duration must be at least 1 hour.'
+        if schedule is None or schedule <= timezone.now():
+            return None, [], 'Pickup date and time must be in the future.'
+        if passengers < 1:
+            return None, [], 'At least one passenger is required.'
+
+        with transaction.atomic():
+            vehicle = Vehicle.objects.select_for_update().filter(
+                pk=vehicle_id, agency=est,
+            ).first()
+            if vehicle is None or est.status != Agency.Status.ACTIVE:
+                return None, [], 'This vehicle or agency is no longer available.'
+            if vehicle.status != Vehicle.VehicleStatus.AVAILABLE:
+                return None, [], 'This vehicle is not currently available.'
+            if vehicle.roadworthiness != 'ROADWORTHY':
+                return None, [], 'This vehicle is not roadworthy and cannot be booked.'
+            if passengers > vehicle.capacity:
+                return None, [], f'Passenger count cannot exceed this vehicle capacity of {vehicle.capacity}.'
+            if driver_id:
+                try:
+                    driver_id = int(driver_id)
+                except (TypeError, ValueError):
+                    return None, [], 'Choose an active driver from this agency.'
+                driver = Driver.objects.filter(
+                    pk=driver_id, agency=est, status=Driver.Status.ACTIVE,
+                ).first()
+                if driver is None:
+                    return None, [], 'Choose an active driver from this agency.'
+            else:
+                driver = None
+
+            end = schedule + timedelta(hours=duration)
+            open_bookings = Booking.objects.filter(
+                vehicle=vehicle, schedule__lt=end,
+            ).exclude(status__in=[
+                Booking.Status.CANCELLED, Booking.Status.COMPLETED,
+                Booking.Status.DECLINED, Booking.Status.CHECKED_OUT,
+            ])
+            if any(
+                existing.schedule + timedelta(hours=existing.duration_hours) > schedule
+                for existing in open_bookings
+            ):
+                return None, [], (
+                    'This vehicle is already reserved for the selected schedule. '
+                    'Pick a different date or choose another vehicle.'
+                )
+
+            items = compute_transport_bill(vehicle.rate_per_km, distance)
+            booking = Booking.objects.create(
+                customer=user,
+                vehicle=vehicle,
+                driver=driver,
+                pickup_location=pickup,
+                drop_off_location=drop_off,
+                distance_km=distance,
+                schedule=schedule,
+                duration_hours=duration,
+                passengers=passengers,
+                special_requests=guest.get('special_request', ''),
+                payer_name=f"{guest['first_name']} {guest['last_name']}".strip(),
+                payer_contact=guest['contact'],
+                status=Booking.Status.PENDING,
+            )
+        return booking, items, None
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -1457,7 +1640,7 @@ ADAPTERS = {
     a.key: a()
     for a in (
         ResortAdapter, StaycationAdapter, RestaurantAdapter,
-        PackageAdapter, LandmarkAdapter, ActivityAdapter,
+        PackageAdapter, LandmarkAdapter, ActivityAdapter, TransportAdapter,
     )
 }
 
@@ -1517,7 +1700,11 @@ def _datetime_on(day, hhmm, default_hhmm):
             hour, minute = (int(x) for x in raw.split(':'))
         except (TypeError, ValueError):
             pass
-    return _aware(datetime.combine(day, dtime(hour=hour, minute=minute)))
+    try:
+        selected_time = dtime(hour=hour, minute=minute)
+    except ValueError:
+        selected_time = dtime(hour=default_hhmm[0], minute=default_hhmm[1])
+    return _aware(datetime.combine(day, selected_time))
 
 
 def parse_guest_lines(request, cards, adapter):
@@ -1595,6 +1782,15 @@ def _flow_ctx(adapter, est, check_in, check_out, source):
         hhmm = source.get('time')
         ctx['start_time'] = _datetime_on(check_in, hhmm, (9, 0)).time() if hhmm else None
         ctx['end_time'] = None
+    if adapter.key == 'transport':
+        ctx.update({
+            'schedule': _datetime_on(check_in, source.get('time'), (9, 0)),
+            'pickup_location': source.get('pickup_location', ''),
+            'drop_off_location': source.get('drop_off_location', ''),
+            'distance_km': source.get('distance_km', ''),
+            'duration_hours': parse_int(source.get('duration_hours'), 3, 1),
+            'driver_id': source.get('driver_id', ''),
+        })
     return ctx
 
 
@@ -1622,10 +1818,17 @@ def _context_for(request, adapter, est, check_in, check_out, source,
         'nights': nights,
         'check_in': check_in,
         'check_out': check_out,
+        'selected_time': (
+            (source.get('time') or '09:00') if adapter.key == 'transport'
+            else source.get('time', '')
+        ),
         'services': service_rows,
         'amenities': amenity_rows_,
         'guests': guest_lines,
-        'primary_guest_json': account_primary_guest(request.user),
+        'primary_guest_json': (
+            account_primary_guest(request.user)
+            if getattr(adapter, 'use_account_primary_guest', True) else {}
+        ),
         'errors': errors or [],
         'payment_methods': PAYMENT_METHODS,
         'selected_payment_method': (source.get('payment_method') or DEFAULT_PAYMENT_METHOD),
@@ -1660,9 +1863,30 @@ def _context_for(request, adapter, est, check_in, check_out, source,
         'detail_url': adapter.detail_url(est),
         'list_url': adapter.list_url(),
         'has_price': any(c['rate'] for c in cards),
+        'transport_drivers': (
+            adapter.driver_options(est) if adapter.key == 'transport' else []
+        ),
+        'transport_values': {
+            field: source.get(field, '')
+            for field in (
+                'pickup_location', 'drop_off_location', 'distance_km',
+                'duration_hours', 'driver_id',
+            )
+        } if adapter.key == 'transport' else {},
     }
 
 
+
+
+def _record_guest_booking_progress(request, booking):
+    from simulation.completion import complete_guest_booking
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+    return complete_guest_booking(
+        request.user,
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=booking.booking_reference,
+    )
 
 
 def handle_flow(request, adapter_key, pk):
@@ -1760,6 +1984,30 @@ def handle_flow(request, adapter_key, pk):
     booking.balance_due = total
     booking.save(update_fields=['total_bill', 'balance_due'])
 
+    if adapter.key == 'transport':
+        from transactions.cart import create_single_booking_order
+
+        description = (
+            f"{booking.vehicle.label} · {booking.pickup_location} → "
+            f"{booking.drop_off_location} · {booking.passengers} passenger(s)"
+        )
+        create_single_booking_order(
+            request=request,
+            booking=booking,
+            service='transport',
+            amount=total,
+            description=description,
+            items=bill_items,
+            pay_later=True,
+        )
+        _record_guest_booking_progress(request, booking)
+        messages.success(
+            request,
+            f'Transport booking {booking.booking_reference} saved. Continue to payment '
+            'to submit it for Billing Officer verification.',
+        )
+        return redirect('transactions:bill_detail', bill.id)
+
     if adapter.key == 'restaurant':
         booking.status = booking.Status.PENDING
         booking.amount_paid = Decimal('0.00')
@@ -1802,6 +2050,7 @@ def handle_flow(request, adapter_key, pk):
                 'BOOKING', related.booking_reference, request.user,
                 f'Restaurant reservation {related.booking_reference} submitted',
             )
+        _record_guest_booking_progress(request, booking)
         messages.success(
             request,
             'Reservation details saved. Submit payment for Billing Officer verification; '
@@ -1844,8 +2093,10 @@ def handle_flow(request, adapter_key, pk):
             request,
             f'Booking {booking.booking_reference} saved. Submit payment for Billing Officer verification before the Reservation Officer confirms it.',
         )
+        _record_guest_booking_progress(request, booking)
         return redirect('transactions:bill_detail', bill.id)
 
+    _record_guest_booking_progress(request, booking)
     return redirect(adapter.booking_detail_url(booking))
 
 
