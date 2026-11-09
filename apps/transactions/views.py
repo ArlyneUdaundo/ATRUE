@@ -831,9 +831,84 @@ def establishment_booking(request):
         (key, booking, getattr(booking._meta, 'verbose_name', booking.__class__.__name__))
         for key, booking in resolved
     ]
+    summary_rows = []
+    for _, booking in resolved:
+        app = booking._meta.app_label
+        establishment = None
+        if app == 'hotels':
+            room_entry = booking.room_entries.select_related('room__hotel').first()
+            establishment = room_entry.room.hotel if room_entry else None
+        elif app == 'resorts':
+            establishment = booking.unit.resort
+        elif app == 'staycations':
+            establishment = booking.staycation
+        elif app == 'restaurants':
+            establishment = booking.table.restaurant
+        elif app == 'activities':
+            establishment = booking.activity.provider
+        elif app == 'tour_package':
+            establishment = booking.package
+        elif app == 'landmarks':
+            establishment = booking.destination
+        elif app == 'airlines':
+            establishment = booking.flight.airline
+        elif app == 'transportation':
+            establishment = booking.vehicle.agency
+
+        image_url = ''
+        if establishment is not None:
+            if app == 'airlines':
+                photo = getattr(establishment, 'logo_photo', None)
+            else:
+                photos = getattr(establishment, 'photos', None)
+                photo = photos.first() if photos is not None else None
+            image = getattr(photo, 'image', None)
+            if image and getattr(image, 'name', ''):
+                try:
+                    image_url = image.url
+                except (ValueError, OSError):
+                    image_url = ''
+                if image_url and not meta.get('establishment_image'):
+                    meta['establishment_image'] = image_url
+        if not image_url and app == 'activities':
+            activity_image = getattr(booking.activity, 'image', None)
+            if activity_image and getattr(activity_image, 'name', ''):
+                try:
+                    image_url = activity_image.url
+                except (ValueError, OSError):
+                    image_url = ''
+
+        start_date = getattr(booking, 'check_in', None)
+        end_date = getattr(booking, 'check_out', None)
+        if app == 'airlines':
+            start_date = getattr(booking.flight, 'departure_time', None)
+        quantity = getattr(booking, 'number_of_rooms', None)
+        if quantity is None:
+            quantity = getattr(booking, 'quantity', None)
+        quantity_label = 'Rooms' if app == 'hotels' else 'Selected items'
+        breakdown = []
+        if app == 'hotels':
+            breakdown = [
+                ('Room subtotal', getattr(booking, 'room_bill', 0)),
+                ('Optional services', getattr(booking, 'services_bill', 0)),
+                ('Amenities', getattr(booking, 'amenities_bill', 0)),
+            ]
+        summary_rows.append({
+            'name': str(booking),
+            'reference': getattr(booking, 'booking_reference', '') or f'Booking {booking.pk}',
+            'label': getattr(booking._meta, 'verbose_name', booking.__class__.__name__).title(),
+            'start_date': start_date,
+            'end_date': end_date,
+            'amount': getattr(booking, 'total_bill', 0),
+            'quantity': quantity or 1,
+            'quantity_label': quantity_label,
+            'breakdown': breakdown,
+        })
+    meta.setdefault('establishment_image', '')
     if request.method != 'POST':
         return render(request, 'transactions/establishment_booking.html', {
-            'rows': display_rows, 'meta': meta, 'total': total,
+            'rows': display_rows, 'summary_rows': summary_rows,
+            'meta': meta, 'total': total,
         })
 
     method = request.POST.get('payment_method', 'GCASH')

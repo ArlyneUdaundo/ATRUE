@@ -625,6 +625,300 @@
     .rm-details-btn { margin-left: 0; }
 }
 
+/* ---------- Guest information modal: room assignment, services and amenities ---------- */
+#guestModal { padding: 14px; }
+#guestModal .rm-modal-card {
+    max-width: min(1080px, 100%);
+    max-height: min(94vh, 980px);
+    max-height: min(94dvh, 980px);
+}
+#guestModal .rm-modal-head {
+    position: relative;
+    overflow: hidden;
+    padding: 19px 24px 16px;
+    background:
+        radial-gradient(ellipse at 86% 0%, rgba(255,255,255,.98) 0 7%, transparent 7.5%),
+        radial-gradient(ellipse at 92% 4%, rgba(255,255,255,.82) 0 5%, transparent 5.5%),
+        linear-gradient(112deg, #eaf5ff 0%, #dceeff 52%, #eff8ff 100%);
+}
+#guestModal .rm-modal-head::after {
+    content: "\f072";
+    position: absolute; top: 20px; right: 88px;
+    color: rgba(30, 111, 202, .23);
+    font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 22px;
+    transform: rotate(-12deg);
+}
+#guestModal .rm-modal-head > div { position: relative; z-index: 1; }
+#guestModal .rm-modal-head h3 { color: #123963; font-size: 19px; }
+#guestModal .rm-modal-head h3 i { margin-right: 5px; color: #1c70cf; }
+#guestModal .rm-modal-head p { color: #526f8e; }
+#guestModal .rm-modal-x { position: relative; z-index: 2; background: rgba(255,255,255,.9); }
+#guestModal .rm-modal-body {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 19px 22px 24px;
+    background: #f7faff;
+}
+#guestModal .bk-guest-wrap { margin: 0; }
+#guestModal .bk-room-tabs { margin: 0 0 15px; }
+#guestModal .bk-guest-card {
+    display: flex; flex-direction: column; gap: 18px;
+    padding: 18px; border: 1px solid #dce7f4; border-radius: 18px;
+    box-shadow: 0 8px 26px rgba(24,67,116,.06);
+}
+#guestModal .bk-guest-card::before { width: 4px; background: #2172d1; }
+#guestModal .bk-guest-head { display: block; }
+#guestModal .bk-room-info-card {
+    display: grid; grid-template-columns: 150px minmax(0,1fr) auto;
+    gap: 16px; align-items: center; min-width: 0;
+    padding: 13px; border: 1px solid #d8e6f5; border-radius: 15px;
+    background: linear-gradient(115deg,#f3f8ff,#fff 76%);
+}
+#guestModal .bk-room-photo {
+    position: relative; width: 150px; height: 105px; overflow: hidden;
+    border-radius: 11px; background: #e4edf8;
+}
+#guestModal .bk-room-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#guestModal .bk-room-photo-empty { display: grid; place-items: center; color: #7192b7; font-size: 26px; }
+#guestModal .bk-room-photo-count {
+    position: absolute; right: 7px; bottom: 7px; padding: 3px 7px;
+    border-radius: 999px; background: rgba(12,31,55,.75); color: #fff;
+    font-size: 10px; font-weight: 750;
+}
+#guestModal .bk-room-photo button {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 27px; height: 27px; padding: 0;
+    border: 0; border-radius: 50%; background: rgba(255,255,255,.93); color: #244d79; cursor: pointer;
+}
+#guestModal .bk-room-photo button[data-room-photo-step="-1"] { left: 6px; }
+#guestModal .bk-room-photo button[data-room-photo-step="1"] { right: 6px; }
+#guestModal .bk-room-info-copy { min-width: 0; }
+#guestModal .bk-room-assignment {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+    border-radius: 999px; background: #e1efff; color: #1e5fa9; font-size: 10.5px; font-weight: 800;
+}
+#guestModal .bk-room-info-copy h3 { margin: 7px 0 1px !important; color: #172f4f; font-size: 17px; }
+#guestModal .bk-room-info-copy p { margin: 0; color: #73839a; font-size: 11.5px; }
+#guestModal .bk-room-info-meta { display: flex; flex-wrap: wrap; gap: 7px 15px; margin-top: 10px; }
+#guestModal .bk-room-info-meta span { color: #50647d; font-size: 11px; }
+#guestModal .bk-room-info-meta i { margin-right: 4px; color: #2874c8; }
+#guestModal .bk-room-info-card .bk-remove { white-space: nowrap; }
+#guestModal .bk-guest-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    grid-template-areas:
+        "first middle"
+        "last contact"
+        "email children"
+        "adults total"
+        "request request";
+    gap: 13px 16px; margin-top: 0;
+}
+#guestModal .guest-first { grid-area: first; }
+#guestModal .guest-middle { grid-area: middle; }
+#guestModal .guest-last { grid-area: last; }
+#guestModal .guest-contact { grid-area: contact; }
+#guestModal .guest-email { grid-area: email; }
+#guestModal .guest-children { grid-area: children; }
+#guestModal .guest-adults { grid-area: adults; }
+#guestModal .guest-total { grid-area: total; }
+#guestModal .guest-request { grid-area: request; }
+#guestModal .form-group label { display: block; color: #344963; font-size: 12px; font-weight: 750; }
+#guestModal .form-group label i { width: 15px; margin-right: 4px; color: #2875ca; text-align: center; }
+#guestModal .form-input { width: 100%; min-height: 42px; border: 1px solid #d6e1ee; border-radius: 10px; background: white; }
+#guestModal .form-input:focus { outline: none; border-color: #3382dc; box-shadow: 0 0 0 3px rgba(51,130,220,.13); }
+#guestModal .bk-total-guests { display: flex; align-items: center; gap: 6px; background: #f2f7fd; color: #24496f; font-weight: 750; }
+#guestModal .bk-total-guests small { color: #72849a; font-size: 10.5px; font-weight: 500; }
+#guestModal textarea.form-input { min-height: 82px; resize: vertical; }
+#guestModal .bk-extras-section {
+    padding: 17px; border: 1px solid #dce7f4; border-radius: 15px; background: #fff;
+}
+#guestModal .bk-extras-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+#guestModal .bk-extras-heading h4 { margin: 0 0 4px; color: #18385e; font-size: 15px; }
+#guestModal .bk-extras-heading h4 i { margin-right: 6px; color: #2373cc; }
+#guestModal .bk-extras-heading p { margin: 0; color: #76869b; font-size: 11.5px; }
+#guestModal .bk-extras-heading button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none;
+    min-height: 35px; padding: 7px 11px; border: 1px solid #cfe0f3; border-radius: 9px;
+    background: #f5f9ff; color: #1d67b4; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer;
+}
+#guestModal .bk-extras-heading button:hover { background: #eaf3ff; border-color: #a9c9eb; }
+#guestModal .bk-extras-heading button:focus-visible { outline: 2px solid #3681d3; outline-offset: 2px; }
+#guestModal .bk-extras-content { overflow: hidden; max-height: 3200px; opacity: 1; transition: max-height .22s ease, opacity .18s ease; }
+#guestModal .bk-extras-content.is-collapsed { max-height: 0; opacity: 0; }
+#guestModal .bk-extras-content[hidden] { display: none; }
+#guestModal .bk-services-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+#guestModal .bk-service-card {
+    position: relative; display: grid; grid-template-columns: 42px minmax(0,1fr) 18px; align-items: center; gap: 11px;
+    min-width: 0; padding: 12px; border: 1px solid #dce7f4; border-radius: 12px;
+    background: white; cursor: pointer; transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+#guestModal .bk-service-card:hover { border-color: #9bc2ee; box-shadow: 0 4px 14px rgba(36,103,174,.08); }
+#guestModal .bk-service-card.is-selected { border-color: #5595de; background: #f0f7ff; box-shadow: 0 0 0 2px rgba(69,139,213,.08); }
+#guestModal .bk-service-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+#guestModal .bk-service-card input:focus-visible + .bk-service-check { outline: 2px solid #2674c9; outline-offset: 3px; }
+#guestModal .bk-service-check { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid #bdcad9; border-radius: 5px; color: transparent; background: #fff; font-size: 10px; }
+#guestModal .bk-service-card.is-selected .bk-service-check { border-color: #2476ce; background: #2476ce; color: #fff; }
+#guestModal .bk-service-icon { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: #eaf3ff; color: #2474ca; font-size: 17px; }
+#guestModal .bk-service-copy { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; gap: 4px; }
+#guestModal .bk-service-copy > b { color: #243a55; font-size: 12.5px; }
+#guestModal .bk-service-copy > small { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #75859a; font-size: 10.5px; line-height: 1.4; }
+#guestModal .bk-service-price { color: #1764b4; font-size: 12px; font-weight: 800; }
+#guestModal .bk-service-price small { color: #77869a; font-size: 9.5px; font-weight: 500; }
+#guestModal .bk-extras-empty { margin: 0; padding: 14px; border-radius: 10px; background: #f6f9fd; color: #73849a; font-size: 12px; }
+#guestModal .bk-amenities-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+#guestModal .bk-amenity-tile {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0;
+    min-height: 100px; padding: 12px; border: 1px solid #e0e9f3; border-radius: 12px; background: #fafdff;
+}
+#guestModal .bk-amenity-tile > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #e8f2ff; color: #2876c9; font-size: 14px; }
+#guestModal .bk-amenity-tile b { color: #2c4059; font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+#guestModal .bk-amenity-tile small { color: #8090a3; font-size: 9.5px; line-height: 1.3; }
+#guestModal .rm-modal-foot { padding: 13px 22px 16px; box-shadow: 0 -5px 18px rgba(25,52,83,.04); }
+#guestModal .rm-modal-foot .ag-btn { min-height: 42px; border-radius: 10px; }
+#guestModal .rm-modal-foot .ag-btn-muted { border: 1px solid #d5e1ef; background: #f5f9fe; color: #3b5d82; }
+#guestModal #guestModalSave { background: linear-gradient(110deg,#176bd1,#2884e4); box-shadow: 0 5px 14px rgba(28,112,207,.2); }
+@media (max-width: 760px) {
+    #guestModal { padding: 7px; }
+    #guestModal .rm-modal-card { max-height: calc(100dvh - 14px); border-radius: 16px; }
+    #guestModal .rm-modal-head { padding: 14px 15px 12px; }
+    #guestModal .rm-modal-head::after { top: 14px; right: 65px; font-size: 17px; }
+    #guestModal .rm-modal-body { padding: 12px; }
+    #guestModal .bk-guest-card { gap: 12px; padding: 12px; }
+    #guestModal .bk-room-info-card { grid-template-columns: 92px minmax(0,1fr); gap: 9px; padding: 9px; }
+    #guestModal .bk-room-photo { grid-row: 1 / span 2; width: 92px; height: 82px; }
+    #guestModal .bk-room-info-copy h3 { font-size: 14px; }
+    #guestModal .bk-room-info-meta { gap: 5px 9px; margin-top: 6px; }
+    #guestModal .bk-room-info-meta span { font-size: 9.5px; }
+    #guestModal .bk-room-info-card .bk-remove { grid-column: 2; justify-self: start; padding: 4px 8px; font-size: 10px; }
+    #guestModal .bk-guest-grid { grid-template-columns: minmax(0,1fr); grid-template-areas: "first" "middle" "last" "email" "contact" "adults" "children" "total" "request"; gap: 9px; }
+    #guestModal .bk-services-grid { grid-template-columns: minmax(0,1fr); }
+    #guestModal .bk-amenities-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    #guestModal .bk-extras-section { padding: 12px; }
+    #guestModal .bk-extras-heading { align-items: flex-start; gap: 8px; }
+    #guestModal .bk-extras-heading p { max-width: 210px; }
+    #guestModal .bk-extras-heading button { padding: 6px 8px; font-size: 10px; }
+    #guestModal .rm-modal-foot { padding: 10px 12px 12px; }
+    #guestModal .rm-modal-foot .ag-btn { flex: 1 1 0; min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #guestModal .bk-extras-content { transition: none; }
+}
+
+/* Four-column service and amenity choices, with compact, wrapping labels. */
+#guestModal .bk-extras-section,
+#guestModal .bk-extras-content,
+#guestModal .bk-services-grid,
+#guestModal .bk-amenities-grid { min-width: 0; max-width: 100%; box-sizing: border-box; }
+#guestModal .bk-guest-extras { display: block; min-width: 0; max-width: 100%; }
+#guestModal .bk-guest-extras > summary { max-width: 100%; overflow-wrap: anywhere; }
+#guestModal .bk-guest-extras [data-extras-options] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px 12px;
+    width: 100%;
+    min-width: 0;
+}
+#guestModal .bk-guest-extras [data-extras-options] > small { grid-column: 1 / -1; }
+#guestModal .bk-guest-extras [data-extras-options] label.checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+#guestModal .bk-guest-extras [data-extras-options] label.checkbox input {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 1px 0 0;
+    accent-color: #2476ce;
+}
+#guestModal .bk-services-grid,
+#guestModal .bk-amenities-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+#guestModal .bk-service-card {
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    min-width: 0;
+    padding: 8px;
+}
+#guestModal .bk-service-icon { display: none; }
+#guestModal .bk-service-check { grid-column: 1; grid-row: 1; width: 16px; height: 16px; margin-top: 1px; font-size: 9px; }
+#guestModal .bk-service-copy { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+#guestModal .bk-service-copy > b { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+#guestModal .bk-service-copy > small { display: block; overflow: visible; -webkit-line-clamp: unset; overflow-wrap: anywhere; }
+#guestModal .bk-service-price { display: block; margin-top: 2px; white-space: normal; overflow-wrap: anywhere; }
+#guestModal .bk-service-price small { display: inline; white-space: normal; }
+#guestModal .bk-amenity-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #2c4059;
+    cursor: pointer;
+}
+#guestModal .bk-amenity-option:hover { background: #f5f9ff; border-color: #e0e9f3; }
+#guestModal .bk-amenity-option.is-selected { background: #f0f7ff; border-color: #b8d4f2; }
+#guestModal .bk-amenity-option input {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 1px 0 0;
+    accent-color: #2476ce;
+}
+#guestModal .bk-amenity-option-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#guestModal .bk-amenity-option-copy b { font-size: 11px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
+#guestModal .bk-amenity-option-copy small { color: #75859a; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+#guestModal .bk-room-feature-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+#guestModal .bk-room-feature-list span { max-width: 100%; padding: 4px 7px; border-radius: 7px; background: #f6f9fd; color: #65778d; font-size: 10px; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #guestModal .bk-services-grid,
+    #guestModal .bk-amenities-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: minmax(0, 1fr); }
+    #guestModal .bk-services-grid,
+    #guestModal .bk-amenities-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Keep long hotel guest forms scrollable inside the modal while its header and
+   save/cancel controls remain visible. A definite card height gives the flex
+   body a real viewport bound, including when several rooms are selected. */
+#guestModal .rm-modal-card {
+    height: min(94vh, 980px);
+    height: min(94dvh, 980px);
+    max-height: calc(100vh - 28px);
+    max-height: calc(100dvh - 28px);
+    min-height: 0;
+}
+#guestModal .rm-modal-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #9bb8d8 #edf3fa;
+    -webkit-overflow-scrolling: touch;
+}
+#guestModal .rm-modal-body::-webkit-scrollbar { width: 9px; }
+#guestModal .rm-modal-body::-webkit-scrollbar-track { background: #edf3fa; border-radius: 999px; }
+#guestModal .rm-modal-body::-webkit-scrollbar-thumb { background: #9bb8d8; border: 2px solid #edf3fa; border-radius: 999px; }
+
 /* Details modal on small screens: fill nearly the whole viewport, keep the
    photo fully visible, and never introduce a horizontal scrollbar. */
 @media (max-width: 720px) {
@@ -1179,92 +1473,4 @@ body.rm-lightbox-open { overflow: hidden !important; }
 }
 
 
-/* Four-column service and amenity choices, with compact, wrapping labels. */
-#guestModal .bk-extras-section,
-#guestModal .bk-extras-content,
-#guestModal .bk-services-grid,
-#guestModal .bk-amenities-grid { min-width: 0; max-width: 100%; box-sizing: border-box; }
-#guestModal .bk-guest-extras { display: block; min-width: 0; max-width: 100%; }
-#guestModal .bk-guest-extras > summary { max-width: 100%; overflow-wrap: anywhere; }
-#guestModal .bk-guest-extras [data-extras-options] {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px 12px;
-    width: 100%;
-    min-width: 0;
-}
-#guestModal .bk-guest-extras [data-extras-options] > small { grid-column: 1 / -1; }
-#guestModal .bk-guest-extras [data-extras-options] label.checkbox {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    min-width: 0;
-    max-width: 100%;
-    margin: 0;
-    line-height: 1.35;
-    white-space: normal;
-    overflow-wrap: anywhere;
-}
-#guestModal .bk-guest-extras [data-extras-options] label.checkbox input {
-    flex: 0 0 16px;
-    width: 16px;
-    height: 16px;
-    margin: 1px 0 0;
-    accent-color: #2476ce;
-}
-#guestModal .bk-services-grid,
-#guestModal .bk-amenities-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-    width: 100%;
-}
-#guestModal .bk-service-card {
-    grid-template-columns: 16px minmax(0, 1fr);
-    align-items: start;
-    gap: 7px;
-    min-width: 0;
-    padding: 8px;
-}
-#guestModal .bk-service-icon { display: none; }
-#guestModal .bk-service-check { grid-column: 1; grid-row: 1; width: 16px; height: 16px; margin-top: 1px; font-size: 9px; }
-#guestModal .bk-service-copy { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
-#guestModal .bk-service-copy > b { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
-#guestModal .bk-service-copy > small { display: block; overflow: visible; -webkit-line-clamp: unset; overflow-wrap: anywhere; }
-#guestModal .bk-service-price { display: block; margin-top: 2px; white-space: normal; overflow-wrap: anywhere; }
-#guestModal .bk-service-price small { display: inline; white-space: normal; }
-#guestModal .bk-amenity-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    min-width: 0;
-    padding: 7px 8px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: #2c4059;
-    cursor: pointer;
-}
-#guestModal .bk-amenity-option:hover { background: #f5f9ff; border-color: #e0e9f3; }
-#guestModal .bk-amenity-option.is-selected { background: #f0f7ff; border-color: #b8d4f2; }
-#guestModal .bk-amenity-option input {
-    flex: 0 0 16px;
-    width: 16px;
-    height: 16px;
-    margin: 1px 0 0;
-    accent-color: #2476ce;
-}
-#guestModal .bk-amenity-option-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-#guestModal .bk-amenity-option-copy b { font-size: 11px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
-#guestModal .bk-amenity-option-copy small { color: #75859a; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
-#guestModal .bk-room-feature-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-#guestModal .bk-room-feature-list span { max-width: 100%; padding: 4px 7px; border-radius: 7px; background: #f6f9fd; color: #65778d; font-size: 10px; overflow-wrap: anywhere; }
-@media (max-width: 900px) {
-    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    #guestModal .bk-services-grid,
-    #guestModal .bk-amenities-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 600px) {
-    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: minmax(0, 1fr); }
-    #guestModal .bk-services-grid,
-    #guestModal .bk-amenities-grid { grid-template-columns: minmax(0, 1fr); }
-}
+\n
