@@ -3,7 +3,7 @@
 
 {% block title %}Hotel Booking Detail{% endblock %}
 
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-3">{% endblock %}
 
 {% block content %}
 <div class="hbd-page">
@@ -78,7 +78,7 @@
         {% endwith %}
     </section>
 
-    <div class="hbd-billing-wrap">{% include 'transactions/_booking_billing.html' %}</div>
+    <div class="hbd-billing-wrap">{% include 'transactions/_booking_billing.html' with is_hotel_booking=True %}</div>
 </div>
 
 {% if can_manage_lifecycle %}
