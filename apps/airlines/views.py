@@ -4051,6 +4051,25 @@ def book_flight(request, flight_id):
             **extra,
         })
 
+    # Flight search and older bookmarks still point at ``/flights/book/<id>/``.
+    # Send new page visits into the current passenger information flow, using
+    # the selected database flight so its real fares, seat map and policy are
+    # shown. Keep POST handling below for already-open legacy booking forms.
+    if request.method == 'GET':
+        passenger_params = {
+            'flight_id': flight.pk,
+            'trip_type': trip_type,
+            'departure_date': departure_date,
+            'return_date': return_date,
+            'fare_class': selected_fare_class,
+            'passengers': request.GET.get('passengers') or str(passengers),
+        }
+        tab_context = request.GET.get('ctx')
+        if tab_context:
+            passenger_params['ctx'] = tab_context
+        return redirect(
+            f"{reverse('airlines:passenger_details')}?{urlencode(passenger_params)}")
+
     if request.method == 'POST':
         if trip_type == Booking.TripType.ROUND_TRIP and not return_date_obj:
             messages.error(request, 'Return date is required for a Round-Trip booking.')
