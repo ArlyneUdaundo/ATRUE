@@ -13,7 +13,6 @@
         <div>
             <h2 class="pd-flight__name">{{ selected.airline }}</h2>
             <span class="pd-chip">{{ selected.fare_class_label }}</span>
-            <span class="pd-chip pd-chip--soft">{{ default_flight_type|title }}</span>
             {% if selected.trip_type_label %}<span class="pd-chip pd-chip--soft">{{ selected.trip_type_label }}</span>{% endif %}
         </div>
     </div>

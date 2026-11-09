@@ -58,13 +58,6 @@
         </aside>
 
         <section class="pd-col pd-col--main">
-            <section class="pd-card pd-section" aria-label="Flight classification">
-                <div class="pd-section__head">
-                    <h2><i class="fas fa-earth-asia"></i> Flight classification</h2>
-                    <p>This information comes from the selected flight schedule.</p>
-                </div>
-                <span class="pd-chip pd-chip--soft">{{ default_flight_type|title }}</span>
-            </section>
             {% include 'airlines/booking/_passenger_count.html' %}
             <div id="pd-passengers" class="pd-passengers" aria-live="polite"></div>
             {% include 'airlines/booking/_seat_section.html' %}
