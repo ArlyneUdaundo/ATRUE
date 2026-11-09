@@ -36,7 +36,7 @@
 .hbd-location div { display: grid; gap: 4px; font-size: 10px; line-height: 1.4; }
 .hbd-location b { color: #526d8d; font-size: 10.5px; }.hbd-location span { color: #70859e; }
 .hbd-billing-wrap .booking-billing-card { padding: 0 15px 15px; overflow: hidden; }
-.hbd-billing-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 -15px 12px; padding: 14px 17px; background: linear-gradient(110deg,#0e315e,#174980); }
+.hbd-billing-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 -15px 12px; padding: 14px 17px; background: var(--grad-brand); }
 .hbd-billing-head h3 { display: flex; align-items: center; gap: 10px; margin: 0; color: #fff; font-size: 15px; font-weight: 800; }
 .hbd-billing-head h3 i { color: #e3f1ff; font-size: 20px; }
 .hbd-receipt-link { display: inline-flex; align-items: center; gap: 6px; color: #fff; font-size: 10px; font-weight: 750; text-decoration: none; white-space: nowrap; }.hbd-receipt-link:hover { text-decoration: underline; }
@@ -55,8 +55,8 @@
 .hbd-stat-balance { background: #fff6e9; border-color: #faecd7 !important; }.hbd-stat-balance small i { color: #d78c14; }
 .hbd-stat-verify { background: #f2f6fb; border-color: #e6edf5 !important; }.hbd-stat-verify small i { color: #d78c14; }
 .hbd-stat-verify .badge { font-size: 10px; }
-.hbd-proceed-payment { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 43px; margin-top: 13px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(110deg,#103764,#174a81); color: #fff; font-size: 11px; font-weight: 800; text-decoration: none; }
-.hbd-proceed-payment i:last-child { margin-left: auto; }.hbd-proceed-payment:hover { background: #0c2d55; }
+.hbd-proceed-payment { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 43px; margin-top: 13px; padding: 10px 14px; border-radius: 10px; background: var(--grad-brand); color: #fff; font-size: 11px; font-weight: 800; text-decoration: none; }
+.hbd-proceed-payment i:last-child { margin-left: auto; }.hbd-proceed-payment:hover { background: var(--blue-700); }
 .hbd-proceed-payment.is-disabled { background: #8b9aad; cursor: not-allowed; }
 .hbd-billing-wrap h4 { color: #274666; font-size: 12px; }
 .hbd-billing-wrap .empty { padding: 16px; }
