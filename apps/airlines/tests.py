@@ -3784,6 +3784,49 @@ class BookingSearchLayoutTests(TestCase):
 class PassengerDetailsPreviewTests(TestCase):
     """The prototype passenger details page and its query string handling."""
 
+    def test_simulated_checkout_accepts_each_payment_method(self):
+        ticket = {
+            'booking_reference': 'ATR-TEST1234',
+            'flight': {
+                'airline': 'Test Airline',
+                'number': 'AT100',
+                'origin_code': 'MNL',
+                'destination_code': 'CEB',
+                'departure_date': 'November 09, 2026',
+                'cabin': 'Economy Class',
+            },
+            'passengers': [{'name': 'Test Passenger', 'category': 'adult', 'seat': '1A'}],
+            'fare': {'total': 1000},
+        }
+        methods = {
+            'gcash': 'GCash',
+            'maya': 'Maya',
+            'bank_transfer': 'Bank Transfer',
+            'credit_card': 'Credit Card',
+            'debit_card': 'Debit Card',
+            'paypal': 'PayPal',
+            'qr_ph': 'QR Ph',
+        }
+
+        for method, label in methods.items():
+            with self.subTest(method=method):
+                session = self.client.session
+                session['airlines_passenger_ticket'] = dict(ticket)
+                session.save()
+                response = self.client.post(
+                    reverse('airlines:complete_passenger_payment'),
+                    {'payment_choice': method, 'payment_validated': '1'},
+                )
+
+                self.assertRedirects(
+                    response, reverse('airlines:passenger_payment_confirmation'),
+                    fetch_redirect_response=False,
+                )
+                self.assertEqual(
+                    self.client.session['airlines_passenger_ticket']['payment_method'],
+                    label,
+                )
+
     def test_the_page_renders_the_selected_sample_flight(self):
         response = self.client.get(reverse('airlines:passenger_details'), {
             'origin': 'MNL',

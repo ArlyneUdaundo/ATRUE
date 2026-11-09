@@ -3922,11 +3922,15 @@ def _complete_database_passenger_payment(request, ticket, method, method_label):
 
     method_codes = {
         'card': 'CREDIT_CARD',
+        'credit_card': 'CREDIT_CARD',
+        'debit_card': 'DEBIT_CARD',
         'gcash': 'GCASH',
         'maya': 'MAYA',
         'bank': 'BANK_TRANSFER',
+        'bank_transfer': 'BANK_TRANSFER',
         'paypal': 'PAYPAL',
         'otc': 'QR_PH',
+        'qr_ph': 'QR_PH',
     }
     order = get_object_or_404(
         TravelOrder, pk=ticket.get('order_id'), customer=request.user)
@@ -3977,11 +3981,15 @@ def complete_passenger_payment(request):
 
     method_labels = {
         'card': 'Credit / Debit Card',
+        'credit_card': 'Credit Card',
+        'debit_card': 'Debit Card',
         'gcash': 'GCash',
         'maya': 'Maya',
         'bank': 'Online Banking',
+        'bank_transfer': 'Bank Transfer',
         'paypal': 'PayPal',
         'otc': 'Over-the-Counter',
+        'qr_ph': 'QR Ph',
     }
     method = str(request.POST.get('payment_choice') or '')
     if method not in method_labels:
