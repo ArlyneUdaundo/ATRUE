@@ -1,0 +1,77 @@
+:root {
+    --pd-blue: #2563eb;
+    --pd-blue-dark: #1d4ed8;
+    --pd-blue-deep: #0b1f4d;
+    --pd-blue-050: #f4f7fc;
+    --pd-blue-100: #e8effc;
+    --pd-blue-200: #c8d7f4;
+    --pd-ink: #0b1f4d;
+    --pd-ink-soft: #455674;
+    --pd-muted: #71809a;
+    --pd-line: #e0e7f1;
+    --pd-line-strong: #cad5e5;
+    --pd-shadow: 0 2px 6px rgba(11, 31, 77, .05), 0 12px 30px rgba(11, 31, 77, .06);
+}
+
+.pd-body { background: #f4f7fc; }
+.pd-card { border: 1px solid #e4eaf3; box-shadow: var(--pd-shadow); border-radius: 16px; }
+.pd-steps { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+.pd-step { text-align: center; padding: 8px 7px; font-size: 11.5px; white-space: nowrap; }
+.pd-step.is-current { background: #2563eb; border-color: #2563eb; }
+.pd-columns { gap: 18px; }
+.pd-col--fare { top: 92px; }
+.pd-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pd-field--wide { grid-column: 1 / -1; }
+.pd-pax { padding: 18px; }
+.pd-pax__head { margin-bottom: 12px; }
+.pd-section__head h2, .pd-fare__title { color: var(--pd-blue-deep); }
+.pd-class-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.pd-class-option, .pd-insurance-option {
+    display: flex; min-width: 0; align-items: flex-start; gap: 9px; padding: 11px;
+    border: 1px solid var(--pd-line); border-radius: 12px; background: #fff; cursor: pointer;
+}
+.pd-class-option:has(input:checked), .pd-insurance-option:has(input:checked) {
+    border-color: var(--pd-blue); background: #f2f6ff; box-shadow: 0 0 0 1px var(--pd-blue);
+}
+.pd-class-option input, .pd-insurance-option input { flex: 0 0 auto; margin-top: 3px; accent-color: var(--pd-blue); }
+.pd-class-option__body, .pd-insurance-option > span { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
+.pd-class-option__body b, .pd-insurance-option b { color: var(--pd-blue-deep); }
+.pd-class-option__body small, .pd-insurance-option small { color: var(--pd-muted); font-size: 11px; }
+.pd-class-option__body > span { font-weight: 700; color: var(--pd-blue); }
+.pd-standard-baggage { margin: 0 0 10px; color: var(--pd-ink-soft); font-size: 12.5px; }
+.pd-standard-baggage b { color: var(--pd-blue-deep); }
+.pd-insurance-options { min-width: 0; margin: 0; padding: 0; border: 0; }
+.pd-insurance-options legend { margin-bottom: 8px; padding: 0; }
+.pd-insurance-options__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px; }
+.pd-insurance-option { align-items: center; }
+.pd-insurance-option small { display: block; }
+.pd-insurance-info { margin-top: 10px; }
+.pd-ack { padding: 12px; border: 1px solid var(--pd-line); border-radius: 12px; background: #f8faff; color: var(--pd-blue-deep); }
+.pd-steps-list { gap: 16px; }
+.pd-steps-list__no { background: #2563eb; }
+.pd-fare__total strong { color: var(--pd-blue-deep); }
+.pd-booking-glance { display: grid; gap: 9px; margin: -2px 0 16px; padding: 12px; border: 1px solid #dce6f6; border-radius: 12px; background: #f7f9fd; }
+.pd-booking-glance > div { display: grid; gap: 2px; min-width: 0; }
+.pd-booking-glance small { color: var(--pd-muted); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.pd-booking-glance b { color: var(--pd-blue-deep); font-size: 12px; line-height: 1.4; }
+.pd-btn--primary { background: #2563eb; box-shadow: 0 6px 16px rgba(37, 99, 235, .2); }
+.pd-btn--primary:hover { background: #1d4ed8; }
+.pd-btn:disabled { cursor: not-allowed; opacity: .5; box-shadow: none; }
+.pd-bottom-actions { display: flex; justify-content: flex-end; gap: 10px; margin: 18px 0 0; }
+.pd-save-status { min-height: 20px; margin: 6px 2px 0; text-align: right; color: #1d4ed8; font-size: 12px; }
+
+@media (max-width: 1180px) {
+    .pd-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .pd-class-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+    .pd-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pd-col--fare { top: auto; }
+}
+@media (max-width: 560px) {
+    .pd-grid, .pd-class-options, .pd-insurance-options__list { grid-template-columns: minmax(0, 1fr); }
+    .pd-bottom-actions { flex-direction: column; }
+    .pd-bottom-actions > * { width: 100%; }
+    .pd-save-status { text-align: center; }
+}

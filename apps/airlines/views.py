@@ -3293,6 +3293,24 @@ def passenger_details(request):
                 'layover': leg.layover_after_label if leg.next_segment else '',
             } for leg in display_segments],
         }
+        class_order = [choice[0] for choice in FARE_CLASS_CHOICES]
+        fare_class_options = []
+        for cabin_key in sorted(common_cabins, key=class_order.index):
+            cabin_fare = sum(
+                (Decimal(leg.fare_for(cabin_key) or 0) for leg in legs), Decimal('0'))
+            if flight.itinerary_id:
+                cabin_fare += flight.itinerary.service_fee
+            if return_flight:
+                cabin_fare += Decimal(return_flight.fare_for(cabin_key) or 0)
+            fare_class_options.append({
+                'key': cabin_key,
+                'label': dict(FARE_CLASS_CHOICES).get(
+                    cabin_key, cabin_key.replace('_', ' ').title()),
+                'fare': float(cabin_fare),
+                'fare_text': f'{currency_prefix}{cabin_fare:,.2f}',
+                'checked_baggage_kg': flight.checked_baggage_kg or None,
+            })
+        selected['fare_classes'] = fare_class_options
         international = route_scope == FlightItinerary.RouteScope.INTERNATIONAL
         fare = pd_sample.fare_context(selected)
         fare['currency'] = currency
@@ -3302,16 +3320,43 @@ def passenger_details(request):
             {'kg': kg, 'price': float(flight.baggage_rate or 0) * kg,
             'price_text': f"{currency_prefix}{float(flight.baggage_rate or 0) * kg:,.2f}",
              'label': 'No extra baggage' if not kg else f'{kg} kg'}
-            for kg in (0, 5, 10, 15, 20, 25)]
-        fare['insurance_plans'] = [{
-            'key': 'none', 'name': 'No insurance plan is configured for this flight',
-            'price': 0, 'price_text': '₱0.00',
-            'details': {'summary': 'Insurance is unavailable for this flight.', 'covers': [], 'excludes': []},
-        }]
+            for kg in (0, 5, 10, 15, 20, 25, 30)]
+        fare['insurance_plans'] = [
+            {'key': 'none', 'name': 'No Insurance', 'price': 0, 'price_text': '₱0.00',
+             'details': {'summary': 'No travel insurance is added to this booking.', 'covers': [],
+                         'excludes': ['No trip cancellation, medical or baggage cover is provided.']}},
+            {'key': 'unavailable', 'name': 'Travel insurance', 'price': 0, 'price_text': 'Not available',
+             'details': {'summary': 'No insurance product is configured for this flight.', 'covers': [],
+                         'excludes': ['Travel insurance cannot be added to this flight.']}},
+        ]
         fare['seat_types'] = [{'key': 'standard', 'label': 'Standard Seat', 'price': 0, 'price_text': '₱0.00'}]
         fare['seat_pricing_note'] = 'No paid seat price is configured for this flight. Seat selection has no additional charge.'
         fare['taxes_per_passenger'] = 0
         real_map = _seat_map(flight)
+        seat_maps_by_class = {}
+        for cabin in real_map.get('cabins', []):
+            cabin_rows = []
+            for cabin_row in cabin.get('rows', []):
+                cabin_seats = []
+                for cabin_block in cabin_row.get('blocks', []):
+                    for cabin_col in cabin_block.get('cols', []):
+                        if cabin_col.get('seat'):
+                            cabin_seats.append({
+                                'number': cabin_col['seat'], 'letter': cabin_col.get('label', ''),
+                                'taken': cabin_col.get('taken', False), 'price': 0,
+                                'category': 'standard', 'category_label': 'Standard seat',
+                                'position': cabin_col.get('position', 'middle'),
+                                'position_label': cabin_col.get('position', 'Seat'), 'aisle_before': False,
+                            })
+                cabin_rows.append({'row': cabin_row.get('row'), 'seats': cabin_seats,
+                                   'is_exit': cabin_row.get('is_exit', False)})
+            seat_maps_by_class[cabin.get('key')] = {
+                'aircraft': selected['aircraft'], 'layout': real_map.get('seat_map', ''),
+                'cabin': cabin.get('label', 'Economy'), 'cabin_pitch': '',
+                'blocks': real_map.get('blocks', []), 'letters': real_map.get('letters', []),
+                'aisle_starts': real_map.get('aisle_starts', []), 'rows': cabin_rows,
+                'exit_rows': [], 'front_rows': [],
+            }
         seat_rows = []
         first_cabin = next((cabin for cabin in real_map.get('cabins', [])
                             if cabin.get('key') == fare_class),
@@ -3332,6 +3377,7 @@ def passenger_details(request):
                     'exit_rows': [], 'front_rows': []}
         return render(request, 'airlines/passenger_details.html', {
             'selected': selected, 'flight': selected, 'fare': fare, 'seat_map': seat_map,
+            'seat_maps_by_class': seat_maps_by_class,
             'refund': {'steps': [], 'statuses': []},
             'default_flight_type': 'INTERNATIONAL' if international else 'DOMESTIC',
             'trip_type': flight.trip_type,
@@ -3359,6 +3405,7 @@ def passenger_details(request):
         'flight': selected,
             'fare': pd_sample.fare_context(selected),
         'seat_map': pd_sample.seat_map_context(selected.get('aircraft')),
+        'seat_maps_by_class': {},
         'refund': pd_sample.refund_context(),
         'default_flight_type': default_flight_type,
         'trip_type': request.GET.get('trip_type', 'one-way'),
@@ -3419,6 +3466,9 @@ def confirm_passenger_details(request):
             details = item.get('details') or {}
             if not isinstance(details, dict):
                 raise ValueError('Passenger details are invalid.')
+            classification_value = str(details.get('classification') or category).strip().lower()
+            if classification_value not in {'adult', 'child', 'infant', 'senior', 'pwd'}:
+                raise ValueError('Select a valid passenger classification.')
             required_fields = ('email', 'phone', 'dob', 'gender', 'nationality')
             if any(not str(details.get(field) or '').strip() for field in required_fields):
                 raise ValueError('Complete all required passenger details.')
@@ -3428,11 +3478,33 @@ def confirm_passenger_details(request):
             except ValidationError:
                 raise ValueError('Enter a valid passenger email address.')
             try:
-                date.fromisoformat(str(details.get('dob') or ''))
-            except ValueError:
+                dob = date.fromisoformat(str(details.get('dob') or ''))
+            except (TypeError, ValueError):
                 raise ValueError('Enter a valid passenger date of birth.')
-            if international and not str(details.get('passport') or '').strip():
-                raise ValueError('Passport numbers are required for international flights.')
+            try:
+                sample_travel_date = date.fromisoformat(str(payload.get('departure_date') or ''))
+            except ValueError:
+                sample_travel_date = timezone.localdate()
+            age = sample_travel_date.year - dob.year - ((sample_travel_date.month, sample_travel_date.day) < (dob.month, dob.day))
+            expected_category = 'infant' if age < 2 else ('child' if age < 12 else 'adult')
+            suggested_classification = 'infant' if age < 2 else ('child' if age < 12 else ('senior' if age >= 60 else 'adult'))
+            classification_matches_age = (
+                classification_value == 'pwd'
+                or (age >= 60 and classification_value in {'adult', 'senior'})
+                or classification_value == suggested_classification
+            )
+            if age < 0 or category != expected_category or not classification_matches_age:
+                raise ValueError('Passenger category or classification does not match the date of birth.')
+            if international and not all(str(details.get(field) or '').strip()
+                                          for field in ('passport', 'passport_country', 'passport_expiry')):
+                raise ValueError('Passport number, issuing country and expiry are required for international flights.')
+            if international:
+                try:
+                    passport_expiry = date.fromisoformat(str(details.get('passport_expiry') or ''))
+                except ValueError:
+                    raise ValueError('Enter a valid passport expiry date.')
+                if passport_expiry <= sample_travel_date:
+                    raise ValueError('The passport must be valid through the departure date.')
             seat_number = str(item.get('seat') or '').strip().upper()
             if category == 'infant':
                 seat_number = ''
@@ -3458,6 +3530,10 @@ def confirm_passenger_details(request):
                     'gender': str(details.get('gender') or '')[:20],
                     'nationality': str(details.get('nationality') or '')[:80],
                     'passport': str(details.get('passport') or '').strip()[:40],
+                    'first_name': str(details.get('first_name') or '').strip()[:100],
+                    'middle_name': str(details.get('middle_name') or '').strip()[:100],
+                    'last_name': str(details.get('last_name') or '').strip()[:100],
+                    'classification': classification_value,
                 },
             })
         if passenger_counts['adult'] < 1 or passenger_counts['infant'] > passenger_counts['adult']:
@@ -3591,7 +3667,10 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             return HttpResponseBadRequest('Passenger details are invalid.')
         name = ' '.join(str(details.get('full_name') or item.get('name') or '').split())[:200]
         parts = name.split()
-        if len(parts) < 2 or not all(str(details.get(key) or '').strip() for key in ('dob', 'gender', 'nationality')):
+        first_name = str(details.get('first_name') or (parts[0] if parts else '')).strip()[:100]
+        last_name = str(details.get('last_name') or (parts[-1] if len(parts) > 1 else '')).strip()[:100]
+        middle_name = str(details.get('middle_name') or (' '.join(parts[1:-1]) if len(parts) > 2 else '')).strip()[:100]
+        if not first_name or not last_name or not all(str(details.get(key) or '').strip() for key in ('dob', 'gender', 'nationality')):
             return HttpResponseBadRequest('Enter each passenger name, birth date, gender and nationality.')
         try:
             dob = date.fromisoformat(str(details['dob']))
@@ -3601,13 +3680,23 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         expected = 'infant' if age < 2 else ('child' if age < 12 else 'adult')
         if expected != category or age < 0:
             return HttpResponseBadRequest('Passenger category does not match age on the departure date.')
+        classification_value = str(details.get('classification') or category).strip().lower()
+        allowed_classifications = {'adult', 'child', 'infant', 'senior', 'pwd'}
+        suggested_classification = 'infant' if age < 2 else ('child' if age < 12 else ('senior' if age >= 60 else 'adult'))
+        classification_matches_age = (
+            classification_value == 'pwd'
+            or (age >= 60 and classification_value in {'adult', 'senior'})
+            or classification_value == suggested_classification
+        )
+        if classification_value not in allowed_classifications or not classification_matches_age:
+            return HttpResponseBadRequest('Passenger classification does not match the date of birth.')
         try:
-            email = str(details.get('email') or (cleaned[0]['email'] if cleaned else '')).strip()
+            email = str(details.get('email') or '').strip()
             validate_email(email)
         except ValidationError:
             return HttpResponseBadRequest('Enter a valid booking contact email.')
-        phone_code = str(details.get('phone_code') or (cleaned[0].get('phone_code') if cleaned else '+63') or '+63')
-        phone_value = str(details.get('phone') or (cleaned[0].get('phone_value') if cleaned else '') or '')
+        phone_code = str(details.get('phone_code') or '+63')
+        phone_value = str(details.get('phone') or '')
         if not re.fullmatch(r'\d{7,15}', phone_value):
             return HttpResponseBadRequest('Enter a valid booking contact number.')
         phone = (phone_code + ' ' + phone_value).strip()[:40]
@@ -3626,7 +3715,8 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         counts[category] += 1
         cleaned.append({
             'category': category, 'name': name,
-            'first_name': parts[0], 'middle_name': ' '.join(parts[1:-1]), 'last_name': parts[-1],
+            'first_name': first_name, 'middle_name': middle_name, 'last_name': last_name,
+            'classification': classification_value,
             'dob': dob, 'gender': str(details.get('gender') or '')[:20],
             'nationality': str(details.get('nationality') or '')[:100],
             'email': email, 'phone': phone, 'phone_code': phone_code,
@@ -3644,7 +3734,7 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         return HttpResponseBadRequest('Acknowledge the cancellation and refund policy before continuing.')
 
     baggage_kg = int(payload.get('baggage_kg') or 0)
-    if baggage_kg not in (0, 5, 10, 15, 20, 25):
+    if baggage_kg not in (0, 5, 10, 15, 20, 25, 30):
         return HttpResponseBadRequest('The baggage selection is invalid.')
     selected_seats = [row['seat'] for row in cleaned if row['seat']]
     if len(selected_seats) != len(set(selected_seats)):
@@ -3712,11 +3802,12 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                         segment=TripSegment.DEPARTURE,
                         fare_class=fare_class,
                         passenger_category=passenger['category'],
+                        passenger_classification=passenger['classification'],
                         first_name=passenger['first_name'], middle_name=passenger['middle_name'],
                         last_name=passenger['last_name'], date_of_birth=passenger['dob'],
                         gender=passenger['gender'], nationality=passenger['nationality'],
-                        contact_email=passenger['email'] if index == 0 else '',
-                        contact_number=passenger['phone'] if index == 0 else '',
+                        contact_email=passenger['email'],
+                        contact_number=passenger['phone'],
                         travel_document_type='PASSPORT' if international else '',
                         travel_document_number=passenger['passport'],
                         passport_issuing_country=passenger['passport_country'],
@@ -3727,11 +3818,12 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                         booking=booking, passenger_name=passenger['name'], seat_number=passenger['seat'],
                         segment=TripSegment.RETURN, fare_class=fare_class,
                         passenger_category=passenger['category'], first_name=passenger['first_name'],
+                        passenger_classification=passenger['classification'],
                         middle_name=passenger['middle_name'], last_name=passenger['last_name'],
                         date_of_birth=passenger['dob'], gender=passenger['gender'],
                         nationality=passenger['nationality'],
-                        contact_email=passenger['email'] if index == 0 else '',
-                        contact_number=passenger['phone'] if index == 0 else '',
+                        contact_email=passenger['email'],
+                        contact_number=passenger['phone'],
                         travel_document_type='PASSPORT' if international else '',
                         travel_document_number=passenger['passport'],
                         passport_issuing_country=passenger['passport_country'],

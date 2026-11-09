@@ -9,6 +9,7 @@
             <h3><i class="fas fa-suitcase-rolling"></i> Extra Baggage</h3>
             <span class="pd-chip pd-chip--soft">per 5&nbsp;kg</span>
         </div>
+        <p class="pd-standard-baggage">Included checked baggage: <b data-pd-standard-baggage>{{ selected.checked_baggage|default:'Not specified' }}</b></p>
         <fieldset class="pd-baggage-picker" data-pd-baggage-group>
             <legend class="pd-field__label">Choose the baggage allowance you need</legend>
             <div class="pd-baggage-options">
@@ -39,14 +40,20 @@
             <h3><i class="fas fa-shield-heart"></i> Travel Insurance (Optional)</h3>
             <span class="pd-chip pd-chip--soft">optional</span>
         </div>
-        <label class="pd-field">
-            <span class="pd-field__label">Insurance Category</span>
-            <select data-pd-insurance>
+        <fieldset class="pd-insurance-options" data-pd-insurance>
+            <legend class="pd-field__label">Choose an option</legend>
+            <div class="pd-insurance-options__list">
                 {% for plan in fare.insurance_plans %}
-                <option value="{{ plan.key }}" data-price="{{ plan.price }}">{{ plan.name }} &mdash; {{ plan.price_text }}{% if plan.price %} per passenger{% endif %}</option>
+                <label class="pd-insurance-option">
+                    <input type="radio" name="pd-insurance-plan" data-pd-insurance-option
+                           value="{{ plan.key }}" data-price="{{ plan.price }}"
+                           {% if plan.key == 'unavailable' %}disabled{% endif %}
+                           {% if forloop.first %}checked{% endif %}>
+                        <span><b>{% if plan.key == 'none' %}No, Thank You{% elif plan.key == 'unavailable' %}Add Travel Insurance (not available){% else %}Add {{ plan.name }}{% endif %}</b><small>{{ plan.price_text }}{% if plan.price %} per passenger{% endif %}</small></span>
+                </label>
                 {% endfor %}
-            </select>
-        </label>
+            </div>
+        </fieldset>
 
         <div class="pd-insurance-info" data-pd-insurance-info>
             <p class="pd-insurance-info__summary" data-pd-insurance-summary></p>
@@ -65,10 +72,10 @@
             is refundable. A claim must meet the policy&rsquo;s conditions and exclusions.</p>{% else %}<p class="pd-muted">No insurance product is configured for this flight. No coverage will be added.</p>{% endif %}
         </div>
 
-        <button type="button" class="pd-link" data-pd-insurance-toggle aria-expanded="false">
+        {% if is_sample %}<button type="button" class="pd-link" data-pd-insurance-toggle aria-expanded="false">
             <i class="fas fa-chevron-down"></i> <span data-pd-insurance-toggle-text>View Coverage & Exclusions</span>
         </button>
-        {% if is_sample %}<div class="pd-insurance-terms" data-pd-insurance-terms hidden>
+        <div class="pd-insurance-terms" data-pd-insurance-terms hidden>
             <h4>Coverage & Exclusions, Terms, Conditions & Claim Requirements</h4>
             <p><strong>Covered events:</strong> Emergency medical expenses, trip cancellation for covered reasons, trip interruption, loss of checked baggage (where applicable).</p>
             <p><strong>Coverage limits:</strong> Vary by plan - Basic (up to ₱500,000 medical), Standard (up to ₱1,500,000), Premium (up to ₱3,000,000).</p>
@@ -78,10 +85,5 @@
             <p><strong>Insurance provider details & applicable terms:</strong> Insurance is provided for this prototype only as a sample. A real policy is issued by the insurer, states its own coverage limits, exclusions and claim requirements. Airline refunds and insurance claims are handled separately.</p>
         </div>{% endif %}
 
-        {% if is_sample %}<label class="pd-ack" style="margin-top: 12px;">
-            <input type="checkbox" data-pd-insurance-ack>
-            <span>I have read and understand the insurance terms and conditions.</span>
-        </label>
-        <span class="pd-field__err" data-pd-err="insurance_ack" role="alert"></span>{% endif %}
     </div>
 </div>

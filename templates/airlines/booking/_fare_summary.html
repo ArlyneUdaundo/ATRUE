@@ -1,6 +1,13 @@
 <div class="pd-card pd-fare" id="pd-fare">
     <h2 class="pd-fare__title"><i class="fas fa-receipt"></i> Fare Summary</h2>
 
+    <div class="pd-booking-glance">
+        <div><small>Route</small><b>{{ selected.origin_code }} · {{ selected.origin_airport }} &rarr; {{ selected.destination_code }} · {{ selected.destination_airport }}</b></div>
+        <div><small>Flight date and time</small><b>{{ departure_date|default:'Date to be confirmed' }} · {{ selected.depart_time }} – {{ selected.arrive_time }}</b></div>
+        <div><small>Passengers</small><b data-pd-summary-pax>1 traveller</b></div>
+        <div><small>Passenger classifications</small><b data-pd-summary-classifications>Adult</b></div>
+    </div>
+
     <ul class="pd-fare__lines">
         <li>
             <span>Base Fare <small data-pd-fare-base-note></small></span>
@@ -13,6 +20,10 @@
         <li>
             <span>Passengers</span>
             <span data-pd-fare-pax>1</span>
+        </li>
+        <li>
+            <span>Flight class</span>
+            <span data-pd-fare-class-name>Economy Class</span>
         </li>
         <li>
             <span>Extra Baggage <small data-pd-fare-bag-note></small></span>
@@ -34,9 +45,10 @@
     </div>
     <p class="pd-fare__per" data-pd-fare-per></p>
 
-    <button type="button" class="pd-btn pd-btn--primary pd-btn--wide" data-pd-continue>
+    <button type="button" class="pd-btn pd-btn--primary pd-btn--wide" data-pd-continue disabled>
         Continue to Review <i class="fas fa-arrow-right"></i>
     </button>
+    <p class="pd-field__hint" data-pd-continue-hint>Complete passenger details and accept the policy to continue.</p>
     <a class="pd-btn pd-btn--ghost pd-btn--wide" href="{% url 'airlines:list' %}">
         <i class="fas fa-arrow-left"></i> Back to Flight Details
     </a>

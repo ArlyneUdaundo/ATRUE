@@ -1,0 +1,22 @@
+{% if selected.fare_classes|length > 1 %}
+<section class="pd-card pd-section pd-class-card" aria-labelledby="pd-class-title">
+    <div class="pd-section__head">
+        <h2 id="pd-class-title"><i class="fas fa-couch"></i> Flight Class</h2>
+        <p>Choose from the available cabin classes. The fare summary updates with your selection.</p>
+    </div>
+    <div class="pd-class-options" role="radiogroup" aria-label="Flight class">
+        {% for cabin in selected.fare_classes %}
+        <label class="pd-class-option">
+            <input type="radio" name="pd-fare-class" data-pd-fare-class value="{{ cabin.key }}"
+                   data-fare="{{ cabin.fare }}" data-baggage="{{ cabin.checked_baggage_kg }}"
+                   {% if cabin.key == selected.fare_class_key %}checked{% endif %}>
+            <span class="pd-class-option__body">
+                <b>{{ cabin.label }}</b>
+                <span>{{ cabin.fare_text }}</span>
+                <small>Checked baggage: {% if cabin.checked_baggage_kg %}{{ cabin.checked_baggage_kg }} kg{% else %}Not specified{% endif %}</small>
+            </span>
+        </label>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

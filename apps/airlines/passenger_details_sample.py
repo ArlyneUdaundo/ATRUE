@@ -24,6 +24,7 @@ BAGGAGE_OPTIONS = (
     (15, 15000),
     (20, 20000),
     (25, 25000),
+    (30, 30000),
 )
 
 #: Optional travel insurance plans. ``(key, name, price per passenger)``.
@@ -128,6 +129,7 @@ INSURANCE_DETAILS = {
             'Trip cancellation or interruption up to \u20b1150,000.',
             'Loss of checked baggage up to \u20b140,000.',
             'Travel delay from 6 hours.',
+            'Delayed baggage and personal accident cover, subject to policy limits.',
         ],
         'excludes': [
             'Pre-existing medical conditions unless declared and accepted.',
@@ -143,6 +145,7 @@ INSURANCE_DETAILS = {
             'Loss of checked baggage up to \u20b180,000.',
             'Travel delay from 3 hours and missed connection cover.',
             'Emergency medical evacuation and repatriation.',
+            'Flight delay, lost or delayed baggage, and personal accident cover, subject to policy limits.',
         ],
         'excludes': [
             'Pre-existing medical conditions unless declared and accepted.',

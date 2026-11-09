@@ -37,7 +37,7 @@ Every value here comes from the page's own booking state: the seats from
             <div class="pd-seat-flightbar__cell">
                 <span class="pd-seat-flightbar__label">Aircraft</span>
                 <span class="pd-seat-flightbar__value">{{ seat_map.aircraft }}</span>
-                <span class="pd-seat-flightbar__sub">{{ seat_map.layout }} &middot; {{ selected.fare_class_label }}</span>
+                <span class="pd-seat-flightbar__sub"><span data-pd-seat-class>{{ seat_map.layout }} &middot; {{ selected.fare_class_label }}</span></span>
             </div>
             <div class="pd-seat-flightbar__cell">
                 <span class="pd-seat-flightbar__label">Passengers</span>

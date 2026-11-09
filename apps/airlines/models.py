@@ -1507,6 +1507,10 @@ class Booking(BookingFieldsMixin):
             help_text="Per-passenger travel document (FR-020)")
         travel_document_number = models.CharField(max_length=50, blank=True)
         passenger_category = models.CharField(max_length=10, blank=True, default='')
+        passenger_classification = models.CharField(
+            max_length=10, blank=True, default='',
+            choices=[('adult', 'Adult'), ('child', 'Child'), ('infant', 'Infant'),
+                     ('senior', 'Senior Citizen'), ('pwd', 'Person with Disability (PWD)')])
         first_name = models.CharField(max_length=100, blank=True, default='')
         middle_name = models.CharField(max_length=100, blank=True, default='')
         last_name = models.CharField(max_length=100, blank=True, default='')

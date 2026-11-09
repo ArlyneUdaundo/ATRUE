@@ -17,6 +17,7 @@
     // ------------------------------------------------------------ state --
     var fareData = readJSON('pd-fare-data');
     var seatData = readJSON('pd-seat-data');
+    var cabinSeatMaps = readJSON('pd-cabin-seat-data');
     var flightData = readJSON('pd-selected-flight-data');
 
     var state = {
@@ -26,6 +27,7 @@
         seats: {},
         baggageKg: 0,
         baggagePrice: 0,
+        fareClassKey: root.dataset.fareClassKey || flightData.fare_class_key || 'ECONOMY',
         insuranceKey: 'none',
         insurancePrice: 0,
         policyAck: false
@@ -110,6 +112,7 @@
         renderSeatSummary();
         syncCountInputs();
         updateFare();
+        updateContinueAvailability();
     }
 
     function addPassenger(category) {
@@ -157,12 +160,6 @@
                 : state.counts[pax.category] > 0;
             removeBtn.hidden = !canRemove;
             removeBtn.setAttribute('data-pd-remove', String(index));
-            if (index > 0) {
-                var email = $('[data-pd-field="email"]', node);
-                var phone = $('[data-pd-field="phone"]', node);
-                if (email) { email.closest('.pd-field').hidden = true; }
-                if (phone) { phone.closest('.pd-field').hidden = true; }
-            }
             // Restore values.
             if (pax.values) {
                 Object.keys(pax.values).forEach(function (key) {
@@ -188,6 +185,16 @@
 
     function bindPassengerFields(node, index) {
         $$('[data-pd-field]', node).forEach(function (field) {
+            if (field.getAttribute('data-pd-field') === 'classification') {
+                field.addEventListener('change', function () {
+                    var pax = state.passengers[index];
+                    if (pax) { pax.classificationTouched = true; }
+                    captureValues(index, node);
+                    clearFieldError(field);
+                    updateContinueAvailability();
+                });
+                return;
+            }
             if (field.getAttribute('data-pd-field') === 'phone') {
                 field.addEventListener('input', function () {
                     field.value = field.value.replace(/[^0-9]/g, '').slice(0, 11);
@@ -201,7 +208,12 @@
                 });
             } else {
                 field.addEventListener('input', function () { captureValues(index, node); clearFieldError(field); });
-                field.addEventListener('change', function () { captureValues(index, node); clearFieldError(field); });
+                field.addEventListener('change', function () {
+                    captureValues(index, node);
+                    clearFieldError(field);
+                    if (field.getAttribute('data-pd-field') === 'dob') { suggestPassengerClassification(index, node); }
+                    updateContinueAvailability();
+                });
             }
         });
     }
@@ -213,8 +225,35 @@
         $$('[data-pd-field]', node).forEach(function (field) {
             pax.values[field.getAttribute('data-pd-field')] = field.value;
         });
+        var nameParts = [pax.values.first_name, pax.values.middle_name, pax.values.last_name]
+            .map(function (part) { return (part || '').trim(); }).filter(Boolean);
+        pax.values.full_name = nameParts.join(' ');
+        var fullName = $('[data-pd-field="full_name"]', node);
+        if (fullName) { fullName.value = pax.values.full_name; }
         // Keep the open seat picker in sync as the traveller enters their name.
         renderSeatPanel();
+        updateFare();
+        updateContinueAvailability();
+    }
+
+    function suggestPassengerClassification(index, node) {
+        var pax = state.passengers[index];
+        var dob = $('[data-pd-field="dob"]', node);
+        var select = $('[data-pd-classification]', node);
+        if (!pax || !dob || !dob.value || !select || pax.classificationTouched) { return; }
+        var born = new Date(dob.value + 'T00:00:00');
+        var travel = new Date((root.dataset.departureDate || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
+        var age = travel.getFullYear() - born.getFullYear();
+        if (travel.getMonth() < born.getMonth() ||
+            (travel.getMonth() === born.getMonth() && travel.getDate() < born.getDate())) { age -= 1; }
+        if (age < 0) { return; }
+        var suggested = age < 2 ? 'infant' : (age < 12 ? 'child' : (age >= 60 ? 'senior' : 'adult'));
+        select.value = suggested;
+        pax.values = pax.values || {};
+        pax.values.classification = suggested;
+        setText($('[data-pd-classification-hint]', node), 'Suggested from age ' + age + ' on the travel date. You can change this selection.');
+        updateFare();
+        updateContinueAvailability();
     }
 
     function passengerDisplayName(pax, index) {
@@ -415,6 +454,39 @@
         updateSeatModalHint();
     }
 
+    function renderDynamicSeatGrid() {
+        if (!seatGrid || !seatData || !Array.isArray(seatData.rows)) { return; }
+        var head = '<div class="pd-seat-map__headrow"><span class="pd-seat-map__rowno"></span>' +
+            (seatData.letters || []).map(function (letter) {
+                return '<span class="pd-seat-map__colhead">' + escapeHtml(letter) + '</span>';
+            }).join('') + '<span class="pd-seat-map__rowno"></span></div>';
+        var rows = seatData.rows.map(function (row) {
+            var exit = row.is_exit ? '<div class="pd-seat-map__exit"><i class="fas fa-person-running"></i> Exit row</div>' : '';
+            var seats = (row.seats || []).map(function (seat) {
+                var position = seat.position || 'middle';
+                var category = seat.category || 'standard';
+                var disabled = seat.taken ? ' disabled' : '';
+                var taken = seat.taken ? ' pd-seat--taken' : '';
+                var aisle = seat.aisle_before ? ' pd-seat--aisle-gap' : '';
+                var label = 'Seat ' + seat.number + (seat.taken ? ' unavailable' : ' available');
+                return '<button type="button" class="pd-seat pd-seat--' + escapeHtml(position) +
+                    ' pd-seat--cat-' + escapeHtml(category) + taken + aisle + '" data-seat="' +
+                    escapeHtml(seat.number) + '" data-position="' + escapeHtml(position) +
+                    '" data-position-label="' + escapeHtml(seat.position_label || 'Seat') +
+                    '" data-category="' + escapeHtml(category) + '" data-category-label="' +
+                    escapeHtml(seat.category_label || 'Standard seat') + '" data-price="' +
+                    (Number(seat.price) || 0) + '"' + disabled + ' aria-label="' + escapeHtml(label) + '">' +
+                    '<span class="pd-seat__letter">' + escapeHtml(seat.letter || '') + '</span>' +
+                    '<span class="pd-seat__num">' + escapeHtml(seat.number) + '</span></button>';
+            }).join('');
+            return exit + '<div class="pd-seat-map__row"><span class="pd-seat-map__rowno">' +
+                escapeHtml(row.row || '') + '</span>' + seats +
+                '<span class="pd-seat-map__rowno pd-seat-map__rowno--right">' +
+                escapeHtml(row.row || '') + '</span></div>';
+        }).join('');
+        seatGrid.innerHTML = head + rows;
+    }
+
     // The summary inside the modal: one line per passenger with the seat, the
     // category and what that seat costs, then the total.
     function renderSeatModalSummary() {
@@ -603,6 +675,9 @@
         setText($('[data-pd-fare-base]'), money(base));
         setText($('[data-pd-fare-taxes]'), money(taxes));
         setText($('[data-pd-fare-pax]'), String(pax));
+        setText($('[data-pd-fare-class-name]'), fareClassLabel(state.fareClassKey));
+        setText($('[data-pd-summary-pax]'), pax + (pax === 1 ? ' traveller' : ' travellers'));
+        setText($('[data-pd-summary-classifications]'), passengerClassificationSummary());
         setText($('[data-pd-fare-baggage]'), money(baggage));
         setText($('[data-pd-fare-insurance]'), money(insurance));
         setText($('[data-pd-fare-seat]'), money(seatTotalAmount));
@@ -660,6 +735,44 @@
     var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     var PHONE_RE = /^[0-9][0-9\s-]{6,}$/;
 
+    function updateContinueAvailability() {
+        var ready = totalPassengers() > 0 && state.policyAck;
+        state.passengers.forEach(function (pax, index) {
+            var values = pax.values || {};
+            var phone = (values.phone || '').replace(/\s+/g, '');
+            var complete = Boolean((values.first_name || '').trim() && (values.last_name || '').trim() &&
+                values.classification && EMAIL_RE.test((values.email || '').trim()) &&
+                /^\d{11}$/.test((values.phone || '').replace(/\s+/g, '')) &&
+                values.dob && values.gender && values.nationality);
+            if (state.flightType === 'INTERNATIONAL') {
+                complete = complete && values.passport && values.passport_country && values.passport_expiry;
+                if (values.passport_expiry && root.dataset.departureDate) {
+                    complete = complete && values.passport_expiry > root.dataset.departureDate;
+                }
+            }
+            var node = $('[data-pd-index="' + index + '"]');
+            if (node && values.dob) {
+                var born = new Date(values.dob + 'T00:00:00');
+                var travel = new Date((root.dataset.departureDate || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
+                var age = travel.getFullYear() - born.getFullYear();
+                if (travel.getMonth() < born.getMonth() ||
+                    (travel.getMonth() === born.getMonth() && travel.getDate() < born.getDate())) { age -= 1; }
+                var category = age < 2 ? 'infant' : (age < 12 ? 'child' : 'adult');
+                complete = complete && age >= 0 && category === pax.category &&
+                    classificationMatchesAge(values.classification, age);
+            } else { complete = false; }
+            ready = ready && complete;
+        });
+        $$('[data-pd-continue], [data-pd-continue-bottom]').forEach(function (button) {
+            button.disabled = !ready;
+        });
+        var hint = $('[data-pd-continue-hint]');
+        if (hint) {
+            setText(hint, ready ? 'Passenger information and policy acceptance are complete.'
+                : 'Complete required passenger details and accept the policy to continue.');
+        }
+    }
+
     function validateAll() {
         clearAllErrors();
         var ok = true;
@@ -671,10 +784,14 @@
             if (!node) { return; }
             var v = pax.values || {};
 
-            if (!(v.full_name || '').trim()) { fail(node, 'full_name', 'Please enter the full name.'); ok = false; }
-            if (index === 0 && !EMAIL_RE.test((v.email || '').trim())) { fail(node, 'email', 'Please enter a valid email address.'); ok = false; }
+            if (!(v.first_name || '').trim()) { fail(node, 'first_name', 'Please enter the first name.'); ok = false; }
+            if (!(v.last_name || '').trim()) { fail(node, 'last_name', 'Please enter the last name.'); ok = false; }
+            if (!['adult', 'child', 'infant', 'senior', 'pwd'].includes(v.classification)) {
+                fail(node, 'classification', 'Select a passenger classification.'); ok = false;
+            }
+            if (!EMAIL_RE.test((v.email || '').trim())) { fail(node, 'email', 'Please enter a valid email address.'); ok = false; }
             var phoneVal = (v.phone || '').trim().replace(/\s+/g, '');
-            if (index === 0 && (!phoneVal || !/^\d{11}$/.test(phoneVal))) { fail(node, 'phone', 'Please enter a valid phone number (11 digits only).'); ok = false; } else if (index === 0 && v.phone !== phoneVal) { pax.values.phone = phoneVal; }
+            if (!phoneVal || !/^\d{11}$/.test(phoneVal)) { fail(node, 'phone', 'Please enter a valid phone number (11 digits only).'); ok = false; } else if (v.phone !== phoneVal) { pax.values.phone = phoneVal; }
             if (!(v.dob || '').trim()) { fail(node, 'dob', 'Please enter the date of birth.'); ok = false; }
             else {
                 var born = new Date(v.dob + 'T00:00:00');
@@ -685,6 +802,9 @@
                 var expected = age < 2 ? 'infant' : (age < 12 ? 'child' : 'adult');
                 if (age < 0 || expected !== pax.category) {
                     fail(node, 'dob', 'Date of birth does not match the selected passenger category on the travel date.'); ok = false;
+                }
+                if (!classificationMatchesAge(v.classification, age)) {
+                    fail(node, 'classification', 'Passenger classification does not match the date of birth.'); ok = false;
                 }
             }
             if (!(v.gender || '').trim()) { fail(node, 'gender', 'Please select a gender.'); ok = false; }
@@ -697,20 +817,15 @@
             }
             if (state.flightType === 'INTERNATIONAL' && !(v.passport_expiry || '').trim()) {
                 fail(node, 'passport_expiry', 'Passport expiry date is required.'); ok = false;
+            } else if (state.flightType === 'INTERNATIONAL' && root.dataset.departureDate &&
+                v.passport_expiry <= root.dataset.departureDate) {
+                fail(node, 'passport_expiry', 'Passport must remain valid through the departure date.'); ok = false;
             }
         });
 
         if (!state.policyAck) {
             setErr('policy', 'Please acknowledge the cancellation and refund policy.');
             ok = false;
-        }
-
-        var insAckBox = $('[data-pd-insurance-ack]');
-        if (insAckBox && insAckBox.checked === false && state.insurancePrice > 0) {
-            setErr('insurance_ack', 'Please acknowledge the insurance terms and conditions.');
-            ok = false;
-        } else if (insAckBox && state.insurancePrice === 0) {
-            clearFieldErrorByName('insurance_ack');
         }
 
         return ok;
@@ -723,6 +838,13 @@
         }
         var err = $('[data-pd-err="' + field + '"]', node);
         if (err) { err.textContent = message; }
+    }
+
+    function classificationMatchesAge(classification, age) {
+        if (classification === 'pwd') { return true; }
+        if (age >= 60 && (classification === 'senior' || classification === 'adult')) { return true; }
+        var suggested = age < 2 ? 'infant' : (age < 12 ? 'child' : 'adult');
+        return classification === suggested;
     }
 
     function clearFieldError(field) {
@@ -755,8 +877,7 @@
         body.appendChild(block('Flight', [
             row('Airline', flightAirlineText()),
             row('Route', flightRouteText()),
-            row('Class', 'Economy'),
-            row('Classification', flightData.route_scope === 'INTERNATIONAL' ? 'International' : 'Domestic'),
+            row('Class', fareClassLabel(state.fareClassKey)),
             row('Segments', (flightData.segments || []).map(function (segment) {
                 return segment.flight_number + ' ' + segment.origin_code + '–' + segment.destination_code;
             }).join(' · ') || '—'),
@@ -768,7 +889,7 @@
             var v = pax.values || {};
             var bits = [(v.full_name || 'Passenger ' + (index + 1))];
             if (SEATABLE[pax.category]) { bits.push('Seat ' + (pax.seat || 'not assigned')); }
-            bits.push(categoryLabel(pax.category));
+            bits.push(passengerClassificationLabel((v.classification || pax.category)));
             bits.push(v.email || '');
             bits.push((v.phone_code || '') + ' ' + (v.phone || ''));
             if (state.flightType === 'INTERNATIONAL') { bits.push('Passport ' + (v.passport || '') + ', ' + (v.passport_country || '') + ' (expires ' + (v.passport_expiry || '') + ')'); }
@@ -806,13 +927,12 @@
     }
 
     function buildTicketPayload() {
-        var contact = (state.passengers[0] && state.passengers[0].values) || {};
         return {
             flight: {
                 id: flightData.id,
                 origin_code: flightData.origin_code,
                 destination_code: flightData.destination_code,
-                fare_class_key: flightData.fare_class_key || 'ECONOMY'
+                fare_class_key: state.fareClassKey || flightData.fare_class_key || 'ECONOMY'
             },
             departure_date: root.dataset.departureDate || '',
             passengers: state.passengers.map(function (pax) {
@@ -820,19 +940,14 @@
                     name: (pax.values && pax.values.full_name || '').trim(),
                     category: pax.category,
                     seat: pax.seat || '',
-                    details: Object.assign({}, pax.values || {}, {
-                        email: (pax.values && pax.values.email) || contact.email || '',
-                        phone_code: (pax.values && pax.values.phone_code) || contact.phone_code || '+63',
-                        phone: (pax.values && pax.values.phone) || contact.phone || ''
-                    })
+                    details: Object.assign({}, pax.values || {})
                 };
             }),
             flight_type: state.flightType,
             baggage_kg: state.baggageKg,
             insurance_key: state.insuranceKey,
             policy_acknowledged: Boolean(state.policyAck),
-            insurance_terms_acknowledged: Boolean(
-                state.insurancePrice === 0 || $('[data-pd-insurance-ack]').checked)
+            insurance_terms_acknowledged: Boolean(state.policyAck)
         };
     }
 
@@ -876,6 +991,22 @@
             }
         });
         return parts.join(', ');
+    }
+
+    function passengerClassificationSummary() {
+        var counts = {};
+        state.passengers.forEach(function (passenger) {
+            var key = (passenger.values && passenger.values.classification) || passenger.category;
+            var label = passengerClassificationLabel(key);
+            counts[label] = (counts[label] || 0) + 1;
+        });
+        return Object.keys(counts).map(function (label) {
+            return label + (counts[label] > 1 ? ' × ' + counts[label] : '');
+        }).join(', ') || '—';
+    }
+
+    function passengerClassificationLabel(key) {
+        return { adult: 'Adult', child: 'Child', infant: 'Infant', senior: 'Senior Citizen', pwd: 'Person with Disability (PWD)' }[key] || 'Passenger';
     }
 
     function baggageLabel() {
@@ -947,6 +1078,15 @@
             if (Number(fareData.baggage_options[i].kg) === Number(kg)) { return fareData.baggage_options[i]; }
         }
         return null;
+    }
+
+    function fareClassByKey(key) {
+        return (flightData.fare_classes || []).find(function (item) { return item.key === key; }) || null;
+    }
+
+    function fareClassLabel(key) {
+        var cabin = fareClassByKey(key);
+        return cabin ? cabin.label : (flightData.fare_class_label || 'Economy Class');
     }
 
     // ------------------------------------------------------------- wiring --
@@ -1034,15 +1174,45 @@
             }
         });
     });
-    var insuranceSelect = $('[data-pd-insurance]');
-    if (insuranceSelect) {
-        insuranceSelect.addEventListener('change', function () {
-            state.insuranceKey = insuranceSelect.value;
-            state.insurancePrice = Number(insuranceSelect.options[insuranceSelect.selectedIndex].getAttribute('data-price')) || 0;
+    var insuranceOptions = $$('[data-pd-insurance-option]');
+    insuranceOptions.forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (!input.checked) { return; }
+            state.insuranceKey = input.value;
+            state.insurancePrice = Number(input.getAttribute('data-price')) || 0;
             renderInsuranceInfo();
             updateFare();
         });
-    }
+    });
+
+    $$('[data-pd-fare-class]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (!input.checked) { return; }
+            state.fareClassKey = input.value;
+            BASE_FARE = Number(input.getAttribute('data-fare')) || 0;
+            flightData.fare_class_key = state.fareClassKey;
+            setText($('[data-pd-selected-class]'), fareClassLabel(state.fareClassKey));
+            if (cabinSeatMaps[state.fareClassKey]) {
+                seatData = cabinSeatMaps[state.fareClassKey];
+                state.passengers.forEach(function (passenger) { passenger.seat = ''; });
+                state.seats = {};
+                renderDynamicSeatGrid();
+                renderSeatPanel();
+                renderSeatSummary();
+                renderPassengerSeatLabels();
+                paintSeatGrid();
+                setText($('[data-pd-seat-class]'), (seatData.layout || '') + ' · ' + fareClassLabel(state.fareClassKey));
+                setText($('[data-pd-seat-flightbar-cabin]'), (seatData.cabin || fareClassLabel(state.fareClassKey)) +
+                    (seatData.cabin_pitch ? ' · pitch ' + seatData.cabin_pitch : ''));
+            }
+            var baggageAllowance = $('[data-pd-standard-baggage]');
+            if (baggageAllowance) {
+                var allowance = Number(input.getAttribute('data-baggage')) || 0;
+                setText(baggageAllowance, allowance ? allowance + ' kg' : 'Not specified');
+            }
+            updateFare();
+        });
+    });
 
     // Insurance details toggle.
     var insuranceToggle = $('[data-pd-insurance-toggle]');
@@ -1074,19 +1244,33 @@
         ack.addEventListener('change', function () {
             state.policyAck = ack.checked;
             if (ack.checked) { clearFieldErrorByName('policy'); }
-        });
-    }
-
-    // Insurance terms acknowledgement.
-    var insAck = $('[data-pd-insurance-ack]');
-    if (insAck) {
-        insAck.addEventListener('change', function () {
-            if (insAck.checked) { clearFieldErrorByName('insurance_ack'); }
+            updateContinueAvailability();
         });
     }
 
     // Continue + review controls.
     $$('[data-pd-continue]').forEach(function (btn) { btn.addEventListener('click', openReview); });
+    var continueBottom = $('[data-pd-continue-bottom]');
+    if (continueBottom) {
+        continueBottom.addEventListener('click', function () {
+            var seatSection = $('#pd-seat-section');
+            if (seatSection) { seatSection.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        });
+    }
+    var saveButton = $('[data-pd-save]');
+    if (saveButton) {
+        saveButton.addEventListener('click', function () {
+            if (!validateAll()) { updateContinueAvailability(); return; }
+            try {
+                sessionStorage.setItem('atrue-passenger-draft-' + String(flightData.id), JSON.stringify(buildTicketPayload()));
+                var status = $('[data-pd-save-status]');
+                if (status) { setText(status, 'Passenger information saved for this booking session.'); }
+            } catch (err) {
+                var status = $('[data-pd-save-status]');
+                if (status) { setText(status, 'Unable to save in this browser. Your details remain on this page.'); }
+            }
+        });
+    }
     $$('[data-pd-review-close]').forEach(function (btn) { btn.addEventListener('click', closeReview); });
     var ticketForm = $('[data-pd-ticket-form]');
     if (ticketForm) {
@@ -1105,22 +1289,69 @@
 
     // Initialise the passenger list.
     var initial = {};
+    var savedDraft = null;
+    try {
+        savedDraft = JSON.parse(sessionStorage.getItem('atrue-passenger-draft-' + String(flightData.id)) || 'null');
+        if (savedDraft && String(savedDraft.flight && savedDraft.flight.id) !== String(flightData.id)) { savedDraft = null; }
+    } catch (err) { savedDraft = null; }
     (root.dataset.initialPassengers || '').split(',').forEach(function (chunk) {
         var parts = chunk.split(':');
         if (parts.length === 2 && CATEGORY_ORDER.indexOf(parts[0]) !== -1) {
             initial[parts[0]] = Number(parts[1]);
         }
     });
+    if (savedDraft && Array.isArray(savedDraft.passengers) && savedDraft.passengers.length) {
+        initial = { adult: 0, child: 0, infant: 0 };
+        savedDraft.passengers.forEach(function (passenger) {
+            if (initial[passenger.category] !== undefined) { initial[passenger.category] += 1; }
+        });
+    }
     CATEGORY_ORDER.forEach(function (key) {
         var wanted = initial[key] !== undefined ? initial[key] : (key === 'adult' ? 1 : 0);
         wanted = Math.max(key === 'adult' ? 1 : 0, Math.min(MAX[key], wanted));
         for (var i = 0; i < wanted; i += 1) { addPassenger(key); }
     });
 
+    if (savedDraft && Array.isArray(savedDraft.passengers)) {
+        savedDraft.passengers.forEach(function (savedPassenger, index) {
+            if (!state.passengers[index]) { return; }
+            state.passengers[index].values = Object.assign({}, savedPassenger.details || {});
+            state.passengers[index].seat = savedPassenger.seat || '';
+            state.passengers[index].classificationTouched = true;
+        });
+        if (savedDraft.baggage_kg !== undefined) {
+            baggageOptions.forEach(function (option) { option.checked = Number(option.value) === Number(savedDraft.baggage_kg); });
+        }
+        if (savedDraft.insurance_key) {
+            insuranceOptions.forEach(function (option) { option.checked = option.value === savedDraft.insurance_key; });
+        }
+        state.policyAck = Boolean(savedDraft.policy_acknowledged);
+        if (ack) { ack.checked = state.policyAck; }
+        if (savedDraft.flight && savedDraft.flight.fare_class_key) {
+            state.fareClassKey = savedDraft.flight.fare_class_key;
+            $$('[data-pd-fare-class]').forEach(function (option) {
+                option.checked = option.value === state.fareClassKey;
+                if (option.checked) { BASE_FARE = Number(option.getAttribute('data-fare')) || BASE_FARE; }
+            });
+            if (cabinSeatMaps[state.fareClassKey]) { seatData = cabinSeatMaps[state.fareClassKey]; }
+        }
+    }
+
     setFlightType(root.dataset.defaultFlightType || 'DOMESTIC');
     rebuildPassengers();
     syncCountInputs();
+    var initialBaggage = baggageOptions.find(function (option) { return option.checked; });
+    if (initialBaggage) {
+        state.baggageKg = Number(initialBaggage.value) || 0;
+        state.baggagePrice = Number(initialBaggage.getAttribute('data-price')) || 0;
+    }
+    var initialInsurance = insuranceOptions.find(function (option) { return option.checked; });
+    if (initialInsurance) {
+        state.insuranceKey = initialInsurance.value;
+        state.insurancePrice = Number(initialInsurance.getAttribute('data-price')) || 0;
+    }
     renderInsuranceInfo();
     renderSeatSummary();
     updateFare();
+    updateContinueAvailability();
 })();
