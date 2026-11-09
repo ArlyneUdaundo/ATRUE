@@ -127,7 +127,7 @@
             <article class="fp-flight-box">
                 <h3 class="fp-flight-box__title">Flight Details</h3>
                 <div class="fp-flight-airline">
-                    {% if ticket.flight.logo %}<img src="{% static ticket.flight.logo %}" alt="{{ ticket.flight.airline }} logo">{% endif %}
+                    {% if ticket.flight.logo_url %}<img src="{{ ticket.flight.logo_url }}" alt="{{ ticket.flight.airline }} logo">{% elif ticket.flight.logo %}<img src="{% static ticket.flight.logo %}" alt="{{ ticket.flight.airline }} logo">{% endif %}
                     <div><b>{{ ticket.flight.airline }}</b><small>{{ ticket.flight.number }} <span>·</span> {{ ticket.flight.cabin }}</small></div>
                 </div>
                 <div class="fp-route">

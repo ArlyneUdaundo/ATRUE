@@ -105,21 +105,21 @@
             <span class="pd-field__err" data-pd-err="nationality" role="alert"></span>
         </label>
 
-        <label class="pd-field pd-field--wide" data-pd-passport>
-            <span class="pd-field__label">Passport number <span class="pd-req" data-pd-passport-req>*</span></span>
+        <label class="pd-field pd-field--wide" data-pd-passport{% if default_flight_type != 'INTERNATIONAL' %} hidden{% endif %}>
+            <span class="pd-field__label">Passport number <span class="pd-req" data-pd-passport-req{% if default_flight_type != 'INTERNATIONAL' %} hidden{% endif %}>*</span></span>
             <input type="text" data-pd-field="passport" autocomplete="off"
-                   placeholder="e.g. P1234567A" aria-required="false">
+                   placeholder="e.g. P1234567A" aria-required="{% if default_flight_type == 'INTERNATIONAL' %}true{% else %}false{% endif %}">
             <span class="pd-field__hint" data-pd-passport-hint>Required for international flights.</span>
             <span class="pd-field__err" data-pd-err="passport" role="alert"></span>
         </label>
-        <label class="pd-field" data-pd-passport-country hidden>
+        <label class="pd-field" data-pd-passport-country{% if default_flight_type != 'INTERNATIONAL' %} hidden{% endif %}>
             <span class="pd-field__label">Passport issuing country <span class="pd-req">*</span></span>
-            <input type="text" data-pd-field="passport_country" autocomplete="country-name" aria-required="false">
+            <input type="text" data-pd-field="passport_country" autocomplete="country-name" aria-required="{% if default_flight_type == 'INTERNATIONAL' %}true{% else %}false{% endif %}">
             <span class="pd-field__err" data-pd-err="passport_country" role="alert"></span>
         </label>
-        <label class="pd-field" data-pd-passport-expiry hidden>
+        <label class="pd-field" data-pd-passport-expiry{% if default_flight_type != 'INTERNATIONAL' %} hidden{% endif %}>
             <span class="pd-field__label">Passport expiry date <span class="pd-req">*</span></span>
-            <input type="date" data-pd-field="passport_expiry" aria-required="false">
+            <input type="date" data-pd-field="passport_expiry" aria-required="{% if default_flight_type == 'INTERNATIONAL' %}true{% else %}false{% endif %}">
             <span class="pd-field__err" data-pd-err="passport_expiry" role="alert"></span>
         </label>
     </div>

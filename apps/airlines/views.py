@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -3627,6 +3628,71 @@ def confirm_passenger_details(request):
     return redirect('airlines:passenger_payment')
 
 
+def _database_ticket_context(booking, order, flight, passengers, total,
+                             baggage_charge, fare_class, legs):
+    first_leg, last_leg = legs[0], legs[-1]
+    departure = timezone.localtime(first_leg.departure_time)
+    arrival = timezone.localtime(last_leg.arrival_time)
+    stops = flight.itinerary.stops if flight.itinerary_id else 0
+    stops_label = ('Direct' if not stops
+                   else f'{stops} stop' + ('s' if stops != 1 else ''))
+    cabin = dict(FARE_CLASS_CHOICES).get(
+        fare_class, fare_class.replace('_', ' ').title())
+    origin_airport = first_leg.origin_airport if first_leg.origin_airport_id else None
+    destination_airport = last_leg.destination_airport if last_leg.destination_airport_id else None
+    return {
+        'is_database': True,
+        'order_id': order.pk,
+        'booking_id': booking.pk,
+        'booking_reference': booking.booking_reference,
+        'status': 'Awaiting payment',
+        'issued_on': timezone.localdate().strftime('%B %d, %Y'),
+        'flight': {
+            'airline': flight.airline.name,
+            'logo_url': flight.airline.logo_url,
+            'number': flight.flight_number,
+            'origin_code': (origin_airport.code if origin_airport
+                            else first_leg.origin_code),
+            'origin_city': (origin_airport.city if origin_airport
+                            else first_leg.origin),
+            'origin_airport': (origin_airport.airport_name if origin_airport
+                               else first_leg.origin),
+            'destination_code': (destination_airport.code if destination_airport
+                                 else last_leg.destination_code),
+            'destination_city': (destination_airport.city if destination_airport
+                                 else last_leg.destination),
+            'destination_airport': (destination_airport.airport_name if destination_airport
+                                    else last_leg.destination),
+            'departure_date': departure.strftime('%B %d, %Y'),
+            'arrival_date': arrival.strftime('%B %d, %Y'),
+            'departure_time': departure.strftime('%H:%M'),
+            'arrival_time': arrival.strftime('%H:%M'),
+            'stops': stops_label,
+            'aircraft': (flight.aircraft.model_name if flight.aircraft_id
+                         else 'Aircraft to be announced'),
+            'cabin': cabin,
+            'checked_baggage': (f'{flight.checked_baggage_kg} kg'
+                                if flight.checked_baggage_kg else 'Not specified'),
+            'cabin_baggage': (f'{flight.cabin_baggage_kg} kg'
+                              if flight.cabin_baggage_kg else 'Not specified'),
+        },
+        'passengers': [
+            {'name': passenger['name'], 'category': passenger['category'],
+             'seat': passenger['seat']}
+            for passenger in passengers
+        ],
+        'fare': {
+            'passenger_count': len(passengers),
+            'base_fare': float(Decimal(total) - Decimal(baggage_charge)),
+            'taxes': 0,
+            'baggage': float(Decimal(baggage_charge or 0)),
+            'insurance': 0,
+            'seats': 0,
+            'total': float(total),
+        },
+    }
+
+
 def _confirm_database_passenger_details(request, payload, flight_id):
     """Persist a selected ATRUE flight booking using server-owned schedule data."""
     if not request.user.is_authenticated:
@@ -3739,8 +3805,9 @@ def _confirm_database_passenger_details(request, payload, flight_id):
     selected_seats = [row['seat'] for row in cleaned if row['seat']]
     if len(selected_seats) != len(set(selected_seats)):
         return HttpResponseBadRequest('Each passenger must have a different seat.')
-    seat_flights = list(legs) + ([flight.return_flight] if flight.trip_type == Flight.TripType.ROUND_TRIP
-                                 and flight.return_flight else [])
+    return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
+    legs = flight.itinerary.ordered_legs if flight.itinerary_id else [flight]
+    seat_flights = list(legs) + ([return_flight] if return_flight else [])
     for seat_flight in seat_flights:
         if selected_seats and not _seats_exist(seat_flight, selected_seats):
             return HttpResponseBadRequest('A selected seat is not on every aircraft in this journey.')
@@ -3750,8 +3817,6 @@ def _confirm_database_passenger_details(request, payload, flight_id):
     from django.db import IntegrityError
     from transactions.cart import create_single_booking_order
     fare_class = str((payload.get('flight') or {}).get('fare_class_key') or Flight.FareClass.ECONOMY).strip().upper()
-    return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
-    legs = flight.itinerary.ordered_legs if flight.itinerary_id else [flight]
     priced_legs = list(legs) + ([return_flight] if return_flight else [])
     if (fare_class not in dict(FARE_CLASS_CHOICES)
             or any(fare_class not in leg.cabin_classes for leg in priced_legs)):
@@ -3832,11 +3897,13 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             create_bill(service='flight', customer=request.user, items=items, booking=booking)
             order = create_single_booking_order(
                 request=request, booking=booking, service='flight', amount=total,
-                payment_method='GCASH',
+                payment_method='GCASH', pay_later=True,
                 description=f'{flight.flight_number} · {len(cleaned)} passenger(s)', items=items)
     except (IntegrityError, ValueError) as exc:
         return HttpResponseBadRequest(str(exc) or 'A selected seat is no longer available.')
-    return redirect('transactions:order_detail', order.id)
+    request.session['airlines_passenger_ticket'] = _database_ticket_context(
+        booking, order, flight, cleaned, total, baggage_charge, fare_class, legs)
+    return redirect('airlines:passenger_payment')
 
 
 def passenger_payment(request):
@@ -3848,6 +3915,53 @@ def passenger_payment(request):
     if ticket.get('payment_status'):
         return redirect('airlines:passenger_payment_confirmation')
     return render(request, 'airlines/passenger_payment.html', {'ticket': ticket})
+
+
+def _complete_database_passenger_payment(request, ticket, method, method_label):
+    from transactions.models import Payment, TravelOrder
+
+    method_codes = {
+        'card': 'CREDIT_CARD',
+        'gcash': 'GCASH',
+        'maya': 'MAYA',
+        'bank': 'BANK_TRANSFER',
+        'paypal': 'PAYPAL',
+        'otc': 'QR_PH',
+    }
+    order = get_object_or_404(
+        TravelOrder, pk=ticket.get('order_id'), customer=request.user)
+    booking = get_object_or_404(
+        Booking, pk=ticket.get('booking_id'), passenger=request.user)
+    bill = bill_for_booking(booking)
+    if bill is None:
+        return HttpResponseBadRequest('This booking has no bill to pay.')
+    if not Payment.objects.filter(bill=bill).exists():
+        try:
+            with transaction.atomic():
+                order = TravelOrder.objects.select_for_update().get(pk=order.pk)
+                record_payment(
+                    customer=request.user, amount=order.total_amount,
+                    method=method_codes[method], service='flight',
+                    description=f'Flight booking {booking.booking_reference}',
+                    bill=bill, booking=booking,
+                )
+                order.payment_method = method_codes[method]
+                order.save(update_fields=['payment_method'])
+                booking.status = Booking.Status.PENDING
+                booking.save(update_fields=['status'])
+                log_activity(request.user, 'Submitted flight booking payment',
+                             booking.booking_reference)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('airlines:passenger_payment')
+
+    ticket['payment_method'] = method_label
+    ticket['payment_status'] = 'Payment submitted'
+    ticket['status'] = 'Payment submitted (awaiting verification)'
+    ticket['paid_amount'] = float(order.total_amount)
+    request.session['airlines_passenger_ticket'] = ticket
+    request.session['airlines_payment_confirmed'] = True
+    return redirect('airlines:passenger_payment_confirmation')
 
 
 def complete_passenger_payment(request):
@@ -3874,6 +3988,10 @@ def complete_passenger_payment(request):
         return HttpResponseBadRequest('Choose a valid payment method.')
     if request.POST.get('payment_validated') != '1':
         return HttpResponseBadRequest('Complete payment details before continuing.')
+
+    if ticket.get('is_database'):
+        return _complete_database_passenger_payment(
+            request, ticket, method, method_labels[method])
 
     # This project simulates payment. Card number, expiry, CVV, and address
     # fields are never named in the form and are never received by this view.

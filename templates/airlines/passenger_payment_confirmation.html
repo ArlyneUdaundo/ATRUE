@@ -17,21 +17,37 @@
     <main class="fp-confirm">
         <section class="fp-confirm__card">
             <span class="fp-confirm__icon"><i class="fas fa-check"></i></span>
+            {% if ticket.is_database %}
+            <p class="fp-confirm__eyebrow">ATRUE FLIGHTS</p>
+            <h1>Payment submitted!</h1>
+            <p class="fp-confirm__lead">Your flight booking has been submitted for payment verification.</p>
+            <div class="fp-confirm__notice"><i class="fas fa-circle-info"></i><span>Your booking is pending Billing Officer confirmation. The airline reservation officer will confirm it once payment is verified.</span></div>
+            <div class="fp-confirm__reference"><span>Booking reference</span><strong>{{ ticket.booking_reference }}</strong></div>
+            {% else %}
             <p class="fp-confirm__eyebrow">ATRUE FLIGHTS · SIMULATION</p>
             <h1>Payment Successful!</h1>
             <p class="fp-confirm__lead">Your flight booking has been confirmed in this project simulation.</p>
             <div class="fp-confirm__notice"><i class="fas fa-circle-info"></i><span>No real payment was processed and no airline reservation was created.</span></div>
             <div class="fp-confirm__reference"><span>Mock booking reference</span><strong>{{ ticket.booking_reference }}</strong></div>
+            {% endif %}
             <div class="fp-confirm__details">
                 <div><span>Flight</span><b>{{ ticket.flight.airline }} · {{ ticket.flight.number }}</b></div>
                 <div><span>Route</span><b>{{ ticket.flight.origin_code }} → {{ ticket.flight.destination_code }}</b></div>
                 <div><span>Travel date</span><b>{{ ticket.flight.departure_date }}</b></div>
                 <div><span>Passengers</span><b>{% for passenger in ticket.passengers %}{{ passenger.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</b></div>
                 <div><span>Payment method</span><b>{{ ticket.payment_method }}</b></div>
+                {% if ticket.is_database %}
+                <div><span>Amount submitted</span><b>₱{{ ticket.fare.total|floatformat:2 }}</b></div>
+                {% else %}
                 <div><span>Amount paid (simulated)</span><b>₱{{ ticket.fare.total|floatformat:2 }}</b></div>
+                {% endif %}
             </div>
             <div class="fp-confirm__actions">
+                {% if ticket.is_database %}
+                <a class="fp-confirm__primary" href="{% url 'airlines:booking_detail' ticket.booking_id %}"><i class="fas fa-ticket"></i> View Booking Details</a>
+                {% else %}
                 <a class="fp-confirm__primary" href="{% url 'airlines:passenger_ticket' %}"><i class="fas fa-ticket"></i> View Booking Details</a>
+                {% endif %}
                 <a class="fp-confirm__secondary" href="{% url 'home' %}"><i class="fas fa-house"></i> Return to Home</a>
             </div>
         </section>
