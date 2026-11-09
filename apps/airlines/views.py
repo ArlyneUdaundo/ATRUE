@@ -3226,12 +3226,12 @@ def passenger_details(request):
             legs = [flight]
             first = last = flight
             route_scope = route_scope_for_legs(legs) or flight.flight_classification
+            duration = flight.segment_duration_minutes
+            stops = 0
         if route_scope not in (FlightItinerary.RouteScope.DOMESTIC,
                                FlightItinerary.RouteScope.INTERNATIONAL):
             return HttpResponseBadRequest(
                 'Flight classification is unavailable because its airport country data is incomplete.')
-            duration = flight.segment_duration_minutes
-            stops = 0
         return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
         priced_legs = list(legs) + ([return_flight] if return_flight else [])
         common_cabins = set(priced_legs[0].cabin_classes) if priced_legs else set()
