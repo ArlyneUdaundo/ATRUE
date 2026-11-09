@@ -33,7 +33,13 @@
         <div class="booking-billing-stat hbd-stat-balance"><small>{% if is_hotel_booking %}<i class="fas fa-clock"></i>{% endif %} Balance</small><strong>₱ {{ bill.balance_due|floatformat:2 }}</strong></div>
         <div class="booking-billing-stat hbd-stat-verify"><small>{% if is_hotel_booking %}<i class="fas fa-circle-info"></i>{% endif %} Verification</small><strong><span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Verified{% else %}Pending{% endif %}</span></strong></div>
     </div>
-    {% if is_hotel_booking and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="hbd-proceed-payment"><i class="fas fa-credit-card"></i> Proceed to Payment <i class="fas fa-chevron-right"></i></a>{% endif %}
+    {% if is_hotel_booking and bill.balance_due > 0 %}
+        {% if bill.customer_id == request.user.id %}
+        <a href="{% url 'transactions:bill_detail' bill.id %}" class="hbd-proceed-payment"><i class="fas fa-credit-card"></i> Proceed to Payment <i class="fas fa-chevron-right"></i></a>
+        {% else %}
+        <span class="hbd-proceed-payment is-disabled" aria-disabled="true" title="Only the bill's customer can submit payment"><i class="fas fa-credit-card"></i> Proceed to Payment <i class="fas fa-lock"></i></span>
+        {% endif %}
+    {% endif %}
     {% else %}
     <div class="empty"><h3>No bill generated</h3></div>
     {% endif %}

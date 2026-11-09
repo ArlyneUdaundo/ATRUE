@@ -57,6 +57,7 @@
 .hbd-stat-verify .badge { font-size: 10px; }
 .hbd-proceed-payment { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 43px; margin-top: 13px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(110deg,#103764,#174a81); color: #fff; font-size: 11px; font-weight: 800; text-decoration: none; }
 .hbd-proceed-payment i:last-child { margin-left: auto; }.hbd-proceed-payment:hover { background: #0c2d55; }
+.hbd-proceed-payment.is-disabled { background: #8b9aad; cursor: not-allowed; }
 .hbd-billing-wrap h4 { color: #274666; font-size: 12px; }
 .hbd-billing-wrap .empty { padding: 16px; }
 .hbd-page > .hbd-main-grid + .card { margin-top: 16px !important; }
