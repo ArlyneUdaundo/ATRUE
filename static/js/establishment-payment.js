@@ -61,7 +61,7 @@
     }
     var totalDisplay = document.getElementById('epTotalDue');
     if (totalDisplay) totalDisplay.textContent = amount;
-    var action = payLater && payLater.checked ? 'Save Booking · ' : 'Confirm Payment · ';
+    var action = payLater && payLater.checked ? 'Save Booking · ' : 'Confirm to Pay · ';
     confirmButton.querySelector('span').textContent = action + amount;
   }
 

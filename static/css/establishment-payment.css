@@ -12,7 +12,7 @@
 .ep-method { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 50px; padding: 8px 10px; border: 1px solid #e3eaf2; border-radius: 11px; background: #fff; color: #3f5369; font-size: 12px; font-weight: 750; cursor: pointer; transition: border-color .16s ease, background .16s ease, box-shadow .16s ease; }
 .ep-method:hover { border-color: #9fc3e8; }
 .ep-method.is-selected { border-color: #438de0; background: #eff7ff; color: #174d85; box-shadow: 0 0 0 2px rgba(54,132,213,.08); }
-.ep-method input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.ep-method input { position: static; flex: none; width: 17px; height: 17px; margin: 0; accent-color: #2678ca; opacity: 1; cursor: pointer; }
 .ep-method:focus-within { outline: 2px solid #3485d8; outline-offset: 2px; }
 .ep-method-icon { display: grid; place-items: center; flex: none; width: 31px; height: 31px; border-radius: 9px; background: #f1f6fc; color: #3175bd; font-size: 14px; }
 .ep-method-check { margin-left: auto; color: #2d80d4; font-size: 15px; opacity: 0; }

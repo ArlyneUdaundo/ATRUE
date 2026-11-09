@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}Payment — {{ payment_summary.establishment_name }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/establishment-payment.css' %}?v=20261109-3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/establishment-payment.css' %}?v=20261109-4">{% endblock %}
 
 {% block content %}
 <div class="page-head ep-page-head">
@@ -16,19 +16,19 @@
     <section class="ep-panel ep-methods" aria-labelledby="epMethodsTitle">
         <div class="ep-panel-title"><span class="ep-step">1</span><div><h2 id="epMethodsTitle">Payment method</h2><p>Choose one option</p></div></div>
         <div class="ep-method-list" role="radiogroup" aria-labelledby="epMethodsTitle">
-            <label class="ep-method is-selected"><input type="radio" name="payment_method" value="GCASH" checked {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-gcash"><i class="fas fa-mobile-screen-button"></i></span><span>GCash</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="MAYA" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-maya"><i class="fas fa-wallet"></i></span><span>Maya</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="BANK_TRANSFER" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-bank"><i class="fas fa-building-columns"></i></span><span>Bank Transfer</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="CREDIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Credit Card</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="DEBIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Debit Card</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="PAYPAL" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-paypal"><i class="fab fa-paypal"></i></span><span>PayPal</span><i class="fas fa-circle-check ep-method-check"></i></label>
-            <label class="ep-method"><input type="radio" name="payment_method" value="QR_PH" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-qr"><i class="fas fa-qrcode"></i></span><span>QR Ph</span><i class="fas fa-circle-check ep-method-check"></i></label>
+            <label class="ep-method is-selected"><input type="radio" name="payment_method" value="GCASH" checked {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-gcash"><i class="fas fa-mobile-screen-button"></i></span><span>GCash</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="MAYA" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-maya"><i class="fas fa-wallet"></i></span><span>Maya</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="BANK_TRANSFER" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-bank"><i class="fas fa-building-columns"></i></span><span>Bank Transfer</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="CREDIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Credit Card</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="DEBIT_CARD" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-card"><i class="fas fa-credit-card"></i></span><span>Debit Card</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="PAYPAL" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-paypal"><i class="fab fa-paypal"></i></span><span>PayPal</span></label>
+            <label class="ep-method"><input type="radio" name="payment_method" value="QR_PH" {% if has_pending_payment or bill.balance_due <= 0 %}disabled{% endif %}><span class="ep-method-icon ep-qr"><i class="fas fa-qrcode"></i></span><span>QR Ph</span></label>
         </div>
         <div class="ep-training-note"><i class="fas fa-circle-info"></i><span>Simulation only. No real payment details are accepted.</span></div>
     </section>
 
     <section class="ep-panel ep-details" aria-labelledby="epDetailsTitle">
-        <div class="ep-panel-title"><span class="ep-step">2</span><div><h2 id="epDetailsTitle">Payment information</h2><p id="epMethodHint">Enter the details for your selected method.</p></div></div>
+        <div class="ep-panel-title"><span class="ep-step">2</span><div><h2 id="epDetailsTitle">Payer information</h2><p id="epMethodHint">Enter the details for your selected method.</p></div></div>
         {% if has_pending_payment %}
         <div class="ep-state-message"><i class="fas fa-clock"></i><div><b>Payment submitted</b><p>Your payment is pending Billing Officer confirmation. It will not count as paid until confirmed.</p></div></div>
         {% elif bill.balance_due > 0 %}
@@ -40,7 +40,7 @@
     </section>
 
     <aside class="ep-panel ep-summary" aria-labelledby="epSummaryTitle">
-        <div class="ep-panel-title"><span class="ep-step">3</span><div><h2 id="epSummaryTitle">Booking summary</h2><p>{{ payment_summary.establishment_name }}</p></div></div>
+        <div class="ep-panel-title"><span class="ep-step">3</span><div><h2 id="epSummaryTitle">Confirm to pay</h2><p>Review your booking and amount</p></div></div>
         <div class="ep-establishment">
             {% if payment_summary.establishment_image %}<img src="{{ payment_summary.establishment_image }}" alt="{{ payment_summary.establishment_name }}" class="ep-establishment-image">{% else %}<div class="ep-establishment-placeholder" aria-label="Establishment image unavailable"><i class="fas fa-building"></i></div>{% endif %}
             <div><span class="ep-summary-kicker">Selected establishment</span><b>{{ payment_summary.establishment_name }}</b></div>
@@ -67,7 +67,7 @@
         {% if has_pending_payment %}
         <button type="button" class="ep-confirm" disabled><i class="fas fa-clock"></i><span>Waiting for Payment Verification</span></button>
         {% elif bill.balance_due > 0 %}
-        <button type="submit" class="ep-confirm" id="epConfirm"><i class="fas fa-lock"></i><span>Confirm Payment · ₱ {{ bill.balance_due|floatformat:2 }}</span></button>
+        <button type="submit" class="ep-confirm" id="epConfirm"><i class="fas fa-lock"></i><span>Confirm to Pay · ₱ {{ bill.balance_due|floatformat:2 }}</span></button>
         {% else %}
         <button type="button" class="ep-confirm" disabled><i class="fas fa-circle-check"></i><span>Bill Fully Settled</span></button>
         {% endif %}
@@ -108,5 +108,5 @@
 
 <div class="ep-page-links"><a href="{% url 'transactions:list' %}" class="btn btn-outline">Back to transactions</a><a href="{% url 'transactions:additional_add' %}" class="btn btn-outline">All additional transactions</a></div>
 
-<script src="{% static 'js/establishment-payment.js' %}?v=20261109-3" defer></script>
+<script src="{% static 'js/establishment-payment.js' %}?v=20261109-4" defer></script>
 {% endblock %}
