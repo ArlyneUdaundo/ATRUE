@@ -1179,3 +1179,92 @@ body.rm-lightbox-open { overflow: hidden !important; }
 }
 
 
+/* Four-column service and amenity choices, with compact, wrapping labels. */
+#guestModal .bk-extras-section,
+#guestModal .bk-extras-content,
+#guestModal .bk-services-grid,
+#guestModal .bk-amenities-grid { min-width: 0; max-width: 100%; box-sizing: border-box; }
+#guestModal .bk-guest-extras { display: block; min-width: 0; max-width: 100%; }
+#guestModal .bk-guest-extras > summary { max-width: 100%; overflow-wrap: anywhere; }
+#guestModal .bk-guest-extras [data-extras-options] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px 12px;
+    width: 100%;
+    min-width: 0;
+}
+#guestModal .bk-guest-extras [data-extras-options] > small { grid-column: 1 / -1; }
+#guestModal .bk-guest-extras [data-extras-options] label.checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+#guestModal .bk-guest-extras [data-extras-options] label.checkbox input {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 1px 0 0;
+    accent-color: #2476ce;
+}
+#guestModal .bk-services-grid,
+#guestModal .bk-amenities-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+#guestModal .bk-service-card {
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    min-width: 0;
+    padding: 8px;
+}
+#guestModal .bk-service-icon { display: none; }
+#guestModal .bk-service-check { grid-column: 1; grid-row: 1; width: 16px; height: 16px; margin-top: 1px; font-size: 9px; }
+#guestModal .bk-service-copy { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+#guestModal .bk-service-copy > b { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+#guestModal .bk-service-copy > small { display: block; overflow: visible; -webkit-line-clamp: unset; overflow-wrap: anywhere; }
+#guestModal .bk-service-price { display: block; margin-top: 2px; white-space: normal; overflow-wrap: anywhere; }
+#guestModal .bk-service-price small { display: inline; white-space: normal; }
+#guestModal .bk-amenity-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #2c4059;
+    cursor: pointer;
+}
+#guestModal .bk-amenity-option:hover { background: #f5f9ff; border-color: #e0e9f3; }
+#guestModal .bk-amenity-option.is-selected { background: #f0f7ff; border-color: #b8d4f2; }
+#guestModal .bk-amenity-option input {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 1px 0 0;
+    accent-color: #2476ce;
+}
+#guestModal .bk-amenity-option-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#guestModal .bk-amenity-option-copy b { font-size: 11px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
+#guestModal .bk-amenity-option-copy small { color: #75859a; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+#guestModal .bk-room-feature-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+#guestModal .bk-room-feature-list span { max-width: 100%; padding: 4px 7px; border-radius: 7px; background: #f6f9fd; color: #65778d; font-size: 10px; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #guestModal .bk-services-grid,
+    #guestModal .bk-amenities-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    #guestModal .bk-guest-extras [data-extras-options] { grid-template-columns: minmax(0, 1fr); }
+    #guestModal .bk-services-grid,
+    #guestModal .bk-amenities-grid { grid-template-columns: minmax(0, 1fr); }
+}
