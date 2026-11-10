@@ -2720,6 +2720,7 @@ def flight_detail(request, flight_id):
             'airline', 'aircraft__aircraft_type__manufacturer',
             'aircraft__seat_layout__aircraft_type__manufacturer',
             'airline__default_aircraft_type__manufacturer',
+            'origin_airport', 'destination_airport',
         ).prefetch_related('bookings'),
         flight_id)
     # A leg of a connecting journey is one row of a bigger journey, so opening
@@ -2732,6 +2733,63 @@ def flight_detail(request, flight_id):
         return redirect('airlines:itinerary_detail', flight.itinerary.pk)
     remaining = flight.capacity - _booked_seats(flight)
     active_assignment = getattr(request, 'active_simulation_assignment', None)
+    can_manage_airline = (
+        can_access_module(request.user, 'airlines')
+        and active_assignment is None
+    )
+    if can_manage_airline:
+        timing = itinerary_timing([flight])
+        route_points = [
+            {
+                'code': (
+                    flight.origin_airport.code if flight.origin_airport_id
+                    else flight.origin_code or flight.origin
+                ),
+                'city': (
+                    flight.origin_airport.city if flight.origin_airport_id
+                    else flight.origin_municipality or flight.origin
+                ),
+            },
+            {
+                'code': (
+                    flight.destination_airport.code
+                    if flight.destination_airport_id
+                    else flight.destination_code or flight.destination
+                ),
+                'city': (
+                    flight.destination_airport.city
+                    if flight.destination_airport_id
+                    else flight.destination_municipality or flight.destination
+                ),
+            },
+        ]
+        schedule_active = flight.status in (
+            Flight.Status.SCHEDULED, Flight.Status.DELAYED
+        )
+        return render(request, 'airlines/itinerary_detail.html', {
+            'flight': flight,
+            'timing': timing,
+            'first_leg': flight,
+            'last_leg': flight,
+            'remaining': remaining,
+            'route_points': route_points,
+            'schedule_route_label': flight.leg_label,
+            'schedule_airline': flight.airline,
+            'schedule_stops': 0,
+            'schedule_segment_count': 1,
+            'schedule_duration_label': timing['total_label'],
+            'schedule_active': schedule_active,
+            'schedule_status_label': (
+                'Active' if schedule_active else flight.get_status_display()
+            ),
+            'aircraft_label': (
+                flight.aircraft.model_name if flight.aircraft_id
+                else 'Not assigned'
+            ),
+            'schedule_edit_url': reverse(
+                'airlines:update_flight', args=[flight.id]
+            ),
+        })
     return render(request, 'airlines/flight_detail.html', {
         'flight': flight,
         'remaining': remaining,
@@ -2743,10 +2801,7 @@ def flight_detail(request, flight_id):
             and resource_is_bookable(flight)
             and flight.status in (Flight.Status.SCHEDULED, Flight.Status.DELAYED)
         ),
-        'can_manage_airline': (
-            can_access_module(request.user, 'airlines')
-            and active_assignment is None
-        ),
+        'can_manage_airline': can_manage_airline,
     })
 
 
@@ -2830,6 +2885,16 @@ def itinerary_detail(request, itinerary_id):
         'itinerary_active': itinerary_active,
         'itinerary_status_label': itinerary_status_label,
         'aircraft_label': aircraft_label,
+        'schedule_route_label': itinerary.route_label,
+        'schedule_airline': itinerary.airline,
+        'schedule_stops': itinerary.stops,
+        'schedule_segment_count': itinerary.segment_count,
+        'schedule_duration_label': timing['total_label'],
+        'schedule_active': itinerary_active,
+        'schedule_status_label': itinerary_status_label,
+        'schedule_edit_url': reverse(
+            'airlines:update_itinerary', args=[itinerary.id]
+        ),
     })
 
 

@@ -1856,6 +1856,11 @@ class NumericFlightNumberSlugTest(TestCase):
         resp = self.client.get(reverse('airlines:flight_detail', args=['098']))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.context['flight'], self.flight)
+        self.assertTemplateUsed(resp, 'airlines/itinerary_detail.html')
+        self.assertContains(resp, 'Flight Information')
+        self.assertContains(resp, 'Journey Timeline')
+        self.assertContains(resp, 'Edit Flight')
+        self.assertNotContains(resp, 'Origin Assistant')
 
     def test_the_slug_wins_over_a_legacy_primary_key_link(self):
         """The same key can be a real pk for a different flight; the canonical

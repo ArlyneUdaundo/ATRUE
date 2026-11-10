@@ -1,6 +1,6 @@
 {% extends 'dashboard_base.html' %}
 
-{% block title %}{{ itinerary.route_label }} — Flight Schedule{% endblock %}
+{% block title %}{{ schedule_route_label }} — Flight Schedule{% endblock %}
 
 {% block content %}
 <style>
@@ -135,18 +135,18 @@
             <p>{% for point in route_points %}{% if not forloop.first %} &bull; {% endif %}{{ point.city }}{% endfor %}</p>
         </div>
         <div class="itinerary-brand">
-            {% include 'airlines/_airline_logo.html' with airline=itinerary.airline logo_class='airline-logo airline-logo--md' %}
+            {% include 'airlines/_airline_logo.html' with airline=schedule_airline logo_class='airline-logo airline-logo--md' %}
         </div>
         <div class="itinerary-stat">
             <i class="fas fa-plane"></i>
-            <div><b>{{ itinerary.stops }} Stop{% if itinerary.stops != 1 %}s{% endif %}</b><span>({{ itinerary.segment_count }} Segments)</span></div>
+            <div><b>{{ schedule_stops }} Stop{% if schedule_stops != 1 %}s{% endif %}</b><span>({{ schedule_segment_count }} Segment{% if schedule_segment_count != 1 %}s{% endif %})</span></div>
         </div>
         <div class="itinerary-stat">
             <i class="far fa-clock"></i>
-            <div><b>Total Duration</b><span>{{ timing.total_label|default:itinerary.total_duration_label }}</span></div>
+            <div><b>Total Duration</b><span>{{ schedule_duration_label }}</span></div>
         </div>
-        <div class="itinerary-status{% if not itinerary_active %} is-inactive{% endif %}">
-            <span><i class="fas {% if itinerary_active %}fa-check-circle{% else %}fa-circle-xmark{% endif %}"></i> {{ itinerary_status_label }}</span>
+        <div class="itinerary-status{% if not schedule_active %} is-inactive{% endif %}">
+            <span><i class="fas {% if schedule_active %}fa-check-circle{% else %}fa-circle-xmark{% endif %}"></i> {{ schedule_status_label }}</span>
         </div>
     </header>
 
@@ -159,11 +159,11 @@
             </div>
             <div class="itinerary-info-item">
                 <span class="itinerary-info-icon"><i class="fas fa-plane-departure"></i></span>
-                <div><small>Departure Airport</small><b>{{ first_leg.origin_airport.airport_name }} ({{ first_leg.origin_airport.code }})</b></div>
+                <div><small>Departure Airport</small><b>{{ first_leg.origin_airport.airport_name|default:first_leg.origin }} ({{ first_leg.origin_airport.code|default:first_leg.origin_code }})</b></div>
             </div>
             <div class="itinerary-info-item">
                 <span class="itinerary-info-icon"><i class="fas fa-plane-arrival"></i></span>
-                <div><small>Arrival Airport</small><b>{{ last_leg.destination_airport.airport_name }} ({{ last_leg.destination_airport.code }})</b></div>
+                <div><small>Arrival Airport</small><b>{{ last_leg.destination_airport.airport_name|default:last_leg.destination }} ({{ last_leg.destination_airport.code|default:last_leg.destination_code }})</b></div>
             </div>
             <div class="itinerary-info-item">
                 <span class="itinerary-info-icon"><i class="fas fa-chair"></i></span>
@@ -184,8 +184,8 @@
                 <div class="itinerary-leg-marker"><i class="fas fa-circle"></i></div>
                 <div class="itinerary-leg-route">
                     <span class="itinerary-segment-tag">Segment {{ forloop.counter }}</span>
-                    <strong>{{ entry.segment.origin_airport.code }} — {{ entry.segment.destination_airport.code }}</strong>
-                    <span>{{ entry.segment.origin_airport.city }} → {{ entry.segment.destination_airport.city }}</span>
+                    <strong>{{ entry.segment.origin_airport.code|default:entry.segment.origin_code|default:entry.segment.origin }} — {{ entry.segment.destination_airport.code|default:entry.segment.destination_code|default:entry.segment.destination }}</strong>
+                    <span>{{ entry.segment.origin_airport.city|default:entry.segment.origin }} → {{ entry.segment.destination_airport.city|default:entry.segment.destination }}</span>
                     <span>{{ entry.departure_local|date:"M d, Y · H:i" }} {{ entry.segment.departure_timezone }}</span>
                 </div>
                 <div class="itinerary-leg-departure">
@@ -213,7 +213,7 @@
 
     <div class="itinerary-actions">
         <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Schedules</a>
-        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-pen"></i> Edit Flight</a>
+        <a href="{{ schedule_edit_url }}" class="btn btn-brand" data-establishment-create><i class="fas fa-pen"></i> Edit Flight</a>
     </div>
 </div>
 {% endblock %}
