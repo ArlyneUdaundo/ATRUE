@@ -319,6 +319,12 @@ def home(request):
     return render(request, 'home.html', {
         'active_tab': tab,
         'search_q': q,
+        'search_query': q or location_display(
+            loc_province, loc_municipality, loc_barangay, loc_country
+        ),
+        'search_active': bool(
+            q or loc_country or loc_province or loc_municipality or loc_barangay
+        ),
         'search_errors': search_errors,
         'hotels': shown['hotels'],
         'resorts': shown['resorts'],
@@ -328,6 +334,12 @@ def home(request):
         'activities': shown['activities'],
         'packages': shown['packages'],
         'flights': shown['flights'],
+        'featured_flights': shown['flights'],
+        'featured_hotels': shown['hotels'],
+        'featured_resorts': shown['resorts'],
+        'featured_staycations': shown['staycations'],
+        'featured_activities': shown['activities'],
+        'featured_packages': shown['packages'],
         'show': show,
         'selected_destination':selected_destination,
         'search_today':date.today().isoformat(),

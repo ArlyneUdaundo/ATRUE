@@ -331,6 +331,21 @@ class DestinationPageTests(TestCase):
         self.assertNotContains(response, 'data-destination="Example Country"')
         self.assertNotContains(response, 'data-destination="Closed City"')
 
+    def test_home_hides_featured_listings_until_a_search_is_active(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Featured right now,")
+        self.assertNotContains(response, "No flights available yet.")
+
+    def test_home_keeps_search_results_section_for_active_searches(self):
+        response = self.client.get(reverse("home"), {"q": "Cebu"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Search results")
+        self.assertContains(response, "Results for")
+        self.assertNotContains(response, "No flights available yet.")
+
     def test_destination_shows_live_service_sections_and_real_search_links(self):
         response = Client().get(reverse("destination_detail", args=["palawan"]))
 

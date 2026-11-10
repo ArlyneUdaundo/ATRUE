@@ -1546,6 +1546,7 @@
 </section>
 
 <!-- ===================== LIVE LISTINGS ===================== -->
+{% if search_active %}
 <section class="hm-section alt" id="live">
     <div class="container">
         <div class="hm-head" data-reveal>
@@ -1561,7 +1562,7 @@
             {% endif %}
         </div>
 
-        {% if show_flights %}
+        {% if show_flights and featured_flights %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(135deg,#1d4ed8,#38bdf8)"><i class="fas fa-plane-departure"></i></span>
@@ -1592,7 +1593,7 @@
         </div>
         {% endif %}
 
-        {% if show_hotels %}
+        {% if show_hotels and featured_hotels %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(150deg,#1e40af,#60a5fa)"><i class="fas fa-hotel"></i></span>
@@ -1623,7 +1624,7 @@
         </div>
         {% endif %}
 
-        {% if show_resorts %}
+        {% if show_resorts and featured_resorts %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"><i class="fas fa-umbrella-beach"></i></span>
@@ -1654,7 +1655,7 @@
         </div>
         {% endif %}
 
-        {% if show_staycations %}
+        {% if show_staycations and featured_staycations %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(150deg,#2563eb,#7dd3fc)"><i class="fas fa-couch"></i></span>
@@ -1685,7 +1686,7 @@
         </div>
         {% endif %}
 
-        {% if show_activities %}
+        {% if show_activities and featured_activities %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(135deg,#0369a1,#38bdf8)"><i class="fas fa-person-hiking"></i></span>
@@ -1715,7 +1716,7 @@
         {% endif %}
 
 
-        {% if show_packages %}
+        {% if show_packages and featured_packages %}
         <div class="hm-live-sec" data-reveal>
             <div class="hm-live-title">
                 <span class="ico" style="background:linear-gradient(150deg,#1e3a8a,#3b82f6)"><i class="fas fa-suitcase-rolling"></i></span>
@@ -1747,6 +1748,7 @@
         {% endif %}
     </div>
 </section>
+{% endif %}
 
 <!-- ===================== ABOUT ===================== -->
 <section class="hm-section" id="about">
@@ -2225,4 +2227,3 @@
 })();
 </script>
 {% endblock %}
-
