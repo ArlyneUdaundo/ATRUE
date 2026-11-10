@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
@@ -110,12 +110,56 @@ class StaycationScopingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Stays')
+        self.assertContains(response, 'data-keep-booking-summary')
         self.assertNotContains(response, '1 Search')
         self.assertNotContains(response, 'id="searchCheckIn"')
         self.assertNotContains(response, 'id="searchCheckOut"')
         self.assertNotContains(response, 'class="ag-search-btn"')
         self.assertContains(response, 'id="bkCheckIn"')
         self.assertContains(response, 'id="bkCheckOut"')
+
+    @override_settings(STORAGES={
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    })
+    def test_booking_flow_submits_to_shared_review_before_payment(self):
+        from datetime import date, timedelta
+
+        from staycations.models import Reservation
+
+        self.student.first_name = 'Ari'
+        self.student.last_name = 'Guest'
+        self.student.contact_number = '09171234567'
+        self.student.save(update_fields=['first_name', 'last_name', 'contact_number'])
+        self._login(self.student)
+        check_in = date.today() + timedelta(days=2)
+        check_out = check_in + timedelta(days=1)
+
+        response = self.client.post(
+            reverse('staycations:flow_select', args=[self.assigned_staycation.pk]),
+            {
+                'check_in': check_in.isoformat(),
+                'check_out': check_out.isoformat(),
+                'item_ids': [str(self.assigned_staycation.pk)],
+                'item_0_first_name': 'Ari',
+                'item_0_last_name': 'Guest',
+                'item_0_contact': '09171234567',
+                'item_0_adults': '1',
+                'item_0_children': '0',
+            },
+        )
+
+        booking = Reservation.objects.get(customer=self.student)
+        self.assertRedirects(
+            response,
+            reverse('establishment_booking_review', args=['staycation', booking.pk]),
+        )
+        review = self.client.get(response.url)
+        self.assertContains(review, 'Review Your Booking')
+        self.assertContains(review, 'Price Breakdown')
+        self.assertContains(review, 'Island Breeze')
+        self.assertContains(review, 'Ari Guest')
 
     def test_booking_filters_omit_staycation_and_fit_two_rows(self):
         self._login(self.instructor)

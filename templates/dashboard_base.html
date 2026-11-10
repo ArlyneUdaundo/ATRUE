@@ -405,7 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Keep establishment booking details and the confirmation summary on separate steps.
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.ag-booking').forEach(function (flow) {
-        if (flow.classList.contains('landtransport-booking-flow') ||
+        if (flow.hasAttribute('data-keep-booking-summary') ||
+            flow.classList.contains('landtransport-booking-flow') ||
             flow.classList.contains('resort-unit-selection-flow') ||
             flow.querySelector('[data-booking-summary-step]') ||
             flow.querySelector('[data-compare-book]')) return;
@@ -552,5 +553,4 @@ document.addEventListener('DOMContentLoaded', function () {
     </script>
 </body>
 </html>
-
 
