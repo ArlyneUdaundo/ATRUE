@@ -2453,6 +2453,7 @@ class ConnectingItineraryPagesTest(TestCase):
         self.assertIn('5J711', body)
         self.assertIn('5J712', body)
         self.assertIn('14h', body)
+        self.assertNotIn('Book Itinerary', body)
 
     def test_a_manager_cannot_be_bought_a_ticket_for_someone_elses_passenger(self):
         """The manager page is not a booking page."""

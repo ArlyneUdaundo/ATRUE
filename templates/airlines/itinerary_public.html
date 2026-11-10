@@ -10,9 +10,6 @@
            {{ timing.total_label }} door to door.</p>
     </div>
     <div style="display:flex;gap:10px">
-        {% if not request.user.is_airline_booking_restricted %}
-        <a href="{% url 'airlines:book_itinerary' itinerary.id %}" class="btn btn-brand"><i class="fas fa-ticket-alt"></i> Book Itinerary</a>
-        {% endif %}
         <a href="{% url 'airlines:list' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Flights</a>
     </div>
 </div>
@@ -107,8 +104,5 @@ DXB, so the page is that journey and nothing else.
             </tbody>
         </table>
     </div>
-    {% if not request.user.is_airline_booking_restricted %}
-    <a href="{% url 'airlines:book_itinerary' itinerary.id %}" class="btn btn-brand" style="margin-top:14px"><i class="fas fa-ticket-alt"></i> Book Itinerary</a>
-    {% endif %}
 </div>
 {% endblock %}
