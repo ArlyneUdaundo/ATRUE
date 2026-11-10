@@ -1,129 +1,219 @@
 {% extends 'dashboard_base.html' %}
 
-{% block title %}{{ itinerary.itinerary_reference }} — {{ itinerary.route_label }}{% endblock %}
+{% block title %}{{ itinerary.route_label }} — Flight Schedule{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div>
-        <h1>{{ itinerary.route_label }} <span class="badge badge-blue" style="font-size:13px">{{ itinerary.itinerary_reference }}</span></h1>
-        <p>{{ itinerary.airline.name }} · {{ itinerary.stops_label }} · {{ itinerary.segment_count }} segments ·
-           {{ timing.total_label }} door to door{% if itinerary.operating_days %} · {{ itinerary.operating_days }}{% endif %} (FR-017).</p>
-    </div>
-    <div style="display:flex;gap:10px">
-        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-ghost" data-establishment-create><i class="fas fa-edit"></i> Edit Journey</a>
-        <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
-    </div>
-</div>
+<style>
+    .itinerary-view { display: grid; gap: 12px; }
+    .itinerary-overview,
+    .itinerary-panel {
+        overflow: hidden;
+        border: 1px solid #d6e5ff;
+        border-radius: 16px;
+        background: linear-gradient(115deg, #fff 0%, #f7faff 100%);
+        box-shadow: 0 8px 24px rgba(37, 99, 235, .07);
+    }
+    .itinerary-overview {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.5fr) minmax(120px, .85fr) repeat(3, minmax(130px, 1fr));
+        align-items: center;
+        padding: 14px 18px;
+    }
+    .itinerary-overview > div {
+        min-width: 0;
+        min-height: 48px;
+        padding: 0 16px;
+        border-right: 1px solid #dbe7fb;
+    }
+    .itinerary-overview > div:first-child { padding-left: 0; }
+    .itinerary-overview > div:last-child { padding-right: 0; border-right: 0; }
+    .itinerary-route h1 { margin: 0; color: #14284f; font-size: clamp(20px, 2.2vw, 28px); }
+    .itinerary-route p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+    .itinerary-brand { display: flex; justify-content: center; align-items: center; }
+    .itinerary-stat { display: flex; align-items: center; gap: 11px; color: #1354bd; }
+    .itinerary-stat > i { font-size: 20px; }
+    .itinerary-stat b, .itinerary-stat span { display: block; }
+    .itinerary-stat b { color: #1e3155; font-size: 13px; }
+    .itinerary-stat span { margin-top: 3px; color: #64748b; font-size: 12px; }
+    .itinerary-status { display: flex; justify-content: center; }
+    .itinerary-status span { padding: 7px 14px; border-radius: 999px; background: #dcf5e8; color: #07834a; font-size: 12px; font-weight: 700; }
+    .itinerary-status.is-inactive span { background: #fee2e2; color: #b42318; }
+    .itinerary-panel h2 {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e3ecfa;
+        color: #19345f;
+        font-size: 15px;
+    }
+    .itinerary-panel h2 i { color: #1c63d5; }
+    .itinerary-info {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        padding: 10px 6px;
+    }
+    .itinerary-info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        min-width: 0;
+        padding: 8px 12px;
+        border-right: 1px solid #e3ecfa;
+    }
+    .itinerary-info-item:last-child { border-right: 0; }
+    .itinerary-info-icon {
+        display: grid;
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 50%;
+        background: #e3efff;
+        color: #1b61cc;
+    }
+    .itinerary-info-item small,
+    .itinerary-info-item b { display: block; }
+    .itinerary-info-item small { margin: 2px 0 5px; color: #64748b; font-size: 11px; }
+    .itinerary-info-item b { color: #1e3155; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+    .itinerary-timeline { padding: 9px 14px 12px; }
+    .itinerary-leg {
+        display: grid;
+        grid-template-columns: 34px minmax(180px, 1.05fr) minmax(210px, 1fr) minmax(150px, .55fr);
+        align-items: center;
+        gap: 12px;
+        min-height: 83px;
+        padding: 8px 0;
+    }
+    .itinerary-leg-marker { align-self: stretch; position: relative; display: flex; justify-content: center; }
+    .itinerary-leg-marker::before { position: absolute; top: 0; bottom: 0; width: 2px; background: #8db4f5; content: ""; }
+    .itinerary-leg:first-child .itinerary-leg-marker::before { top: 50%; }
+    .itinerary-leg:last-of-type .itinerary-leg-marker::before { bottom: 50%; }
+    .itinerary-leg-marker i { z-index: 1; align-self: center; padding: 3px; border: 2px solid #1555b5; border-radius: 50%; background: #fff; color: #1555b5; font-size: 10px; }
+    .itinerary-leg-route { min-width: 0; padding: 4px 10px; border-left: 1px solid #e0eaf8; }
+    .itinerary-segment-tag { display: inline-block; margin-bottom: 4px; padding: 3px 9px; border-radius: 999px; background: #153d7c; color: #fff; font-size: 10px; font-weight: 700; }
+    .itinerary-leg-route strong { display: block; color: #14284f; font-size: 16px; }
+    .itinerary-leg-route span { display: block; margin-top: 2px; color: #64748b; font-size: 12px; }
+    .itinerary-leg-departure { color: #1e3155; font-size: 12px; line-height: 1.55; }
+    .itinerary-leg-departure b { display: block; margin-bottom: 2px; }
+    .itinerary-leg-arrival { color: #64748b; font-size: 11px; }
+    .itinerary-leg-duration { justify-self: stretch; padding: 7px 10px; border-radius: 999px; background: #e2edff; color: #183966; text-align: center; }
+    .itinerary-leg-duration b { display: block; font-size: 13px; }
+    .itinerary-leg-duration span { display: block; margin-top: 3px; font-size: 10px; }
+    .itinerary-layover { margin: 0 0 2px 34px; padding: 7px 12px; border-radius: 999px; background: #e2edff; color: #28466f; text-align: center; font-size: 11px; }
+    .itinerary-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    @media (max-width: 950px) {
+        .itinerary-overview { grid-template-columns: 1.5fr 1fr 1fr; row-gap: 12px; }
+        .itinerary-overview > div:nth-child(3) { border-right: 0; }
+        .itinerary-info { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .itinerary-info-item:nth-child(3) { border-right: 0; }
+        .itinerary-leg { grid-template-columns: 28px minmax(150px, 1fr) minmax(190px, 1fr); }
+        .itinerary-leg-duration { grid-column: 2 / -1; justify-self: start; min-width: 140px; }
+    }
+    @media (max-width: 600px) {
+        .itinerary-overview { grid-template-columns: 1fr 1fr; padding: 13px; }
+        .itinerary-overview > div { padding: 0 8px; }
+        .itinerary-overview > div:nth-child(2), .itinerary-overview > div:nth-child(4) { border-right: 0; }
+        .itinerary-overview > div:nth-child(3) { border-right: 1px solid #dbe7fb; }
+        .itinerary-overview > div:last-child { justify-content: flex-start; }
+        .itinerary-brand { justify-content: flex-start; }
+        .itinerary-info { grid-template-columns: 1fr 1fr; }
+        .itinerary-info-item { border-right: 0; border-bottom: 1px solid #e3ecfa; }
+        .itinerary-info-item:nth-last-child(-n+2) { border-bottom: 0; }
+        .itinerary-leg { grid-template-columns: 24px 1fr; gap: 7px; padding: 10px 0; }
+        .itinerary-leg-departure, .itinerary-leg-duration { grid-column: 2; }
+        .itinerary-leg-duration { justify-self: start; }
+        .itinerary-actions { flex-wrap: wrap; }
+    }
+</style>
 
-<div class="card card-pad" style="margin-bottom:18px">
-    <div class="grid-2">
-        <div class="meta"><i class="fas fa-plane-departure"></i> <b>Departs:</b> {{ itinerary.departure_time|date:"M d, Y H:i" }} <span class="badge badge-gray">{{ itinerary.origin_airport.timezone|default:"UTC" }}</span></div>
-        <div class="meta"><i class="fas fa-plane-arrival"></i> <b>Arrives:</b> {{ itinerary.arrival_time|date:"M d, Y H:i" }} <span class="badge badge-gray">{{ itinerary.destination_airport.timezone|default:"UTC" }}</span></div>
-        <div class="meta"><i class="fas fa-route"></i> <b>Route:</b> {{ itinerary.route_label }} · <b>Scope:</b> {{ itinerary.get_route_scope_display }}</div>
-        <div class="meta"><i class="fas fa-chair"></i> <b>Seats left:</b> {{ remaining }} on the tightest leg</div>
-        <div class="meta"><i class="fas fa-money-bill"></i> <b>Total price:</b> ₱ {{ itinerary.total_price }} · <b>Base:</b> ₱ {{ itinerary.base_fare }}</div>
-        <div class="meta"><i class="fas fa-cog"></i> <b>Status:</b> <span class="badge {% if itinerary.status == 'SCHEDULED' %}badge-green{% elif itinerary.status == 'DELAYED' %}badge-amber{% elif itinerary.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ itinerary.get_status_display }}</span> · <b>Bookable:</b> {{ itinerary.booking_available|yesno:"Yes,No" }}</div>
-        <div class="meta"><i class="fas fa-arrows-rotate"></i> <b>Connection window:</b> min {{ itinerary.min_connection_minutes }} min{% if itinerary.max_connection_minutes %} · max {{ itinerary.max_connection_minutes }} min{% else %} · no upper limit{% endif %}</div>
-        <div class="meta"><i class="fas fa-suitcase"></i> <b>Baggage:</b> ₱ {{ itinerary.baggage_rate }}/kg · <b>Advance booking:</b> {{ itinerary.min_advance_booking_hours }}h</div>
-    </div>
-</div>
-
-<div class="card card-pad" style="margin-bottom:18px">
-    <h3 style="margin:0 0 12px"><i class="fas fa-sitemap"></i> Journey Timeline</h3>
-    {% for entry in timing.legs %}
-    <div style="border-left:3px solid #2563eb;padding:0 0 0 16px;margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-            <b>Segment {{ forloop.counter }} — <a href="{% url 'airlines:flight_detail' entry.segment.slug %}">{{ entry.segment.flight_number }}</a></b>
-            <span class="badge badge-blue">{{ entry.label }}</span>
+<div class="itinerary-view">
+    <header class="itinerary-overview">
+        <div class="itinerary-route">
+            <h1>{% for point in route_points %}{% if not forloop.first %} → {% endif %}{{ point.code }}{% endfor %}</h1>
+            <p>{% for point in route_points %}{% if not forloop.first %} &bull; {% endif %}{{ point.city }}{% endfor %}</p>
         </div>
-        <div class="meta" style="margin-top:6px">
-            <i class="fas fa-plane-departure"></i>
-            {{ entry.segment.origin_airport.code }} {{ entry.segment.origin_airport.airport_name }}
-            — {{ entry.departure_local|date:"M d, Y H:i" }} {{ entry.segment.departure_timezone }}
-            {% if entry.segment.terminal %}· Terminal {{ entry.segment.terminal }}{% endif %}
-            {% if entry.segment.gate %}· Gate {{ entry.segment.gate }}{% endif %}
+        <div class="itinerary-brand">
+            {% include 'airlines/_airline_logo.html' with airline=itinerary.airline logo_class='airline-logo airline-logo--md' %}
         </div>
-        <div class="meta">
-            <i class="fas fa-plane-arrival"></i>
-            {{ entry.segment.destination_airport.code }} {{ entry.segment.destination_airport.airport_name }}
-            — {{ entry.arrival_local|date:"M d, Y H:i" }} {{ entry.segment.arrival_timezone }}
-            {% if entry.segment.arrival_terminal %}· Terminal {{ entry.segment.arrival_terminal }}{% endif %}
-            {% if entry.segment.arrival_gate %}· Gate {{ entry.segment.arrival_gate }}{% endif %}
-        </div>
-        <div class="meta">
+        <div class="itinerary-stat">
             <i class="fas fa-plane"></i>
-            {% if entry.segment.aircraft %}<a href="{% url 'airlines:aircraft_detail' entry.segment.aircraft.id %}">{{ entry.segment.aircraft.model_name }} ({{ entry.segment.aircraft.tail_number }})</a>{% else %}Not assigned{% endif %}
-            · {{ entry.segment.capacity }} seats
-            · Economy ₱ {{ entry.segment.economy_fare }}
-            {% if entry.segment.baggage_claim %}· Baggage claim {{ entry.segment.baggage_claim }}{% endif %}
-            {% if entry.segment.check_in_time %}· Check-in {{ entry.segment.check_in_time }}{% endif %}
-            {% if entry.segment.boarding_time %}· Boarding {{ entry.segment.boarding_time }}{% endif %}
+            <div><b>{{ itinerary.stops }} Stop{% if itinerary.stops != 1 %}s{% endif %}</b><span>({{ itinerary.segment_count }} Segments)</span></div>
         </div>
-    </div>
-    {% if not forloop.last %}
-    {% with layover=timing.layovers|slice:forloop.counter0|last %}
-    <div style="margin:-6px 0 8px 16px;color:#64748b">
-        <i class="fas fa-shoe-prints"></i> Layover at <b>{{ layover.airport.code }} {{ layover.airport.airport_name }}</b> — {{ layover.label }}
-    </div>
-    {% endwith %}
-    {% endif %}
-    {% empty %}
-    <p>No segments on this itinerary yet.</p>
-    {% endfor %}
-</div>
+        <div class="itinerary-stat">
+            <i class="far fa-clock"></i>
+            <div><b>Total Duration</b><span>{{ timing.total_label|default:itinerary.total_duration_label }}</span></div>
+        </div>
+        <div class="itinerary-status{% if not itinerary_active %} is-inactive{% endif %}">
+            <span><i class="fas {% if itinerary_active %}fa-check-circle{% else %}fa-circle-xmark{% endif %}"></i> {{ itinerary_status_label }}</span>
+        </div>
+    </header>
 
-<div class="card card-pad" style="margin-bottom:18px">
-    <h3 style="margin:0 0 12px"><i class="fas fa-money-bill-wave"></i> Price Breakdown</h3>
-    <div class="grid-2">
-        {% for label, amount in itinerary.price_breakdown %}
-        <div class="meta"><i class="fas fa-tag"></i> <b>{{ label }}:</b> ₱ {{ amount }}</div>
-        {% endfor %}
-        <div class="meta"><i class="fas fa-percent"></i> <b>Discount:</b> −₱ {{ itinerary.discount }}</div>
-        <div class="meta"><i class="fas fa-receipt"></i> <b>Total:</b> ₱ {{ itinerary.total_price }}</div>
-    </div>
-    <h3 style="margin:18px 0 8px"><i class="fas fa-chair"></i> Seat Availability by Leg</h3>
-    <div class="table-wrap">
-        <table class="table">
-            <thead><tr><th>Segment</th><th>Flight</th><th>Aircraft</th><th>Capacity</th><th>Remaining</th><th>Cabins</th></tr></thead>
-            <tbody>
-                {% for row in segment_maps %}
-                <tr>
-                    <td>{{ row.flight.segment_order }}</td>
-                    <td class="mono">{{ row.flight.flight_number }}</td>
-                    <td>{{ row.flight.aircraft.model_name|default:"—" }}</td>
-                    <td>{{ row.flight.capacity }}</td>
-                    <td>{{ row.remaining }}</td>
-                    <td>{% for c in row.cabin_classes %}<span class="badge badge-gray">{{ c }}</span> {% endfor %}</td>
-                </tr>
-                {% empty %}<tr><td colspan="6">No segments.</td></tr>{% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+    <section class="itinerary-panel">
+        <h2><i class="fas fa-circle-info"></i> Flight Information</h2>
+        <div class="itinerary-info">
+            <div class="itinerary-info-item">
+                <span class="itinerary-info-icon"><i class="far fa-calendar-alt"></i></span>
+                <div><small>Departure Date</small><b>{{ timing.legs.0.departure_local|date:"M d, Y (D)" }}</b></div>
+            </div>
+            <div class="itinerary-info-item">
+                <span class="itinerary-info-icon"><i class="fas fa-plane-departure"></i></span>
+                <div><small>Departure Airport</small><b>{{ first_leg.origin_airport.airport_name }} ({{ first_leg.origin_airport.code }})</b></div>
+            </div>
+            <div class="itinerary-info-item">
+                <span class="itinerary-info-icon"><i class="fas fa-plane-arrival"></i></span>
+                <div><small>Arrival Airport</small><b>{{ last_leg.destination_airport.airport_name }} ({{ last_leg.destination_airport.code }})</b></div>
+            </div>
+            <div class="itinerary-info-item">
+                <span class="itinerary-info-icon"><i class="fas fa-chair"></i></span>
+                <div><small>Available Seats</small><b>{{ remaining }}</b></div>
+            </div>
+            <div class="itinerary-info-item">
+                <span class="itinerary-info-icon"><i class="fas fa-plane"></i></span>
+                <div><small>Aircraft</small><b>{{ aircraft_label }}</b></div>
+            </div>
+        </div>
+    </section>
 
-<div class="card card-pad">
-    <h3 style="margin:0 0 12px"><i class="fas fa-ticket-alt"></i> Bookings ({{ itinerary.bookings.count }})</h3>
-    <div class="table-wrap">
-        <table class="table">
-            <thead><tr><th>Reference</th><th>Passenger</th><th>Pax</th><th>Seats per leg</th><th>Bill</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-                {% for b in itinerary.bookings.all %}
-                <tr>
-                    <td class="mono">{{ b.booking_reference }}</td>
-                    <td>{{ b.primary_guest_name|default:b.passenger.get_full_name }}</td>
-                    <td>{{ b.passengers_count }}</td>
-                    <td>
-                        {% for s in b.itinerary_seats %}
-                        <div>Seg {{ s.segment_order }}: {{ s.seat_number|default:"—" }}</div>
-                        {% empty %}No seat rows{% endfor %}
-                    </td>
-                    <td>₱ {{ b.total_bill }}</td>
-                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-blue{% endif %}">{{ b.get_status_display }}</span></td>
-                    <td><a href="{% url 'airlines:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
-                </tr>
-                {% empty %}<tr><td colspan="7">No bookings on this itinerary yet.</td></tr>{% endfor %}
-            </tbody>
-        </table>
+    <section class="itinerary-panel">
+        <h2><i class="fas fa-plane"></i> Journey Timeline</h2>
+        <div class="itinerary-timeline">
+            {% for entry in timing.legs %}
+            <article class="itinerary-leg">
+                <div class="itinerary-leg-marker"><i class="fas fa-circle"></i></div>
+                <div class="itinerary-leg-route">
+                    <span class="itinerary-segment-tag">Segment {{ forloop.counter }}</span>
+                    <strong>{{ entry.segment.origin_airport.code }} — {{ entry.segment.destination_airport.code }}</strong>
+                    <span>{{ entry.segment.origin_airport.city }} → {{ entry.segment.destination_airport.city }}</span>
+                    <span>{{ entry.departure_local|date:"M d, Y · H:i" }} {{ entry.segment.departure_timezone }}</span>
+                </div>
+                <div class="itinerary-leg-departure">
+                    <b>Arrives: {{ entry.arrival_local|date:"M d, Y · H:i" }} {{ entry.segment.arrival_timezone }}</b>
+                    {% if entry.segment.arrival_terminal %}<span class="itinerary-leg-arrival"><i class="fas fa-plane-arrival"></i> Terminal {{ entry.segment.arrival_terminal }}</span>{% endif %}
+                    {% if entry.segment.arrival_gate %}<span class="itinerary-leg-arrival"> · Gate {{ entry.segment.arrival_gate }}</span>{% endif %}
+                    <div class="itinerary-leg-arrival"><i class="fas fa-plane"></i> {{ entry.segment.flight_number }} · {% if entry.segment.aircraft %}{{ entry.segment.aircraft.model_name }}{% else %}Aircraft not assigned{% endif %}</div>
+                    {% if entry.segment.terminal or entry.segment.gate %}<div class="itinerary-leg-arrival"><i class="fas fa-plane-departure"></i> {% if entry.segment.terminal %}Terminal {{ entry.segment.terminal }}{% endif %}{% if entry.segment.gate %} · Gate {{ entry.segment.gate }}{% endif %}</div>{% endif %}
+                </div>
+                <div class="itinerary-leg-duration">
+                    <b><i class="far fa-clock"></i> {{ entry.label }}</b>
+                    <span>in the air</span>
+                </div>
+            </article>
+            {% if not forloop.last %}
+            {% with layover=timing.layovers|slice:forloop.counter0|last %}
+            <div class="itinerary-layover"><i class="far fa-clock"></i> Layover: {{ layover.label }} in {{ layover.airport.city }} ({{ layover.airport.code }})</div>
+            {% endwith %}
+            {% endif %}
+            {% empty %}
+            <p>No segments are assigned to this itinerary.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="itinerary-actions">
+        <a href="{% url 'airlines:flights' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Schedules</a>
+        <a href="{% url 'airlines:update_itinerary' itinerary.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-pen"></i> Edit Flight</a>
     </div>
 </div>
 {% endblock %}

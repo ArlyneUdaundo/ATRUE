@@ -2779,17 +2779,57 @@ def itinerary_detail(request, itinerary_id):
     controls for the schedule.
     """
     itinerary = get_object_or_404(
-        FlightItinerary.objects.select_related('airline'), pk=itinerary_id)
-    timing = itinerary.timing
+        FlightItinerary.objects.select_related('airline').prefetch_related(
+            'legs__origin_airport',
+            'legs__destination_airport',
+            'legs__aircraft__aircraft_type__manufacturer',
+        ),
+        pk=itinerary_id,
+    )
+    legs = itinerary.ordered_legs
+    timing = itinerary_timing(legs)
     segment_rows = _itinerary_seat_maps(itinerary)
+    route_points = []
+    if legs:
+        route_points.append({
+            'code': legs[0].origin_airport.code,
+            'city': legs[0].origin_airport.city,
+        })
+        route_points.extend({
+            'code': leg.destination_airport.code,
+            'city': leg.destination_airport.city,
+        } for leg in legs)
+    itinerary_active = (
+        itinerary.status == FlightItinerary.Status.SCHEDULED
+        and itinerary.booking_available
+    )
+    aircraft_labels = {
+        leg.aircraft.model_name for leg in legs if leg.aircraft_id
+    }
+    aircraft_label = (
+        next(iter(aircraft_labels)) if len(aircraft_labels) == 1
+        else 'Multiple aircraft' if aircraft_labels
+        else 'Not assigned'
+    )
+    if itinerary_active:
+        itinerary_status_label = 'Active'
+    elif (itinerary.status == FlightItinerary.Status.SCHEDULED
+          and not itinerary.booking_available):
+        itinerary_status_label = 'Inactive'
+    else:
+        itinerary_status_label = itinerary.get_status_display()
     return render(request, 'airlines/itinerary_detail.html', {
         'itinerary': itinerary,
         'timing': timing,
-        'legs': itinerary.ordered_legs,
-        'first_leg': itinerary.first_leg,
-        'last_leg': itinerary.last_leg,
+        'legs': legs,
+        'route_points': route_points,
+        'first_leg': legs[0] if legs else None,
+        'last_leg': legs[-1] if legs else None,
         'remaining': min([row['remaining'] for row in segment_rows] or [0]),
         'segment_maps': segment_rows,
+        'itinerary_active': itinerary_active,
+        'itinerary_status_label': itinerary_status_label,
+        'aircraft_label': aircraft_label,
     })
 
 

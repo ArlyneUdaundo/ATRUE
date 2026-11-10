@@ -2428,6 +2428,11 @@ class ConnectingItineraryPagesTest(TestCase):
         self.assertIn('5J711', body)
         self.assertIn('5J712', body)
         self.assertIn('1 Stop', body)
+        self.assertIn('MNL → SIN → DXB', body)
+        self.assertIn('Flight Information', body)
+        self.assertIn('Journey Timeline', body)
+        self.assertIn('Edit Flight', body)
+        self.assertNotIn('Delete Flight', body)
 
     def test_a_leg_page_redirects_to_the_journey_not_the_single_leg(self):
         """Opening one leg of a connection and seeing only that leg would invite
