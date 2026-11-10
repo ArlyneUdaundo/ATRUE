@@ -3581,6 +3581,10 @@ class ReservationAgentBookingAccessTests(TestCase):
             list(response.context['airlines'].values_list('pk', flat=True)),
             [self.airline.pk],
         )
+        self.assertNotContains(response, 'am-filter')
+        self.assertNotContains(response, 'Airline ID or name')
+        self.assertNotContains(response, 'name="q"')
+        self.assertNotContains(response, '>Assign</a>')
 
     def test_aircraft_directory_only_shows_aircraft_for_the_assigned_airline(self):
         from establishments.models import establishment_for_instance
