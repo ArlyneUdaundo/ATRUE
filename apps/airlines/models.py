@@ -7,6 +7,7 @@ from django.utils import timezone
 from atrue_core.models import BookingFieldsMixin, BookingStatus
 from airlines.fleet_data import BODY_CLASSES, CABIN_LABELS
 from airlines.itineraries import (
+    DEFAULT_BAGGAGE_RATE,
     DEFAULT_TIMEZONE_FALLBACK as DEFAULT_AIRPORT_TIMEZONE,
     format_duration,
     itinerary_timing,
@@ -863,9 +864,10 @@ class Flight(models.Model):
     premium_economy_fare = models.DecimalField(max_digits=10, decimal_places=2, default=0,
                                                verbose_name="Premium economy fare (₱)")
     economy_fare = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    baggage_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0,
-                                       verbose_name="Baggage rate per kg (₱)",
-                                       help_text="Charge per kilogram of extra baggage")
+    baggage_rate = models.DecimalField(max_digits=10, decimal_places=2,
+                                       verbose_name="Baggage rate per 5 kg (₱)",
+                                       help_text="Charge for each 5 kg block of extra baggage",
+                                       default=DEFAULT_BAGGAGE_RATE)
     status = models.CharField(max_length=10, choices=FLIGHT_STATUS_CHOICES, default='SCHEDULED')
 
     class Meta:
@@ -1203,9 +1205,9 @@ class FlightItinerary(models.Model):
         help_text="Base fare + taxes + airport fees + fuel surcharge + service "
                   "fee - discount, recomputed on every save.")
     baggage_rate = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0,
-        verbose_name="Baggage rate per kg (₱)",
-        help_text="Charge per kilogram of extra baggage on any leg")
+        max_digits=10, decimal_places=2, default=DEFAULT_BAGGAGE_RATE,
+        verbose_name="Baggage rate per 5 kg (₱)",
+        help_text="Charge for each 5 kg block of extra baggage on any leg")
 
     # ---- Booking rules -----------------------------------------------------
     is_refundable = models.BooleanField(default=False)

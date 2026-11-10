@@ -1144,36 +1144,14 @@
     $$('[data-pd-seat-close]').forEach(function (btn) { btn.addEventListener('click', closeSeatModal); });
     $$('[data-pd-confirm-seats]').forEach(function (btn) { btn.addEventListener('click', confirmSeats); });
 
-    // Baggage choices are checkbox rows for clarity, but each row is an
-    // allowance tier. Keep the existing single-tier booking and pricing model.
-    var baggageOptions = $$('[data-pd-baggage-option]');
-    function selectBaggage(input) {
-        baggageOptions.forEach(function (option) {
-            option.checked = option === input;
-        });
-        state.baggageKg = Number(input.value) || 0;
-        state.baggagePrice = Number(input.getAttribute('data-price')) || 0;
+    var baggageSelect = $('[data-pd-baggage-option]');
+    function selectBaggage() {
+        var option = baggageSelect && baggageSelect.options[baggageSelect.selectedIndex];
+        state.baggageKg = Number(baggageSelect && baggageSelect.value) || 0;
+        state.baggagePrice = Number(option && option.getAttribute('data-price')) || 0;
         updateFare();
     }
-    baggageOptions.forEach(function (input) {
-        input.addEventListener('change', function () {
-            if (input.checked) {
-                selectBaggage(input);
-                return;
-            }
-            // Keep a valid no-baggage choice selected if the active tier is
-            // unchecked, so the stored payload always matches the UI.
-            var noBaggage = baggageOptions.find(function (option) {
-                return Number(option.value) === 0;
-            });
-            if (noBaggage) { selectBaggage(noBaggage); }
-            else {
-                state.baggageKg = 0;
-                state.baggagePrice = 0;
-                updateFare();
-            }
-        });
-    });
+    if (baggageSelect) { baggageSelect.addEventListener('change', selectBaggage); }
     var insuranceOptions = $$('[data-pd-insurance-option]');
     insuranceOptions.forEach(function (input) {
         input.addEventListener('change', function () {
@@ -1320,7 +1298,7 @@
             state.passengers[index].classificationTouched = true;
         });
         if (savedDraft.baggage_kg !== undefined) {
-            baggageOptions.forEach(function (option) { option.checked = Number(option.value) === Number(savedDraft.baggage_kg); });
+            if (baggageSelect) { baggageSelect.value = String(savedDraft.baggage_kg); }
         }
         if (savedDraft.insurance_key) {
             insuranceOptions.forEach(function (option) { option.checked = option.value === savedDraft.insurance_key; });
@@ -1340,11 +1318,7 @@
     setFlightType(root.dataset.defaultFlightType || 'DOMESTIC');
     rebuildPassengers();
     syncCountInputs();
-    var initialBaggage = baggageOptions.find(function (option) { return option.checked; });
-    if (initialBaggage) {
-        state.baggageKg = Number(initialBaggage.value) || 0;
-        state.baggagePrice = Number(initialBaggage.getAttribute('data-price')) || 0;
-    }
+    if (baggageSelect) { selectBaggage(); }
     var initialInsurance = insuranceOptions.find(function (option) { return option.checked; });
     if (initialInsurance) {
         state.insuranceKey = initialInsurance.value;

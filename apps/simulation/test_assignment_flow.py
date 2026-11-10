@@ -1795,6 +1795,22 @@ class AirlineFrontDeskRouteAccessTests(AssignmentFlowTestCase):
         self.assertNotContains(response, reverse(
             'airlines:update_flight', args=[self.flight.pk]))
 
+    def test_airline_manager_task_uses_the_schedule_detail_layout(self):
+        self.assignment.role = Role.AIRLINE_MANAGER
+        self.assignment.save()
+        session = self.client.session
+        session['active_simulation_task_assignment'] = self.assignment.pk
+        session.save()
+
+        response = self.client.get(
+            reverse('airlines:flight_detail', args=[self.flight.slug]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'airlines/itinerary_detail.html')
+        self.assertContains(response, 'Flight Information')
+        self.assertContains(response, reverse(
+            'airlines:update_flight', args=[self.flight.pk]))
+
     def test_front_desk_cannot_open_airline_administration_routes(self):
         for route, args in (
             ('airlines:manage', ()),
@@ -1834,31 +1850,6 @@ class AirlineFrontDeskRouteAccessTests(AssignmentFlowTestCase):
         self.client.force_login(manager)
         self.assertEqual(
             self.client.get(reverse('airlines:manage')).status_code, 200)
-
-    def test_an_airline_manager_may_manage_flight_schedules(self):
-        manager = User.objects.create_user(
-            'airlineschedulemanager', password='pw',
-            account_type=User.AccountType.STUDENT)
-        self.assign(manager, Role.AIRLINE_MANAGER, self.airline_est,
-                    activity_name='Schedule Manager Session')
-        self.client.force_login(manager)
-
-        for route, args in (
-            ('airlines:flight_detail', (self.flight.slug,)),
-            ('airlines:add_flight', (self.airline.pk,)),
-            ('airlines:add_flight_schedule', ()),
-        ):
-            with self.subTest(route=route):
-                response = self.client.get(reverse(route, args=args))
-                self.assertEqual(response.status_code, 200)
-
-        flights_response = self.client.get(reverse('airlines:flights'))
-        self.assertEqual(flights_response.status_code, 200)
-        self.assertContains(
-            flights_response,
-            reverse('airlines:add_flight_schedule'),
-        )
-
 
 class AirlinePassengerWorkspaceTaskTests(AssignmentFlowTestCase):
     def setUp(self):

@@ -14,11 +14,15 @@ objects (or plain IANA timezone names) in.
 """
 
 from datetime import datetime, time, timedelta
+from decimal import Decimal, ROUND_CEILING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 __all__ = [
+    'BAGGAGE_RATE_BLOCK_KG',
+    'DEFAULT_BAGGAGE_RATE',
     'MAX_ITINERARY_SEGMENTS',
     'airport_timezone',
+    'baggage_charge_for_kg',
     'combine_local',
     'format_duration',
     'is_valid_timezone',
@@ -37,6 +41,19 @@ MAX_ITINERARY_SEGMENTS = 6
 #: (``settings.TIME_ZONE``), which is how a direct schedule written before
 #: timezone data existed keeps behaving exactly as it did.
 DEFAULT_TIMEZONE_FALLBACK = 'Asia/Manila'
+BAGGAGE_RATE_BLOCK_KG = 5
+DEFAULT_BAGGAGE_RATE = Decimal('5000.00')
+
+
+def baggage_charge_for_kg(rate_per_block, baggage_kg):
+    """Price extra baggage in 5 kg blocks, rounding partial blocks up."""
+    rate = Decimal(str(rate_per_block or 0))
+    weight = Decimal(str(baggage_kg or 0))
+    if rate <= 0 or weight <= 0:
+        return Decimal('0.00')
+    blocks = (weight / BAGGAGE_RATE_BLOCK_KG).to_integral_value(
+        rounding=ROUND_CEILING)
+    return blocks * rate
 
 
 def is_valid_timezone(name):

@@ -3323,16 +3323,30 @@ class ItineraryTimingTest(TestCase):
     def setUp(self):
         from datetime import datetime
 
-        from airlines.itineraries import (combine_local, format_duration,
-                                          itinerary_timing, layover_minutes,
+        from airlines.itineraries import (baggage_charge_for_kg, combine_local,
+                                          format_duration, itinerary_timing,
+                                          layover_minutes,
                                           segment_duration_minutes)
 
+        self.baggage_charge = baggage_charge_for_kg
         self.combine = combine_local
         self.timing = itinerary_timing
         self.layover = layover_minutes
         self.segment = segment_duration_minutes
         self.fmt = format_duration
         self.dt = datetime
+
+    def test_extra_baggage_is_priced_in_five_kilogram_blocks(self):
+        from decimal import Decimal
+
+        self.assertEqual(
+            Flight._meta.get_field('baggage_rate').default,
+            Decimal('5000.00'))
+        self.assertEqual(self.baggage_charge(5000, 0), 0)
+        self.assertEqual(self.baggage_charge(5000, 5), 5000)
+        self.assertEqual(self.baggage_charge(5000, 10), 10000)
+        self.assertEqual(self.baggage_charge(750, 10), 1500)
+        self.assertEqual(self.baggage_charge(5000, 6), 10000)
 
     def test_a_leg_across_timezones_is_measured_in_real_hours(self):
         from zoneinfo import ZoneInfo
@@ -3851,6 +3865,8 @@ class PassengerDetailsPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-pd-root')
+        self.assertContains(response, 'id="pd-baggage-select"')
+        self.assertContains(response, 'value="5" data-price="5000')
         self.assertEqual(response.context['selected']['origin_code'], 'MNL')
         self.assertEqual(response.context['selected']['destination_code'], 'CEB')
 

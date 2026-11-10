@@ -111,8 +111,16 @@
         <div id="passenger-rows"></div>
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Extra Baggage (kg){% if flight.baggage_rate %} <span class="meta">· ₱ {{ flight.baggage_rate }}/kg</span>{% endif %}</label>
-                    <input type="number" name="baggage" id="baggage" step="1" class="form-input" value="0" min="0" oninput="updateFare()">
+                    <label for="baggage">Extra Baggage per Passenger (kg){% if flight.baggage_rate %} <span class="meta">· ₱ {{ flight.baggage_rate }}/5 kg</span>{% endif %}</label>
+                    <select name="baggage" id="baggage" class="form-input" onchange="updateFare()">
+                        <option value="0">No extra baggage</option>
+                        <option value="5">5 kg</option>
+                        <option value="10">10 kg</option>
+                        <option value="15">15 kg</option>
+                        <option value="20">20 kg</option>
+                        <option value="25">25 kg</option>
+                        <option value="30">30 kg</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="flight-payment-method">Payment Method</label>
@@ -639,8 +647,9 @@ function updateFare() {
     // Each leg can have its own fare, so the preview adds both cabin fares
     // before multiplying by the passenger count.
     var totalCents = perPaxCents * n;
-    totalCents += Math.round((parseFloat(document.getElementById('baggage').value) || 0)
-        * (parseFloat(BAG_RATE) || 0) * 100);
+    var baggageKg = parseFloat(document.getElementById('baggage').value) || 0;
+    totalCents += Math.ceil(baggageKg / 5)
+        * Math.round((parseFloat(BAG_RATE) || 0) * 100) * n;
     document.getElementById('pb-total').textContent = '₱ ' + (totalCents / 100).toFixed(2);
 }
 

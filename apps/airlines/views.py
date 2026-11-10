@@ -58,9 +58,11 @@ from locations.geonames_service import search_worldwide_places
 from . import passenger_details_sample as pd_sample
 
 from .itineraries import (
+    DEFAULT_BAGGAGE_RATE,
     DEFAULT_TIMEZONE_FALLBACK as DEFAULT_AIRPORT_TIMEZONE,
     MAX_ITINERARY_SEGMENTS,
     airport_timezone,
+    baggage_charge_for_kg,
     combine_local,
     format_duration,
     itinerary_timing,
@@ -1889,6 +1891,7 @@ def _flight_form_context(airline=None, flight=None, airline_fixed=False,
         'flight_classification': flight_classification,
         'flight': flight,
         'return_leg': return_leg,
+        'default_baggage_rate': DEFAULT_BAGGAGE_RATE,
     }
 
 
@@ -2138,7 +2141,12 @@ def _resolve_flight_schedule(request, flight=None, airline=None):
         'business_fare': request.POST.get('business_fare') or 0,
         'premium_economy_fare': request.POST.get('premium_economy_fare') or 0,
         'economy_fare': request.POST.get('economy_fare') or 0,
-        'baggage_rate': request.POST.get('baggage_rate') or 0,
+        'baggage_rate': (
+            request.POST.get('baggage_rate')
+            if request.POST.get('baggage_rate') not in (None, '')
+            else flight.baggage_rate if flight is not None
+            else DEFAULT_BAGGAGE_RATE
+        ),
         'status': request.POST.get('status') or (flight.status if flight else Flight.Status.SCHEDULED),
     }
     return result, errors
@@ -2522,7 +2530,12 @@ def _resolve_itinerary_schedule(request, airline=None, itinerary=None):
         'fuel_surcharge': _posted_decimal(request, 'fuel_surcharge'),
         'service_fee': _posted_decimal(request, 'service_fee'),
         'discount': _posted_decimal(request, 'discount'),
-        'baggage_rate': _posted_decimal(request, 'itinerary_baggage_rate'),
+        'baggage_rate': (
+            _posted_decimal(request, 'itinerary_baggage_rate')
+            if request.POST.get('itinerary_baggage_rate') not in (None, '')
+            else itinerary.baggage_rate if itinerary is not None
+            else DEFAULT_BAGGAGE_RATE
+        ),
         'is_refundable': request.POST.get('is_refundable') is not None,
         'is_changeable': request.POST.get('is_changeable') is not None,
         'change_fee': _posted_decimal(request, 'change_fee'),
@@ -2706,6 +2719,7 @@ def _itinerary_form_context(airline=None, itinerary=None, legs=None):
         'flight_type': (itinerary.flight_type if itinerary is not None
                         else FlightItinerary.FlightType.CONNECTING),
         'max_segments': MAX_ITINERARY_SEGMENTS,
+        'default_baggage_rate': DEFAULT_BAGGAGE_RATE,
         'timezones': sorted({
             tz for tz in Airport.objects.exclude(timezone='')
             .values_list('timezone', flat=True).distinct() if tz}),
@@ -2727,15 +2741,27 @@ def flight_detail(request, flight_id):
     # it lands on the itinerary. The manager then edits or views the whole
     # thing, never one leg out of context.
     if flight.itinerary_id:
-        if (not can_access_module(request.user, 'airlines')
-                or hasattr(request, 'active_simulation_assignment')):
+        active_assignment = getattr(
+            request, 'active_simulation_assignment', None)
+        is_airline_manager_assignment = (
+            active_assignment is not None
+            and active_assignment.role == 'AIRLINE_MANAGER'
+        )
+        if (not is_airline_manager_assignment
+                and (not can_access_module(request.user, 'airlines')
+                     or active_assignment is not None)):
             return redirect('airlines:itinerary_public_detail', flight.itinerary.pk)
         return redirect('airlines:itinerary_detail', flight.itinerary.pk)
     remaining = flight.capacity - _booked_seats(flight)
     active_assignment = getattr(request, 'active_simulation_assignment', None)
+    is_airline_manager_assignment = (
+        active_assignment is not None
+        and active_assignment.role == 'AIRLINE_MANAGER'
+    )
     can_manage_airline = (
-        can_access_module(request.user, 'airlines')
-        and active_assignment is None
+        (can_access_module(request.user, 'airlines')
+         and active_assignment is None)
+        or is_airline_manager_assignment
     )
     if can_manage_airline:
         timing = itinerary_timing([flight])
@@ -3423,8 +3449,9 @@ def passenger_details(request):
         fare['taxes_per_passenger'] = 0
         fare['taxes_per_passenger_text'] = '₱0.00'
         fare['baggage_options'] = [
-            {'kg': kg, 'price': float(flight.baggage_rate or 0) * kg,
-            'price_text': f"{currency_prefix}{float(flight.baggage_rate or 0) * kg:,.2f}",
+            {'kg': kg, 'price': float(
+                baggage_charge_for_kg(flight.baggage_rate, kg)),
+            'price_text': f"{currency_prefix}{baggage_charge_for_kg(flight.baggage_rate, kg):,.2f}",
              'label': 'No extra baggage' if not kg else f'{kg} kg'}
             for kg in (0, 5, 10, 15, 20, 25, 30)]
         fare['insurance_plans'] = [
@@ -3934,7 +3961,8 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             per_person += flight.itinerary.service_fee
     if return_flight:
         per_person += Decimal(return_flight.fare_for(fare_class) or 0)
-    baggage_charge = Decimal(baggage_kg) * Decimal(flight.baggage_rate or 0) * len(cleaned)
+    baggage_charge = (
+        baggage_charge_for_kg(flight.baggage_rate, baggage_kg) * len(cleaned))
     items = compute_airline_bill(flight, len(cleaned), fare, baggage_charge=baggage_charge,
                                  baggage_kg=baggage_kg * len(cleaned), return_flight=return_flight,
                                  return_fare=return_flight.fare_for(fare_class) if return_flight else None,
@@ -4441,7 +4469,8 @@ def book_flight(request, flight_id):
         except (InvalidOperation, TypeError, ValueError):
             baggage_kg = Decimal('0')
         baggage_kg = max(Decimal('0'), baggage_kg)
-        baggage_charge = baggage_kg * (flight.baggage_rate or Decimal('0'))
+        baggage_charge = baggage_charge_for_kg(
+            flight.baggage_rate, baggage_kg)
         fare = flight.fare_for(fare_class)
         return_fare = (return_flight.fare_for(fare_class)
                        if return_flight is not None else None)
@@ -4748,7 +4777,7 @@ def book_itinerary(request, itinerary_id):
         # The rate is the itinerary's, falling back to the first leg's, so the
         # quoted price matches what the journey card showed.
         baggage_rate = itinerary.baggage_rate or legs[0].baggage_rate or 0
-        baggage_charge = baggage_kg * Decimal(str(baggage_rate or 0))
+        baggage_charge = baggage_charge_for_kg(baggage_rate, baggage_kg)
 
         # Each leg keeps its own fare; the chain sums to the journey price.
         leg_fares = [(leg, leg.fare_for(fare_class)) for leg in legs]

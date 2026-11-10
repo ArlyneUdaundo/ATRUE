@@ -126,8 +126,16 @@
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Extra Baggage (kg){% if itinerary.baggage_rate %} <span class="meta">· ₱ {{ itinerary.baggage_rate }}/kg</span>{% endif %}</label>
-                    <input type="number" name="baggage" id="baggage" step="1" class="form-input" value="0" min="0" oninput="updateFare()">
+                    <label for="baggage">Extra Baggage (kg){% if itinerary.baggage_rate %} <span class="meta">· ₱ {{ itinerary.baggage_rate }}/5 kg</span>{% endif %}</label>
+                    <select name="baggage" id="baggage" class="form-input" onchange="updateFare()">
+                        <option value="0">No extra baggage</option>
+                        <option value="5">5 kg</option>
+                        <option value="10">10 kg</option>
+                        <option value="15">15 kg</option>
+                        <option value="20">20 kg</option>
+                        <option value="25">25 kg</option>
+                        <option value="30">30 kg</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Payment Method</label>
@@ -590,7 +598,8 @@ function updateFare() {
         perPax += parseFloat(fares[cabin]) || 0;
     });
     var total = (perPax + CONNECTING_FEE) * n;
-    total += (parseFloat(document.getElementById('baggage').value) || 0) * BAG_RATE;
+    var baggageKg = parseFloat(document.getElementById('baggage').value) || 0;
+    total += Math.ceil(baggageKg / 5) * BAG_RATE;
     document.getElementById('pb-total').textContent = '₱ ' + total.toFixed(2);
 }
 

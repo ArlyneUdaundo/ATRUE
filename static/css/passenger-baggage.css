@@ -1,63 +1,16 @@
-.pd-baggage-picker {
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-}
-
-.pd-baggage-picker legend {
-    margin-bottom: 8px;
-    padding: 0;
-}
-
-.pd-baggage-options {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
-    gap: 8px;
-}
-
-.pd-baggage-option {
-    display: flex;
-    min-width: 0;
-    align-items: flex-start;
-    gap: 9px;
+.pd-baggage-picker { min-width: 0; }
+.pd-baggage-select {
+    display: block;
+    width: 100%;
+    min-height: 44px;
     padding: 10px 12px;
     border: 1px solid var(--pd-line, #e2e9f3);
     border-radius: 10px;
     background: var(--pd-white, #fff);
     color: var(--pd-ink, #10233f);
-    cursor: pointer;
-    transition: border-color .15s ease, background-color .15s ease;
+    font: inherit;
 }
-
-.pd-baggage-option:has(input:checked) {
+.pd-baggage-select:focus {
     border-color: var(--pd-blue, #0b63ce);
-    background: var(--pd-blue-050, #f2f7ff);
-}
-
-.pd-baggage-option input {
-    flex: 0 0 auto;
-    width: 16px;
-    height: 16px;
-    margin: 2px 0 0;
-    accent-color: var(--pd-blue, #0b63ce);
-}
-
-.pd-baggage-option__text {
-    display: flex;
-    min-width: 0;
-    flex: 1;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 10px;
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.pd-baggage-option__name { font-weight: 600; }
-.pd-baggage-option__price { color: var(--pd-ink-soft, #4a5c78); white-space: nowrap; }
-
-@media (max-width: 520px) {
-    .pd-baggage-options { grid-template-columns: minmax(0, 1fr); }
+    outline: 3px solid var(--pd-blue-050, #f2f7ff);
 }
