@@ -130,6 +130,7 @@ def package_detail(request, package_id):
     return render(request, 'tour_package/detail.html', {
         'package': package,
         'is_manager': is_manager,
+        'today': date.today(),
         'can_book': may_book_package(request, package.pk),
     })
 
@@ -310,6 +311,7 @@ def _component_context(package=None):
 
     context = {
         'package': package,
+        'today': date.today(),
         'hotels': Hotel.objects.filter(status=Hotel.Status.ACTIVE),
         'resorts': Resort.objects.filter(status=Resort.Status.ACTIVE),
         'flights': Flight.objects.select_related('aircraft').all(),

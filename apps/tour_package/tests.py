@@ -335,6 +335,12 @@ class AssignedTourPackageDirectoryTests(TestCase):
             email='reschedule@example.test')
         assignment = self.assignment_for(
             user, Role.TOUR_OPERATOR_MANAGER, operator)
+        from simulation.task_routing import task_operation_for
+
+        operation = task_operation_for(assignment)
+        self.assertIn('tour_package:update_package', operation['allowed_routes'])
+        self.assertEqual(operation['tasks'][0]['label'],
+                         'Manage / Reschedule Tour Packages')
         yesterday = date.today() - timedelta(days=1)
         expired = TourPackage.objects.create(
             name='Expired Package',
@@ -349,6 +355,9 @@ class AssignedTourPackageDirectoryTests(TestCase):
         listing = self.client.get(reverse('tour_package:manage'))
         self.assertContains(listing, 'Expired Package')
         self.assertContains(listing, '> Reschedule</button>')
+        detail = self.client.get(
+            reverse('tour_package:detail', args=[expired.slug]))
+        self.assertContains(detail, '> Reschedule</a>')
         self.set_task(assignment)
         rescheduled_start = date.today() + timedelta(days=1)
         rescheduled_end = date.today() + timedelta(days=30)
@@ -370,6 +379,21 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertEqual(expired.validity_end_date, rescheduled_end)
         self.assertFalse(expired.valid_on(date.today()))
         self.assertTrue(expired.valid_on(rescheduled_start))
+
+        guest = User.objects.create_user(
+            'rescheduled-package-guest', password='pw',
+            account_type=User.AccountType.STUDENT)
+        guest_assignment = self.assignment_for(
+            guest, Role.TOUR_GUEST, establishment_for_instance(expired))
+        self.client.force_login(guest)
+        self.set_task(guest_assignment)
+        booking_page = self.client.get(
+            reverse('tour_package:flow_select', args=[expired.pk]),
+            {'check_in': rescheduled_start.isoformat()},
+        )
+
+        self.assertEqual(booking_page.status_code, 200)
+        self.assertTrue(booking_page.context['cards'][0]['bookable'])
 
     def test_travel_agency_reservation_agent_can_confirm_any_package_booking(self):
         user = User.objects.create_user(

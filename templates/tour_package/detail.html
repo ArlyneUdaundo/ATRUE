@@ -7,11 +7,11 @@
 <div class="page-head">
     <div>
         <h1>{{ package.name }}</h1>
-        <p><span class="badge badge-blue">{{ package.destination_name|default:"—" }}</span> <span class="badge badge-green">Valid until {{ package.validity_end_date|date:"M d, Y" }}</span></p>
+        <p><span class="badge badge-blue">{{ package.destination_name|default:"—" }}</span>{% if package.status == 'EXPIRED' or package.validity_end_date < today %} <span class="badge badge-red">Expired</span>{% else %} <span class="badge badge-green">Valid until {{ package.validity_end_date|date:"M d, Y" }}</span>{% endif %}</p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
-        <a href="{% url 'tour_package:update_package' package.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> Update</a>
+        <a href="{% url 'tour_package:update_package' package.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> {% if package.status == 'EXPIRED' or package.validity_end_date < today %}Reschedule{% else %}Update{% endif %}</a>
         <a href="{% url 'tour_package:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
         {% elif can_book %}
         <a href="{% url 'tour_package:flow_select' package.id %}" class="btn btn-brand"><i class="fas fa-shopping-cart"></i> Book Package</a>

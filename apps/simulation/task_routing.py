@@ -231,7 +231,8 @@ _OPERATIONS = {
             'Tour Operations', 'tour_package:manage', 'tour_package',
             _PACKAGE_MANAGER_ROUTES, 'fa-map-marked-alt',
             tasks=(
-                ('Manage Tour Packages', 'tour_package:manage', 'fa-suitcase-rolling'),
+                ('Manage / Reschedule Tour Packages', 'tour_package:manage',
+                 'fa-suitcase-rolling'),
                 ('Manage Tour Bookings', 'tour_package:bookings', 'fa-calendar-check'),
                 ('Manage Activities', 'activities:manage', 'fa-hiking'),
                 ('Manage Landmarks', 'landmarks:manage', 'fa-landmark'),

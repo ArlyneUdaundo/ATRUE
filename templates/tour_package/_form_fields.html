@@ -37,6 +37,9 @@
             <input type="date" id="validity-end-date" name="validity_end_date" class="form-input" value="{% if package %}{{ package.validity_end_date|date:'Y-m-d' }}{% endif %}" required style="display:block;width:100%;min-width:0;min-height:42px;padding:8px 10px">
         </div>
     </div>
+    {% if package.status == 'EXPIRED' or package.validity_end_date < today %}
+    <p class="meta">To make this package bookable again, choose new validity dates and set its status to Active.</p>
+    {% endif %}
 
     <h4 style="margin:14px 0 8px"><i class="fas fa-file-alt"></i> Terms</h4>
     <div class="form-group"><label>Package Inclusions</label><textarea name="inclusions" class="form-input" rows="2">{{ package.inclusions|default:'' }}</textarea></div>
