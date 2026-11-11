@@ -289,6 +289,29 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.package.refresh_from_db()
         self.assertEqual(self.package.name, 'Updated Assigned Package')
 
+    def test_package_edit_modal_exposes_editable_validity_dates(self):
+        user = User.objects.create_user(
+            'package-manager-validity', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.client.force_login(user)
+        self.set_task(self.assignment_for(
+            user, Role.TOUR_PACKAGE_MANAGER, self.package_est))
+
+        response = self.client.get(
+            reverse('tour_package:update_package', args=[self.package.pk]),
+            {'modal': '1'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="validity_start_date"')
+        self.assertContains(response, 'name="validity_end_date"')
+        self.assertContains(
+            response,
+            f'value="{self.package.validity_start_date.isoformat()}"')
+        self.assertContains(
+            response,
+            f'value="{self.package.validity_end_date.isoformat()}"')
+
     def test_tour_operator_manager_can_manage_all_packages_and_create_one(self):
         user = User.objects.create_user(
             'tour-operator-package-manager', password='pw',

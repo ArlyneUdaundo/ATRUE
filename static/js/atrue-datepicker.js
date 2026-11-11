@@ -602,7 +602,8 @@
         if (controller.popup.parentNode) {
             controller.popup.parentNode.removeChild(controller.popup);
         }
-        document.body.appendChild(controller.popup);
+        var popupHost = anchor.closest('dialog[open]') || document.body;
+        popupHost.appendChild(controller.popup);
         controller.openedBy = anchor;
 
         var popupTrigger = anchor.querySelector('.adp-trigger');
