@@ -487,6 +487,35 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertEqual(booking_page.status_code, 200)
         self.assertTrue(booking_page.context['cards'][0]['bookable'])
 
+    def test_tour_operator_manager_sees_all_packages_to_reschedule(self):
+        user = User.objects.create_user(
+            'tour-operator-package-directory-manager', password='pw',
+            account_type=User.AccountType.STUDENT)
+        operator = Establishment.objects.create(
+            name='Package Directory Tour Operator',
+            type=Establishment.Type.TOUR_OPERATOR,
+            address='Baguio', contact_number='1',
+            email='package-directory@example.test')
+        assignment = self.assignment_for(
+            user, Role.TOUR_OPERATOR_MANAGER, operator)
+        expired = TourPackage.objects.create(
+            name='Expired Package Visible To Manager',
+            price=100,
+            status=TourPackage.Status.EXPIRED,
+            validity_start_date=date.today() - timedelta(days=30),
+            validity_end_date=date.today() - timedelta(days=1),
+        )
+        self.client.force_login(user)
+        self.set_task(assignment)
+
+        response = self.client.get(reverse('tour_package:list'))
+        explore = self.client.get(reverse('home'))
+
+        self.assertContains(response, self.package.name)
+        self.assertContains(response, self.other_package.name)
+        self.assertContains(response, expired.name)
+        self.assertIn(expired, explore.context['featured_packages'])
+
     def test_travel_agency_reservation_agent_can_confirm_any_package_booking(self):
         user = User.objects.create_user(
             'travel-agency-reservation-agent', password='pw',

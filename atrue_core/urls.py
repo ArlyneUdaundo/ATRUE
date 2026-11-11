@@ -53,6 +53,7 @@ def home(request):
     from hotels.models import Hotel
     from landmarks.models import Landmark
     from tour_package.models import TourPackage
+    from tour_package.scope import PACKAGE_MANAGER_ROLES, may_manage_package, scope_packages
     from resorts.models import Resort
     from restaurants.models import Restaurant
     from staycations.models import Staycation
@@ -255,7 +256,11 @@ def home(request):
     rest_qs = Restaurant.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Restaurant, 'objects') else []
     lm_qs = Landmark.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Landmark, 'objects') else []
     act_qs = Activity.objects.filter(status='ACTIVE').order_by('-id') if hasattr(Activity, 'objects') else []
-    pkg_qs = TourPackage.objects.filter(status='ACTIVE').order_by('-id') if hasattr(TourPackage, 'objects') else []
+    pkg_qs = TourPackage.objects.order_by('-id') if hasattr(TourPackage, 'objects') else []
+    if may_manage_package(request):
+        pkg_qs = scope_packages(request, pkg_qs, PACKAGE_MANAGER_ROLES)
+    else:
+        pkg_qs = pkg_qs.filter(status='ACTIVE')
     flights_qs = Flight.objects.all().order_by('-id') if hasattr(Flight, 'objects') else []
 
     country = (request.GET.get('country') or request.COOKIES.get('atrue_loc_country') or '').strip()

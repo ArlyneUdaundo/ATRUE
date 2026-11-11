@@ -117,7 +117,9 @@ def _components_bookable(package):
 
 def package_list(request):
     packages = TourPackage.objects.prefetch_related('photos')
-    if not (request.user.is_authenticated and request.user.is_platform_manager):
+    if may_manage_package(request):
+        packages = scope_packages(request, packages, PACKAGE_MANAGER_ROLES)
+    elif not (request.user.is_authenticated and request.user.is_platform_manager):
         packages = packages.filter(status=TourPackage.Status.ACTIVE)
         packages = scope_directory_packages(request, packages)
     return render_search_page(request, 'package', packages)
