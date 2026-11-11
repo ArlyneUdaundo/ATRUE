@@ -223,15 +223,46 @@ class AssignedTourPackageDirectoryTests(TestCase):
             booking,
             f'max="{self.package.validity_end_date.isoformat()}"')
 
-    def test_no_assignment_returns_no_package_records(self):
+    def test_unassigned_student_can_complete_public_package_booking_flow(self):
+        user = User.objects.create_user(
+            'public-package-booker', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.client.force_login(user)
+
+        details = self.client.get(
+            reverse('tour_package:detail', args=[self.package.slug]))
+        shared_booking_flow = self.client.get(
+            reverse('tour_package:flow_select', args=[self.package.pk]))
+        booking_form = self.client.get(
+            reverse('tour_package:book_package', args=[self.package.pk]))
+        response = self.client.post(
+            reverse('tour_package:book_package', args=[self.package.pk]),
+            {
+                'travel_date': self.package.validity_start_date.isoformat(),
+                'travelers': '1',
+                'adults': '1',
+                'pay_later': 'on',
+            },
+            follow=True,
+        )
+
+        self.assertContains(details, 'Book Tour Package')
+        self.assertEqual(shared_booking_flow.status_code, 200)
+        self.assertEqual(booking_form.status_code, 200)
+        self.assertEqual(response.status_code, 200)
+        booking = Booking.objects.get(customer=user, package=self.package)
+        self.assertContains(response, booking.booking_reference)
+
+    def test_unassigned_student_can_browse_public_package_records(self):
         user = User.objects.create_user(
             'unassigned-package-user', password='pw', account_type=User.AccountType.STUDENT)
         self.client.force_login(user)
 
         response = self.client.get(reverse('tour_package:list'))
 
-        self.assertNotContains(response, self.package.name)
-        self.assertNotContains(response, self.other_package.name)
+        self.assertContains(response, self.package.name)
+        self.assertContains(response, self.other_package.name)
+        self.assertContains(response, 'Book this package')
 
     def test_assignment_changes_immediately_change_guest_scope(self):
         user = User.objects.create_user(
@@ -245,9 +276,11 @@ class AssignedTourPackageDirectoryTests(TestCase):
         assignment.save(update_fields=['status'])
         revoked = self.client.get(reverse('tour_package:list'))
 
-        self.assertNotContains(before, self.package.name)
+        self.assertContains(before, self.package.name)
         self.assertContains(after, self.package.name)
-        self.assertNotContains(revoked, self.package.name)
+        self.assertNotContains(after, self.other_package.name)
+        self.assertContains(revoked, self.package.name)
+        self.assertContains(revoked, self.other_package.name)
 
     def test_my_bookings_and_bill_detail_hide_unassigned_package_records(self):
         user = User.objects.create_user(

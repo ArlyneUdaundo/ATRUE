@@ -42,7 +42,10 @@ from .scope import (
     may_book_package,
     may_process_frontdesk,
     may_review_booking,
+    scope_bookable_packages,
     scope_bookings,
+    scope_customer_bookings,
+    scope_directory_packages,
     scope_packages,
 )
 
@@ -116,13 +119,17 @@ def package_list(request):
     packages = TourPackage.objects.prefetch_related('photos')
     if not (request.user.is_authenticated and request.user.is_platform_manager):
         packages = packages.filter(status=TourPackage.Status.ACTIVE)
+        packages = scope_directory_packages(request, packages)
     return render_search_page(request, 'package', packages)
 
 
 def package_detail(request, package_id):
     """View a single tour package (FR-025 VIEW Package)."""
+    packages = TourPackage.objects.prefetch_related('photos')
+    if not may_manage_package(request):
+        packages = scope_bookable_packages(request, packages)
     package = get_object_by_slug_or_404(
-        TourPackage.objects.prefetch_related('photos'), package_id)
+        packages, package_id)
     is_manager = may_manage_package(request, package.pk)
     if not package.bookable and not is_manager:
         messages.error(request, "This package is currently unavailable.")
@@ -333,7 +340,7 @@ def _component_context(package=None):
 @student_booking_required
 def book_package(request, package_id):
     package = get_object_or_404(
-        scope_packages(request, TourPackage.objects.all(), GUEST_ROLES), pk=package_id)
+        scope_bookable_packages(request, TourPackage.objects.all()), pk=package_id)
     if not may_book_package(request, package.pk):
         raise PermissionDenied('Only a Tour Package Guest assigned to this package may book it.')
     if request.method == 'POST':
@@ -464,8 +471,11 @@ def booking_detail(request, booking_id):
 
     staff_guest_roles = RESERVATION_ROLES | FRONTDESK_ROLES | GUEST_ROLES
     booking = get_object_or_404(
-        scope_bookings(request, Booking.objects.select_related('customer', 'package').prefetch_related('guests'),
-                       staff_guest_roles),
+        scope_customer_bookings(
+            request,
+            Booking.objects.select_related('customer', 'package').prefetch_related('guests'),
+            staff_guest_roles,
+        ),
         pk=booking_id)
     is_platform = is_platform_operator(request.user)
     is_reservation = may_review_booking(request, booking.package_id)
@@ -566,7 +576,9 @@ def booking_detail(request, booking_id):
 def ticket_detail(request, booking_id):
     from atrue_core.etickets import eticket_detail
     ticket_roles = GUEST_ROLES | RESERVATION_ROLES | FRONTDESK_ROLES
-    get_object_or_404(scope_bookings(request, Booking.objects.all(), ticket_roles), pk=booking_id)
+    get_object_or_404(
+        scope_customer_bookings(request, Booking.objects.all(), ticket_roles),
+        pk=booking_id)
     return eticket_detail(request, 'tour_package', booking_id)
 
 
@@ -574,7 +586,9 @@ def ticket_detail(request, booking_id):
 def ticket_pdf(request, booking_id):
     from atrue_core.etickets import eticket_pdf
     ticket_roles = GUEST_ROLES | RESERVATION_ROLES | FRONTDESK_ROLES
-    get_object_or_404(scope_bookings(request, Booking.objects.all(), ticket_roles), pk=booking_id)
+    get_object_or_404(
+        scope_customer_bookings(request, Booking.objects.all(), ticket_roles),
+        pk=booking_id)
     return eticket_pdf(request, 'tour_package', booking_id)
 
 
@@ -589,7 +603,8 @@ def package_flow_select(request, package_id):
     """Choose the package, add traveller details and confirm in one page."""
     from atrue_core.establishment_flow import handle_flow
 
-    get_object_or_404(scope_packages(request, TourPackage.objects.all(), GUEST_ROLES), pk=package_id)
+    get_object_or_404(
+        scope_bookable_packages(request, TourPackage.objects.all()), pk=package_id)
     if not may_book_package(request, package_id):
         raise PermissionDenied('Only an assigned Tour Package Guest may book a package.')
     return handle_flow(request, 'package', package_id)

@@ -110,9 +110,74 @@ def may_process_frontdesk(request, package_id=None):
             else package_has_role(request, package_id, FRONTDESK_ROLES))
 
 
+def _is_unassigned_public_booker(request):
+    user = request.user
+    if (not user.is_authenticated
+            or user.account_type not in {'STUDENT', 'CUSTOMER_TOUR'}
+            or not user.is_bookable):
+        return False
+
+    active = getattr(request, 'active_simulation_assignment', None)
+    if active is None:
+        assignment_id = request.session.get('active_simulation_task_assignment')
+        if assignment_id:
+            from simulation.models import SimulationRoleAssignment
+
+            active = SimulationRoleAssignment.objects.filter(
+                pk=assignment_id,
+                student=user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            ).first()
+    if active is not None:
+        return False
+
+    from simulation.models import SimulationRoleAssignment
+    return not SimulationRoleAssignment.objects.filter(
+        student=user,
+        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+    ).exists()
+
+
+def scope_bookable_packages(request, queryset):
+    allowed = package_ids_for_roles(request, GUEST_ROLES)
+    if allowed is None:
+        return queryset
+    if allowed:
+        return queryset.filter(pk__in=allowed)
+    if _is_unassigned_public_booker(request):
+        return queryset
+    return queryset.none()
+
+
+def scope_directory_packages(request, queryset):
+    allowed = assigned_package_ids(request)
+    if allowed is None:
+        return queryset
+    if allowed:
+        return queryset.filter(pk__in=allowed)
+    if _is_unassigned_public_booker(request):
+        return queryset
+    return queryset.none()
+
+
+def scope_customer_bookings(request, queryset, roles):
+    scoped = scope_bookings(request, queryset, roles)
+    if _is_unassigned_public_booker(request):
+        from django.db.models import Q
+
+        return queryset.filter(
+            Q(customer=request.user) | Q(pk__in=scoped.values('pk')))
+    return scoped
+
+
 def may_book_package(request, package_id=None):
-    return (has_package_role(request, GUEST_ROLES) if package_id is None
-            else package_has_role(request, package_id, GUEST_ROLES))
+    allowed = package_ids_for_roles(request, GUEST_ROLES)
+    if allowed is None:
+        return True
+    if package_id is None:
+        return bool(allowed) or _is_unassigned_public_booker(request)
+    return package_id in allowed or (
+        not allowed and _is_unassigned_public_booker(request))
 
 
 def _entity_ids(allowed):
