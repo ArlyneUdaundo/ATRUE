@@ -88,6 +88,7 @@
 
     var SELECTED = [];      // one entry per booked room, in selection order
     var ACTIVE = 0;         // index into SELECTED whose guest card is visible
+    var bookingSubmitting = false;
 
     var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -163,6 +164,9 @@
             capacity: Number(m.capacity || 1),
             max_guests: Number(m.max_guests || 1),
             additional_charge: Number(m.additional_charge || 0),
+            photos: Array.isArray(m.photos) ? m.photos : [],
+            features: Array.isArray(m.features) ? m.features : [],
+            photo_index: 0,
             guest: SELECTED.length === 0 ? Object.assign(emptyGuest(), PRIMARY_GUEST) : emptyGuest(),
             services: [],
             amenities: []
@@ -382,87 +386,144 @@
         guestOpener = null;
     }
 
-    function buildSection(s, i) {
-        var g = s.guest;
-        function extrasBlock(kind, title, count) {
-            if (!count) return '';
-            var selected = kind === 'services' ? s.services : s.amenities;
-            var name = kind === 'services' ? 'services' : 'amenities';
-            var selectedInputs = (selected || []).map(function (id) {
-                return '<input type="hidden" name="room_' + i + '_' + name + '" value="' + Number(id) + '">';
-            }).join('');
-            return '<details class="bk-guest-extras" data-room-extras="' + kind + '" data-room-index="' + i + '">' +
-                '<summary><b>' + title + '</b> <small class="meta">(' + count + ')</small></summary>' +
-                '<div data-extras-options><small class="meta">Open to load options.</small></div></details>' +
-                '<div data-room-selected="' + kind + '">' + selectedInputs + '</div>';
-        }
-        var svcBlock = extrasBlock('services', 'Optional services for Room ' + (i + 1), Number(form.getAttribute('data-service-count') || 0));
-        var amnBlock = extrasBlock('amenities', 'Amenities for Room ' + (i + 1), Number(form.getAttribute('data-amenity-count') || 0));
-        return '' +
-        '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
-            '<div class="bk-guest-head">' +
-                '<div><span class="badge badge-blue">Room ' + (i + 1) + (i === 0 ? ' — Account Owner' : ' — Additional Guest') + '</span>' +
-                '<h3 style="margin:8px 0 2px">' + esc(s.room_type) + ' Room</h3>' +
-                '<small>Room ' + esc(s.room_number) + ' · ' + fmt(s.rate) + '/night · Included guests: ' + s.capacity + ' · Max: ' + s.max_guests + (s.additional_charge > 0 ? ' · Extra guest: ' + fmt(s.additional_charge) + '/guest/night' : '') + '</small>' +
-                '<p class="meta" style="margin:8px 0 0">' + (i === 0
-                    ? 'Guest information is filled from your account profile.'
-                    : 'Enter the name and contact information for this room’s guest.') + '</p>' +
-                '</div>' +
-                '<button type="button" class="bk-remove" data-remove-room="' + s.room_id + '"><i class="fas fa-times"></i> Remove</button>' +
-            '</div>' +
-            '<div class="bk-guest-grid">' +
-                '<div class="form-group"><label>First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + primaryReadonly(g.first_name, i) + '></div>' +
-                '<div class="form-group"><label>Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + primaryReadonly(g.middle_name, i) + '></div>' +
-                '<div class="form-group"><label>Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + primaryReadonly(g.last_name, i) + '></div>' +
-                '<div class="form-group"><label>Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + primaryReadonly(g.email, i) + '></div>' +
-                '<div class="form-group"><label>Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + primaryReadonly(g.contact, i) + ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
-                '<div class="form-group"><label>Adults *</label><input type="number" name="room_' + i + '_adults" class="form-input" value="' + Number(g.adults || 0) + '" min="0"></div>' +
-                '<div class="form-group"><label>Children</label><input type="number" name="room_' + i + '_children" class="form-input" value="' + Number(g.children || 0) + '" min="0"></div>' +
-                '<div class="form-group"><label>Total guests</label><div class="form-input" style="background:#f8fafc" data-guest-total="' + i + '">' + (Number(g.adults || 0) + Number(g.children || 0)) + ' <small class="meta">of ' + s.max_guests + ' max</small></div></div>' +
-                '<div class="form-group bk-col-4"><label>Special Request</label><textarea name="room_' + i + '_special_request" class="form-input" rows="2">' + esc(g.special_request) + '</textarea></div>' +
-            '</div>' +
-            svcBlock + amnBlock +
-            '<div class="bk-guest-err"></div>' +
-        '</section>';
+    function serviceIcon(name) {
+        var text = String(name || '').toLowerCase();
+        if (/breakfast|meal|food|dining|room service/.test(text)) return 'fa-utensils';
+        if (/airport|transfer|shuttle|transport/.test(text)) return 'fa-car';
+        if (/bed|mattress/.test(text)) return 'fa-bed';
+        if (/laundry|wash|dry clean/.test(text)) return 'fa-shirt';
+        if (/late|checkout|check-out/.test(text)) return 'fa-clock';
+        if (/spa|massage|wellness/.test(text)) return 'fa-spa';
+        if (/tour|guide|excursion/.test(text)) return 'fa-map-location-dot';
+        if (/minibar|drink|beverage/.test(text)) return 'fa-martini-glass';
+        return 'fa-concierge-bell';
     }
 
+    function amenityIcon(name) {
+        var text = String(name || '').toLowerCase();
+        if (/wifi|wi-fi|internet/.test(text)) return 'fa-wifi';
+        if (/air.?condition|cooling/.test(text)) return 'fa-snowflake';
+        if (/tv|television|screen/.test(text)) return 'fa-tv';
+        if (/bath|shower|toilet/.test(text)) return 'fa-shower';
+        if (/pool|swim/.test(text)) return 'fa-person-swimming';
+        if (/parking/.test(text)) return 'fa-square-parking';
+        if (/restaurant|dining|breakfast|food/.test(text)) return 'fa-utensils';
+        if (/balcony|view|terrace/.test(text)) return 'fa-mountain-sun';
+        if (/safe|security/.test(text)) return 'fa-lock';
+        if (/desk|work/.test(text)) return 'fa-laptop';
+        if (/gym|fitness/.test(text)) return 'fa-dumbbell';
+        return 'fa-circle-check';
+    }
+
+    function buildSection(s, i) {
+        var g = s.guest;
+        var photos = Array.isArray(s.photos) ? s.photos : [];
+        var photoIndex = Math.max(0, Math.min(Number(s.photo_index || 0), Math.max(0, photos.length - 1)));
+        var roomPhoto = photos.length
+            ? '<div class="bk-room-photo"><img data-room-info-image src="' + esc(photos[photoIndex]) + '" alt="' + esc(s.room_type) + ' room photo"><span class="bk-room-photo-count" data-room-photo-count>' + (photoIndex + 1) + '/' + photos.length + '</span>' +
+                (photos.length > 1 ? '<button type="button" data-room-photo-step="-1" aria-label="Previous room photo"><i class="fas fa-chevron-left"></i></button><button type="button" data-room-photo-step="1" aria-label="Next room photo"><i class="fas fa-chevron-right"></i></button>' : '') + '</div>'
+            : '<div class="bk-room-photo bk-room-photo-empty"><i class="fas fa-bed" aria-hidden="true"></i></div>';
+        var serviceData = servicesData();
+        var selectedServiceIds = (s.services || []).map(Number);
+        var serviceCards = Object.keys(serviceData).map(function (id) {
+            var item = serviceData[id] || {};
+            var checked = selectedServiceIds.indexOf(Number(id)) !== -1;
+            return '<label class="bk-service-card' + (checked ? ' is-selected' : '') + '" data-service-card>' +
+                '<input type="checkbox" name="room_' + i + '_services" value="' + Number(id) + '" data-service-choice' + (checked ? ' checked' : '') + '>' +
+                '<span class="bk-service-check" aria-hidden="true"><i class="fas fa-check"></i></span>' +
+                '<span class="bk-service-icon"><i class="fas ' + serviceIcon(item.name) + '" aria-hidden="true"></i></span>' +
+                '<span class="bk-service-copy"><b>' + esc(item.name) + '</b>' +
+                (item.description ? '<small>' + esc(item.description) + '</small>' : '') +
+                '<span class="bk-service-price">' + fmt(item.rate) + ' <small>per room, per stay</small></span></span></label>';
+        }).join('');
+        var serviceContent = serviceCards
+            ? '<div class="bk-services-grid">' + serviceCards + '</div>'
+            : '<p class="bk-extras-empty">No optional services are currently available.</p>';
+        var amenityData = amenitiesData();
+        var selectedAmenityIds = (s.amenities || []).map(Number);
+        var features = (s.features || []).map(function (name) {
+            return { name: name, description: 'In-room feature', icon: amenityIcon(name) };
+        });
+        var hotelAmenities = Object.keys(amenityData).map(function (id) {
+            var item = amenityData[id] || {};
+            return { id: Number(id), name: item.name, description: item.description || '' };
+        });
+        var amenityOptions = hotelAmenities.map(function (item) {
+            var checked = selectedAmenityIds.indexOf(item.id) !== -1;
+            return '<label class="bk-amenity-option' + (checked ? ' is-selected' : '') + '">' +
+                '<input type="checkbox" name="room_' + i + '_amenities" value="' + item.id + '" data-amenity-choice' + (checked ? ' checked' : '') + '>' +
+                '<span class="bk-amenity-option-copy"><b>' + esc(item.name) + '</b>' +
+                (item.description ? '<small>' + esc(item.description) + '</small>' : '') + '</span></label>';
+        }).join('');
+        var featureContent = features.length
+            ? '<div class="bk-room-feature-list" aria-label="Room features">' + features.map(function (item) {
+                return '<span>' + esc(item.name) + '</span>';
+            }).join('') + '</div>' : '';
+        var amenityContent = amenityOptions
+            ? featureContent + '<div class="bk-amenities-grid">' + amenityOptions + '</div>'
+            : (featureContent || '<p class="bk-extras-empty">No room features or property amenities are listed.</p>');
+        var roomLabel = 'Room ' + (i + 1) + (i === 0 ? ' — Primary Guest' : ' — Additional Guest');
+        var totalGuests = Number(g.adults || 0) + Number(g.children || 0);
+        return '' +
+        '<section class="bk-guest-card" id="bkRoomPanel' + i + '" data-guest-section="' + i + '">' +
+            '<div class="bk-guest-head"><div class="bk-room-info-card">' + roomPhoto +
+                '<div class="bk-room-info-copy"><span class="bk-room-assignment"><i class="fas fa-user-check" aria-hidden="true"></i> ' + roomLabel + '</span>' +
+                '<h3>' + esc(s.room_type) + ' Room</h3><p>Room ' + esc(s.room_number) + '</p>' +
+                '<div class="bk-room-info-meta"><span><i class="fas fa-moon" aria-hidden="true"></i> ' + fmt(s.rate) + ' / night</span><span><i class="fas fa-users" aria-hidden="true"></i> ' + s.capacity + ' included · ' + s.max_guests + ' max</span>' +
+                (s.additional_charge > 0 ? '<span><i class="fas fa-user-plus" aria-hidden="true"></i> ' + fmt(s.additional_charge) + ' / extra guest / night</span>' : '') + '</div></div>' +
+                '<button type="button" class="bk-remove" data-remove-room="' + s.room_id + '"><i class="fas fa-trash-can"></i> Remove</button>' +
+            '</div></div>' +
+            '<div class="bk-guest-grid">' +
+                '<div class="form-group guest-first"><label><i class="fas fa-user" aria-hidden="true"></i> First Name *</label><input name="room_' + i + '_first_name" class="form-input" value="' + esc(g.first_name) + '"' + primaryReadonly(g.first_name, i) + '></div>' +
+                '<div class="form-group guest-middle"><label><i class="fas fa-user" aria-hidden="true"></i> Middle Name</label><input name="room_' + i + '_middle_name" class="form-input" value="' + esc(g.middle_name) + '"' + primaryReadonly(g.middle_name, i) + '></div>' +
+                '<div class="form-group guest-last"><label><i class="fas fa-user" aria-hidden="true"></i> Last Name *</label><input name="room_' + i + '_last_name" class="form-input" value="' + esc(g.last_name) + '"' + primaryReadonly(g.last_name, i) + '></div>' +
+                '<div class="form-group guest-email"><label><i class="fas fa-envelope" aria-hidden="true"></i> Email *</label><input type="email" name="room_' + i + '_email" class="form-input" value="' + esc(g.email) + '"' + primaryReadonly(g.email, i) + '></div>' +
+                '<div class="form-group guest-contact"><label><i class="fas fa-phone" aria-hidden="true"></i> Contact Number *</label><input type="text" name="room_' + i + '_contact" class="form-input" value="' + esc(g.contact) + '"' + primaryReadonly(g.contact, i) + ' inputmode="numeric" pattern="[0-9]*" maxlength="20" autocomplete="off" oninput="this.value=this.value.replace(/\\D/g,\'\')" title="Numbers only"></div>' +
+                '<div class="form-group guest-adults"><label><i class="fas fa-user-group" aria-hidden="true"></i> Adults *</label><input type="number" name="room_' + i + '_adults" class="form-input" value="' + Number(g.adults || 0) + '" min="0"></div>' +
+                '<div class="form-group guest-children"><label><i class="fas fa-child" aria-hidden="true"></i> Children</label><input type="number" name="room_' + i + '_children" class="form-input" value="' + Number(g.children || 0) + '" min="0"></div>' +
+                '<div class="form-group guest-total"><label><i class="fas fa-people-group" aria-hidden="true"></i> Total Guests</label><div class="form-input bk-total-guests" data-guest-total="' + i + '">' + totalGuests + ' <small>of ' + s.max_guests + ' max</small></div></div>' +
+                '<div class="form-group guest-request"><label><i class="fas fa-message" aria-hidden="true"></i> Special Request</label><textarea name="room_' + i + '_special_request" class="form-input" rows="3">' + esc(g.special_request) + '</textarea></div>' +
+            '</div>' +
+            '<section class="bk-extras-section bk-services-section" data-room-extras="services" data-room-index="' + i + '">' +
+                '<header class="bk-extras-heading"><div><h4><i class="fas fa-concierge-bell" aria-hidden="true"></i> Optional Services</h4><p>Enhance your stay with our available services.</p></div>' +
+                    '<button type="button" data-extras-toggle="services" aria-expanded="true"><span>Hide Services</span><i class="fas fa-chevron-up" aria-hidden="true"></i></button></header>' +
+                '<div class="bk-extras-content" data-extras-panel="services">' + serviceContent + '</div>' +
+            '</section>' +
+            '<section class="bk-extras-section bk-amenities-section" data-room-extras="amenities" data-room-index="' + i + '">' +
+                '<header class="bk-extras-heading"><div><h4><i class="fas fa-sparkles" aria-hidden="true"></i> Amenities</h4><p>Enjoy room facilities and amenities available at this property.</p></div>' +
+                    '<button type="button" data-extras-toggle="amenities" aria-expanded="true"><span>Hide Amenities</span><i class="fas fa-chevron-up" aria-hidden="true"></i></button></header>' +
+                '<div class="bk-extras-content" data-extras-panel="amenities">' + amenityContent + '</div>' +
+            '</section>' +
+            '<div class="bk-guest-err" role="alert"></div>' +
+        '</section>';
+    }
     function renderSections() {
         wrap.innerHTML = tabsMarkup() + SELECTED.map(function (room, index) {
             return buildSection(room, index);
         }).join('');
-        Array.prototype.forEach.call(wrap.querySelectorAll('[data-room-extras]'), function (details) {
-            function loadOptions() {
-                if (details.dataset.loaded === 'true') return;
-                details.dataset.loaded = 'true';
-                var index = Number(details.getAttribute('data-room-index'));
-                var selected = SELECTED[index];
-                var kind = details.getAttribute('data-room-extras');
-                var target = details.querySelector('[data-extras-options]');
-                if (!selected || !target) return;
-                var data = kind === 'services' ? servicesData() : amenitiesData();
-                var name = kind === 'services' ? 'services' : 'amenities';
-                target.innerHTML = Object.keys(data).map(function (id) {
-                    var item = data[id];
-                    var checked = selected[name].indexOf(Number(id)) !== -1 ? ' checked' : '';
-                    var label = kind === 'services'
-                        ? esc(item.name) + ' (+₱ ' + esc(item.rate) + ')'
-                        : esc(item.name);
-                    return '<label class="checkbox"><input type="checkbox" name="room_' + index + '_' + name + '" value="' + id + '"' + checked + '> ' + label + '</label>';
-                }).join('');
-                var selectedInputs = details.parentElement.querySelector('[data-room-selected="' + kind + '"]');
-                if (selectedInputs) selectedInputs.remove();
-                if (form && form.id) {
-                    Array.prototype.forEach.call(target.querySelectorAll('input'), function (input) {
-                        input.setAttribute('form', form.id);
-                    });
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-extras-toggle]'), function (toggle) {
+            toggle.addEventListener('click', function () {
+                var kind = toggle.getAttribute('data-extras-toggle');
+                var section = toggle.closest('[data-room-extras="' + kind + '"]');
+                var panel = section && section.querySelector('[data-extras-panel="' + kind + '"]');
+                if (!panel) return;
+                var expanded = toggle.getAttribute('aria-expanded') !== 'true';
+                window.clearTimeout(toggle._collapseTimer);
+                if (expanded) {
+                    panel.hidden = false;
+                    window.requestAnimationFrame(function () { panel.classList.remove('is-collapsed'); });
+                } else {
+                    panel.classList.add('is-collapsed');
+                    toggle._collapseTimer = window.setTimeout(function () { panel.hidden = true; }, 220);
                 }
-            }
-            details.addEventListener('toggle', function () {
-                if (details.open) loadOptions();
+                toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                toggle.querySelector('span').textContent = expanded
+                    ? (kind === 'services' ? 'Hide Services' : 'Hide Amenities')
+                    : (kind === 'services' ? 'Show Services' : 'Show Amenities');
+                var chevron = toggle.querySelector('i');
+                if (chevron) chevron.className = 'fas fa-chevron-' + (expanded ? 'up' : 'down');
             });
-            if (details.open) loadOptions();
-        });
-        // The guest modal lives outside <form>, so the per-room fields are tied
+        });        // The guest modal lives outside <form>, so the per-room fields are tied
         // back to the booking form with the HTML form="" attribute. Same inputs,
         // same names, same submit.
         if (form && form.id) {
@@ -510,10 +571,8 @@
             s.guest.special_request = inVal('special_request');
             s.guest.adults = Math.max(0, parseInt(inVal('adults'), 10) || 0);
             s.guest.children = Math.max(0, parseInt(inVal('children'), 10) || 0);
-            var servicesBlock = sec.querySelector('[data-room-extras="services"]');
-            var amenitiesBlock = sec.querySelector('[data-room-extras="amenities"]');
-            if (!servicesBlock || servicesBlock.dataset.loaded === 'true') s.services = checked('services');
-            if (!amenitiesBlock || amenitiesBlock.dataset.loaded === 'true') s.amenities = checked('amenities');
+            s.services = checked('services');
+            s.amenities = checked('amenities');
         });
     }
 
@@ -672,6 +731,10 @@
             }
             if (g.contact.trim() !== '' && /\D/.test(g.contact.trim())) {
                 msgs.push('Contact number for Room ' + (i + 1) + ' must contain numbers only.');
+            }
+            if (g.contact.trim() !== '' && /^\d+$/.test(g.contact.trim()) &&
+                (g.contact.trim().length < 7 || g.contact.trim().length > 15)) {
+                msgs.push('Contact number for Room ' + (i + 1) + ' must be 7–15 digits.');
             }
             if ((g.adults + g.children) > s.max_guests) {
                 msgs.push('Room ' + (i + 1) + ' (' + s.room_number + ') allows up to ' +
@@ -1040,10 +1103,33 @@
     wrap.addEventListener('input', function () {
         if (SELECTED.length) { syncFromDom(); computeAll(); }
     });
-    wrap.addEventListener('change', function () {
+    wrap.addEventListener('change', function (e) {
+        var choice = e.target && e.target.closest('[data-service-choice]');
+        if (choice) {
+            var serviceCard = choice.closest('[data-service-card]');
+            if (serviceCard) serviceCard.classList.toggle('is-selected', choice.checked);
+        }
+        var amenityChoice = e.target && e.target.closest('[data-amenity-choice]');
+        if (amenityChoice) {
+            var amenityOption = amenityChoice.closest('.bk-amenity-option');
+            if (amenityOption) amenityOption.classList.toggle('is-selected', amenityChoice.checked);
+        }
         if (SELECTED.length) { syncFromDom(); computeAll(); }
     });
     wrap.addEventListener('click', function (e) {
+        var photoStep = e.target.closest('[data-room-photo-step]');
+        if (photoStep) {
+            var photoSection = photoStep.closest('[data-guest-section]');
+            var photoRoom = photoSection && SELECTED[Number(photoSection.getAttribute('data-guest-section'))];
+            if (photoRoom && photoRoom.photos && photoRoom.photos.length) {
+                photoRoom.photo_index = (Number(photoRoom.photo_index || 0) + Number(photoStep.getAttribute('data-room-photo-step')) + photoRoom.photos.length) % photoRoom.photos.length;
+                var photoImage = photoSection.querySelector('[data-room-info-image]');
+                var photoCount = photoSection.querySelector('[data-room-photo-count]');
+                if (photoImage) photoImage.src = photoRoom.photos[photoRoom.photo_index];
+                if (photoCount) photoCount.textContent = (photoRoom.photo_index + 1) + '/' + photoRoom.photos.length;
+            }
+            return;
+        }
         var tab = e.target.closest('[data-room-tab]');
         if (tab) { setActive(Number(tab.getAttribute('data-room-tab'))); return; }
         var rm = e.target.closest('[data-remove-room]');
@@ -1066,6 +1152,7 @@
     });
 
     form.addEventListener('submit', function (e) {
+        if (bookingSubmitting) { e.preventDefault(); return; }
         if (!SELECTED.length) { e.preventDefault(); return; }
         syncFromDom();
         var errs = validateAll();
@@ -1075,11 +1162,13 @@
             showErrors(errs);
             return;
         }
+        bookingSubmitting = true;
         // Trigger summary step before submitting
         document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
-        // Don't disable immediately if we want summary to show first
-        // btn.disabled = true;
-        // btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening payment...';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving booking...';
+        }
     });
 
     // Seed from the server-side prefill (validation-error re-render).

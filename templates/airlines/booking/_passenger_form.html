@@ -36,14 +36,14 @@
             <span class="pd-field__err" data-pd-err="classification" role="alert"></span>
         </label>
 
-        <label class="pd-field">
+        <label class="pd-field pd-field--span-2">
             <span class="pd-field__label">Email address <span class="pd-req">*</span></span>
             <input type="email" name="pax___INDEX___email" data-pd-field="email" autocomplete="email"
                    placeholder="name@example.com" aria-required="true">
             <span class="pd-field__err" data-pd-err="email" role="alert"></span>
         </label>
 
-        <label class="pd-field">
+        <label class="pd-field pd-field--wide">
             <span class="pd-field__label">Phone number <span class="pd-req">*</span></span>
             <span class="pd-phone">
                 <select data-pd-field="phone_code" aria-label="Country code">
@@ -121,6 +121,17 @@
             <span class="pd-field__label">Passport expiry date <span class="pd-req">*</span></span>
             <input type="date" data-pd-field="passport_expiry" aria-required="{% if default_flight_type == 'INTERNATIONAL' %}true{% else %}false{% endif %}">
             <span class="pd-field__err" data-pd-err="passport_expiry" role="alert"></span>
+        </label>
+        <label class="pd-field pd-field--wide">
+            <span class="pd-field__label">Extra baggage (optional)</span>
+            <select class="pd-baggage-select" data-pd-field="baggage_kg">
+                {% for opt in fare.baggage_options %}
+                <option value="{{ opt.kg }}"{% if not opt.kg %} selected{% endif %}>
+                    {{ opt.label }}{% if opt.kg %} — {{ opt.price_text }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <span class="pd-field__hint">Only this passenger will be charged for the selected baggage.</span>
         </label>
     </div>
 

@@ -102,7 +102,7 @@ Reach it from the results page: select a flight, confirm the selection, then **C
 The layout is three columns on desktop and stacked on mobile:
 
 - **Left** â€” flight summary: airline and logo, class, departure and arrival airport, date and time, duration, stops, flight number, aircraft, checked and cabin baggage, meal and Wi-Fi.
-- **Centre** â€” the flight type toggle, the traveller counters, one passenger form per traveller, the single **Select Seat** button, the baggage and insurance selectors, and the cancellation and refund policy card.
+- **Centre** â€” the flight type toggle, the traveller counters, one passenger form per traveller with its own optional extra-baggage dropdown, the single **Select Seat** button, travel insurance and the cancellation and refund policy card.
 - **Right** â€” the fare summary with base fare, taxes and fees, passenger count, extra baggage, travel insurance, the total, **Continue to Review & Payment**, **Back to Flight Details** and the secure-booking note.
 
 ### Flight type, travellers and seats
@@ -113,10 +113,10 @@ The layout is three columns on desktop and stacked on mobile:
 
 ### Baggage, insurance and the fare summary
 
-- **Extra baggage** is sold in 5 kg blocks (0, 5, 10, 15, 20, 25 kg) with the price shown beside each option. The page states that the charge is per passenger and multiplies it by the traveller count.
+- **Extra baggage** is optional for each passenger and is sold in 5 kg blocks with the price shown beside each option. Passengers choose independently, and only their selected baggage is charged; the total is the sum of those individual choices.
 - **Travel insurance** is optional: No Insurance, Basic (â‚±299), Standard (â‚±499) and Premium (â‚±799) per passenger, each with a short description of what it may cover and what it excludes, plus an expandable panel with the terms, conditions, claim requirements and coverage limits.
-- The fare summary is always computed from the current state, never a fixed number: `base fare Ã— travellers + taxes and fees + extra baggage + insurance`, with the per-passenger average underneath. Baggage and insurance changes update it immediately. The prototype charges every traveller the same base fare; a real implementation would price children and infants on their own fare rules.
-- **Continue to Review & Payment** validates every passenger, the flight type, the passport numbers for international flights, the seat assignments and the policy acknowledgement, and shows field-level errors where something is missing. Only then does it open the review, which lists the flight, every passenger with their seat, the baggage and insurance selections, the policy acknowledgement and the full price breakdown.
+- The fare summary is always computed from the current state, never a fixed number: `base fare Ã— travellers + taxes and fees + individually selected extra baggage + insurance`, with the per-passenger average underneath. Passenger baggage and insurance changes update it immediately. The prototype charges every traveller the same base fare; a real implementation would price children and infants on their own fare rules.
+- **Continue to Review & Payment** validates every passenger, the flight type, the passport numbers for international flights, the seat assignments and the policy acknowledgement, and shows field-level errors where something is missing. Only then does it open the review, which lists the flight, every passenger with their seat and baggage choice, the insurance selection, the policy acknowledgement and the full price breakdown.
 
 ### Cancellation and refund policy
 

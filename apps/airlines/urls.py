@@ -12,6 +12,8 @@ urlpatterns = [
     path('aircrafts/', views.aircrafts, name='aircrafts'),
     path('aircraft/<int:aircraft_id>/', views.aircraft_detail, name='aircraft_detail'),
     path('<int:airline_id>/fleet/', views.airline_fleet, name='airline_fleet'),
+    path('<int:airline_id>/fleet/<int:aircraft_type_id>/seats/',
+         views.seat_layout_editor, name='seat_layout_editor'),
     path('api/fleet/<int:airline_id>/', views.fleet_api, name='fleet_api'),
     path('<int:airline_id>/aircraft/add/', views.add_aircraft, name='add_aircraft'),
     path('aircraft/<int:aircraft_id>/update/', views.update_aircraft, name='update_aircraft'),

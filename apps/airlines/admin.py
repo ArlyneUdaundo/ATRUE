@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import (
     Aircraft, AircraftType, Airline, AirlineFleet, AirlinePhoto, Airport,
     Booking, Cabin, Flight, FlightItinerary, Manufacturer, Seat, SeatLayout,
-    Service, FlightOfferSnapshot,
+    SeatType, Service, FlightOfferSnapshot,
 )
 
 
@@ -125,11 +125,23 @@ class CabinAdmin(admin.ModelAdmin):
     search_fields = ('seat_layout__name',)
 
 
+@admin.register(SeatType)
+class SeatTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'default_price', 'color', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'code')
+    prepopulated_fields = {'code': ('name',)}
+
+
 @admin.register(Seat)
 class SeatAdmin(admin.ModelAdmin):
-    list_display = ('seat_number', 'seat_layout', 'cabin', 'position')
-    list_filter = ('position', 'cabin__fare_class', 'seat_layout__airline')
+    list_display = ('seat_number', 'seat_layout', 'cabin', 'seat_type',
+                    'position', 'price', 'is_available')
+    list_filter = ('position', 'is_available', 'cabin__fare_class',
+                   'seat_type', 'seat_layout__airline')
     search_fields = ('seat_number', 'seat_layout__name')
+    list_select_related = ('seat_layout', 'cabin', 'seat_type')
+    list_editable = ('seat_type', 'is_available')
 
 
 @admin.register(Manufacturer)

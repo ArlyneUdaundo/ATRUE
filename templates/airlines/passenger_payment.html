@@ -104,7 +104,7 @@
                 </div>
                 <div class="fp-checkout-passengers">
                     {% for passenger in ticket.passengers %}
-                    <div><span>{{ passenger.category|title }} · {{ passenger.name }}{% if passenger.seat %}<small>Seat {{ passenger.seat }}</small>{% endif %}</span></div>
+                    <div><span>{{ passenger.category|title }} · {{ passenger.name }}{% if passenger.seat %}<small>Seat {{ passenger.seat }}</small>{% endif %}<small>{% if passenger.extra_baggage_kg %}Extra baggage {{ passenger.extra_baggage_kg }} kg{% else %}No extra baggage{% endif %}</small></span></div>
                     {% endfor %}
                 </div>
                 <div class="fp-checkout-fare">

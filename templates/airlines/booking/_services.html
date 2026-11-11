@@ -10,24 +10,7 @@
             <span class="pd-chip pd-chip--soft">per 5&nbsp;kg</span>
         </div>
         <p class="pd-standard-baggage">Included checked baggage: <b data-pd-standard-baggage>{{ selected.checked_baggage|default:'Not specified' }}</b></p>
-        <div class="pd-baggage-picker">
-            <label class="pd-field__label" for="pd-baggage-select">Choose the baggage allowance you need</label>
-            <select class="pd-baggage-select" id="pd-baggage-select" data-pd-baggage-option>
-                {% for opt in fare.baggage_options %}
-                <option value="{{ opt.kg }}" data-price="{{ opt.price }}"{% if not opt.kg %} selected{% endif %}>
-                    {{ opt.label }}{% if opt.kg %} — {{ opt.price_text }}{% endif %}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <p class="pd-field__hint">
-            {% if fare.baggage_basis == 'per_passenger' %}
-            Charged <b>per passenger</b>. The total below multiplies the price by the number of travellers.
-            {% else %}
-            Charged <b>once per booking</b> regardless of the number of travellers.
-            {% endif %}
-            {% if is_sample %}Sample prices for this preview.{% else %}The displayed price uses the selected flight&rsquo;s stored baggage rate.{% endif %}
-        </p>
+        <p class="pd-field__hint">Choose extra baggage separately in each passenger&rsquo;s information. Only passengers who select it will be charged. {% if is_sample %}Sample prices for this preview.{% else %}Prices use the selected flight&rsquo;s stored baggage rate.{% endif %}</p>
     </div>
 
     <div class="pd-service">

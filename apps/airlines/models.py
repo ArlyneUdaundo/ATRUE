@@ -303,6 +303,12 @@ class AirlinePhoto(models.Model):
 
     class Meta:
         ordering = ['-is_primary', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['airline'], condition=models.Q(is_locked_logo=True),
+                name='one_locked_logo_per_airline',
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if self.pk and type(self).objects.filter(pk=self.pk, is_locked_logo=True).exists():
@@ -495,6 +501,37 @@ class Cabin(models.Model):
         return f"{self.label} ({self.seat_map} × {self.rows})"
 
 
+class SeatType(models.Model):
+    """A kind of seat a manager can sell, with the price it adds to the fare.
+
+    Seat types are a catalogue rather than a flight field: a carrier configures
+    "Extra Legroom" once, then applies it to individual seats (or a run of
+    them) on each aircraft layout.  ``Seat.price_override`` handles the rare
+    seat that needs its own price without inventing another type.
+    """
+
+    code = models.SlugField(
+        max_length=40, unique=True,
+        help_text="Stable key used by the seat map, e.g. extra-legroom.")
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=240, blank=True)
+    default_price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name="Default price")
+    color = models.CharField(
+        max_length=20, default='#e5e7eb',
+        help_text="Legend and seat-map swatch colour (CSS colour value).")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Seat type"
+        verbose_name_plural = "Seat types"
+
+    def __str__(self):
+        return self.name
+
+
 class Seat(models.Model):
     """One physical seat on the map.
 
@@ -506,6 +543,9 @@ class Seat(models.Model):
 
     seat_layout = models.ForeignKey(SeatLayout, on_delete=models.CASCADE, related_name='seats')
     cabin = models.ForeignKey(Cabin, on_delete=models.CASCADE, related_name='seats')
+    seat_type = models.ForeignKey(
+        SeatType, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='seats', verbose_name="Seat type")
     row_number = models.PositiveIntegerField(
         db_index=True, help_text="Global row from the nose, as on a boarding pass.")
     letter = models.CharField(max_length=2)
@@ -514,6 +554,14 @@ class Seat(models.Model):
     position = models.CharField(
         max_length=8, default='window', choices=[
             ('window', 'Window'), ('middle', 'Middle'), ('aisle', 'Aisle')])
+    price_override = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name="Price override",
+        help_text="Leave blank to use the seat type's default price.")
+    is_available = models.BooleanField(
+        default=True,
+        help_text="Untick to withdraw the seat from sale without removing it "
+                  "from the aircraft map.")
 
     class Meta:
         ordering = ['seat_layout', 'row_number', 'letter']
@@ -523,6 +571,20 @@ class Seat(models.Model):
                 name='unique_seat_per_layout',
             ),
         ]
+
+    @property
+    def price(self):
+        if self.price_override is not None:
+            return self.price_override
+        return self.seat_type.default_price if self.seat_type_id else 0
+
+    @property
+    def seat_type_code(self):
+        return self.seat_type.code if self.seat_type_id else 'standard'
+
+    @property
+    def seat_type_label(self):
+        return self.seat_type.name if self.seat_type_id else 'Standard seat'
 
     def __str__(self):
         return self.seat_number
@@ -1452,6 +1514,9 @@ class Booking(BookingFieldsMixin):
     extra_baggage = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     extra_baggage_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0,
                                            verbose_name="Extra baggage (kg)")
+    seat_selection = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name="Seat selection total")
     travel_document_type = models.CharField(
         max_length=20, blank=True,
         choices=TRAVEL_DOCUMENT_TYPE_CHOICES,
@@ -1504,6 +1569,19 @@ class Booking(BookingFieldsMixin):
             help_text="The leg's position in the itinerary, copied from the "
                       "flight so the e-ticket can print segments in order.")
         fare_class = models.CharField(max_length=15, choices=FARE_CLASS_CHOICES, default='ECONOMY')
+        seat_type = models.CharField(
+            max_length=40, blank=True, default='',
+            help_text="Seat type code snapshotted when the seat was sold.")
+        seat_type_label = models.CharField(max_length=80, blank=True, default='')
+        seat_price = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0,
+            help_text="Seat fee snapshotted when the seat was sold.")
+        extra_baggage_kg = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0,
+            verbose_name="Passenger extra baggage (kg)")
+        extra_baggage_charge = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0,
+            verbose_name="Passenger extra baggage charge")
         travel_document_type = models.CharField(
             max_length=20, blank=True, choices=TRAVEL_DOCUMENT_TYPE_CHOICES,
             help_text="Per-passenger travel document (FR-020)")

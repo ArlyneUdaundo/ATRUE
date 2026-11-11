@@ -31,6 +31,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlencode
+from django.utils.text import slugify
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from atrue_core.decorators import manager_required, student_booking_required
@@ -70,6 +71,12 @@ from .itineraries import (
     parse_clock,
     segment_duration_minutes,
 )
+from .fleet_data import (
+    CABIN_LABELS,
+    derive_markers,
+    iter_seats,
+    seat_map_label,
+)
 from .layouts import build_seat_map
 from .live_flights import LiveFlightSearchError, offer_rows, search_offers
 from .models import (
@@ -88,12 +95,14 @@ from .models import (
     ROUTE_SCOPE_CHOICES,
     Seat,
     SeatLayout,
+    SeatType,
     Service,
     TripRole,
     TripSegment,
 )
 from .route_scope import normalize_route_scope, route_scope_for_legs
 from .sample_flights import sample_results
+from .seat_catalog import apply_default_seat_types, ensure_seat_types
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +292,79 @@ def _seat_map(flight, segment=TripSegment.DEPARTURE):
     return seat_map
 
 
+def _position_label(position):
+    return {'window': 'Window', 'middle': 'Middle', 'aisle': 'Aisle'}.get(
+        position, 'Seat')
+
+
+def _customer_seat_map(real_map, cabin, aircraft, currency_prefix):
+    """Flatten one cabin into the row/seat shape the passenger picker reads."""
+    rows = []
+    letters = []
+    for row_index, row in enumerate(cabin.get('rows', [])):
+        seats = []
+        for block_index, block in enumerate(row.get('blocks', [])):
+            first_in_block = True
+            for col in block.get('cols', []):
+                if col.get('seat'):
+                    if row_index == 0:
+                        letters.append(col.get('label', ''))
+                    price = col.get('price') or 0
+                    seats.append({
+                        'number': col['seat'],
+                        'letter': col.get('label', ''),
+                        'taken': col.get('taken', False),
+                        'price': float(price),
+                        'price_text': f'{currency_prefix}{Decimal(price):,.2f}',
+                        'category': col.get('seat_type') or 'standard',
+                        'category_label': col.get('seat_type_label') or 'Standard seat',
+                        'color': col.get('color') or '',
+                        'position': col.get('position', 'middle'),
+                        'position_label': _position_label(col.get('position')),
+                        'aisle_before': block_index > 0 and first_in_block,
+                    })
+                    first_in_block = False
+        rows.append({'row': row.get('row'), 'seats': seats,
+                     'is_exit': row.get('is_exit', False)})
+    return {
+        'aircraft': aircraft,
+        'layout': real_map.get('seat_map', ''),
+        'cabin': cabin.get('label', 'Economy'),
+        'cabin_pitch': '',
+        'blocks': [], 'letters': letters, 'aisle_starts': [],
+        'rows': rows, 'exit_rows': [], 'front_rows': [],
+    }
+
+
+def _customer_seat_types(real_map, currency_prefix):
+    """Every seat type in use on the aircraft, priced for the legend."""
+    types = {}
+    for cabin in real_map.get('cabins', []):
+        for row in cabin.get('rows', []):
+            for block in row.get('blocks', []):
+                for col in block.get('cols', []):
+                    if not col.get('seat'):
+                        continue
+                    code = col.get('seat_type') or 'standard'
+                    price = col.get('price') or 0
+                    types.setdefault(code, {
+                        'key': code,
+                        'label': col.get('seat_type_label') or 'Standard seat',
+                        'price': float(price),
+                        'price_text': f'{currency_prefix}{Decimal(price):,.2f}',
+                        'color': col.get('color') or '',
+                    })
+    return sorted(types.values(), key=lambda item: item['label'])
+
+
+def _seat_types_note(seat_types):
+    if any(item['price'] for item in seat_types):
+        return ('Seat prices are per seat, per traveller, and are added to the '
+                'booking total. The price shown on each seat is the price charged.')
+    return ('No paid seat price is configured for this flight. Seat selection '
+            'has no additional charge.')
+
+
 def _seats_exist(flight, seat_numbers):
     """Whether every seat number is one the flight's own layout actually has."""
     if not seat_numbers:
@@ -293,6 +375,41 @@ def _seats_exist(flight, seat_numbers):
     real = set(Seat.objects.filter(seat_layout=layout, seat_number__in=seat_numbers)
                .values_list('seat_number', flat=True))
     return real == set(seat_numbers)
+
+
+def _seat_selection(flight, seat_numbers, fare_class):
+    """Resolve chosen seats to their cabin, type and price for one leg.
+
+    The database, not the posted form, decides whether a seat exists, belongs to
+    the cabin being sold, and is still available.  Returning a message alongside
+    the lookup lets every caller reject a stale or forged selection the same way.
+    """
+    from airlines.seat_catalog import seat_quote
+
+    numbers = [str(number or '').strip().upper() for number in seat_numbers
+               if str(number or '').strip()]
+    if not numbers:
+        return {}, ''
+    layout = flight.seat_layout_record
+    if layout is None:
+        return {}, 'This aircraft has no seat layout configured.'
+    seats = (Seat.objects.filter(seat_layout=layout, seat_number__in=numbers)
+             .select_related('cabin', 'seat_type'))
+    found = {seat.seat_number: seat for seat in seats}
+    missing = [number for number in numbers if number not in found]
+    if missing:
+        return {}, f"Seat {missing[0]} is not on this aircraft."
+    resolved = {}
+    for number in numbers:
+        seat = found[number]
+        if fare_class and seat.cabin.fare_class != fare_class:
+            label = seat.cabin.label
+            return {}, (f"Seat {number} is in {label}; this booking is for "
+                        f"{dict(FARE_CLASS_CHOICES).get(fare_class, fare_class)}.")
+        if not seat.is_available:
+            return {}, f"Seat {number} is no longer available. Please choose another seat."
+        resolved[number] = {'seat': seat, **seat_quote(seat)}
+    return resolved, ''
 
 
 def _posted_seat_list(request, index):
@@ -1586,9 +1703,294 @@ def _create_default_layout(airline, aircraft_type):
     cabins by hand.
     """
     from airlines.fleet_data import FALLBACK_SPECS, write_layout
+    from airlines.seat_catalog import apply_default_seat_types
 
-    return write_layout(SeatLayout, Cabin, Seat, airline, aircraft_type,
-                        FALLBACK_SPECS.get(aircraft_type.body_class, 'NARROW_180'))
+    layout = write_layout(SeatLayout, Cabin, Seat, airline, aircraft_type,
+                          FALLBACK_SPECS.get(aircraft_type.body_class, 'NARROW_180'))
+    apply_default_seat_types(layout)
+    return layout
+
+
+def _parse_cabin_specs(request):
+    specs = []
+    for fare_class, label in FARE_CLASS_CHOICES:
+        blocks_raw = (request.POST.get(f'blocks_{fare_class}') or '').strip()
+        rows_raw = (request.POST.get(f'rows_{fare_class}') or '').strip()
+        if not blocks_raw and not rows_raw:
+            continue
+        if not re.fullmatch(r'\d+(?:-\d+)*', blocks_raw):
+            raise ValueError(f"{label}: use blocks such as 3-3 or 1-2-1.")
+        blocks = [int(part) for part in blocks_raw.split('-')]
+        if len(blocks) > 6 or any(width < 1 or width > 10 for width in blocks):
+            raise ValueError(f"{label}: each block must be between 1 and 10 seats.")
+        try:
+            rows = int(rows_raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"{label}: enter a whole number of rows.")
+        if rows < 1 or rows > 100:
+            raise ValueError(f"{label}: rows must be between 1 and 100.")
+        specs.append((fare_class, blocks, rows))
+    if not specs:
+        raise ValueError("Configure at least one cabin.")
+    if sum(rows * sum(blocks) for _, blocks, rows in specs) > 1000:
+        raise ValueError("A layout cannot hold more than 1000 seats.")
+    return specs
+
+
+def _layout_booked_seats(layout):
+    flights = Flight.objects.filter(
+        Q(aircraft__seat_layout=layout) |
+        Q(aircraft__isnull=True, airline=layout.airline,
+          airline__default_aircraft_type=layout.aircraft_type))
+    occupied = Booking.BookingSeat.objects.filter(
+        Q(booking__flight__in=flights) |
+        Q(booking__return_flight__in=flights) |
+        Q(flight__in=flights)
+    ).exclude(
+        booking__status__in=[Booking.Status.CANCELLED, Booking.Status.DECLINED]
+    ).exclude(seat_number='')
+    return set(occupied.values_list('seat_number', flat=True))
+
+
+def _save_cabin_specs(layout, specs):
+    existing = {
+        seat.seat_number: (seat.seat_type_id, seat.price_override,
+                           seat.is_available)
+        for seat in layout.seats.all()
+    }
+    markers = derive_markers(specs)
+    total_capacity = sum(rows * sum(blocks) for _, blocks, rows in specs)
+
+    booked = _layout_booked_seats(layout)
+    new_numbers = set()
+    first_row = 1
+    for fare_class, blocks, rows in specs:
+        for row_number, letter, _, _ in iter_seats([(fare_class, blocks, rows)]):
+            new_numbers.add('%d%s' % (first_row + row_number - 1, letter))
+        first_row += rows
+    missing = sorted(booked - new_numbers)
+    if missing:
+        raise ValueError(
+            "These seats already have passengers and cannot be removed: "
+            + ', '.join(missing[:12])
+            + ('…' if len(missing) > 12 else ''))
+
+    with transaction.atomic():
+        layout.cabins.all().delete()
+        batch = []
+        first_row = 1
+        for position, (fare_class, blocks, rows) in enumerate(specs):
+            cabin = Cabin.objects.create(
+                seat_layout=layout, fare_class=fare_class,
+                position=position, blocks=list(blocks), rows=rows)
+            for row_number, letter, seat_position_kind, _ in iter_seats(
+                    [(fare_class, blocks, rows)]):
+                batch.append(Seat(
+                    seat_layout=layout, cabin=cabin,
+                    row_number=first_row + row_number - 1,
+                    letter=letter,
+                    seat_number='%d%s' % (first_row + row_number - 1, letter),
+                    position=seat_position_kind))
+            first_row += rows
+        Seat.objects.bulk_create(batch)
+        layout.seat_map = seat_map_label(specs)
+        layout.exit_rows = markers['exit_rows']
+        layout.lavatory_rows = markers['lavatory_rows']
+        layout.galley_positions = markers['galley_positions']
+        layout.total_capacity = total_capacity
+        layout.save(update_fields=[
+            'seat_map', 'exit_rows', 'lavatory_rows', 'galley_positions',
+            'total_capacity'])
+        apply_default_seat_types(layout)
+
+        preserved = []
+        for seat in layout.seats.filter(seat_number__in=existing):
+            type_id, price_override, is_available = existing[seat.seat_number]
+            changed = False
+            if type_id is not None and seat.seat_type_id != type_id:
+                seat.seat_type_id = type_id
+                changed = True
+            if price_override is not None and seat.price_override != price_override:
+                seat.price_override = price_override
+                changed = True
+            if seat.is_available != is_available:
+                seat.is_available = is_available
+                changed = True
+            if changed:
+                preserved.append(seat)
+        if preserved:
+            Seat.objects.bulk_update(
+                preserved, ['seat_type', 'price_override', 'is_available'],
+                batch_size=500)
+        Aircraft.objects.filter(seat_layout=layout).update(
+            seating_capacity=total_capacity)
+    return total_capacity
+
+
+def _seat_layout_editor_context(layout):
+    cabins = list(layout.cabins.order_by('position'))
+    seats = list(layout.seats.select_related('cabin', 'seat_type')
+                 .order_by('row_number', 'letter'))
+    seats_by_cabin = {}
+    for seat in seats:
+        seats_by_cabin.setdefault(seat.cabin_id, {}).setdefault(
+            seat.row_number, []).append(seat)
+
+    cabin_rows = []
+    for cabin in cabins:
+        rows = []
+        for row_number, row_seats in seats_by_cabin.get(cabin.pk, {}).items():
+            rows.append({'number': row_number, 'seats': row_seats})
+        cabin_rows.append({
+            'cabin': cabin,
+            'rows': rows,
+            'seat_count': sum(len(row['seats']) for row in rows),
+        })
+
+    existing = {cabin.fare_class: cabin for cabin in cabins}
+    cabin_form_rows = []
+    for fare_class, label in FARE_CLASS_CHOICES:
+        cabin = existing.get(fare_class)
+        cabin_form_rows.append({
+            'code': fare_class,
+            'label': CABIN_LABELS.get(fare_class, label),
+            'blocks': '-'.join(str(block) for block in cabin.blocks) if cabin else '',
+            'rows': cabin.rows if cabin else '',
+        })
+
+    return {
+        'layout': layout,
+        'cabin_rows': cabin_rows,
+        'cabin_form_rows': cabin_form_rows,
+        'seat_types': SeatType.objects.all().order_by('name'),
+    }
+
+
+@manager_required
+def seat_layout_editor(request, airline_id, aircraft_type_id):
+    airline = get_object_or_404(Airline, pk=airline_id)
+    aircraft_type = get_object_or_404(
+        AircraftType.objects.select_related('manufacturer'), pk=aircraft_type_id)
+    get_object_or_404(AirlineFleet, airline=airline, aircraft_type=aircraft_type)
+    layout = (SeatLayout.objects.select_related('airline', 'aircraft_type')
+              .filter(airline=airline, aircraft_type=aircraft_type).first())
+    if layout is None:
+        layout = _create_default_layout(airline, aircraft_type)
+    ensure_seat_types()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'cabins':
+            try:
+                specs = _parse_cabin_specs(request)
+                capacity = _save_cabin_specs(layout, specs)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                log_activity(request.user, "Updated seat layout",
+                             f"{layout.label} ({capacity} seats)")
+                messages.success(
+                    request, f"{layout.name} updated to {capacity} seats.")
+                return redirect('airlines:seat_layout_editor', airline.pk,
+                                aircraft_type.pk)
+        elif action == 'seat_type':
+            type_id = request.POST.get('seat_type_id') or ''
+            name = (request.POST.get('name') or '').strip()
+            code = (request.POST.get('code') or '').strip()
+            description = (request.POST.get('description') or '').strip()
+            color = (request.POST.get('color') or '').strip() or '#e5e7eb'
+            is_active = request.POST.get('is_active') == '1'
+            try:
+                price = Decimal(request.POST.get('default_price') or '0')
+            except (InvalidOperation, TypeError, ValueError):
+                messages.error(request, "Enter a valid seat-type price.")
+            else:
+                if not name:
+                    messages.error(request, "Give the seat type a name.")
+                elif price < 0:
+                    messages.error(request, "Seat-type prices cannot be negative.")
+                else:
+                    seat_type = (SeatType.objects.filter(pk=type_id).first()
+                                 if type_id else None)
+                    if seat_type is None:
+                        slug = slugify(code or name)
+                        if not slug:
+                            messages.error(request, "Enter a valid seat-type code.")
+                            slug = None
+                        elif SeatType.objects.filter(code=slug).exists():
+                            messages.error(
+                                request, f"A seat type with code '{slug}' already exists.")
+                            slug = None
+                        if slug:
+                            seat_type = SeatType(code=slug)
+                    if seat_type is not None:
+                        seat_type.name = name
+                        seat_type.description = description
+                        seat_type.default_price = price
+                        seat_type.color = color
+                        seat_type.is_active = is_active
+                        try:
+                            seat_type.full_clean()
+                        except ValidationError as exc:
+                            messages.error(request, '; '.join(exc.messages))
+                        else:
+                            seat_type.save()
+                            log_activity(
+                                request.user, "Saved seat type", seat_type.name)
+                            messages.success(
+                                request, f"Seat type '{seat_type.name}' saved.")
+                            return redirect(
+                                'airlines:seat_layout_editor', airline.pk,
+                                aircraft_type.pk)
+        elif action == 'bulk_seats':
+            seat_ids = request.POST.getlist('seats')
+            seats = layout.seats.filter(pk__in=seat_ids)
+            if not seats.exists():
+                messages.error(request, "Select at least one seat.")
+            else:
+                updates = {}
+                error = False
+                type_id = request.POST.get('seat_type_id') or ''
+                if request.POST.get('clear_seat_type') == '1':
+                    updates['seat_type_id'] = None
+                elif type_id:
+                    seat_type = SeatType.objects.filter(pk=type_id).first()
+                    if seat_type is None:
+                        messages.error(request, "Choose a valid seat type.")
+                        error = True
+                    else:
+                        updates['seat_type_id'] = seat_type.pk
+                raw_price = (request.POST.get('price_override') or '').strip()
+                if not error:
+                    try:
+                        if raw_price:
+                            price = Decimal(raw_price)
+                            if price < 0:
+                                raise InvalidOperation
+                            updates['price_override'] = price
+                        elif request.POST.get('clear_price') == '1':
+                            updates['price_override'] = None
+                    except (InvalidOperation, TypeError, ValueError):
+                        messages.error(request, "Enter a valid non-negative seat price.")
+                        error = True
+                if not error:
+                    availability = request.POST.get('availability')
+                    if availability in ('0', '1'):
+                        updates['is_available'] = availability == '1'
+                    if updates:
+                        count = seats.count()
+                        seats.update(**updates)
+                        log_activity(
+                            request.user, "Updated seats",
+                            f"{layout.label}: {count} seat(s)")
+                        messages.success(
+                            request, f"Updated {count} seat(s) on {layout.name}.")
+                        return redirect(
+                            'airlines:seat_layout_editor', airline.pk,
+                            aircraft_type.pk)
+
+    return render(request, 'airlines/seat_layout_editor.html',
+                  _seat_layout_editor_context(layout))
 
 
 @manager_required
@@ -3455,52 +3857,28 @@ def passenger_details(request):
              'label': 'No extra baggage' if not kg else f'{kg} kg'}
             for kg in (0, 5, 10, 15, 20, 25, 30)]
         fare['insurance_plans'] = pd_sample.insurance_options()
-        fare['seat_types'] = [{'key': 'standard', 'label': 'Standard Seat', 'price': 0, 'price_text': '₱0.00'}]
-        fare['seat_pricing_note'] = 'No paid seat price is configured for this flight. Seat selection has no additional charge.'
-        fare['taxes_per_passenger'] = 0
         real_map = _seat_map(flight)
-        seat_maps_by_class = {}
-        for cabin in real_map.get('cabins', []):
-            cabin_rows = []
-            for cabin_row in cabin.get('rows', []):
-                cabin_seats = []
-                for cabin_block in cabin_row.get('blocks', []):
-                    for cabin_col in cabin_block.get('cols', []):
-                        if cabin_col.get('seat'):
-                            cabin_seats.append({
-                                'number': cabin_col['seat'], 'letter': cabin_col.get('label', ''),
-                                'taken': cabin_col.get('taken', False), 'price': 0,
-                                'category': 'standard', 'category_label': 'Standard seat',
-                                'position': cabin_col.get('position', 'middle'),
-                                'position_label': cabin_col.get('position', 'Seat'), 'aisle_before': False,
-                            })
-                cabin_rows.append({'row': cabin_row.get('row'), 'seats': cabin_seats,
-                                   'is_exit': cabin_row.get('is_exit', False)})
-            seat_maps_by_class[cabin.get('key')] = {
-                'aircraft': selected['aircraft'], 'layout': real_map.get('seat_map', ''),
-                'cabin': cabin.get('label', 'Economy'), 'cabin_pitch': '',
-                'blocks': real_map.get('blocks', []), 'letters': real_map.get('letters', []),
-                'aisle_starts': real_map.get('aisle_starts', []), 'rows': cabin_rows,
-                'exit_rows': [], 'front_rows': [],
-            }
-        seat_rows = []
-        first_cabin = next((cabin for cabin in real_map.get('cabins', [])
-                            if cabin.get('key') == fare_class),
-                           (real_map.get('cabins') or [{}])[0])
-        for row in first_cabin.get('rows', []):
-            seats = []
-            for block in row.get('blocks', []):
-                for col in block.get('cols', []):
-                    if col.get('seat'):
-                        seats.append({'number': col['seat'], 'letter': col.get('label', ''),
-                                      'taken': col.get('taken', False), 'price': 0,
-                                      'category': 'standard', 'category_label': 'Standard seat',
-                                      'position_label': col.get('position', 'Seat'), 'aisle_before': False})
-            seat_rows.append({'row': row.get('row'), 'seats': seats, 'is_exit': row.get('is_exit', False)})
-        seat_map = {'aircraft': selected['aircraft'], 'layout': real_map.get('seat_map', ''),
-                    'cabin': first_cabin.get('label', 'Economy'), 'cabin_pitch': '',
-                    'blocks': [], 'letters': [], 'rows': seat_rows,
-                    'exit_rows': [], 'front_rows': []}
+        seat_types = _customer_seat_types(real_map, currency_prefix)
+        fare['seat_types'] = seat_types or [{
+            'key': 'standard', 'label': 'Standard Seat', 'price': 0,
+            'price_text': f'{currency_prefix}0.00', 'color': '#ffffff'}]
+        fare['seat_pricing_note'] = _seat_types_note(fare['seat_types'])
+        fare['taxes_per_passenger'] = 0
+        seat_maps_by_class = {
+            cabin.get('key'): _customer_seat_map(
+                real_map, cabin, selected['aircraft'], currency_prefix)
+            for cabin in real_map.get('cabins', [])
+        }
+        seat_map = seat_maps_by_class.get(fare_class)
+        if seat_map is None:
+            first_cabin = next(iter(real_map.get('cabins', [])), None)
+            if first_cabin is not None:
+                seat_map = _customer_seat_map(
+                    real_map, first_cabin, selected['aircraft'], currency_prefix)
+            else:
+                seat_map = {'aircraft': selected['aircraft'], 'layout': '',
+                            'cabin': 'Economy', 'cabin_pitch': '', 'blocks': [],
+                            'letters': [], 'rows': [], 'exit_rows': [], 'front_rows': []}
         return render(request, 'airlines/passenger_details.html', {
             'selected': selected, 'flight': selected, 'fare': fare, 'seat_map': seat_map,
             'seat_maps_by_class': seat_maps_by_class,
@@ -3631,6 +4009,15 @@ def confirm_passenger_details(request):
                     raise ValueError('Enter a valid passport expiry date.')
                 if passport_expiry <= sample_travel_date:
                     raise ValueError('The passport must be valid through the departure date.')
+            try:
+                baggage_kg = int(item.get('baggage_kg') or 0)
+            except (TypeError, ValueError):
+                raise ValueError('The baggage selection is invalid.')
+            baggage_option = next(
+                (option for option in pd_sample.BAGGAGE_OPTIONS
+                 if option[0] == baggage_kg), None)
+            if baggage_option is None:
+                raise ValueError('The baggage selection is invalid.')
             seat_number = str(item.get('seat') or '').strip().upper()
             if category == 'infant':
                 seat_number = ''
@@ -3648,6 +4035,8 @@ def confirm_passenger_details(request):
                 'seat': seat_number or 'No seat',
                 'seat_category': seat_lookup[seat_number]['category_label'] if seat_number else '',
                 'seat_price': seat_lookup[seat_number]['price'] if seat_number else 0,
+                'extra_baggage_kg': baggage_kg,
+                'extra_baggage_charge': baggage_option[1],
                 'details': {
                     'email': email,
                     'phone_code': str(details.get('phone_code') or '+63')[:6],
@@ -3669,13 +4058,10 @@ def confirm_passenger_details(request):
                 or passenger_counts['infant'] > pd_sample.MAX_INFANTS):
             raise ValueError('The passenger count is invalid.')
 
-        baggage_kg = int(payload.get('baggage_kg') or 0)
-        baggage_option = next((item for item in pd_sample.BAGGAGE_OPTIONS
-                               if item[0] == baggage_kg), None)
         insurance_key = str(payload.get('insurance_key') or 'none')
         insurance_plan = next((item for item in pd_sample.INSURANCE_PLANS
                                if item[0] == insurance_key), None)
-        if baggage_option is None or insurance_plan is None:
+        if insurance_plan is None:
             raise ValueError('The selected extras are invalid.')
         if insurance_plan[2] > 0 and not payload.get('insurance_terms_acknowledged'):
             raise ValueError('Please acknowledge the insurance terms before selecting coverage.')
@@ -3685,9 +4071,8 @@ def confirm_passenger_details(request):
         passenger_total = len(passenger_rows)
         base_fare = int(flight['price']) * passenger_total
         taxes = pd_sample.TAXES_AND_FEES_PER_PASSENGER * passenger_total
-        baggage_total = (baggage_option[1] * passenger_total
-                         if pd_sample.BAGGAGE_CHARGE_BASIS == 'per_passenger'
-                         else baggage_option[1])
+        baggage_total = sum(row['extra_baggage_charge'] for row in passenger_rows)
+        baggage_kg_total = sum(row['extra_baggage_kg'] for row in passenger_rows)
         insurance_total = (insurance_plan[2] * passenger_total
                            if pd_sample.INSURANCE_CHARGE_BASIS == 'per_passenger'
                            else insurance_plan[2])
@@ -3731,7 +4116,7 @@ def confirm_passenger_details(request):
             },
             'passengers': passenger_rows,
             'extras': {
-                'extra_baggage_kg': baggage_kg,
+                'extra_baggage_kg': baggage_kg_total,
                 'insurance': insurance_plan[1],
                 'insurance_terms_acknowledged': bool(payload.get('insurance_terms_acknowledged')),
                 'policy_acknowledged': bool(payload.get('policy_acknowledged')),
@@ -3803,7 +4188,9 @@ def _database_ticket_context(booking, order, flight, passengers, total,
         },
         'passengers': [
             {'name': passenger['name'], 'category': passenger['category'],
-             'seat': passenger['seat']}
+             'seat': passenger['seat'],
+             'extra_baggage_kg': float(passenger['extra_baggage_kg']),
+             'extra_baggage_charge': float(passenger['extra_baggage_charge'])}
             for passenger in passengers
         ],
         'extras': {
@@ -3812,12 +4199,13 @@ def _database_ticket_context(booking, order, flight, passengers, total,
         'fare': {
             'passenger_count': len(passengers),
             'base_fare': float(Decimal(total) - Decimal(baggage_charge)
-                               - Decimal(insurance_charge or 0)),
+                               - Decimal(insurance_charge or 0)
+                               - Decimal(booking.seat_selection or 0)),
             'taxes': 0,
             'baggage': float(Decimal(baggage_charge or 0)),
             'insurance': float(Decimal(insurance_charge or 0)),
             'insurance_plan': booking.travel_insurance_plan,
-            'seats': 0,
+            'seats': float(Decimal(booking.seat_selection or 0)),
             'total': float(total),
         },
     }
@@ -3908,6 +4296,12 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                 return HttpResponseBadRequest('Enter a valid passport expiry date.')
             if passport_expiry <= travel_date:
                 return HttpResponseBadRequest('The passport must be valid through the departure date.')
+        try:
+            baggage_kg = int(item.get('baggage_kg') or 0)
+        except (TypeError, ValueError):
+            return HttpResponseBadRequest('The baggage selection is invalid.')
+        if baggage_kg not in (0, 5, 10, 15, 20, 25, 30):
+            return HttpResponseBadRequest('The baggage selection is invalid.')
         counts[category] += 1
         cleaned.append({
             'category': category, 'name': name,
@@ -3918,6 +4312,7 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             'email': email, 'phone': phone, 'phone_code': phone_code,
             'phone_value': phone_value, 'passport': passport,
             'passport_country': passport_country, 'passport_expiry': passport_expiry,
+            'extra_baggage_kg': baggage_kg,
             'seat': str(item.get('seat') or '').strip().upper() if category != 'infant' else '',
         })
     if counts['adult'] < 1 or counts['infant'] > counts['adult']:
@@ -3937,28 +4332,31 @@ def _confirm_database_passenger_details(request, payload, flight_id):
     if not payload.get('policy_acknowledged'):
         return HttpResponseBadRequest('Acknowledge the cancellation and refund policy before continuing.')
 
-    baggage_kg = int(payload.get('baggage_kg') or 0)
-    if baggage_kg not in (0, 5, 10, 15, 20, 25, 30):
-        return HttpResponseBadRequest('The baggage selection is invalid.')
     selected_seats = [row['seat'] for row in cleaned if row['seat']]
     if len(selected_seats) != len(set(selected_seats)):
         return HttpResponseBadRequest('Each passenger must have a different seat.')
     return_flight = flight.return_flight if flight.trip_type == Flight.TripType.ROUND_TRIP else None
     legs = flight.itinerary.ordered_legs if flight.itinerary_id else [flight]
     seat_flights = list(legs) + ([return_flight] if return_flight else [])
-    for seat_flight in seat_flights:
-        if selected_seats and not _seats_exist(seat_flight, selected_seats):
-            return HttpResponseBadRequest('A selected seat is not on every aircraft in this journey.')
-        if set(selected_seats).intersection(_booked_seat_numbers(seat_flight)):
-            return HttpResponseBadRequest('One or more selected seats have just been reserved. Please choose again.')
-
-    from django.db import IntegrityError
-    from transactions.cart import create_single_booking_order
     fare_class = str((payload.get('flight') or {}).get('fare_class_key') or Flight.FareClass.ECONOMY).strip().upper()
     priced_legs = list(legs) + ([return_flight] if return_flight else [])
     if (fare_class not in dict(FARE_CLASS_CHOICES)
             or any(fare_class not in leg.cabin_classes for leg in priced_legs)):
         return HttpResponseBadRequest('The selected cabin is no longer available for every flight segment.')
+    seat_quotes = {}
+    seat_charge = Decimal('0.00')
+    for seat_flight in seat_flights:
+        resolved, seat_error = _seat_selection(seat_flight, selected_seats, fare_class)
+        if seat_error:
+            return HttpResponseBadRequest(seat_error)
+        for number, quote in resolved.items():
+            seat_quotes[(seat_flight.pk, number)] = quote
+            seat_charge += Decimal(quote['price'] or 0)
+        if set(selected_seats).intersection(_booked_seat_numbers(seat_flight)):
+            return HttpResponseBadRequest('One or more selected seats have just been reserved. Please choose again.')
+
+    from django.db import IntegrityError
+    from transactions.cart import create_single_booking_order
     fare = flight.fare_for(fare_class)
     per_person = Decimal(fare or 0)
     if flight.itinerary_id:
@@ -3967,25 +4365,50 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             per_person += flight.itinerary.service_fee
     if return_flight:
         per_person += Decimal(return_flight.fare_for(fare_class) or 0)
-    baggage_charge = (
-        baggage_charge_for_kg(flight.baggage_rate, baggage_kg) * len(cleaned))
+    for passenger in cleaned:
+        passenger['extra_baggage_charge'] = baggage_charge_for_kg(
+            flight.baggage_rate, passenger['extra_baggage_kg'])
+    baggage_charge = sum(
+        (passenger['extra_baggage_charge'] for passenger in cleaned),
+        Decimal('0.00'))
+    baggage_kg_total = sum(
+        passenger['extra_baggage_kg'] for passenger in cleaned)
     insurance_charge = Decimal(insurance_plan[2]) * len(cleaned)
     items = compute_airline_bill(flight, len(cleaned), fare, baggage_charge=baggage_charge,
-                                 baggage_kg=baggage_kg * len(cleaned), return_flight=return_flight,
+                                 baggage_kg=baggage_kg_total, return_flight=return_flight,
                                  return_fare=return_flight.fare_for(fare_class) if return_flight else None,
                                  itinerary_legs=[(leg, leg.fare_for(fare_class)) for leg in legs])
     if insurance_charge:
         items.append({
-            'label': f'Travel insurance \u2014 {insurance_plan[1]}',
+            'label': f'Travel insurance — {insurance_plan[1]}',
             'description': f'{insurance_plan[1]} for {len(cleaned)} passenger(s)',
             'quantity': len(cleaned),
             'rate': Decimal(insurance_plan[2]),
             'amount': insurance_charge,
         })
+    for passenger in cleaned:
+        if not passenger['seat']:
+            continue
+        line_charge = Decimal('0.00')
+        labels = []
+        for seat_flight in seat_flights:
+            quote = seat_quotes.get((seat_flight.pk, passenger['seat']))
+            if quote is None:
+                continue
+            line_charge += Decimal(quote['price'] or 0)
+            labels.append(f"{seat_flight.flight_number} {quote['label']}")
+        if line_charge:
+            items.append({
+                'label': f"Seat {passenger['seat']} ({labels[0] if labels else 'Seat selection'})",
+                'description': ' · '.join(labels),
+                'quantity': 1,
+                'rate': line_charge,
+                'amount': line_charge,
+            })
     total = bill_items_total(items)
     if flight.itinerary_id and total != (
-            per_person * len(cleaned) + baggage_charge + insurance_charge):
-        total = per_person * len(cleaned) + baggage_charge + insurance_charge
+            per_person * len(cleaned) + baggage_charge + insurance_charge + seat_charge):
+        total = per_person * len(cleaned) + baggage_charge + insurance_charge + seat_charge
     try:
         with transaction.atomic():
             list(Flight.objects.select_for_update().filter(pk__in=[leg.pk for leg in seat_flights]))
@@ -3999,7 +4422,8 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                 status=Booking.Status.PENDING,
                 trip_type=flight.trip_type,
                 return_date=return_flight.departure_time.date() if return_flight else None,
-                extra_baggage=baggage_charge, extra_baggage_kg=baggage_kg * len(cleaned),
+                extra_baggage=baggage_charge, extra_baggage_kg=baggage_kg_total,
+                seat_selection=seat_charge,
                 travel_insurance_plan=(
                     insurance_plan[1] if insurance_plan[0] != 'none' else ''),
                 cancellation_policy_acknowledged=True,
@@ -4011,12 +4435,18 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             )
             for index, passenger in enumerate(cleaned):
                 for leg_index, leg in enumerate(legs):
+                    quote = seat_quotes.get((leg.pk, passenger['seat']), {})
                     Booking.BookingSeat.objects.create(
                         booking=booking, passenger_name=passenger['name'],
                         seat_number=passenger['seat'],
                         flight=leg if flight.itinerary_id else None,
                         segment=TripSegment.DEPARTURE,
                         fare_class=fare_class,
+                        seat_type=quote.get('code', ''),
+                        seat_type_label=quote.get('label', ''),
+                        seat_price=quote.get('price', 0),
+                        extra_baggage_kg=passenger['extra_baggage_kg'],
+                        extra_baggage_charge=passenger['extra_baggage_charge'],
                         passenger_category=passenger['category'],
                         passenger_classification=passenger['classification'],
                         first_name=passenger['first_name'], middle_name=passenger['middle_name'],
@@ -4030,9 +4460,15 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                         passport_expiry_date=passenger['passport_expiry'],
                     )
                 if return_flight:
+                    quote = seat_quotes.get((return_flight.pk, passenger['seat']), {})
                     Booking.BookingSeat.objects.create(
                         booking=booking, passenger_name=passenger['name'], seat_number=passenger['seat'],
                         segment=TripSegment.RETURN, fare_class=fare_class,
+                        seat_type=quote.get('code', ''),
+                        seat_type_label=quote.get('label', ''),
+                        seat_price=quote.get('price', 0),
+                        extra_baggage_kg=passenger['extra_baggage_kg'],
+                        extra_baggage_charge=passenger['extra_baggage_charge'],
                         passenger_category=passenger['category'], first_name=passenger['first_name'],
                         passenger_classification=passenger['classification'],
                         middle_name=passenger['middle_name'], last_name=passenger['last_name'],
@@ -4472,6 +4908,20 @@ def book_flight(request, flight_id):
         else:
             selected_return_seats = []
 
+        seat_quotes = {}
+        seat_charge = Decimal('0.00')
+        for seat_flight, numbers in ((flight, selected_seats),
+                                     (return_flight, selected_return_seats)):
+            if not numbers:
+                continue
+            resolved, seat_error = _seat_selection(seat_flight, numbers, fare_class)
+            if seat_error:
+                messages.error(request, seat_error)
+                return _rerender()
+            for number, quote in resolved.items():
+                seat_quotes[(seat_flight.pk, number)] = quote
+                seat_charge += Decimal(quote['price'] or 0)
+
         # Passenger 1 is always the primary guest (account owner); the form
         # only submits names for the additional seats, so the lead name is
         # fixed to the account.
@@ -4496,6 +4946,23 @@ def book_flight(request, flight_id):
         items = compute_airline_bill(flight, passengers, fare, services=extras,
                                      baggage_charge=baggage_charge, baggage_kg=baggage_kg,
                                      return_flight=return_flight, return_fare=return_fare)
+        for seat_number in sorted(set(selected_seats) | set(selected_return_seats)):
+            line_charge = Decimal('0.00')
+            labels = []
+            for seat_flight in (flight, return_flight):
+                if seat_flight is None:
+                    continue
+                quote = seat_quotes.get((seat_flight.pk, seat_number))
+                if quote is None:
+                    continue
+                line_charge += Decimal(quote['price'] or 0)
+                labels.append(f"{seat_flight.flight_number} {quote['label']}")
+            if line_charge:
+                items.append({
+                    'label': f"Seat {seat_number} ({labels[0] if labels else 'Seat selection'})",
+                    'description': ' · '.join(labels),
+                    'quantity': 1, 'rate': line_charge, 'amount': line_charge,
+                })
         total = bill_items_total(items)
 
         booking = Booking.objects.create(
@@ -4507,6 +4974,7 @@ def book_flight(request, flight_id):
             return_date=return_date_obj if trip_type == Booking.TripType.ROUND_TRIP else None,
             extra_baggage=baggage_charge,
             extra_baggage_kg=baggage_kg,
+            seat_selection=seat_charge,
             travel_document_type='PASSPORT',
             travel_document_number=request.POST.get('travel_document_number', ''),
             payer_name=request.POST.get('payer_name', request.user.get_full_name() or request.user.username),
@@ -4524,24 +4992,34 @@ def book_flight(request, flight_id):
             else:
                 seat_doc_type = 'PASSPORT'
                 seat_doc_number = travel_document_numbers[i - 1] if i - 1 < len(travel_document_numbers) else ''
+            outbound_seat = all_seats[i] if i < len(all_seats) else ''
+            outbound_quote = seat_quotes.get((flight.pk, outbound_seat), {})
             Booking.BookingSeat.objects.create(
                 booking=booking,
                 passenger_name=names[i] if i < len(names) else '',
-                seat_number=all_seats[i] if i < len(all_seats) else '',
+                seat_number=outbound_seat,
                 segment=TripSegment.DEPARTURE,
                 fare_class=fare_class,
+                seat_type=outbound_quote.get('code', ''),
+                seat_type_label=outbound_quote.get('label', ''),
+                seat_price=outbound_quote.get('price', 0),
                 travel_document_type=seat_doc_type,
                 travel_document_number=seat_doc_number,
             )
             # The return leg is a second seat for the same traveler, on the
             # return aircraft — 12A out, 14C back.
             if return_flight is not None and i < len(all_return_seats):
+                return_seat = all_return_seats[i]
+                return_quote = seat_quotes.get((return_flight.pk, return_seat), {})
                 Booking.BookingSeat.objects.create(
                     booking=booking,
                     passenger_name=names[i] if i < len(names) else '',
-                    seat_number=all_return_seats[i],
+                    seat_number=return_seat,
                     segment=TripSegment.RETURN,
                     fare_class=fare_class,
+                    seat_type=return_quote.get('code', ''),
+                    seat_type_label=return_quote.get('label', ''),
+                    seat_price=return_quote.get('price', 0),
                     travel_document_type=seat_doc_type,
                     travel_document_number=seat_doc_number,
                 )
@@ -4777,8 +5255,22 @@ def book_itinerary(request, itinerary_id):
                 messages.error(
                     request,
                     f"Segment {leg.segment_order} ({leg.flight_number}) does not "
-                    f"offer {fare_class} — pick a cabin every segment operates.")
+                    f"offer {fare_class}; pick a cabin every segment operates.")
                 return _rerender()
+
+        seat_quotes = {}
+        seat_charge = Decimal('0.00')
+        for leg in legs:
+            resolved, seat_error = _seat_selection(
+                leg, seats_by_leg[leg.pk], fare_class)
+            if seat_error:
+                messages.error(
+                    request,
+                    f"Segment {leg.segment_order} ({leg.flight_number}): {seat_error}")
+                return _rerender()
+            for number, quote in resolved.items():
+                seat_quotes[(leg.pk, number)] = quote
+                seat_charge += Decimal(quote['price'] or 0)
 
         lead_name = request.user.get_full_name() or request.user.username or 'Passenger'
         names = [lead_name]
@@ -4804,6 +5296,22 @@ def book_itinerary(request, itinerary_id):
             legs[0], passengers, leg_fares[0][1], services=extras,
             baggage_charge=baggage_charge, baggage_kg=baggage_kg,
             itinerary_legs=leg_fares)
+        for i in range(passengers):
+            line_charge = Decimal('0.00')
+            labels = []
+            for leg in legs:
+                quote = seat_quotes.get((leg.pk, seats_by_leg[leg.pk][i]))
+                if quote is None:
+                    continue
+                line_charge += Decimal(quote['price'] or 0)
+                labels.append(f"{leg.flight_number} {quote['label']}")
+            if line_charge:
+                items.append({
+                    'label': f"Seat {seats_by_leg[legs[0].pk][i]} "
+                             f"({labels[0] if labels else 'Seat selection'})",
+                    'description': ' · '.join(labels),
+                    'quantity': 1, 'rate': line_charge, 'amount': line_charge,
+                })
         total = bill_items_total(items)
 
         travel_document_type = 'PASSPORT'
@@ -4819,6 +5327,7 @@ def book_itinerary(request, itinerary_id):
                 trip_type=Booking.TripType.ONE_WAY,
                 extra_baggage=baggage_charge,
                 extra_baggage_kg=baggage_kg,
+                seat_selection=seat_charge,
                 travel_document_type=travel_document_type,
                 travel_document_number=travel_document_number,
                 payer_name=request.POST.get(
@@ -4837,14 +5346,19 @@ def book_itinerary(request, itinerary_id):
                         seat_doc_type = 'PASSPORT'
                         seat_doc_number = (extra_doc_numbers[i - 1]
                                            if i - 1 < len(extra_doc_numbers) else '')
+                    seat_number = seats_by_leg[leg.pk][i]
+                    quote = seat_quotes.get((leg.pk, seat_number), {})
                     Booking.BookingSeat.objects.create(
                         booking=booking,
                         flight=leg,
                         segment_order=leg.segment_order,
                         passenger_name=names[i] if i < len(names) else '',
-                        seat_number=seats_by_leg[leg.pk][i],
+                        seat_number=seat_number,
                         segment=TripSegment.DEPARTURE,
                         fare_class=fare_class,
+                        seat_type=quote.get('code', ''),
+                        seat_type_label=quote.get('label', ''),
+                        seat_price=quote.get('price', 0),
                         travel_document_type=seat_doc_type,
                         travel_document_number=seat_doc_number,
                     )

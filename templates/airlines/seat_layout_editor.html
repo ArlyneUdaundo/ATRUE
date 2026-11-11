@@ -1,0 +1,251 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ layout.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .seat-editor { display: grid; gap: 18px; }
+    .seat-editor .card { overflow: hidden; }
+    .seat-editor__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .seat-editor__head h1 { margin: 0 0 4px; }
+    .seat-editor__meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .seat-editor__cabins { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .seat-editor__grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seat-editor__row { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(148, 163, 184, .18); }
+    .seat-editor__row:last-child { border-bottom: 0; }
+    .seat-editor__row-no { width: 32px; flex: 0 0 32px; color: var(--muted-text, #64748b); font-size: .75rem; padding-top: 8px; text-align: right; }
+    .seat-editor__seat { position: relative; flex: 0 0 76px; border: 1px solid rgba(148, 163, 184, .45); border-radius: 6px; padding: 5px 6px; background: #fff; font-size: .72rem; cursor: pointer; }
+    .seat-editor__seat input { position: absolute; top: 5px; right: 5px; margin: 0; }
+    .seat-editor__seat strong { display: block; font-size: .78rem; }
+    .seat-editor__seat small { display: block; color: #475569; line-height: 1.2; overflow-wrap: anywhere; }
+    .seat-editor__seat.is-unavailable { opacity: .55; border-style: dashed; }
+    .seat-editor__seat-price { color: #0f766e; font-weight: 700; }
+    .seat-editor__bulk { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }
+    .seat-editor__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .seat-editor__type summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+    .seat-editor__type-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; padding-bottom: 12px; }
+    .seat-editor__type-form .full { grid-column: 1 / -1; }
+    .seat-editor__swatch { display: inline-block; width: 10px; height: 10px; border-radius: 999px; border: 1px solid rgba(15, 23, 42, .2); vertical-align: middle; }
+    @media (max-width: 640px) {
+        .seat-editor__row { gap: 6px; }
+        .seat-editor__seat { flex-basis: calc(50% - 6px); }
+    }
+</style>
+
+<div class="seat-editor">
+    <div class="page-head">
+        <div>
+            <h1>{{ layout.name }}</h1>
+            <p>Configure the cabin, seat types and seat fees for {{ layout.airline.name }} {{ layout.aircraft_type.label }}.</p>
+            <div class="seat-editor__meta">
+                <span class="badge badge-blue">{{ layout.seat_map|default:"No cabins" }}</span>
+                <span class="badge">{{ layout.total_capacity }} seats</span>
+                <span class="badge">{{ seat_types|length }} seat types</span>
+            </div>
+        </div>
+        <div class="seat-editor__actions">
+            <a href="{% url 'airlines:airline_fleet' layout.airline_id %}" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back to fleet</a>
+        </div>
+    </div>
+
+    <div class="card card-pad">
+        <h2>Cabin layout</h2>
+        <p class="meta">Rows are numbered globally from the nose, so the first row of the next cabin follows the last row of the one before it. Removing a seat that already has a passenger is refused.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="cabins">
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Cabin</th><th>Seat blocks</th><th>Rows</th><th>Seats</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in cabin_form_rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td><input class="form-input mono" name="blocks_{{ row.code }}" value="{{ row.blocks }}" placeholder="e.g. 3-3"></td>
+                            <td><input class="form-input" type="number" min="1" max="100" name="rows_{{ row.code }}" value="{{ row.rows }}" placeholder="0"></td>
+                            <td class="meta">Leave both fields blank to omit this cabin.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="seat-editor__actions">
+                <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-save"></i> Save cabin layout</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad">
+        <h2>Seat types and fees</h2>
+        <p class="meta">A seat type's default price is charged whenever a seat uses it. A seat-level override below takes precedence.</p>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Type</th><th>Code</th><th>Default fee</th><th>Colour</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for seat_type in seat_types %}
+                    <tr>
+                        <td>{{ seat_type.name }}</td>
+                        <td class="mono">{{ seat_type.code }}</td>
+                        <td>&#8369;{{ seat_type.default_price|floatformat:2 }}</td>
+                        <td><span class="seat-editor__swatch" style="background: {{ seat_type.color }}"></span> {{ seat_type.color }}</td>
+                        <td>
+                            {% if seat_type.is_active %}
+                            <span class="badge badge-green">Active</span>
+                            {% else %}
+                            <span class="badge badge-yellow">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5"><div class="empty"><h3>No seat types</h3><p>Add the first seat type below.</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% for seat_type in seat_types %}
+        <details class="seat-editor__type">
+            <summary>Edit {{ seat_type.name }}</summary>
+            <form method="post" class="seat-editor__type-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="seat_type">
+                <input type="hidden" name="seat_type_id" value="{{ seat_type.id }}">
+                <div class="form-group"><label>Name</label><input class="form-input" name="name" value="{{ seat_type.name }}" required></div>
+                <div class="form-group"><label>Code</label><input class="form-input mono" value="{{ seat_type.code }}" disabled></div>
+                <div class="form-group"><label>Default fee</label><input class="form-input" type="number" step="0.01" min="0" name="default_price" value="{{ seat_type.default_price }}"></div>
+                <div class="form-group"><label>Colour</label><input class="form-input" name="color" value="{{ seat_type.color }}" placeholder="#e5e7eb"></div>
+                <div class="form-group full"><label>Description</label><input class="form-input" name="description" value="{{ seat_type.description }}"></div>
+                <div class="form-group full"><label><input type="checkbox" name="is_active" value="1" {% if seat_type.is_active %}checked{% endif %}> Available for assignment</label></div>
+                <div class="full"><button type="submit" class="btn btn-brand btn-sm">Save seat type</button></div>
+            </form>
+        </details>
+        {% endfor %}
+
+        <details class="seat-editor__type">
+            <summary>Add a seat type</summary>
+            <form method="post" class="seat-editor__type-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="seat_type">
+                <div class="form-group"><label>Name</label><input class="form-input" name="name" required></div>
+                <div class="form-group"><label>Code</label><input class="form-input mono" name="code" placeholder="extra-legroom"></div>
+                <div class="form-group"><label>Default fee</label><input class="form-input" type="number" step="0.01" min="0" name="default_price" value="0"></div>
+                <div class="form-group"><label>Colour</label><input class="form-input" name="color" value="#e5e7eb"></div>
+                <div class="form-group full"><label>Description</label><input class="form-input" name="description"></div>
+                <div class="form-group full"><label><input type="checkbox" name="is_active" value="1" checked> Available for assignment</label></div>
+                <div class="full"><button type="submit" class="btn btn-brand btn-sm">Add seat type</button></div>
+            </form>
+        </details>
+    </div>
+
+    <div class="card card-pad">
+        <h2>Seats</h2>
+        <p class="meta">Select seats, then apply a type, a price override or withdraw them from sale. Seat numbers stay the same when only the type or price changes.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="bulk_seats">
+            <div class="seat-editor__actions" style="margin-bottom:10px">
+                <button type="button" class="btn btn-ghost btn-sm" data-select-all="1">Select all seats</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-select-all="0">Clear selection</button>
+                <span class="meta" data-selected-count>0 selected</span>
+            </div>
+
+            {% for cabin_row in cabin_rows %}
+            <details open style="margin-bottom:14px">
+                <summary style="cursor:pointer;font-weight:700;padding:8px 0">
+                    {{ cabin_row.cabin.label }}
+                    <span class="meta">({{ cabin_row.cabin.seat_map }} &times; {{ cabin_row.cabin.rows }} rows, {{ cabin_row.seat_count }} seats)</span>
+                </summary>
+                <div class="seat-editor__actions" style="margin-bottom:8px">
+                    <button type="button" class="btn btn-ghost btn-sm" data-cabin-select="{{ cabin_row.cabin.pk }}" data-value="1">Select cabin</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-cabin-select="{{ cabin_row.cabin.pk }}" data-value="0">Clear cabin</button>
+                </div>
+                <div data-cabin="{{ cabin_row.cabin.pk }}">
+                    {% for row in cabin_row.rows %}
+                    <div class="seat-editor__row">
+                        <div class="seat-editor__row-no">{{ row.number }}</div>
+                        <div class="seat-editor__grid">
+                            {% for seat in row.seats %}
+                            <label class="seat-editor__seat {% if not seat.is_available %}is-unavailable{% endif %}" style="background: {{ seat.seat_type.color|default:'#ffffff' }}">
+                                <input type="checkbox" name="seats" value="{{ seat.id }}">
+                                <strong>{{ seat.seat_number }}</strong>
+                                <small>{{ seat.seat_type_label }}</small>
+                                <small class="seat-editor__seat-price">{% if seat.price %}&#8369;{{ seat.price|floatformat:2 }}{% else %}Free{% endif %}</small>
+                                {% if not seat.is_available %}<small>Not for sale</small>{% endif %}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </details>
+            {% empty %}
+            <div class="empty"><h3>No seats</h3><p>Save a cabin layout above to create seats.</p></div>
+            {% endfor %}
+
+            <div class="seat-editor__bulk">
+                <div class="form-group">
+                    <label>Seat type</label>
+                    <select class="form-input" name="seat_type_id">
+                        <option value="">Leave unchanged</option>
+                        {% for seat_type in seat_types %}
+                        <option value="{{ seat_type.id }}">{{ seat_type.name }} (&#8369;{{ seat_type.default_price|floatformat:2 }})</option>
+                        {% endfor %}
+                    </select>
+                    <label class="meta" style="display:block;margin-top:4px"><input type="checkbox" name="clear_seat_type" value="1"> Remove the type</label>
+                </div>
+                <div class="form-group">
+                    <label>Price override</label>
+                    <input class="form-input" type="number" step="0.01" min="0" name="price_override" placeholder="Leave unchanged">
+                    <label class="meta" style="display:block;margin-top:4px"><input type="checkbox" name="clear_price" value="1"> Use the type's default price</label>
+                </div>
+                <div class="form-group">
+                    <label>Availability</label>
+                    <select class="form-input" name="availability">
+                        <option value="">Leave unchanged</option>
+                        <option value="1">Available for sale</option>
+                        <option value="0">Not for sale</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-brand btn-sm">Apply to selected seats</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    var boxes = function () {
+        return Array.prototype.slice.call(document.querySelectorAll('input[name="seats"]'));
+    };
+    var count = document.querySelector('[data-selected-count]');
+    var refresh = function () {
+        var selected = boxes().filter(function (box) { return box.checked; }).length;
+        if (count) { count.textContent = selected + ' selected'; }
+    };
+    boxes().forEach(function (box) { box.addEventListener('change', refresh); });
+    document.querySelectorAll('[data-select-all]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var value = button.getAttribute('data-select-all') === '1';
+            boxes().forEach(function (box) { box.checked = value; });
+            refresh();
+        });
+    });
+    document.querySelectorAll('[data-cabin-select]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var value = button.getAttribute('data-value') === '1';
+            var panel = document.querySelector('[data-cabin="' + button.getAttribute('data-cabin-select') + '"]');
+            if (!panel) { return; }
+            panel.querySelectorAll('input[name="seats"]').forEach(function (box) {
+                box.checked = value;
+            });
+            refresh();
+        });
+    });
+    refresh();
+})();
+</script>
+{% endblock %}

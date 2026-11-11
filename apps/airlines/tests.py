@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date, time, timedelta
+from decimal import Decimal
 from html import unescape
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -15,10 +16,13 @@ from django.utils import timezone
 from airlines.fleet_data import CABIN_SPECS, FLEETS
 from airlines.itineraries import airport_timezone, combine_local, parse_clock
 from airlines.layouts import build_seat_map, resolve_layout
+from airlines.seat_catalog import (
+    apply_default_seat_types, ensure_seat_types, seat_quote,
+)
 from airlines.models import (
     Aircraft, AircraftType, Airline, AirlineFleet, AirlinePhoto, Airport,
     Booking, Cabin, Flight, FlightItinerary, Manufacturer, Seat,
-    SeatLayout, TripRole, TripSegment,
+    SeatLayout, SeatType, TripRole, TripSegment,
 )
 from airlines.views import NO_AIRCRAFT
 from atrue_core.slugs import get_object_by_slug_or_404
@@ -264,6 +268,212 @@ class FleetDefinitionTest(TestCase):
         self.assertEqual(pale.seat_layouts.get().total_capacity, 180)
         self.assertEqual(wide.seat_layouts.get().total_capacity, 340)
         self.assertNotEqual(pale.seat_layouts.get().pk, wide.seat_layouts.get().pk)
+
+
+class SeatTypeCatalogueTest(TestCase):
+    def setUp(self):
+        self.airline, _ = make_airline('Seat Type Air', types=('A320',))
+        self.layout = self.airline.seat_layouts.get()
+
+    def test_the_default_catalogue_is_created_once(self):
+        first = ensure_seat_types()
+        second = ensure_seat_types()
+        self.assertEqual(set(first), {
+            'standard', 'window', 'aisle', 'extra_legroom',
+            'front_row', 'exit_row',
+        })
+        self.assertEqual(
+            SeatType.objects.count(), len(first))
+        self.assertEqual(
+            {code: row.pk for code, row in first.items()},
+            {code: row.pk for code, row in second.items()})
+
+    def test_default_types_follow_seat_position(self):
+        apply_default_seat_types(self.layout)
+        self.assertEqual(
+            set(self.layout.seats.values_list('seat_type__code', flat=True)),
+            {'window', 'standard', 'aisle'},
+        )
+
+    def test_a_seat_override_wins_over_its_type_price(self):
+        types = ensure_seat_types()
+        seat = self.layout.seats.first()
+        seat.seat_type = types['extra_legroom']
+        seat.price_override = Decimal('325.00')
+        self.assertEqual(seat.price, Decimal('325.00'))
+        self.assertEqual(seat_quote(seat)['code'], 'extra_legroom')
+        seat.price_override = None
+        self.assertEqual(seat.price, types['extra_legroom'].default_price)
+
+    def test_an_untyped_seat_quotes_as_standard_and_free(self):
+        seat = self.layout.seats.first()
+        seat.seat_type = None
+        self.assertEqual(
+            seat_quote(seat),
+            {'code': 'standard', 'label': 'Standard seat', 'price': 0})
+
+
+class SeatLayoutEditorTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='seat-manager', password='x', is_staff=True)
+        self.airline, self.types = make_airline(
+            'Editor Air', types=('A320',))
+        self.layout = self.airline.seat_layouts.get()
+        ensure_seat_types()
+        self.client.force_login(self.user)
+        self.url = reverse(
+            'airlines:seat_layout_editor',
+            args=[self.airline.pk, self.types['A320'].pk])
+
+    def test_the_editor_renders_for_the_airlines_fleet_type(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.layout.name)
+        self.assertContains(response, 'Seat types and fees')
+        self.assertContains(response, 'name="seats"')
+
+    def test_cabin_edit_recreates_the_map_and_keeps_seat_customisation(self):
+        types = ensure_seat_types()
+        seat = self.layout.seats.get(seat_number='1A')
+        seat.seat_type = types['extra_legroom']
+        seat.price_override = '450.00'
+        seat.is_available = False
+        seat.save()
+        response = self.client.post(self.url, {
+            'action': 'cabins',
+            'blocks_ECONOMY': '3-3',
+            'rows_ECONOMY': '20',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.layout.refresh_from_db()
+        self.assertEqual(self.layout.total_capacity, 120)
+        kept = self.layout.seats.get(seat_number='1A')
+        self.assertEqual(kept.seat_type, types['extra_legroom'])
+        self.assertEqual(kept.price_override, 450)
+        self.assertFalse(kept.is_available)
+
+    def test_checkout_charges_the_seat_fee_and_snapshots_the_type(self):
+        types = ensure_seat_types()
+        seat = self.layout.seats.get(seat_number='1A')
+        seat.seat_type = types['extra_legroom']
+        seat.price_override = '525.00'
+        seat.save()
+        origin = Airport.objects.create(
+            airport_name='Manila Airport', iata_code='MNL', city='Manila',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        destination = Airport.objects.create(
+            airport_name='Cebu Airport', iata_code='CEB', city='Cebu',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        departure = timezone.now() + timedelta(days=10)
+        flight = Flight.objects.create(
+            airline=self.airline, flight_number='FEE-101', origin='Manila',
+            destination='Cebu', origin_airport=origin,
+            destination_airport=destination, departure_time=departure,
+            arrival_time=departure + timedelta(hours=1),
+            status=Flight.Status.SCHEDULED, economy_fare=1500)
+        passenger = get_user_model().objects.create_user(
+            username='seat-fee-passenger', password='x',
+            account_type=get_user_model().AccountType.STUDENT)
+        self.client.force_login(passenger)
+        travel_date = timezone.localtime(departure).date()
+        details_response = self.client.get(
+            reverse('airlines:passenger_details'), {'flight_id': flight.pk})
+        self.assertEqual(details_response.status_code, 200)
+        self.assertContains(details_response, 'Basic Protection')
+        self.assertContains(details_response, 'data-price="299"')
+        self.assertNotContains(details_response, 'not available')
+
+        payload = {
+            'flight': {'id': str(flight.pk), 'fare_class_key': 'ECONOMY'},
+            'passengers': [{
+                'name': 'Fee Passenger',
+                'category': 'adult',
+                'seat': '1A',
+                'details': {
+                    'full_name': 'Fee Passenger',
+                    'dob': date(travel_date.year - 25, travel_date.month,
+                                travel_date.day).isoformat(),
+                    'gender': 'male',
+                    'nationality': 'Philippines',
+                    'email': 'fee@example.com',
+                    'phone': '9123456789',
+                },
+            }],
+            'insurance_key': 'basic',
+            'insurance_terms_acknowledged': True,
+            'policy_acknowledged': True,
+            'baggage_kg': 0,
+        }
+        unacknowledged_payload = dict(payload)
+        unacknowledged_payload.pop('insurance_terms_acknowledged')
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(unacknowledged_payload)})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Booking.objects.filter(passenger=passenger).exists())
+
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(payload)})
+        self.assertEqual(response.status_code, 302, response.content)
+        booking = Booking.objects.latest('id')
+        self.assertEqual(booking.seat_selection, 525)
+        self.assertEqual(booking.travel_insurance_plan, 'Basic Protection')
+        ticket = self.client.session['airlines_passenger_ticket']
+        self.assertEqual(ticket['fare']['insurance'], 299)
+        self.assertEqual(ticket['fare']['total'], 2324)
+        self.assertEqual(ticket['fare']['base_fare'], 1500)
+        self.assertEqual(ticket['extras']['insurance'], 'Basic Protection')
+        payment_response = self.client.get(reverse('airlines:passenger_payment'))
+        self.assertContains(payment_response, 'Travel insurance · Basic Protection')
+        from decimal import Decimal
+
+        from atrue_core.services import bill_for_booking
+        from decimal import Decimal
+
+        bill = bill_for_booking(booking)
+        self.assertEqual(bill.total_amount, 2324)
+        self.assertTrue(any(
+            item['label'] == 'Travel insurance — Basic Protection'
+            and Decimal(item['amount']) == Decimal('299')
+            for item in bill.items
+        ))
+        pdf_response = self.client.get(
+            reverse('airlines:ticket_pdf', args=[booking.pk]))
+        self.assertEqual(pdf_response.status_code, 200)
+        self.assertEqual(pdf_response['Content-Type'], 'application/pdf')
+        self.assertTrue(pdf_response.content.startswith(b'%PDF-'))
+        entry = booking.seat_entries.get()
+        self.assertEqual(entry.seat_type, 'extra_legroom')
+        self.assertEqual(entry.seat_type_label, 'Extra Legroom')
+        self.assertEqual(entry.seat_price, 525)
+
+    def test_a_sold_seat_cannot_be_removed_by_an_edit(self):
+        user = get_user_model().objects.create_user(
+            username='sold-seat-passenger', password='x')
+        flight = Flight.objects.create(
+            airline=self.airline, flight_number='SEAT-1',
+            origin='Manila', destination='Cebu',
+            departure_time=timezone.now() + timedelta(days=2),
+            arrival_time=timezone.now() + timedelta(days=2, hours=1),
+            status=Flight.Status.SCHEDULED, economy_fare=1000)
+        booking = Booking.objects.create(
+            flight=flight, passenger=user, status=Booking.Status.PENDING,
+            trip_type=Booking.TripType.ONE_WAY)
+        Booking.BookingSeat.objects.create(
+            booking=booking, seat_number='40A', segment=TripSegment.DEPARTURE,
+            fare_class='ECONOMY')
+        from airlines.views import _layout_booked_seats
+        self.assertEqual(_layout_booked_seats(self.layout), {'40A'})
+        response = self.client.post(self.url, {
+            'action': 'cabins',
+            'blocks_ECONOMY': '3-3',
+            'rows_ECONOMY': '10',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('40A', page_errors(response))
+        self.assertTrue(self.layout.seats.filter(seat_number='40A').exists())
 
 
 class FleetConstraintTest(TestCase):
@@ -3913,19 +4123,82 @@ class FlightInsuranceCheckoutTests(TestCase):
         self.assertEqual(ticket['fare']['insurance'], 299)
         self.assertEqual(ticket['fare']['total'], 1799)
         self.assertEqual(ticket['extras']['insurance'], 'Basic Protection')
-        from decimal import Decimal
-
         from atrue_core.services import bill_for_booking
 
         bill = bill_for_booking(booking)
         self.assertEqual(bill.total_amount, 1799)
         self.assertTrue(any(
-            item['label'] == 'Travel insurance \u2014 Basic Protection'
+            item['label'] == 'Travel insurance — Basic Protection'
             and Decimal(item['amount']) == Decimal('299')
             for item in bill.items
         ))
         payment = self.client.get(reverse('airlines:passenger_payment'))
-        self.assertContains(payment, 'Travel insurance \u00b7 Basic Protection')
+        self.assertContains(payment, 'Travel insurance · Basic Protection')
+
+
+    def test_extra_baggage_is_charged_only_to_passengers_who_select_it(self):
+        airline, _ = make_airline('Per Passenger Baggage Airline')
+        aircraft = make_aircraft(airline, 'A320', 'RP-BAG-001')
+        origin = Airport.objects.create(
+            airport_name='Manila Airport', iata_code='MNL', city='Manila',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        destination = Airport.objects.create(
+            airport_name='Cebu Airport', iata_code='CEB', city='Cebu',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        departure = timezone.now() + timedelta(days=10)
+        flight = Flight.objects.create(
+            airline=airline, aircraft=aircraft, flight_number='BAG-101',
+            origin='Manila', destination='Cebu', origin_airport=origin,
+            destination_airport=destination, departure_time=departure,
+            arrival_time=departure + timedelta(hours=1),
+            status=Flight.Status.SCHEDULED, economy_fare=1500,
+            baggage_rate=5000)
+        traveller = get_user_model().objects.create_user(
+            username='baggage-passenger', password='x',
+            account_type=get_user_model().AccountType.STUDENT)
+        self.client.force_login(traveller)
+        travel_date = timezone.localtime(departure).date()
+        passengers = []
+        for index, baggage_kg in enumerate((5, 0), start=1):
+            name = f'Baggage Passenger {index}'
+            passengers.append({
+                'name': name,
+                'category': 'adult',
+                'baggage_kg': baggage_kg,
+                'details': {
+                    'full_name': name,
+                    'dob': date(travel_date.year - 25, travel_date.month,
+                                travel_date.day).isoformat(),
+                    'gender': 'male',
+                    'nationality': 'Philippines',
+                    'email': f'baggage{index}@example.com',
+                    'phone': '9123456789',
+                },
+            })
+        payload = {
+            'flight': {'id': str(flight.pk), 'fare_class_key': 'ECONOMY'},
+            'passengers': passengers,
+            'insurance_key': 'none',
+            'policy_acknowledged': True,
+            'baggage_kg': 10,
+        }
+
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(payload)})
+
+        self.assertEqual(response.status_code, 302, response.content)
+        booking = Booking.objects.get(passenger=traveller, flight=flight)
+        self.assertEqual(booking.extra_baggage_kg, 5)
+        self.assertEqual(booking.extra_baggage, 5000)
+        self.assertEqual(booking.total_bill, 8000)
+        self.assertEqual(
+            list(booking.seat_entries.order_by('id').values_list(
+                'extra_baggage_kg', 'extra_baggage_charge')),
+            [(5, 5000), (0, 0)])
+        ticket = self.client.session['airlines_passenger_ticket']
+        self.assertEqual(ticket['passengers'][0]['extra_baggage_kg'], 5)
+        self.assertEqual(ticket['passengers'][1]['extra_baggage_kg'], 0)
 
 
 class PassengerDetailsPreviewTests(TestCase):
@@ -3983,10 +4256,54 @@ class PassengerDetailsPreviewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-pd-root')
-        self.assertContains(response, 'id="pd-baggage-select"')
-        self.assertContains(response, 'value="5" data-price="5000')
+        self.assertContains(response, 'data-pd-field="baggage_kg"')
+        self.assertContains(response, 'value="5"')
+        self.assertNotContains(response, 'id="pd-baggage-select"')
         self.assertEqual(response.context['selected']['origin_code'], 'MNL')
         self.assertEqual(response.context['selected']['destination_code'], 'CEB')
+
+    def test_sample_checkout_charges_baggage_per_opted_in_passenger(self):
+        payload = {
+            'flight': {'id': 'FS01', 'origin_code': 'MNL',
+                       'destination_code': 'CEB'},
+            'departure_date': '2026-11-15',
+            'passengers': [
+                {
+                    'name': 'First Sample Passenger',
+                    'category': 'adult',
+                    'baggage_kg': 5,
+                    'details': {
+                        'email': 'first@example.com', 'phone': '9123456789',
+                        'dob': '1990-01-01', 'gender': 'male',
+                        'nationality': 'Philippines',
+                    },
+                },
+                {
+                    'name': 'Second Sample Passenger',
+                    'category': 'adult',
+                    'baggage_kg': 0,
+                    'details': {
+                        'email': 'second@example.com', 'phone': '9123456788',
+                        'dob': '1991-01-01', 'gender': 'female',
+                        'nationality': 'Philippines',
+                    },
+                },
+            ],
+            'baggage_kg': 10,
+            'insurance_key': 'none',
+            'policy_acknowledged': True,
+        }
+
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(payload)})
+
+        self.assertEqual(response.status_code, 302, response.content)
+        ticket = self.client.session['airlines_passenger_ticket']
+        self.assertEqual(ticket['fare']['baggage'], 5000)
+        self.assertEqual(ticket['extras']['extra_baggage_kg'], 5)
+        self.assertEqual(ticket['passengers'][0]['extra_baggage_kg'], 5)
+        self.assertEqual(ticket['passengers'][1]['extra_baggage_kg'], 0)
 
     def test_a_domestic_route_opens_on_the_domestic_flight_type(self):
         response = self.client.get(reverse('airlines:passenger_details'), {
@@ -4086,6 +4403,7 @@ class PassengerDetailsPreviewTests(TestCase):
                     'passengers': [{
                         'name': 'Juan Dela Cruz',
                         'category': 'adult',
+                        'baggage_kg': 5,
                         'seat': '7A',
                         'details': {
                             'full_name': 'Juan Dela Cruz', 'email': 'juan@example.com',
@@ -4144,6 +4462,7 @@ class PassengerDetailsPreviewTests(TestCase):
                     'passengers': [{
                         'name': 'Juan Dela Cruz',
                         'category': 'adult',
+                        'baggage_kg': 5,
                         'seat': '7A',
                         'details': {
                             'full_name': 'Juan Dela Cruz', 'email': 'juan@example.com',

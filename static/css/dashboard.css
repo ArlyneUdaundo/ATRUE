@@ -763,6 +763,14 @@ form.card { width: 100%; max-width: 780px; margin: 0 auto; }
 .airline-logo--lg { width: 132px; height: 78px; border-radius: 14px; }
 .airline-logo--lg img { padding: 0; }
 .airline-logo--plain { background: transparent; border: none; }
+.airline-logo--placeholder {
+    background: #f1f6fd;
+    color: #1d5fbd;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    line-height: 1;
+}
 /* Preview beside an airline <select>, which cannot itself render images. */
 .airline-logo-preview {
     width: 34px; height: 34px; flex: 0 0 auto; object-fit: contain;

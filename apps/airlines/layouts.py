@@ -229,15 +229,29 @@ def build_seat_map(flight, taken=()):
                         # rather than inventing a seat number nobody can book.
                         cols.append({
                             'seat': '', 'label': '', 'taken': True,
-                            'position': 'aisle', 'block': block_no,
+                            'available': False, 'position': 'aisle',
+                            'block': block_no, 'seat_type': 'standard',
+                            'seat_type_label': 'Unavailable', 'color': '',
+                            'price': 0,
                         })
                     else:
+                        seat_type_code = seat.get('seat_type__code') or 'standard'
+                        seat_type_label = seat.get('seat_type__name') or 'Standard seat'
+                        override = seat.get('price_override')
+                        default_price = seat.get('seat_type__default_price')
+                        price = override if override is not None else (default_price or 0)
                         cols.append({
                             'seat': seat['seat_number'],
                             'label': seat['letter'],
-                            'taken': seat['seat_number'] in taken,
+                            'taken': (seat['seat_number'] in taken
+                                      or not seat.get('is_available', True)),
+                            'available': seat.get('is_available', True),
                             'position': seat['position'],
                             'block': block_no,
+                            'seat_type': seat_type_code,
+                            'seat_type_label': seat_type_label,
+                            'color': seat.get('seat_type__color') or '',
+                            'price': price,
                         })
                     seat_at += 1
                 blocks.append({'width': block_width, 'cols': cols})
@@ -293,4 +307,6 @@ def _layout_seats(layout_id):
     from airlines.models import Seat
 
     return Seat.objects.filter(seat_layout_id=layout_id).values(
-        'cabin_id', 'row_number', 'letter', 'seat_number', 'position')
+        'cabin_id', 'row_number', 'letter', 'seat_number', 'position',
+        'is_available', 'price_override', 'seat_type__code',
+        'seat_type__name', 'seat_type__default_price', 'seat_type__color')

@@ -62,6 +62,9 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if row.layout %}
+                        <a href="{% url 'airlines:seat_layout_editor' airline.id row.type.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-chair"></i> Configure seats</a>
+                        {% endif %}
                         {% if row.entry.is_active %}
                         <form method="post" style="display:inline">
                             {% csrf_token %}

@@ -21,7 +21,9 @@
 .pd-columns { gap: 18px; }
 .pd-col--fare { top: 92px; }
 .pd-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pd-phone input { min-width: 0; }
 .pd-field--wide { grid-column: 1 / -1; }
+.pd-field--span-2 { grid-column: span 2; }
 .pd-pax { padding: 18px; }
 .pd-pax__head { margin-bottom: 12px; }
 .pd-section__head h2, .pd-fare__title { color: var(--pd-blue-deep); }
@@ -71,6 +73,7 @@
 }
 @media (max-width: 560px) {
     .pd-grid, .pd-class-options, .pd-insurance-options__list { grid-template-columns: minmax(0, 1fr); }
+    .pd-field--span-2 { grid-column: auto; }
     .pd-bottom-actions { flex-direction: column; }
     .pd-bottom-actions > * { width: 100%; }
     .pd-save-status { text-align: center; }

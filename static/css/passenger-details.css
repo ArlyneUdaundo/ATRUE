@@ -148,7 +148,7 @@
 /* --------------------------------------------------------- flight summary -- */
 .pd-flight__airline { display: flex; align-items: center; gap: 12px; }
 .pd-flight__logo { width: 44px; height: 44px; object-fit: contain; border-radius: 10px; background: var(--pd-blue-050); padding: 5px; }
-.pd-flight__logo--fallback { display: grid; place-items: center; color: var(--pd-blue); font-size: 18px; }
+.pd-flight__logo--fallback { display: grid; place-items: center; color: var(--pd-blue); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
 .pd-flight__name { margin: 0 0 5px; font-size: 15.5px; font-weight: 700; }
 
 .pd-flight__route {
@@ -479,8 +479,11 @@
 .pd-seat-price__dot--standard { background: var(--pd-white); border-color: var(--pd-line-strong); }
 .pd-seat-price__dot--window { background: var(--pd-blue-100); border-color: var(--pd-blue-200); }
 .pd-seat-price__dot--aisle { background: var(--pd-blue-200); border-color: var(--pd-blue); }
-.pd-seat-price__dot--legroom { background: var(--pd-green-050); border-color: #bfe6d1; }
-.pd-seat-price__dot--front { background: var(--pd-amber-050); border-color: #f0d9a8; }
+.pd-seat-price__dot--legroom,
+.pd-seat-price__dot--extra_legroom { background: var(--pd-green-050); border-color: #86efac; }
+.pd-seat-price__dot--front,
+.pd-seat-price__dot--front_row { background: var(--pd-amber-050); border-color: #f0d9a8; }
+.pd-seat-price__dot--exit_row { background: #fee2e2; border-color: #fca5a5; }
 .pd-seat-price__name { flex: 1; min-width: 0; }
 .pd-seat-price__amount { font-weight: 700; color: var(--pd-ink); white-space: nowrap; }
 .pd-seat-price__amount small { font-weight: 500; font-size: 10.5px; color: var(--pd-muted); }
@@ -570,6 +573,9 @@
     transition: background .12s, border-color .12s, transform .06s;
 }
 .pd-seat--aisle-gap { margin-left: 15px; }
+.pd-seat--cat-extra_legroom { background: #dcfce7; border-color: #86efac; color: #166534; }
+.pd-seat--cat-front_row { background: #fef3c7; border-color: #f0d9a8; color: #92400e; }
+.pd-seat--cat-exit_row { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
 .pd-seat:hover:not(:disabled) { background: var(--pd-blue-200); border-color: var(--pd-blue); }
 .pd-seat--selected { background: var(--pd-blue); border-color: var(--pd-blue); color: #fff; }
 .pd-seat--selected .pd-seat__letter { display: none; }
