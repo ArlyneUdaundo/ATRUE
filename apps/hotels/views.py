@@ -17,7 +17,7 @@ from django.utils import timezone
 from accounts.roles import can_create_establishment, effective_role_keys
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
-    assigned_hotel_ids, hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
+    hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
 )
 from atrue_core.image_utils import delete_image_record, validate_establishment_photos
 from atrue_core.establishment_deletion import delete_booking_history, delete_linked_establishment_history
@@ -43,7 +43,6 @@ from django.urls import reverse
 
 from atrue_core.search_catalog import render_search_page
 from atrue_core.location_hierarchy import location_errors
-from atrue_core.slugs import get_object_by_slug_or_404
 
 from . import pricing, room_offers
 from .models import AdditionalGuest, Amenity, Booking, Hotel, HotelGuest, HotelPhoto, Room, RoomPhoto, Service
@@ -349,47 +348,6 @@ def delete_hotel(request, hotel_id):
     return redirect('hotels:manage')
 
 
-def hotel_detail(request, hotel_id):
-    """FR-003 VIEW Hotel - full detail profile (rooms, services, amenities).
-
-    Room availability is computed against the customer-selected check-in /
-    check-out dates: a room appears bookable only when it is not reserved,
-    currently in use, or under maintenance for that date range.
-    """
-    hotel = get_object_by_slug_or_404(
-        Hotel.objects.prefetch_related('photos', 'rooms', 'rooms__photos', 'services', 'amenities'),
-        hotel_id,
-    )
-    can_manage = getattr(request.user, 'can_manage_hotels', False)
-    if hotel.status != Hotel.Status.ACTIVE and not can_manage:
-        messages.error(request, "This hotel is currently unavailable.")
-        return redirect('hotels:list')
-    default_in = date.today() + timedelta(days=1)
-    check_in = _parse_date(request.GET.get('check_in'), default_in)
-    check_out = _parse_date(request.GET.get('check_out'), default_in + timedelta(days=1))
-    if check_out <= check_in:
-        check_out = check_in + timedelta(days=1)
-    available_room_ids = {
-        r.id for r in hotel.rooms.all()
-        if _room_available_for_dates(r, check_in, check_out)
-    }
-    # The public page is open to everyone, but the "Update" control is only
-    # honest when this user could actually open the edit screen: a Front Desk
-    # student may edit their own hotel and nobody else's.
-    can_edit = can_manage and (
-        not is_hotel_scoped(request.user) or hotel.id in assigned_hotel_ids(request.user)
-    )
-    return render(request, 'hotels/detail.html', {
-        'hotel': hotel,
-        'is_manager': can_manage,
-        'can_edit_hotel': can_edit,
-        'check_in': check_in,
-        'check_out': check_out,
-        'nights': max(1, (check_out - check_in).days),
-        'available_room_ids': available_room_ids,
-    })
-
-
 # -- Room CRUD -----------------------------------------------------------------
 
 def _record_room_management_task(request, hotel):
@@ -618,7 +576,7 @@ def room_detail(request, room_id):
     is_manager = request.user.can_manage_hotels
     if room.status != Room.RoomStatus.AVAILABLE and not is_manager:
         messages.error(request, "This room is currently unavailable.")
-        return redirect('hotels:detail', room.hotel.slug)
+        return redirect('hotels:list')
     default_in = date.today() + timedelta(days=1)
     check_in = _parse_date(request.GET.get('check_in'), default_in)
     check_out = _parse_date(request.GET.get('check_out'), default_in + timedelta(days=1))
@@ -741,7 +699,7 @@ def service_detail(request, service_id):
     is_manager = request.user.can_manage_hotels
     if service.status != Service.ServiceStatus.ACTIVE and not is_manager:
         messages.error(request, "This service is currently unavailable.")
-        return redirect('hotels:detail', service.hotel.slug)
+        return redirect('hotels:list')
     return render(request, 'hotels/service_detail.html', {
         'service': service,
         'is_manager': is_manager,
@@ -850,7 +808,7 @@ def amenity_detail(request, amenity_id):
     is_manager = request.user.can_manage_hotels
     if amenity.status != Amenity.AmenityStatus.ACTIVE and not is_manager:
         messages.error(request, "This amenity is currently unavailable.")
-        return redirect('hotels:detail', amenity.hotel.slug)
+        return redirect('hotels:list')
     return render(request, 'hotels/amenity_detail.html', {
         'amenity': amenity,
         'is_manager': is_manager,

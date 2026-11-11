@@ -20,7 +20,7 @@ def establishment_info(booking):
     if app == 'hotels':
         room = booking.room_entries.select_related('room__hotel').first()
         est = room.room.hotel if room else None
-        return ('hotels', getattr(est, 'pk', None), getattr(est, 'name', 'Hotel'), reverse('hotels:detail', args=[est.slug]) if est else reverse('hotels:list'))
+        return ('hotels', getattr(est, 'pk', None), getattr(est, 'name', 'Hotel'), reverse('hotels:group_start', args=[est.pk]) if est else reverse('hotels:list'))
     if app == 'resorts':
         est = booking.unit.resort
         return ('resorts', est.pk, est.name, reverse('resorts:detail', args=[est.slug]))

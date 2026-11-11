@@ -538,7 +538,7 @@ _RESTAURANT_OPERATIONS = _operation(
 #: ``detail_route`` is the public page a linked establishment resolves to; None
 #: means the module has no per-place page.
 GUEST_MODULES = {
-    'GUEST_HOTEL': {'establishment_type': 'HOTEL', 'detail_route': 'hotels:detail'},
+    'GUEST_HOTEL': {'establishment_type': 'HOTEL', 'detail_route': 'hotels:group_start'},
     'RESORT_GUEST': {'establishment_type': 'RESORT', 'detail_route': 'resorts:detail'},
     'RESTAURANT_GUEST': {'establishment_type': 'RESTAURANT', 'detail_route': 'restaurants:detail'},
     'STAYCATION_GUEST': {'establishment_type': 'STAYCATION', 'detail_route': 'staycations:detail'},
@@ -569,7 +569,7 @@ def guest_destination_types():
 _GUEST_OPERATIONS = {
     'GUEST_HOTEL': _operation(
         'Hotel Guest Operations', 'hotels:list', 'hotels',
-        {'list', 'detail', 'book', 'group_start', 'booking_detail', 'ticket'},
+        {'list', 'book', 'group_start', 'booking_detail', 'ticket'},
         'fa-hotel',
         tasks=(
             ('Select a hotel room', 'hotels:list', 'fa-bed'),

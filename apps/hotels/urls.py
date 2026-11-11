@@ -37,5 +37,4 @@ urlpatterns = [
     path('bookings/<int:booking_id>/', views.booking_detail, name='booking_detail'),
     path('bookings/<int:booking_id>/ticket/', views.ticket_detail, name='ticket'),
     path('bookings/<int:booking_id>/ticket/pdf/', views.ticket_pdf, name='ticket_pdf'),
-    path('<slug:hotel_id>/', views.hotel_detail, name='detail'),
 ]

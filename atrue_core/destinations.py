@@ -332,7 +332,7 @@ def destination_detail(request, slug):
             "icon": "fa-hotel",
             "search_url": reverse("hotels:list") + "?" + urlencode({"q": name}),
             "items": [
-                {"name": item.name, "url": reverse("hotels:detail", args=[item.slug])}
+                {"name": item.name, "url": reverse("hotels:list") + "?" + urlencode({"q": item.name})}
                 for item in Hotel.objects.filter(
                     status=Hotel.Status.ACTIVE,
                 ).filter(

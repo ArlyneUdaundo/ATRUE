@@ -610,12 +610,19 @@ def _can_book(request):
 def _flow_cta(request, key, est_id, detail_url, label, stay_params=()):
     """Card CTA plus the secondary detail link, for every category.
 
-    Returns the three keys a listing card needs, so every card offers the same
-    two ways forward: book straight away, or read the profile first.
+    Returns the keys a listing card needs. ``detail_url`` may be ``None`` for a
+    category with no profile page (hotels), in which case the card only offers
+    the booking flow and non-bookable visitors are sent there too.
     """
-    if not _can_book(request):
-        return {"cta_url": detail_url, "cta_label": label,
-                "detail_url": detail_url, "detail_label": "See Details"}
+    def payload(url):
+        result = {"cta_url": url, "cta_label": label}
+        if detail_url:
+            result["detail_url"] = detail_url
+            result["detail_label"] = "See Details"
+        return result
+
+    if detail_url and not _can_book(request):
+        return payload(detail_url)
     namespace, route = FLOW_ROUTE[key]
     url = reverse("%s:%s" % (namespace, route), args=[est_id])
     stay = {}
@@ -629,8 +636,7 @@ def _flow_cta(request, key, est_id, detail_url, label, stay_params=()):
             stay[name] = value
     if stay:
         url += "?" + urlencode(stay)
-    return {"cta_url": url, "cta_label": label,
-            "detail_url": detail_url, "detail_label": "See Details"}
+    return payload(url)
 
 
 def _hotel_card(item, request):
@@ -649,8 +655,9 @@ def _hotel_card(item, request):
         images = [settings.STATIC_URL + 'img/hotel-placeholder.svg']
     score = guest_score(item)
     amenities = [a.name for a in item.amenities.all()][:4]
-    detail_url = reverse("hotels:detail", args=[item.slug])
-    cta = _flow_cta(request, "hotel", item.pk, detail_url, "Choose rooms",
+    # Hotels have no public profile page; the card leads straight to the
+    # room-selection booking flow.
+    cta = _flow_cta(request, "hotel", item.pk, None, "Choose rooms",
                     stay_params=("check_in", "check_out", "rooms", "adults", "children"))
     return {
         "card_class": "bk-card--hotel bk-card--establishment",
@@ -678,9 +685,6 @@ def _hotel_card(item, request):
         "icon": "fa-hotel",
         "cta_url": cta["cta_url"],
         "cta_label": cta["cta_label"],
-        # Secondary action on the card: full hotel profile page.
-        "detail_label": cta["detail_label"],
-        "detail_url": cta["detail_url"],
     }
 
 

@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>{{ service.name }}</h1>
-        <p><a href="{% url 'hotels:detail' service.hotel.slug %}" style="color:var(--indigo)">{{ service.hotel.name }}</a> · <span class="badge {% if service.status == 'ACTIVE' %}badge-green{% elif service.status == 'UNAVAILABLE' or service.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ service.get_status_display }}</span></p>
+        <p>{{ service.hotel.name }} · <span class="badge {% if service.status == 'ACTIVE' %}badge-green{% elif service.status == 'UNAVAILABLE' or service.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ service.get_status_display }}</span></p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
@@ -17,7 +17,7 @@
         </form>
         <a href="{% url 'hotels:services' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Services</a>
         {% else %}
-        <a href="{% url 'hotels:detail' service.hotel.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotels</a>
         {% endif %}
     </div>
 </div>

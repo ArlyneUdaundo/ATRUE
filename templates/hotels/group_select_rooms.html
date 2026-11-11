@@ -15,7 +15,6 @@
         <h1>Rooms</h1>
         <p>{{ hotel.name }} · {{ hotel.location }} — compare rooms, then select one or more rooms. All rooms go in a single booking &amp; one transaction.</p>
     </div>
-    <a href="{% url 'hotels:detail' hotel.slug %}?check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-ghost"><i class="fas fa-building"></i> Hotel Overview</a>
 </div>
 
 <div class="card card-pad" style="margin-bottom:18px">

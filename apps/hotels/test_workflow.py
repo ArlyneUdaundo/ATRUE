@@ -105,14 +105,11 @@ class HotelWorkflowTestCase(TestCase):
         session['active_simulation_task_assignment'] = assignment.pk
         session.save()
 
-        detail = self.client.get(
-            reverse('hotels:detail', args=[self.hotel.pk]),
+        booking = self.client.get(
+            reverse('hotels:group_start', args=[self.hotel.pk]),
             {'check_in': STAY_IN.isoformat(), 'check_out': STAY_OUT.isoformat()},
         )
-        self.assertEqual(detail.status_code, 200)
-        self.assertContains(detail, '> Book</a>')
-        self.assertNotContains(detail, 'Manage List')
-        self.assertNotContains(detail, 'Manage Room')
+        self.assertEqual(booking.status_code, 200)
 
         management = self.client.get(reverse('hotels:manage'))
         self.assertEqual(management.status_code, 403)

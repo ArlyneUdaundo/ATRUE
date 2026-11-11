@@ -1476,12 +1476,6 @@ class HotelAccessBoundaryTests(AssignmentFlowTestCase):
         response = self.client.get(reverse('hotels:manage'))
         self.assertNotContains(response, reverse('hotels:delete_hotel', args=[self.sunrise.id]))
 
-    def test_update_link_only_appears_on_their_own_hotels_page(self):
-        own = self.client.get(reverse('hotels:detail', args=[self.sunrise.slug]))
-        self.assertTrue(own.context['can_edit_hotel'])
-        other = self.client.get(reverse('hotels:detail', args=[self.grand.slug]))
-        self.assertFalse(other.context['can_edit_hotel'])
-
     # -- rule: may manage everything inside their own hotel -----------------
 
     def test_can_open_the_edit_page_of_their_own_hotel(self):

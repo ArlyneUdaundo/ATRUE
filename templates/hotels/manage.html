@@ -77,7 +77,6 @@
             <div class="meta"><i class="fas fa-fingerprint"></i> <b>{{ h.establishment_id|default:"HTL-" }}</b> · <i class="fas fa-map-marker-alt"></i> {{ h.location }}</div>
         </div>
         <span class="badge {% if h.status == 'ACTIVE' %}badge-green{% elif h.status == 'SUSPENDED' %}badge-red{% else %}badge-blue{% endif %}">{{ h.get_status_display }}</span>
-        <a href="{% url 'hotels:detail' h.slug %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
         <a href="{% url 'hotels:update_hotel' h.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Edit</a>
         {% if not hotel_scoped_user %}
         <form method="post" action="{% url 'hotels:delete_hotel' h.id %}" data-confirm="Delete hotel '{{ h.name }}' and all of its rooms, services and amenities? This cannot be undone." style="display:inline">

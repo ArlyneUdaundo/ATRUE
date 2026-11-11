@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Room {{ room.room_number }}</h1>
-        <p><a href="{% url 'hotels:detail' room.hotel.slug %}" style="color:var(--indigo)">{{ room.hotel.name }}</a> · <span class="badge {% if room.status == 'AVAILABLE' %}badge-green{% elif room.status == 'MAINTENANCE' %}badge-red{% elif room.status == 'OCCUPIED' %}badge-blue{% else %}badge-amber{% endif %}">{{ room.get_status_display }}</span></p>
+        <p>{{ room.hotel.name }} · <span class="badge {% if room.status == 'AVAILABLE' %}badge-green{% elif room.status == 'MAINTENANCE' %}badge-red{% elif room.status == 'OCCUPIED' %}badge-blue{% else %}badge-amber{% endif %}">{{ room.get_status_display }}</span></p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
@@ -18,10 +18,10 @@
         <a href="{% url 'hotels:rooms' %}?hotel={{ room.hotel.id }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Rooms</a>
         {% elif available_for_dates %}
         <a href="{% url 'hotels:group_start' room.hotel_id %}?rooms=1&check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-brand"><i class="fas fa-bed"></i> Book This Room</a>
-        <a href="{% url 'hotels:detail' room.hotel.slug %}?check_in={{ check_in|date:'Y-m-d' }}&check_out={{ check_out|date:'Y-m-d' }}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotels</a>
         {% else %}
         <span class="badge badge-gray" style="align-self:center">Not available for {{ check_in|date:'M d, Y' }} – {{ check_out|date:'M d, Y' }}</span>
-        <a href="{% url 'hotels:detail' room.hotel.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotels</a>
         {% endif %}
     </div>
 </div>

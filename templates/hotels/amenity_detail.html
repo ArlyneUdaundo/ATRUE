@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>{{ amenity.name }}</h1>
-        <p><a href="{% url 'hotels:detail' amenity.hotel.slug %}" style="color:var(--indigo)">{{ amenity.hotel.name }}</a> · <span class="badge {% if amenity.status == 'ACTIVE' %}badge-green{% elif amenity.status == 'UNAVAILABLE' or amenity.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ amenity.get_status_display }}</span></p>
+        <p>{{ amenity.hotel.name }} · <span class="badge {% if amenity.status == 'ACTIVE' %}badge-green{% elif amenity.status == 'UNAVAILABLE' or amenity.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ amenity.get_status_display }}</span></p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
         {% if is_manager %}
@@ -17,7 +17,7 @@
         </form>
         <a href="{% url 'hotels:amenities' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> All Amenities</a>
         {% else %}
-        <a href="{% url 'hotels:detail' amenity.hotel.slug %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotel</a>
+        <a href="{% url 'hotels:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Hotels</a>
         {% endif %}
     </div>
 </div>
