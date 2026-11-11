@@ -93,17 +93,12 @@ FULL_ACCESS_TYPES = frozenset({
 })
 
 #: Per-role module (URL namespace) access, derived from the admin/management
-#: actions listed in ROLE_DEFS below. Each role may only open the admin
-#: functions of the modules it is assigned to. Support-tier staff are granted
-#: the modules their role dashboard advertises (Receptionist/Front Desk respond
-#: to hotel bookings, Concierge manages hotel amenities, Wait Staff handle
-#: restaurant reservations, Transport Staff coordinate transport bookings and
-#: Cabin Crew run airline services) per USER_ROLE.md; guest accounts are
-#: booking-only and are intentionally not listed here.
+#: actions listed in ROLE_DEFS below. Hotel-wide administration belongs to
+#: Hotel Manager/Owner; operational staff receive route allowlists below.
 MANAGEMENT_MODULE_ACCESS = {
     'TOUR_MANAGER': frozenset({'tour_package', 'activities', 'landmarks', 'transactions'}),
     'HOTEL_MANAGER': frozenset({'hotels', 'staycations', 'transactions'}),
-    'TRAVEL_AGENCY_MANAGER': frozenset({'airlines', 'hotels', 'tour_package', 'transactions'}),
+    'TRAVEL_AGENCY_MANAGER': frozenset({'airlines', 'tour_package', 'transactions'}),
     'TRAVEL_CONSULTANT': frozenset({'transactions'}),
     'TOUR_COORDINATOR': frozenset({'tour_package', 'activities', 'landmarks', 'transactions'}),
     'AIRLINE_MANAGER': frozenset({'airlines'}),
@@ -114,9 +109,6 @@ MANAGEMENT_MODULE_ACCESS = {
     'LANDMARK_MANAGER': frozenset({'landmarks', 'transactions'}),
     'ACTIVITY_MANAGER': frozenset({'activities'}),
     'TOUR_PACKAGE_MANAGER': frozenset({'tour_package'}),
-    'RECEPTIONIST': frozenset({'hotels'}),
-    'FRONT_DESK': frozenset({'hotels'}),
-    'CONCIERGE': frozenset({'hotels'}),
     'RESORT_STAFF': frozenset({'resorts'}),
     'RESTAURANT_STAFF': frozenset({'restaurants'}),
     'STAYCATION_STAFF': frozenset({'staycations'}),
@@ -134,18 +126,12 @@ MANAGEMENT_MODULE_ACCESS = {
 #: to move in step with ``role_catalogue`` - as it did not when the
 #: three-roles-per-establishment catalogue was introduced.
 #:
-#: The hotels, transportation, tour and travel-agency families keep whole-module
-#: access, because that is how their retired roles already worked: a hotel student
-#: may open the hotels module and is then confined to their own hotel by
-#: ``atrue_core.hotel_scope``, which reads the establishment mirrored onto each
-#: assignment. The airline family is the exception - its retired non-manager roles
-#: deliberately had *no* module access and were limited to an allowlist, so the
-#: airline Manager keeps the module and the two airline staff roles are allowlisted
-#: below instead.
+#: Hotel Managers retain whole-module access and operational hotel staff are
+#: route-allowlisted. Other operational families retain their retired roles'
+#: module access where that is still their intended workflow. Airline staff are
+#: also route-allowlisted because they must not administer their airline.
 _OPERATIONAL_MODULE_ACCESS = {
     'HOTEL_MANAGER': 'HOTEL_MANAGER',
-    'HOTEL_RESERVATION_OFFICER': 'FRONT_DESK',
-    'HOTEL_FRONT_DESK': 'FRONT_DESK',
     'AIRLINE_MANAGER': 'CABIN_CREW',
     'TRANSPORT_MANAGER': 'TRANSPORT_STAFF',
     'TRANSPORT_RESERVATION_AGENT': 'TRANSPORT_STAFF',
@@ -209,6 +195,13 @@ ESTABLISHMENT_OWNER_ROLES = {
 # Operational staff roles are allowlisted rather than given the whole module,
 # keeping reservation and front-desk roles out of manager-only routes.
 _OPERATIONAL_STAFF_ROLES = {
+    'FRONT_DESK': 'HOTEL',
+    'RECEPTIONIST': 'HOTEL',
+    'BOOKING_AGENT': 'HOTEL',
+    'HOTEL_RESERVATION_OFFICER': 'HOTEL',
+    'HOTEL_FRONT_DESK': 'HOTEL',
+    'CONCIERGE': 'HOTEL',
+    'HOUSEKEEPING_OFFICER': 'HOTEL',
     'AIRLINE_RESERVATION_AGENT': 'AIRLINE',
     'AIRLINE_FRONT_DESK': 'AIRLINE',
     'ACTIVITY_RESERVATION_OFFICER': 'ACTIVITY',
@@ -250,7 +243,10 @@ def _route_grants_from_operations():
 
     grants = {}
     for code, establishment_type in _OPERATIONAL_STAFF_ROLES.items():
-        operation = _OPERATIONS.get(establishment_type, {}).get(code)
+        operation_code = {
+            'HOTEL_FRONT_DESK': 'FRONT_DESK',
+        }.get(code, code)
+        operation = _OPERATIONS.get(establishment_type, {}).get(operation_code)
         if operation is None:
             continue
         by_module = {}

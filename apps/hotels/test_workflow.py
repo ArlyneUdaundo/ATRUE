@@ -95,6 +95,37 @@ class HotelWorkflowTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Review &amp; Payment')
 
+    def test_assigned_guest_can_book_but_cannot_manage_the_hotel(self):
+        assignment = SimulationRoleAssignment.objects.get(
+            student=self.guest, role='GUEST_HOTEL')
+        self.hotel.status = Hotel.Status.ACTIVE
+        self.hotel.save(update_fields=['status'])
+        self.client.force_login(self.guest)
+        session = self.client.session
+        session['active_simulation_task_assignment'] = assignment.pk
+        session.save()
+
+        detail = self.client.get(
+            reverse('hotels:detail', args=[self.hotel.pk]),
+            {'check_in': STAY_IN.isoformat(), 'check_out': STAY_OUT.isoformat()},
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, '> Book</a>')
+        self.assertNotContains(detail, 'Manage List')
+        self.assertNotContains(detail, 'Manage Room')
+
+        management = self.client.get(reverse('hotels:manage'))
+        self.assertEqual(management.status_code, 403)
+
+    def test_hotel_manager_and_owner_can_open_hotel_management(self):
+        for role in ('HOTEL_MANAGER', 'HOTEL_OWNER'):
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    username=f'{role.lower()}_workflow', account_type=role)
+                self.client.force_login(user)
+                response = self.client.get(reverse('hotels:manage'))
+                self.assertEqual(response.status_code, 200)
+
     def booking(self, rooms=None, total='9000.00'):
         return services.book_room(
             guest=self.guest, establishment=self.establishment,

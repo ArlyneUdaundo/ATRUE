@@ -802,6 +802,44 @@ class ActivityAndTourPackageRoleAccessTests(TestCase):
                 self.assertContains(dashboard, label)
 
 
+class HotelRoleAccessTests(TestCase):
+    def test_only_hotel_managers_and_owners_get_module_management(self):
+        manager = User.objects.create_user(
+            username='hotel_manager_access', account_type='HOTEL_MANAGER')
+        owner = User.objects.create_user(
+            username='hotel_owner_access', account_type='HOTEL_OWNER')
+
+        for user in (manager, owner):
+            with self.subTest(role=user.account_type):
+                self.assertTrue(can_access_module(user, 'hotels'))
+                self.assertTrue(
+                    can_access_module_route(user, 'hotels', 'manage'))
+
+    def test_hotel_guests_and_operational_staff_are_route_scoped(self):
+        allowed_routes = {
+            'GUEST_HOTEL': None,
+            'FRONT_DESK': 'bookings',
+            'RECEPTIONIST': 'bookings',
+            'BOOKING_AGENT': 'bookings',
+            'HOTEL_RESERVATION_OFFICER': 'bookings',
+            'HOTEL_FRONT_DESK': 'bookings',
+            'CONCIERGE': 'amenities',
+            'HOUSEKEEPING_OFFICER': 'rooms',
+        }
+        for role, allowed_route in allowed_routes.items():
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    username=f'hotel_role_{role.lower()}',
+                    account_type=role,
+                )
+                self.assertFalse(can_access_module(user, 'hotels'))
+                self.assertFalse(
+                    can_access_module_route(user, 'hotels', 'manage'))
+                if allowed_route:
+                    self.assertTrue(
+                        can_access_module_route(user, 'hotels', allowed_route))
+
+
 @override_settings(DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False)
 class UserProfilePictureTests(TestCase):
     def setUp(self):
