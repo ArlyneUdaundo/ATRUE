@@ -19,7 +19,7 @@
 .pd-steps { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
 .pd-step { text-align: center; padding: 8px 7px; font-size: 11.5px; white-space: nowrap; }
 .pd-step.is-current { background: #2563eb; border-color: #2563eb; }
-.pd-columns { grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 320px); gap: 18px; }
+.pd-columns { grid-template-columns: minmax(0, 260px) minmax(0, 1fr) minmax(0, 280px); gap: 18px; }
 .pd-col--fare { top: 92px; }
 .pd-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .pd-phone input { min-width: 0; }
