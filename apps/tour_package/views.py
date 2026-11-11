@@ -434,7 +434,13 @@ def book_package(request, package_id):
         booking.save(update_fields=['amount_paid', 'balance_due'])
         messages.success(request, f"Package request submitted: {booking.booking_reference}. Payment is pending Billing Officer confirmation.")
         return redirect('tour_package:booking_detail', booking.id)
-    return render(request, 'tour_package/book.html', {'package': package, 'today': date.today()})
+    today = date.today()
+    booking_date = max(today, package.validity_start_date)
+    return render(request, 'tour_package/book.html', {
+        'package': package,
+        'today': today,
+        'booking_date': booking_date,
+    })
 
 
 @manager_required

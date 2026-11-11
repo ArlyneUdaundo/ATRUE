@@ -54,12 +54,12 @@
             {% csrf_token %}
             <div class="ag-panel-head">
                 <span class="ag-ph-ico"><i class="fas fa-user-check"></i></span>
-                <div><h3>Your booking details</h3><p>Travelers and schedule</p></div>
+                <div><h3>Guest information &amp; booking details</h3><p>Traveler information, emergency contacts and schedule</p></div>
             </div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Travel Date</label>
-                    <input type="date" name="travel_date" class="form-input" value="{{ today|date:'Y-m-d' }}" required>
+                    <input type="date" name="travel_date" class="form-input" value="{{ booking_date|date:'Y-m-d' }}" min="{{ package.validity_start_date|date:'Y-m-d' }}" max="{{ package.validity_end_date|date:'Y-m-d' }}" required>
                 </div>
                 <div class="form-group"><label>Start Time</label><input type="time" name="start_time" class="form-input"></div>
             </div>

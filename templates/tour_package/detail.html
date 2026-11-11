@@ -14,7 +14,7 @@
         <a href="{% url 'tour_package:update_package' package.id %}" class="btn btn-brand" data-establishment-create><i class="fas fa-edit"></i> {% if package.status == 'EXPIRED' or package.validity_end_date < today %}Reschedule{% else %}Update{% endif %}</a>
         <a href="{% url 'tour_package:manage' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Manage List</a>
         {% elif can_book %}
-        <a href="{% url 'tour_package:flow_select' package.id %}" class="btn btn-brand"><i class="fas fa-shopping-cart"></i> Book Package</a>
+        <a href="{% url 'tour_package:book_package' package.id %}" class="btn btn-brand"><i class="fas fa-shopping-cart"></i> Book Tour Package</a>
         <a href="{% url 'tour_package:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Packages</a>
         {% else %}
         <a href="{% url 'tour_package:list' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Packages</a>
@@ -117,7 +117,7 @@
     {% if request.user.is_platform_manager %}
     <span class="ag-manage-note"><i class="fas fa-user-shield"></i> Platform managers manage packages here</span>
     {% elif can_book %}
-        <a href="{% url 'tour_package:flow_select' package.id %}" class="btn btn-brand btn-lg"><i class="fas fa-shopping-cart"></i> Book Package</a>
+        <a href="{% url 'tour_package:book_package' package.id %}" class="btn btn-brand btn-lg"><i class="fas fa-shopping-cart"></i> Book Tour Package</a>
     {% endif %}
 </div>
 {% endblock %}

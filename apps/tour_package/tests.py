@@ -14,7 +14,7 @@ from simulation.models import (
 Role = SimulationRoleAssignment.Role
 from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
-from .models import Booking, TourPackage
+from .models import Booking, BookingGuest, TourPackage
 from transactions.models import Bill, Payment, Receipt
 
 User = get_user_model()
@@ -181,11 +181,47 @@ class AssignedTourPackageDirectoryTests(TestCase):
         response = self.client.post(
             reverse('tour_package:book_package', args=[self.package.pk]),
             {'travel_date': date.today().isoformat(), 'travelers': '1', 'adults': '1',
-             'payment_method': 'MAYA', 'pay_later': 'on'},
+             'payment_method': 'MAYA', 'pay_later': 'on',
+             'guest_full_name': 'Additional Traveler',
+             'guest_emergency_contact_name': 'Emergency Contact',
+             'guest_emergency_contact_number': '09171234567',
+             'guest_emergency_contact_relationship': 'Sibling'},
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Booking.objects.filter(customer=user, package=self.package).exists())
+        booking = Booking.objects.get(customer=user, package=self.package)
+        guest = BookingGuest.objects.get(booking=booking)
+        self.assertEqual(guest.full_name, 'Additional Traveler')
+        self.assertEqual(guest.emergency_contact_name, 'Emergency Contact')
+        self.assertEqual(guest.emergency_contact_number, '09171234567')
+        self.assertEqual(guest.emergency_contact_relationship, 'Sibling')
+
+    def test_package_details_link_to_guest_information_booking_form(self):
+        user = User.objects.create_user(
+            'package-details-booker', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.client.force_login(user)
+        self.set_task(self.assignment_for(user, Role.TOUR_GUEST, self.package_est))
+
+        details = self.client.get(
+            reverse('tour_package:detail', args=[self.package.slug]))
+        booking = self.client.get(
+            reverse('tour_package:book_package', args=[self.package.pk]))
+
+        self.assertContains(
+            details,
+            f'href="{reverse("tour_package:book_package", args=[self.package.pk])}"')
+        self.assertContains(details, 'Book Tour Package')
+        self.assertEqual(booking.status_code, 200)
+        self.assertContains(booking, 'Guest information &amp; booking details')
+        self.assertContains(booking, 'name="guest_full_name"')
+        self.assertContains(booking, 'name="guest_emergency_contact_number"')
+        self.assertContains(
+            booking,
+            f'min="{self.package.validity_start_date.isoformat()}"')
+        self.assertContains(
+            booking,
+            f'max="{self.package.validity_end_date.isoformat()}"')
 
     def test_no_assignment_returns_no_package_records(self):
         user = User.objects.create_user(
