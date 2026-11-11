@@ -60,7 +60,7 @@
                     <span data-fs-toggle-label>View Details</span>
                 </button>
                 {% if request.user.is_platform_manager %}
-                <a class="fs-btn fs-btn--outline" href="{% url 'airlines:flight_detail' flight.slug %}">View Flight</a>
+                <a class="fs-btn fs-btn--outline" href="{% url 'airlines:passenger_details' %}?flight_id={{ flight.pk }}&amp;fare_class={{ fare_class|default:'ECONOMY' }}&amp;passengers={{ passengers }}">Book Flight</a>
                 {% elif request.user.is_airline_booking_restricted %}
                 <span class="fs-chip">Ticketing access required</span>
                 {% elif flight.remaining_seats >= passengers %}

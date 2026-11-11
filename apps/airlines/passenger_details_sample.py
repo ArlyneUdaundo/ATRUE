@@ -227,11 +227,7 @@ def fare_context(selected: dict) -> dict:
          'label': 'No extra baggage' if kg == 0 else f'{kg} kg'}
         for kg, price in BAGGAGE_OPTIONS
     ]
-    insurance = [
-        {'key': key, 'name': name, 'price': price, 'price_text': _money(price),
-         'details': INSURANCE_DETAILS[key]}
-        for key, name, price in INSURANCE_PLANS
-    ]
+    insurance = insurance_options()
     return {
         'base_fare': selected['base_fare'],
         'currency': 'PHP',
@@ -256,6 +252,15 @@ def fare_context(selected: dict) -> dict:
         'max_children': MAX_CHILDREN,
         'max_infants': MAX_INFANTS,
     }
+
+
+def insurance_options() -> list[dict]:
+    """Return server-priced insurance choices for the simulated checkout."""
+    return [
+        {'key': key, 'name': name, 'price': price, 'price_text': _money(price),
+         'details': INSURANCE_DETAILS[key]}
+        for key, name, price in INSURANCE_PLANS
+    ]
 
 
 def _seat_category(row: int, position: str, exit_rows: set, front_rows: set) -> str:

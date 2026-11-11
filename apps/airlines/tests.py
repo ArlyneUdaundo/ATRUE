@@ -2730,6 +2730,41 @@ class FlightResultCardTest(TestCase):
         self.assertNotIn('Checked baggage</small>', body)
         self.assertNotIn('Cabin baggage</small>', body)
 
+    def test_platform_manager_book_flight_button_opens_passenger_details(self):
+        flight = self._flight('5J-1', 1200, 90)
+        manager = get_user_model().objects.create_user(
+            username='flight-search-manager', password='x', is_staff=True)
+        self.client.force_login(manager)
+
+        response = self.client.get(reverse('airlines:list'), {
+            'origin_airport': self.mnl.pk,
+            'destination_airport': self.ceb.pk,
+            'departure_date': self.depart.strftime('%Y-%m-%d'),
+            'trip_type': 'ONE_WAY',
+            'fare_class': 'ECONOMY',
+            'passengers': '2',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        body = unescape(response.content.decode())
+        self.assertIn('>Book Flight</a>', body)
+        self.assertIn(
+            f'href="{reverse("airlines:passenger_details")}'
+            f'?flight_id={flight.pk}&fare_class=ECONOMY&passengers=2"',
+            body,
+        )
+        self.assertNotIn('>View Flight</a>', body)
+        passenger_page = self.client.get(
+            reverse('airlines:passenger_details'),
+            {'flight_id': flight.pk, 'fare_class': 'ECONOMY', 'passengers': '2'},
+        )
+        self.assertEqual(passenger_page.status_code, 200)
+        self.assertEqual(passenger_page.context['selected']['id'], flight.pk)
+        self.assertEqual(
+            passenger_page.context['passengers_param'],
+            'adult:2,child:0,infant:0',
+        )
+
     def test_airline_wide_addons_are_not_presented_as_flight_amenities(self):
         """Airline Service rows are optional sale items, not flight-specific amenities."""
         from airlines.models import Service
@@ -3808,6 +3843,89 @@ class BookingSearchLayoutTests(TestCase):
             'grid-template-columns: repeat(4, minmax(0, 1fr));', body)
         self.assertIn(
             'grid-template-columns: repeat(2, minmax(0, 1fr));', body)
+
+
+class FlightInsuranceCheckoutTests(TestCase):
+    def test_selected_insurance_is_validated_charged_and_saved(self):
+        airline, _ = make_airline('Insurance Airline')
+        aircraft = make_aircraft(airline, 'A320', 'RP-INS-001')
+        origin = Airport.objects.create(
+            airport_name='Manila Airport', iata_code='MNL', city='Manila',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        destination = Airport.objects.create(
+            airport_name='Cebu Airport', iata_code='CEB', city='Cebu',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        departure = timezone.now() + timedelta(days=10)
+        flight = Flight.objects.create(
+            airline=airline, aircraft=aircraft, flight_number='INS-101',
+            origin='Manila', destination='Cebu', origin_airport=origin,
+            destination_airport=destination, departure_time=departure,
+            arrival_time=departure + timedelta(hours=1),
+            status=Flight.Status.SCHEDULED, economy_fare=1500)
+        passenger = get_user_model().objects.create_user(
+            username='insurance-passenger', password='x',
+            account_type=get_user_model().AccountType.STUDENT)
+        self.client.force_login(passenger)
+
+        details = self.client.get(
+            reverse('airlines:passenger_details'), {'flight_id': flight.pk})
+        self.assertEqual(details.status_code, 200)
+        self.assertContains(details, 'Basic Protection')
+        self.assertContains(details, 'data-price="299"')
+        self.assertNotContains(details, 'not available')
+
+        travel_date = timezone.localtime(departure).date()
+        payload = {
+            'flight': {'id': str(flight.pk), 'fare_class_key': 'ECONOMY'},
+            'passengers': [{
+                'name': 'Insurance Passenger',
+                'category': 'adult',
+                'details': {
+                    'full_name': 'Insurance Passenger',
+                    'dob': date(travel_date.year - 25, travel_date.month,
+                                travel_date.day).isoformat(),
+                    'gender': 'male',
+                    'nationality': 'Philippines',
+                    'email': 'insurance@example.com',
+                    'phone': '9123456789',
+                },
+            }],
+            'insurance_key': 'basic',
+            'insurance_terms_acknowledged': True,
+            'policy_acknowledged': True,
+            'baggage_kg': 0,
+        }
+        rejected = dict(payload)
+        rejected.pop('insurance_terms_acknowledged')
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(rejected)})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Booking.objects.filter(passenger=passenger).exists())
+
+        response = self.client.post(
+            reverse('airlines:confirm_passenger_details'),
+            {'ticket_payload': json.dumps(payload)})
+        self.assertEqual(response.status_code, 302, response.content)
+        booking = Booking.objects.get(passenger=passenger)
+        self.assertEqual(booking.travel_insurance_plan, 'Basic Protection')
+        ticket = self.client.session['airlines_passenger_ticket']
+        self.assertEqual(ticket['fare']['insurance'], 299)
+        self.assertEqual(ticket['fare']['total'], 1799)
+        self.assertEqual(ticket['extras']['insurance'], 'Basic Protection')
+        from decimal import Decimal
+
+        from atrue_core.services import bill_for_booking
+
+        bill = bill_for_booking(booking)
+        self.assertEqual(bill.total_amount, 1799)
+        self.assertTrue(any(
+            item['label'] == 'Travel insurance \u2014 Basic Protection'
+            and Decimal(item['amount']) == Decimal('299')
+            for item in bill.items
+        ))
+        payment = self.client.get(reverse('airlines:passenger_payment'))
+        self.assertContains(payment, 'Travel insurance \u00b7 Basic Protection')
 
 
 class PassengerDetailsPreviewTests(TestCase):

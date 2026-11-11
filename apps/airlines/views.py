@@ -3454,14 +3454,7 @@ def passenger_details(request):
             'price_text': f"{currency_prefix}{baggage_charge_for_kg(flight.baggage_rate, kg):,.2f}",
              'label': 'No extra baggage' if not kg else f'{kg} kg'}
             for kg in (0, 5, 10, 15, 20, 25, 30)]
-        fare['insurance_plans'] = [
-            {'key': 'none', 'name': 'No Insurance', 'price': 0, 'price_text': '₱0.00',
-             'details': {'summary': 'No travel insurance is added to this booking.', 'covers': [],
-                         'excludes': ['No trip cancellation, medical or baggage cover is provided.']}},
-            {'key': 'unavailable', 'name': 'Travel insurance', 'price': 0, 'price_text': 'Not available',
-             'details': {'summary': 'No insurance product is configured for this flight.', 'covers': [],
-                         'excludes': ['Travel insurance cannot be added to this flight.']}},
-        ]
+        fare['insurance_plans'] = pd_sample.insurance_options()
         fare['seat_types'] = [{'key': 'standard', 'label': 'Standard Seat', 'price': 0, 'price_text': '₱0.00'}]
         fare['seat_pricing_note'] = 'No paid seat price is configured for this flight. Seat selection has no additional charge.'
         fare['taxes_per_passenger'] = 0
@@ -3761,7 +3754,7 @@ def confirm_passenger_details(request):
 
 
 def _database_ticket_context(booking, order, flight, passengers, total,
-                             baggage_charge, fare_class, legs):
+                             baggage_charge, insurance_charge, fare_class, legs):
     first_leg, last_leg = legs[0], legs[-1]
     departure = timezone.localtime(first_leg.departure_time)
     arrival = timezone.localtime(last_leg.arrival_time)
@@ -3813,12 +3806,17 @@ def _database_ticket_context(booking, order, flight, passengers, total,
              'seat': passenger['seat']}
             for passenger in passengers
         ],
+        'extras': {
+            'insurance': booking.travel_insurance_plan or 'No insurance',
+        },
         'fare': {
             'passenger_count': len(passengers),
-            'base_fare': float(Decimal(total) - Decimal(baggage_charge)),
+            'base_fare': float(Decimal(total) - Decimal(baggage_charge)
+                               - Decimal(insurance_charge or 0)),
             'taxes': 0,
             'baggage': float(Decimal(baggage_charge or 0)),
-            'insurance': 0,
+            'insurance': float(Decimal(insurance_charge or 0)),
+            'insurance_plan': booking.travel_insurance_plan,
             'seats': 0,
             'total': float(total),
         },
@@ -3926,8 +3924,16 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         return HttpResponseBadRequest('At least one adult is required, and each infant must travel with an adult.')
     if counts['adult'] > pd_sample.MAX_ADULTS or counts['child'] > pd_sample.MAX_CHILDREN or counts['infant'] > pd_sample.MAX_INFANTS:
         return HttpResponseBadRequest('The passenger count is above the booking limit.')
-    if str(payload.get('insurance_key') or 'none') != 'none':
-        return HttpResponseBadRequest('No travel insurance plan is configured for this flight.')
+    insurance_key = str(payload.get('insurance_key') or 'none')
+    insurance_plan = next(
+        (plan for plan in pd_sample.INSURANCE_PLANS if plan[0] == insurance_key),
+        None,
+    )
+    if insurance_plan is None:
+        return HttpResponseBadRequest('The selected travel insurance plan is invalid.')
+    if insurance_plan[2] > 0 and not payload.get('insurance_terms_acknowledged'):
+        return HttpResponseBadRequest(
+            'Acknowledge the travel insurance terms before continuing.')
     if not payload.get('policy_acknowledged'):
         return HttpResponseBadRequest('Acknowledge the cancellation and refund policy before continuing.')
 
@@ -3963,13 +3969,23 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         per_person += Decimal(return_flight.fare_for(fare_class) or 0)
     baggage_charge = (
         baggage_charge_for_kg(flight.baggage_rate, baggage_kg) * len(cleaned))
+    insurance_charge = Decimal(insurance_plan[2]) * len(cleaned)
     items = compute_airline_bill(flight, len(cleaned), fare, baggage_charge=baggage_charge,
                                  baggage_kg=baggage_kg * len(cleaned), return_flight=return_flight,
                                  return_fare=return_flight.fare_for(fare_class) if return_flight else None,
                                  itinerary_legs=[(leg, leg.fare_for(fare_class)) for leg in legs])
+    if insurance_charge:
+        items.append({
+            'label': f'Travel insurance \u2014 {insurance_plan[1]}',
+            'description': f'{insurance_plan[1]} for {len(cleaned)} passenger(s)',
+            'quantity': len(cleaned),
+            'rate': Decimal(insurance_plan[2]),
+            'amount': insurance_charge,
+        })
     total = bill_items_total(items)
-    if flight.itinerary_id and total != per_person * len(cleaned) + baggage_charge:
-        total = per_person * len(cleaned) + baggage_charge
+    if flight.itinerary_id and total != (
+            per_person * len(cleaned) + baggage_charge + insurance_charge):
+        total = per_person * len(cleaned) + baggage_charge + insurance_charge
     try:
         with transaction.atomic():
             list(Flight.objects.select_for_update().filter(pk__in=[leg.pk for leg in seat_flights]))
@@ -3984,6 +4000,8 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                 trip_type=flight.trip_type,
                 return_date=return_flight.departure_time.date() if return_flight else None,
                 extra_baggage=baggage_charge, extra_baggage_kg=baggage_kg * len(cleaned),
+                travel_insurance_plan=(
+                    insurance_plan[1] if insurance_plan[0] != 'none' else ''),
                 cancellation_policy_acknowledged=True,
                 cancellation_policy_acknowledged_at=timezone.now(),
                 payer_name=request.user.get_full_name() or request.user.username,
@@ -4049,7 +4067,8 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         booking_reference=booking.booking_reference,
     )
     request.session['airlines_passenger_ticket'] = _database_ticket_context(
-        booking, order, flight, cleaned, total, baggage_charge, fare_class, legs)
+        booking, order, flight, cleaned, total, baggage_charge,
+        insurance_charge, fare_class, legs)
     return redirect('airlines:passenger_payment')
 
 

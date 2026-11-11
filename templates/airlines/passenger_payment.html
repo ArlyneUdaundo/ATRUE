@@ -112,7 +112,7 @@
                     <div><span>Base fare</span><b>₱ {{ ticket.fare.base_fare|floatformat:2 }}</b></div>
                     <div><span>Taxes &amp; fees</span><b>₱ {{ ticket.fare.taxes|floatformat:2 }}</b></div>
                     {% if ticket.fare.baggage %}<div><span>Extra baggage</span><b>₱ {{ ticket.fare.baggage|floatformat:2 }}</b></div>{% endif %}
-                    {% if ticket.fare.insurance %}<div><span>Travel insurance</span><b>₱ {{ ticket.fare.insurance|floatformat:2 }}</b></div>{% endif %}
+                    {% if ticket.fare.insurance %}<div><span>Travel insurance · {{ ticket.fare.insurance_plan }}</span><b>₱ {{ ticket.fare.insurance|floatformat:2 }}</b></div>{% endif %}
                     {% if ticket.fare.seats %}<div><span>Seat selection</span><b>₱ {{ ticket.fare.seats|floatformat:2 }}</b></div>{% endif %}
                 </div>
                 <div class="fp-checkout-total"><span>Total to pay</span><b>₱ {{ ticket.fare.total|floatformat:2 }}</b></div>
