@@ -178,6 +178,23 @@ def _cheapest_rate(available, field="rate"):
     return min(rates, default=None)
 
 
+def _hotel_from_rate(item, available):
+    """Lowest nightly rate a hotel card can quote.
+
+    Available rooms come first, then any room on file, so a fully occupied or
+    maintained property still advertises its published rates. A hotel with no
+    rooms on file yet - typically a brand-new listing before a manager adds
+    rooms - falls back to ATRUE's standard rate for its cheapest room type, so
+    the card shows a published starting price instead of "Price unavailable"
+    and the listing still matches the price filter and price sorting.
+    """
+    cheapest = _cheapest_rate(available) or _cheapest_rate(item.rooms.all())
+    if cheapest is not None:
+        return cheapest
+    from hotels import pricing
+    return min(pricing.RATE_BY_ROOM_TYPE.values())
+
+
 # ---------------------------------------------------------------------------
 # Category configuration
 # ---------------------------------------------------------------------------
@@ -330,7 +347,7 @@ def _restaurant_price_class(item, idx):
 
 def _index_hotel(item):
     available = [r for r in item.rooms.all() if getattr(r, "status", "") == "AVAILABLE"]
-    cheapest = _cheapest_rate(available)
+    cheapest = _hotel_from_rate(item, available)
     search = _searchable("name", "country", "province", "municipality", "barangay", "establishment_id")(item)
     return {
         "price": _num(cheapest),
@@ -618,7 +635,7 @@ def _flow_cta(request, key, est_id, detail_url, label, stay_params=()):
 
 def _hotel_card(item, request):
     available = [r for r in item.rooms.all() if getattr(r, "status", "") == "AVAILABLE"]
-    cheapest = _cheapest_rate(available)
+    cheapest = _hotel_from_rate(item, available)
     price, price_kind = price_display(cheapest)
     where = item.municipality or item.province or "the area"
     max_cap = max((r.capacity for r in available), default=0)
