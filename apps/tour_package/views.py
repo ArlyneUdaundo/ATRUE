@@ -143,6 +143,7 @@ def manage(request):
     can_manage_packages = may_manage_package(request) or is_platform_operator(request.user)
     return render(request, 'tour_package/manage.html', {
         'packages': packages,
+        'today': date.today(),
         'can_create_package': (
             can_create_establishment(request.user, 'tour_package') or can_manage_packages),
         'package_owner': (

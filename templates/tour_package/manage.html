@@ -24,7 +24,11 @@
         <div style="flex:1">
 
             <h4 style="margin:0">{{ p.name }}
+                {% if p.status == 'EXPIRED' or p.validity_end_date < today %}
+                <span class="badge badge-red">Expired</span>
+                {% else %}
                 <span class="badge {% if p.status == 'ACTIVE' %}badge-green{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span>
+                {% endif %}
             </h4>
             <div class="meta">â‚± {{ p.price }} Â· {{ p.included_headcount }} heads Â· extra â‚± {{ p.extra_person_rate }}/head Â·
                 Valid {{ p.validity_start_date|date:"M d, Y" }} â€“ {{ p.validity_end_date|date:"M d, Y" }}</div>
@@ -37,7 +41,7 @@
                 {% for t in p.included_transport.all %}<span class="service-chip">Transport: {{ t.name }}</span>{% endfor %}
             </div>
         </div>
-        <button type="button" class="btn btn-ghost btn-sm" data-tour-package-edit="{% url 'tour_package:update_package' p.id %}"><i class="fas fa-edit"></i> Edit</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-tour-package-edit="{% url 'tour_package:update_package' p.id %}"><i class="fas fa-edit"></i> {% if p.status == 'EXPIRED' or p.validity_end_date < today %}Reschedule{% else %}Edit{% endif %}</button>
         {% if can_delete_package %}
         <form method="post" action="{% url 'tour_package:delete_package' p.id %}" data-confirm="Delete tour package '{{ p.name }}'? Packages with booking history cannot be deleted." style="display:inline">
             {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</button>

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -323,6 +323,53 @@ class AssignedTourPackageDirectoryTests(TestCase):
             task_key='tour_package.task.01',
             completion_event='WORKFLOW_TASK:tour_package.task.01',
         ).exists())
+
+    def test_tour_operator_manager_can_reschedule_an_expired_package(self):
+        user = User.objects.create_user(
+            'tour-operator-reschedule-manager', password='pw',
+            account_type=User.AccountType.STUDENT)
+        operator = Establishment.objects.create(
+            name='Rescheduling Tour Operator',
+            type=Establishment.Type.TOUR_OPERATOR,
+            address='Baguio', contact_number='1',
+            email='reschedule@example.test')
+        assignment = self.assignment_for(
+            user, Role.TOUR_OPERATOR_MANAGER, operator)
+        yesterday = date.today() - timedelta(days=1)
+        expired = TourPackage.objects.create(
+            name='Expired Package',
+            price=100,
+            status=TourPackage.Status.EXPIRED,
+            validity_start_date=yesterday,
+            validity_end_date=yesterday,
+        )
+        self.client.force_login(user)
+        self.set_task(assignment)
+
+        listing = self.client.get(reverse('tour_package:manage'))
+        self.assertContains(listing, 'Expired Package')
+        self.assertContains(listing, '> Reschedule</button>')
+        self.set_task(assignment)
+        rescheduled_start = date.today() + timedelta(days=1)
+        rescheduled_end = date.today() + timedelta(days=30)
+        response = self.client.post(
+            reverse('tour_package:update_package', args=[expired.pk]),
+            {
+                'name': expired.name,
+                'price': '100.00',
+                'status': TourPackage.Status.ACTIVE,
+                'validity_start_date': rescheduled_start.isoformat(),
+                'validity_end_date': rescheduled_end.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        expired.refresh_from_db()
+        self.assertEqual(expired.status, TourPackage.Status.ACTIVE)
+        self.assertEqual(expired.validity_start_date, rescheduled_start)
+        self.assertEqual(expired.validity_end_date, rescheduled_end)
+        self.assertFalse(expired.valid_on(date.today()))
+        self.assertTrue(expired.valid_on(rescheduled_start))
 
     def test_travel_agency_reservation_agent_can_confirm_any_package_booking(self):
         user = User.objects.create_user(
