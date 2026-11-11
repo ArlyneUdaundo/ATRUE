@@ -11,6 +11,7 @@ urlpatterns = [
     path('sessions/<int:session_id>/assignment/', views.session_assignment, name='session_assignment'),
     path('sessions/<int:session_id>/students/<int:student_id>/progress/', views.session_student_progress, name='session_student_progress'),
     path('assignments/<int:assignment_id>/progress/', views.assignment_progress, name='assignment_progress'),
+    path('establishments/tour-operators/add/', views.create_tour_operator, name='create_tour_operator'),
     path('assign/', views.assign_role, name='assign'),
     path('unassign/<int:assignment_id>/', views.unassign_role, name='unassign'),
     path('reactivate/<int:assignment_id>/', views.reactivate_role, name='reactivate'),

@@ -849,7 +849,9 @@ def task_operation_for(assignment):
             and assignment.role_ref_id and assignment.role_ref.requires_establishment):
         return None
     if assignment.role_ref_id and assignment.role_ref.requires_establishment:
-        if establishment_type != assignment.role_ref.establishment_category:
+        allowed_types = Role.ESTABLISHMENT_TYPE_ALIASES.get(
+            role_code, frozenset({assignment.role_ref.establishment_category}))
+        if establishment_type not in allowed_types:
             return None
     routing_type = (
         assignment.role_ref.establishment_type

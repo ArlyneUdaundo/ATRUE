@@ -322,11 +322,15 @@ class AssignFormJavaScriptPayloadTests(AssignmentFlowTestCase):
         payload = self.script_payload(body, 'roleEstablishmentTypes')
         self.assertEqual(payload[Role.HOTEL_FRONT_DESK], Establishment.Type.HOTEL)
         self.assertEqual(payload[Role.AIRLINE_FRONT_DESK], Establishment.Type.AIRLINE)
-        for role in (Role.ACTIVITY_RESERVATION_OFFICER, Role.ACTIVITY_OPERATOR):
+        for role in (Role.ACTIVITY_RESERVATION_OFFICER, Role.ACTIVITY_FRONT_DESK_OFFICER):
             self.assertEqual(payload[role], Establishment.Type.ACTIVITY)
         for role in (Role.TOUR_PACKAGE_MANAGER, Role.TOUR_PACKAGE_RESERVATION_OFFICER,
                      Role.TOUR_PACKAGE_FRONT_DESK_OFFICER):
             self.assertEqual(payload[role], Establishment.Type.TOUR_PACKAGE)
+        # Seeded data has tour packages but no tour operator companies, so the
+        # manager's picker lists the packages it can reschedule.
+        self.assertEqual(
+            payload[Role.TOUR_OPERATOR_MANAGER], Establishment.Type.TOUR_PACKAGE)
         # The customer role is performed outside any establishment. It has to be
         # *present with no type* rather than missing: the page switches on the
         # lookup, so a missing key would read as undefined and could not be told
@@ -513,6 +517,75 @@ class AdminAssignmentTests(AssignmentFlowTestCase):
         self.assertEqual(a.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
         self.assertIsNotNone(a.assigned_at)
 
+    def test_instructor_can_add_and_assign_a_tour_operator(self):
+        response = self.client.post(
+            reverse('simulation:create_tour_operator'),
+            {'name': 'New Cebu Tour Operator'},
+        )
+        self.assertEqual(response.status_code, 200)
+        created = response.json()
+        self.assertTrue(created['created'])
+        operator = Establishment.objects.get(pk=created['id'])
+        self.assertEqual(operator.type, Establishment.Type.TOUR_OPERATOR)
+        self.assertEqual(operator.status, Establishment.Status.ACTIVE)
+
+        picker = self.client.get(reverse('simulation:assign'))
+        self.assertIn(
+            {'id': operator.pk, 'name': operator.name},
+            picker.context['establishments_by_type'][Establishment.Type.TOUR_OPERATOR],
+        )
+        self.assertContains(picker, 'id="addTourOperatorButton"')
+        SimulationSession.objects.create(name='Tour Operator Session', instructor=self.instructor)
+        workspace = self.client.get(reverse('simulation:workspace'))
+        self.assertContains(workspace, 'id="modalAddTourOperatorButton"')
+
+        self.assertEqual(
+            self.post(
+                role=Role.TOUR_OPERATOR_MANAGER,
+                establishment=operator.pk,
+            ).status_code,
+            302,
+        )
+        assignment = SimulationRoleAssignment.objects.get(student=self.arlyne)
+        self.assertEqual(assignment.role, Role.TOUR_OPERATOR_MANAGER)
+        self.assertEqual(assignment.establishment, operator)
+
+    def test_tour_operator_manager_can_be_assigned_to_a_tour_package(self):
+        """The manager can pick a package directly, then reschedule it."""
+        self.assertEqual(
+            self.post(
+                role=Role.TOUR_OPERATOR_MANAGER,
+                establishment=self.package_est.pk,
+            ).status_code,
+            302,
+        )
+        assignment = SimulationRoleAssignment.objects.get(student=self.arlyne)
+        self.assertEqual(assignment.role, Role.TOUR_OPERATOR_MANAGER)
+        self.assertEqual(assignment.establishment, self.package_est)
+        self.assertEqual(
+            assignment.establishment_type, Establishment.Type.TOUR_PACKAGE)
+        operation = task_operation_for(assignment)
+        self.assertIsNotNone(operation)
+        self.assertIn('tour_package:update_package', operation['allowed_routes'])
+        self.assertEqual(
+            operation['tasks'][0]['label'], 'Manage / Reschedule Tour Packages')
+
+    def test_tour_operator_creation_reuses_existing_name(self):
+        response = self.client.post(
+            reverse('simulation:create_tour_operator'),
+            {'name': self.tour_est.name.lower()},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['created'])
+        self.assertEqual(response.json()['id'], self.tour_est.pk)
+        self.assertEqual(
+            Establishment.objects.filter(
+                type=Establishment.Type.TOUR_OPERATOR,
+                name__iexact=self.tour_est.name,
+            ).count(),
+            1,
+        )
+
     def test_role_choices_offer_the_catalogue_and_nothing_else(self):
         response = self.client.get(reverse('simulation:assign'))
         for role in (Role.HOTEL_MANAGER, Role.HOTEL_RESERVATION_OFFICER,
@@ -676,7 +749,7 @@ class AdminAssignmentTests(AssignmentFlowTestCase):
     def test_activity_roles_keep_the_assigned_activity_when_rotated(self):
         a = self.assign(
             self.arlyne, Role.ACTIVITY_RESERVATION_OFFICER, self.activity_est)
-        for role in (Role.ACTIVITY_OPERATOR, Role.ACTIVITY_RESERVATION_OFFICER):
+        for role in (Role.ACTIVITY_FRONT_DESK_OFFICER, Role.ACTIVITY_RESERVATION_OFFICER):
             with self.subTest(role=role):
                 self.client.post(reverse('simulation:role_update', args=[a.id]), {
                     'role': role,

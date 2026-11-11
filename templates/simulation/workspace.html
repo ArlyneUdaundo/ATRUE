@@ -461,6 +461,14 @@
                 <div class="form-group" id="modalEstablishmentGroup" hidden>
                     <label for="modalEstablishment">Establishment</label>
                     <select name="establishment" id="modalEstablishment" class="form-input"></select>
+                    <div class="form-group" id="modalAddTourOperatorGroup" hidden>
+                        <label for="modalNewTourOperatorName">Add a Tour Operator</label>
+                        <div style="display:flex;gap:8px">
+                            <input type="text" id="modalNewTourOperatorName" class="form-input" maxlength="150" placeholder="Tour Operator name">
+                            <button type="button" class="btn btn-outline btn-sm" id="modalAddTourOperatorButton" data-create-url="{% url 'simulation:create_tour_operator' %}">Add</button>
+                        </div>
+                        <span class="sim-assign-hint" id="modalAddTourOperatorStatus" role="status" hidden></span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Assignment Schedule</label>
@@ -528,6 +536,10 @@
     var roleSelect = document.getElementById('modalRole');
     var estGroup = document.getElementById('modalEstablishmentGroup');
     var estSelect = document.getElementById('modalEstablishment');
+    var addTourOperatorGroup = document.getElementById('modalAddTourOperatorGroup');
+    var newTourOperatorName = document.getElementById('modalNewTourOperatorName');
+    var addTourOperatorButton = document.getElementById('modalAddTourOperatorButton');
+    var addTourOperatorStatus = document.getElementById('modalAddTourOperatorStatus');
     var repeatGroup = document.getElementById('modalRepeatGroup');
     var repeatCheckbox = document.getElementById('modalAssignAgain');
     var repeatHint = document.getElementById('modalRepeatHint');
@@ -1016,6 +1028,7 @@
             estGroup.hidden = true;
             estSelect.disabled = true;
             estSelect.innerHTML = '<option value="">Select establishment</option>';
+            addTourOperatorGroup.hidden = true;
             return;
         }
         var options = establishmentData[type] || [];
@@ -1028,8 +1041,57 @@
         estSelect.innerHTML = html;
         estSelect.disabled = !options.length;
         estGroup.hidden = false;
+        addTourOperatorGroup.hidden = type !== 'TOUR_OPERATOR';
         if (selected) { estSelect.value = String(selected); }
     }
+
+    addTourOperatorButton.addEventListener('click', async function () {
+        var name = (newTourOperatorName.value || '').trim();
+        addTourOperatorStatus.hidden = false;
+        addTourOperatorStatus.textContent = '';
+        if (!name) {
+            addTourOperatorStatus.textContent = 'Enter a Tour Operator name.';
+            return;
+        }
+        addTourOperatorButton.disabled = true;
+        try {
+            var response = await fetch(addTourOperatorButton.dataset.createUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfInput.value
+                },
+                body: new URLSearchParams({name: name})
+            });
+            var result = await response.json();
+            if (!response.ok || !result.ok) {
+                addTourOperatorStatus.textContent = result.error || 'Could not add this Tour Operator.';
+                return;
+            }
+            var options = establishmentData.TOUR_OPERATOR || (establishmentData.TOUR_OPERATOR = []);
+            if (!options.some(function (item) { return String(item.id) === String(result.id); })) {
+                options.push({id: result.id, name: result.name});
+            }
+            if (!Array.prototype.some.call(estSelect.options, function (option) {
+                return option.value === String(result.id);
+            })) {
+                var option = document.createElement('option');
+                option.value = String(result.id);
+                option.textContent = result.name;
+                estSelect.appendChild(option);
+            }
+            estSelect.disabled = false;
+            estSelect.value = String(result.id);
+            newTourOperatorName.value = '';
+            addTourOperatorStatus.textContent = result.created
+                ? 'Tour Operator added and selected.'
+                : 'Existing Tour Operator selected.';
+        } catch (error) {
+            addTourOperatorStatus.textContent = 'Could not add this Tour Operator. Please try again.';
+        } finally {
+            addTourOperatorButton.disabled = false;
+        }
+    });
 
     function heldRole() {
         var roles = studentRoles[currentStudentId] || [];

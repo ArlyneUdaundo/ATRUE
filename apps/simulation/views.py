@@ -53,6 +53,65 @@ def _is_instructor(user):
 
 
 @login_required
+def create_tour_operator(request):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not _is_instructor(request.user):
+        return JsonResponse(
+            {'ok': False, 'error': 'Only instructors may add Tour Operator establishments.'},
+            status=403,
+        )
+
+    name = (request.POST.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Enter a Tour Operator name.'}, status=400)
+    if len(name) > 150:
+        return JsonResponse(
+            {'ok': False, 'error': 'Tour Operator names must be 150 characters or fewer.'},
+            status=400,
+        )
+
+    existing = Establishment.objects.filter(
+        type=Establishment.Type.TOUR_OPERATOR,
+        status=Establishment.Status.ACTIVE,
+        name__iexact=name,
+    ).order_by('pk').first()
+    if existing is not None:
+        return JsonResponse({
+            'ok': True,
+            'created': False,
+            'id': existing.pk,
+            'name': existing.name,
+        })
+    if Establishment.objects.filter(
+            type=Establishment.Type.TOUR_OPERATOR,
+            name__iexact=name,
+    ).exists():
+        return JsonResponse(
+            {'ok': False, 'error': 'A Tour Operator with this name exists but is not active.'},
+            status=409,
+        )
+
+    establishment = Establishment.objects.create(
+        name=name,
+        type=Establishment.Type.TOUR_OPERATOR,
+        status=Establishment.Status.ACTIVE,
+    )
+    log_activity(
+        request.user,
+        'Created Tour Operator establishment',
+        establishment.name,
+        establishment=establishment,
+    )
+    return JsonResponse({
+        'ok': True,
+        'created': True,
+        'id': establishment.pk,
+        'name': establishment.name,
+    })
+
+
+@login_required
 def do_task(request, assignment_id):
     """Show the operations entry point for one of the student's assignments.
 
@@ -439,28 +498,54 @@ def _resolve_student(raw_id):
     return get_user_model().objects.filter(pk=pk).first()
 
 
-def _establishments_for_type(establishment_type):
-    """The selectable establishments of one type, for the dynamic picker."""
-    if not establishment_type:
+def _establishments_for_types(establishment_types):
+    """The selectable establishments of any of ``establishment_types``."""
+    types = {value for value in establishment_types if value}
+    if not types:
         return Establishment.objects.none()
     return Establishment.objects.filter(
-        type=establishment_type, status=Establishment.Status.ACTIVE,
-    ).exclude(name__iexact='Arlyne Hotel').order_by('name')
+        type__in=types, status=Establishment.Status.ACTIVE,
+    ).exclude(name__iexact='Arlyne Hotel').order_by('type', 'name')
 
 
-def _resolve_establishment(raw_id, establishment_type):
-    """Turn a posted establishment id into a real row *of the expected type*.
+def _establishments_for_type(establishment_type):
+    """The selectable establishments of one type, for the dynamic picker."""
+    return _establishments_for_types({establishment_type})
+
+
+def _resolve_establishment(raw_id, establishment_types):
+    """Turn a posted establishment id into a real row *of an allowed type*.
 
     The establishment box is a client-side picker fed from the database, so it is
     untrusted input: a hand-edited POST can name any id, including an airline
-    when a hotel role was chosen. Scoping the lookup to ``establishment_type``
+    when a hotel role was chosen. Scoping the lookup to the role's allowed types
     means a mismatch is simply "not found", so it can never be stored.
     """
     try:
         pk = int(str(raw_id).strip())
     except (TypeError, ValueError):
         return None
-    return _establishments_for_type(establishment_type).filter(pk=pk).first()
+    if isinstance(establishment_types, str):
+        establishment_types = {establishment_types}
+    return _establishments_for_types(establishment_types).filter(pk=pk).first()
+
+
+def _role_establishment_types(role_row):
+    """Every establishment type this role may be assigned to."""
+    return Role.ESTABLISHMENT_TYPE_ALIASES.get(
+        role_row.code, frozenset({role_row.establishment_category}))
+
+
+def _role_establishment_type(role_row):
+    """The type the assign form lists for this role."""
+    return Role.ESTABLISHMENT_TYPE_PREFERENCES.get(
+        role_row.code, role_row.establishment_category)
+
+
+def _establishment_type_label(establishment_type):
+    return dict(Establishment.Type.choices).get(
+        establishment_type, establishment_type)
+
 
 
 def _offered_roles():
@@ -507,7 +592,8 @@ def _assignable_roles(offered=None):
             code,
             offered[code].name if code in offered else label,
             (None if code.endswith('_OWNER') else
-             Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type)),
+             Role.ESTABLISHMENT_TYPE_PREFERENCES.get(
+                 code, Role.ESTABLISHMENT_TYPE_MAP.get(establishment_type))),
         )
         for code, label, _category, establishment_type, _operation, _order
         in active_entries()
@@ -1046,10 +1132,11 @@ def assign_role(request):
                     f"the one this student will work at."
                 )
             establishment = _resolve_establishment(
-                establishment_id, role_row.establishment_category)
+                establishment_id, _role_establishment_types(role_row))
             if establishment is None:
                 return again(
-                    f"Select an active {role_row.get_establishment_category_display()} "
+                    f"Select an active "
+                    f"{_establishment_type_label(_role_establishment_type(role_row))} "
                     "from the list.")
             # The legacy hotel column is a mirror kept for the older templates and
             # atrue_core.hotel_scope; only set it for an actual hotel.
@@ -1384,10 +1471,11 @@ def session_assignment(request, session_id):
                 f"{role_row.name} is performed inside an establishment, so select "
                 f"the one this student will work at."])
         establishment = _resolve_establishment(
-            establishment_id, role_row.establishment_category)
+            establishment_id, _role_establishment_types(role_row))
         if establishment is None:
             return fail([
-                f"Select an active {role_row.get_establishment_category_display()} "
+                f"Select an active "
+                f"{_establishment_type_label(_role_establishment_type(role_row))} "
                 "from the list."])
         hotel = establishment.entity if establishment.type == Establishment.Type.HOTEL else None
     elif role_row.code in _guest_destination_types():
@@ -1680,23 +1768,24 @@ def role_update(request, assignment_id):
     # old establishment is then of the wrong type.
     establishment = None
     if role_row.requires_establishment and not role_row.code.endswith('_OWNER'):
-        wanted_type = role_row.establishment_category
+        allowed_types = _role_establishment_types(role_row)
+        wanted_type = _role_establishment_type(role_row)
         current = assignment.establishment
         if (not establishment_id and current is not None
-                and current.type == wanted_type):
+                and current.type in allowed_types):
             establishment = current
         elif not establishment_id:
             messages.error(
                 request,
                 f"{role_row.name} is performed inside an establishment, so select "
-                f"the {role_row.get_establishment_category_display()} where it happens.")
+                f"the {_establishment_type_label(wanted_type)} where it happens.")
             return redirect('simulation:role_detail', assignment_id=assignment_id)
         else:
-            establishment = _resolve_establishment(establishment_id, wanted_type)
+            establishment = _resolve_establishment(establishment_id, allowed_types)
             if establishment is None:
                 messages.error(
                     request,
-                    f"Select an active {role_row.get_establishment_category_display()} "
+                    f"Select an active {_establishment_type_label(wanted_type)} "
                     "from the list.")
                 return redirect('simulation:role_detail', assignment_id=assignment_id)
     elif role_row.code in _guest_destination_types():

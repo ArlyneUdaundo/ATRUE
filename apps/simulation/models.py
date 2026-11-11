@@ -423,16 +423,20 @@ class SimulationRoleAssignment(models.Model):
             return self._raise(errors)
 
         if role.requires_establishment:
+            allowed_types = Role.ESTABLISHMENT_TYPE_ALIASES.get(
+                role.code, frozenset({role.establishment_category}))
             if not self.establishment_id:
                 errors['establishment'] = (
                     f'{role.name} is performed inside an establishment, so one must be '
                     'selected. A role is only an assignment together with the '
                     'establishment it applies to.')
-            elif self.establishment.type != role.establishment_category:
+            elif self.establishment.type not in allowed_types:
+                expected = ' or '.join(
+                    dict(Role.EstablishmentType.choices).get(value, value)
+                    for value in sorted(allowed_types))
                 errors['establishment'] = (
                     f'{role.name} cannot be assigned to a '
-                    f'{self.establishment.get_type_display()}. Choose a '
-                    f'{role.get_establishment_category_display()}.')
+                    f'{self.establishment.get_type_display()}. Choose a {expected}.')
         elif self.establishment_id:
             # A stray establishment on a customer role would hand the student
             # access to another establishment's queue (Section 19 rule 5).
@@ -1019,6 +1023,25 @@ class Role(models.Model):
         OperationCategory.FRONT_DESK: WorkflowStage.FULFILLMENT,
         OperationCategory.BILLING: WorkflowStage.BILLING,
         OperationCategory.CUSTOMER: WorkflowStage.INTAKE,
+    }
+
+    #: Roles that may be performed in more than one establishment type.
+    #:
+    #: The catalogue names one type per role, but the Tour Operator Manager can
+    #: also work directly on a Tour Package: the platform seeds packages without
+    #: operator companies, and rescheduling a package is the manager's job either
+    #: way. Keeping the catalogue row as ``TOUR_OPERATOR`` preserves the existing
+    #: Tour Operations workflow and its broad task list.
+    ESTABLISHMENT_TYPE_ALIASES = {
+        'TOUR_OPERATOR_MANAGER': frozenset({
+            EstablishmentType.TOUR_OPERATOR,
+            EstablishmentType.TOUR_PACKAGE,
+        }),
+    }
+
+    #: The type the assign form should list for a role that accepts several.
+    ESTABLISHMENT_TYPE_PREFERENCES = {
+        'TOUR_OPERATOR_MANAGER': EstablishmentType.TOUR_PACKAGE,
     }
 
     #: Maps operational areas onto establishment app choices. Activity and Tour
