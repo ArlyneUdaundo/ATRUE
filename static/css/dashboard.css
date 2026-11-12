@@ -112,7 +112,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .side-brand b { display: block; font-size: 19px; font-weight: 800; letter-spacing: .04em; line-height: 1.2; color: var(--slate-900); }
 .side-brand small { display: block; font-size: 10px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--slate-500); margin-top: 2px; }
 
-.nav-toggle { display: none; flex-shrink: 0; }
+.icon-btn.nav-toggle { display: none; flex-shrink: 0; }
 
 .top-nav {
     display: flex;
@@ -1224,7 +1224,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .nav-dd-menu-lg { width: 100%; max-width: none; max-height: none; }
     .nav-dd.open .nav-dd-menu-lg { display: block; }
     .nav-dd-item { width: 100%; }
-    .nav-toggle { display: grid; }
+    .icon-btn.nav-toggle { display: grid; }
     .stat-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
     .page-head { align-items: flex-start; flex-direction: column; }
     .page-head h1 { font-size: 23px; }
