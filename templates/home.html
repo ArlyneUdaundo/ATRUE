@@ -87,6 +87,7 @@
 .hm-hero-inner > div:first-child .hm-lede { margin: 0 auto 34px; }
 .hm-hero-inner .hm-search { width: min(1400px, calc(100% + 120px)); max-width: none; }
 .hm-hero-inner .hm-trust { width: 100%; max-width: 1040px; justify-content: center; }
+.hm-home-breadcrumb { display: none; }
 .hm-eyebrow {
     display: inline-flex; align-items: center; gap: 9px;
     font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
@@ -668,6 +669,18 @@
 @media (max-width: 640px) {
     .home-page .container { padding: 0 20px; }
     .hm-hero { padding-top: 84px; }
+    .hm-home-breadcrumb {
+        display: flex;
+        align-self: stretch;
+        margin-bottom: 16px;
+        color: rgba(235,245,255,0.82);
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: left;
+    }
+    .hm-home-breadcrumb ol { margin: 0; padding: 0; list-style: none; }
+    .hm-home-breadcrumb li { display: flex; align-items: center; gap: 7px; }
+    .hm-home-breadcrumb i { font-size: 12px; }
     .hm-section { padding: 72px 0; }
     .hm-grid, .hm-live-grid, .hm-live-grid.grid-2, .hm-roles-grid { grid-template-columns: 1fr; }
     .hm-contact-grid { grid-template-columns: 1fr; }
@@ -1167,6 +1180,9 @@
     </div>
     <div class="container hm-hero-inner">
         <div>
+            <nav class="hm-home-breadcrumb" aria-label="Breadcrumb">
+                <ol><li aria-current="page"><i class="fas fa-house" aria-hidden="true"></i> Home</li></ol>
+            </nav>
             <span class="hm-eyebrow"><i class="fas fa-graduation-cap"></i> SJC Baggao &middot; Simulation Training</span>
             <h1>One account for your<br><span class="grad">entire travel journey.</span></h1>
             <p class="hm-lede">
