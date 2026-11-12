@@ -128,17 +128,6 @@
         <a href="{% url 'home' %}#about">About</a>
         <a href="{% url 'home' %}#simulation">Roles</a>
         <a href="{% url 'home' %}#contact">Contact</a>
-        <div class="md-title">Establishments</div>
-        <a href="{% url 'hotels:list' %}"><i class="fas fa-hotel"></i> Hotels</a>
-        <a href="{% url 'resorts:list' %}"><i class="fas fa-umbrella-beach"></i> Resorts</a>
-        <a href="{% url 'staycations:list' %}"><i class="fas fa-couch"></i> Staycations</a>
-        <a href="{% url 'restaurants:list' %}"><i class="fas fa-utensils"></i> Restaurants</a>
-        <a href="{% url 'activities:list' %}"><i class="fas fa-hiking"></i> Activities</a>
-        <a href="{% url 'landmarks:list' %}"><i class="fas fa-landmark"></i> Landmarks</a>
-        <a href="{% url 'tour_package:list' %}"><i class="fas fa-suitcase-rolling"></i> Tour Packages</a>
-        <div class="md-title">Travel</div>
-        <a href="{% url 'airlines:list' %}"><i class="fas fa-plane"></i> Flights</a>
-        <a href="{% url 'transportation:list' %}"><i class="fas fa-bus"></i> Land Transportation</a>
         <div class="md-title">Account</div>
         {% if user.is_authenticated %}
         <a href="{% url 'dashboard' %}">Dashboard</a>
