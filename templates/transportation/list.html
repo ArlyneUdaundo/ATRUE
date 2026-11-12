@@ -60,7 +60,7 @@
             {% if request.user.is_platform_manager %}
             <a href="{% url 'transportation:update_agency' a.agency.id %}" data-establishment-create class="btn btn-outline btn-sm transport-agency-action"><i class="fas fa-cog"></i> Manage agency</a>
             {% elif a.vehicles %}
-            <a href="{% url 'transportation:agency_vehicles' a.agency.id %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-brand btn-sm transport-agency-action"><i class="fas fa-car-side"></i> View its cars &amp; book</a>
+            <a href="{% url 'transportation:flow_select' a.agency.id %}?check_in={{ schedule|date:'Y-m-d'|urlencode }}&amp;time={{ schedule|date:'H:i'|urlencode }}" class="btn btn-brand btn-sm transport-agency-action"><i class="fas fa-car-side"></i> View its cars &amp; book</a>
             {% else %}
             <div class="meta" style="margin-top:12px"><i class="fas fa-car"></i> No vehicles yet — added by the administrator.</div>
             {% endif %}

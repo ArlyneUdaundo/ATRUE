@@ -404,7 +404,10 @@ class BaseAdapter:
                                   r.get('siblings_available', 1), r['raw_status']),
                 'score': r['score'],
                 'rate': r['rate'],
-                'photos': r['photos'],
+                'photos': [
+                    {'url': photo.image.url if getattr(photo, 'image', None) else str(photo)}
+                    for photo in r['photos']
+                ],
                 'description': r.get('description', ''),
                 'includes': _inclusions(r, est, self, r['max_guests'], r['rate'], nights),
                 'price_missing_note': self.price_missing_note,
@@ -429,7 +432,10 @@ class BaseAdapter:
                 'score_label': r['score']['label'],
                 'score_basis': r['score']['basis'],
                 'badges': [b['label'] for b in card['badges']],
-                'photos': [p.image.url for p in r['photos']],
+                'photos': [
+                    p.image.url if getattr(p, 'image', None) else str(p)
+                    for p in r['photos']
+                ],
                 'est_name': self.est_name(est),
                 'est_location': self.est_location(est),
                 'detail_url': self.detail_url(est),
@@ -1472,7 +1478,7 @@ class TransportAdapter(BaseAdapter):
 
     def get_est(self, pk):
         from transportation.models import Agency
-        return Agency.objects.filter(status=Agency.Status.ACTIVE).get(pk=pk)
+        return Agency.objects.filter(status=Agency.Status.ACTIVE).prefetch_related('photos').get(pk=pk)
 
     def list_url(self):
         return reverse('transportation:list')
@@ -1500,6 +1506,11 @@ class TransportAdapter(BaseAdapter):
 
         rows = []
         for vehicle in est.vehicles.all():
+            photos = (
+                [vehicle.image.url]
+                if vehicle.image and vehicle.image.name else []
+            )
+            photos.extend(photo for photo in est.photos.all() if photo.image)
             rate = dec(vehicle.rate_per_km)
             roadworthy = vehicle.roadworthiness == 'ROADWORTHY'
             available = (
@@ -1530,7 +1541,7 @@ class TransportAdapter(BaseAdapter):
                 'max_guests': vehicle.capacity,
                 'sleeps': f'Up to {vehicle.capacity} passenger(s)',
                 'feature_labels': [],
-                'photos': [],
+                'photos': photos,
                 'rate': _rate_block(rate, 1, 'km'),
                 'charge': self.charge_plan(
                     rate, 'km', 0, vehicle.capacity, mode='distance',

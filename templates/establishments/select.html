@@ -31,13 +31,17 @@ same markup, and any block with no real data behind it is simply not rendered.
         {% if cards|length == 1 %}the available option{% else %}one or more {{ item_noun_plural|lower }}{% endif %},
         add guest information and confirm. Everything goes in a single booking &amp; one transaction.</p>
     </div>
-    <a href="{{ detail_url }}" class="btn btn-ghost"><i class="fas fa-building"></i> {{ category_label }} Overview</a>
+    {% if category != 'transport' %}<a href="{{ detail_url }}" class="btn btn-ghost"><i class="fas fa-building"></i> {{ category_label }} Overview</a>{% endif %}
 </div>
 
 {% if category != 'staycation' %}
 <div class="card card-pad" style="margin-bottom:18px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        {% if category == 'restaurant' %}
+        {% if category == 'transport' %}
+        <span class="badge badge-green">1 Pickup schedule</span><i class="fas fa-arrow-right"></i>
+        <span class="badge badge-blue">2 Select vehicle</span><i class="fas fa-arrow-right"></i>
+        <span class="badge badge-gray">3 Trip details &amp; booking</span>
+        {% elif category == 'restaurant' %}
         <span class="badge badge-green">1 Guest Information</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-blue">2 Select tables</span><i class="fas fa-arrow-right"></i>
         <span class="badge badge-gray">3 Review &amp; Payment</span>
@@ -52,6 +56,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 </div>
 
 {% comment %}Date / time bar. A GET form so changing the date never loses the page.{% endcomment %}
+{% if category != 'transport' %}
 <form method="get" action="{{ select_url }}" class="ag-search establishment-search{% if show_end_date %} has-end-date{% endif %}{% if show_time %} has-time{% endif %}" style="margin-bottom:22px">
     <div class="ag-search-tabs">
         <a href="{{ list_url }}" class="btn btn-ghost btn-sm"><i class="fas {{ adapter.icon }}"></i> {{ category_label }}</a>
@@ -83,6 +88,7 @@ same markup, and any block with no real data behind it is simply not rendered.
         <button type="submit" class="ag-search-btn"><i class="fas fa-search"></i> Update</button>
     </div>
 </form>
+{% endif %}
 {% endif %}
 
 <form method="post" action="{{ select_url }}" id="bookingForm" novalidate>
@@ -125,7 +131,7 @@ same markup, and any block with no real data behind it is simply not rendered.
                 <div class="rm-media">
                     {% if card.photos %}
                         {% for photo in card.photos %}
-                        <img class="rm-shot{% if forloop.first %} is-active{% endif %}" src="{{ photo.image.url }}" alt="{{ card.name }} — photo {{ forloop.counter }}" loading="lazy">
+                        <img class="rm-shot{% if forloop.first %} is-active{% endif %}" src="{{ photo.url }}" alt="{{ card.name }} — photo {{ forloop.counter }}" loading="lazy">
                         {% endfor %}
                         <span class="rm-counter"><span data-shot-index>{{ 1 }}</span> / {{ card.photos|length }}</span>
                         {% if card.photos|length > 1 %}
@@ -134,7 +140,7 @@ same markup, and any block with no real data behind it is simply not rendered.
                         {% endif %}
                         <div class="rm-thumbs">
                             {% for photo in card.photos|slice:':6' %}
-                            <button type="button" class="rm-thumb{% if forloop.first %} is-active{% endif %}" data-shot-thumb="{{ forloop.counter0 }}" aria-label="Show photo {{ forloop.counter }}"><img src="{{ photo.image.url }}" alt="" loading="lazy"></button>
+                            <button type="button" class="rm-thumb{% if forloop.first %} is-active{% endif %}" data-shot-thumb="{{ forloop.counter0 }}" aria-label="Show photo {{ forloop.counter }}"><img src="{{ photo.url }}" alt="" loading="lazy"></button>
                             {% endfor %}
                         </div>
                         <button type="button" class="rm-photo-count-btn" data-open-details="{{ card.id }}"><i class="fas fa-images"></i> {{ card.photos|length }} photos &amp; details</button>
@@ -262,8 +268,17 @@ same markup, and any block with no real data behind it is simply not rendered.
         {% if category == 'transport' %}
         <section class="card card-pad" style="margin:18px 0" aria-labelledby="transportTripDetailsTitle">
             <h3 id="transportTripDetailsTitle"><i class="fas fa-route"></i> Trip details</h3>
-            <p class="meta">Provide the route and distance so we can calculate your fare.</p>
+            <p class="meta">Choose your pickup schedule and provide the route and distance to calculate your fare.</p>
             <div class="form-grid">
+                <div class="form-group">
+                    <label for="searchCheckIn">{{ date_label }}</label>
+                    <input id="searchCheckIn" type="date" class="form-input" value="{{ check_in|date:'Y-m-d' }}"
+                           min="{% now 'Y-m-d' %}" required>
+                </div>
+                <div class="form-group">
+                    <label for="searchTime">{{ time_label }}</label>
+                    <input id="searchTime" type="time" class="form-input" value="{{ selected_time|default:'09:00' }}" required>
+                </div>
                 <div class="form-group">
                     <label for="transportPickup">Pickup location</label>
                     <input id="transportPickup" type="text" name="pickup_location" class="form-input"
@@ -374,7 +389,9 @@ same markup, and any block with no real data behind it is simply not rendered.
         </div>
         <div class="rm-modal-body" id="itemModalBody"></div>
         <div class="rm-modal-foot">
+            {% if category != 'transport' %}
             <a class="ag-btn" id="itemModalFull" href="#"><i class="fas fa-arrow-right"></i> Open full {{ category_label|lower }} page</a>
+            {% endif %}
             <button type="button" class="ag-btn ag-btn-muted" data-close-modal><i class="fas fa-xmark"></i> Close</button>
         </div>
     </div>
@@ -450,5 +467,5 @@ same markup, and any block with no real data behind it is simply not rendered.
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/establishment_select.js' %}?v=20261016-focused-unit-guest"></script>
+<script src="{% static 'js/establishment_select.js' %}?v=20261112-transport-schedule"></script>
 {% endblock %}

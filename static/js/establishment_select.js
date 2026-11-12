@@ -80,6 +80,9 @@
     var checkInEl = document.getElementById('bkCheckIn');
     var checkOutEl = document.getElementById('bkCheckOut');
     var transportDistanceEl = document.getElementById('transportDistance');
+    var transportTimeEl = document.getElementById('bkTime');
+    var summaryCheckInEl = document.getElementById('pbCheckIn');
+    var summaryTimeEl = document.getElementById('pbTime');
 
     var SELECTED = [];   // one entry per booked item, in selection order
 
@@ -1080,16 +1083,31 @@ if (!guestBox) { return; }
         }, true);
     }
 
-    // Live date changes from the search bar, like the Hotels page.
+    // Keep booking dates and the transport pickup time in sync with their form controls.
     var searchCi = document.getElementById('searchCheckIn');
     var searchCo = document.getElementById('searchCheckOut');
     function syncDates() {
         if (searchCi && searchCi.value && checkInEl) { checkInEl.value = searchCi.value; }
         if (searchCo && searchCo.value && checkOutEl) { checkOutEl.value = searchCo.value; }
+        var searchTime = document.getElementById('searchTime');
+        if (searchTime && searchTime.value && transportTimeEl) {
+            transportTimeEl.value = searchTime.value;
+        }
+        if (summaryCheckInEl && checkInEl && checkInEl.value) {
+            var summaryDate = new Date(checkInEl.value + 'T00:00:00');
+            summaryCheckInEl.textContent = isNaN(summaryDate.getTime())
+                ? checkInEl.value
+                : summaryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        if (summaryTimeEl && transportTimeEl) {
+            summaryTimeEl.textContent = transportTimeEl.value || '\u2014';
+        }
         computeAll();
     }
     if (searchCi) { searchCi.addEventListener('change', syncDates); }
     if (searchCo) { searchCo.addEventListener('change', syncDates); }
+    var searchTime = document.getElementById('searchTime');
+    if (searchTime) { searchTime.addEventListener('change', syncDates); }
     if (transportDistanceEl) {
         transportDistanceEl.addEventListener('input', computeAll);
         transportDistanceEl.addEventListener('change', computeAll);
@@ -1098,6 +1116,17 @@ if (!guestBox) { return; }
     form.addEventListener('submit', function (ev) {
         if (!SELECTED.length) { ev.preventDefault(); return; }
         syncFromDom();
+        syncDates();
+        if (CATEGORY === 'transport') {
+            var pickupDate = document.getElementById('searchCheckIn');
+            var pickupTime = document.getElementById('searchTime');
+            if ((pickupDate && !pickupDate.value) || (pickupTime && !pickupTime.value)) {
+                ev.preventDefault();
+                if (pickupDate && !pickupDate.value) { pickupDate.reportValidity(); }
+                else if (pickupTime) { pickupTime.reportValidity(); }
+                return;
+            }
+        }
         var errs = validateAll();
         if (errs.length) {
             ev.preventDefault();

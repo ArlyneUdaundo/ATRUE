@@ -9,50 +9,6 @@
     <div class="ag-step"><i>3</i> Book land transport</div>
 </div>
 
-<div class="page-head">
-    <div>
-        <h2>{{ agency.name }}</h2>
-        <p>Step 2 of 3: choose the type of car, then book your land transport.</p>
-    </div>
-    <a href="{% url 'transportation:list' %}?schedule={{ schedule|date:'Y-m-d\TH:i'|urlencode }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to agencies</a>
-</div>
-
-<section class="card card-pad transport-agency-summary" aria-label="Agency details">
-    <div class="transport-agency-summary__icon" aria-hidden="true"><i class="fas fa-building"></i></div>
-    <div class="transport-agency-summary__body">
-        <div class="transport-agency-summary__heading">
-            <h3>{{ agency.name }}</h3>
-            <span class="badge badge-green">{{ agency.get_status_display }}</span>
-        </div>
-        <div class="transport-agency-summary__facts">
-            <div><i class="fas fa-map-marker-alt"></i><span>{{ agency.location }}</span></div>
-            <div><i class="fas fa-phone"></i><span>{{ agency.contact_number }}{% if agency.email %}<span class="transport-agency-summary__separator">&#183;</span>{{ agency.email }}{% endif %}</span></div>
-            {% if agency.operating_hours %}<div><i class="fas fa-clock"></i><span>{{ agency.operating_hours }}</span></div>{% endif %}
-            {% if agency.areas %}<div class="transport-agency-summary__areas"><i class="fas fa-globe-asia"></i><span><b>Serves</b> {{ agency.areas }}</span></div>{% endif %}
-        </div>
-        {% if agency.description %}<p class="transport-agency-summary__description">{{ agency.description }}</p>{% endif %}
-    </div>
-</section>
-
-{% if not request.user.is_platform_manager %}
-<div class="card card-pad transport-agency-schedule-card" style="margin-bottom:16px">
-    <form method="get" class="ag-search mb" style="max-width:none;margin:0">
-        <div class="ag-search-fields filter-grid" style="grid-template-columns:1fr auto">
-            <div class="ag-field transport-agency-schedule" data-transport-agency-schedule>
-                <label><i class="fas fa-calendar-alt"></i> Travel date &amp; time</label>
-                <div class="transport-schedule-controls transport-agency-schedule__controls">
-                    <div class="ag-field"><label for="agency-travel-date">Date</label><input id="agency-travel-date" type="date" data-transport-agency-date value="{{ schedule|date:'Y-m-d' }}" required></div>
-                    <div class="ag-field"><label for="agency-travel-time">Time</label><input id="agency-travel-time" type="time" data-transport-agency-time value="{{ schedule|date:'H:i' }}" required></div>
-                </div>
-                <input type="hidden" name="schedule" data-transport-agency-schedule-value value="{{ schedule|date:'Y-m-d\TH:i' }}">
-            </div>
-            <button type="submit" class="ag-search-btn"><i class="fas fa-check-circle"></i> Check availability</button>
-        </div>
-    </form>
-    <div class="meta transport-agency-availability"><i class="fas fa-info-circle"></i> Availability for {{ schedule|date:'M d, Y g:i A' }} · {{ vehicles|length }} vehicle(s)</div>
-</div>
-{% endif %}
-
 <div class="cards cards-transport">
     {% for item in vehicles %}
     {% with v=item.vehicle %}
@@ -97,16 +53,6 @@
 {{ block.super }}
 <script>
 (function () {
-    var agencySchedule = document.querySelector('[data-transport-agency-schedule]');
-    if (agencySchedule) {
-        var scheduleForm = agencySchedule.closest('form');
-        scheduleForm.addEventListener('submit', function () {
-            var date = agencySchedule.querySelector('[data-transport-agency-date]').value;
-            var time = agencySchedule.querySelector('[data-transport-agency-time]').value;
-            agencySchedule.querySelector('[data-transport-agency-schedule-value]').value = date + 'T' + time;
-        });
-    }
-
     var modal = document.querySelector('[data-landtransport-booking-modal]');
     var frame = document.querySelector('[data-landtransport-booking-frame]');
     var close = document.querySelector('[data-landtransport-booking-close]');
@@ -211,6 +157,5 @@
 })();
 </script>
 {% endblock %}
-
 
 

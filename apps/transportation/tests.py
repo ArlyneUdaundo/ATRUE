@@ -143,8 +143,43 @@ class SharedTransportBookingFlowTests(TestCase):
         self.assertTemplateUsed(response, 'establishments/select.html')
         self.assertContains(response, 'Route Van')
         self.assertContains(response, 'Pickup location')
+        self.assertContains(response, 'id="searchCheckIn"')
+        self.assertContains(response, 'id="searchTime"')
+        self.assertNotContains(response, 'class="ag-search establishment-search')
         self.assertContains(response, 'Distance (km)')
         self.assertContains(response, 'Pickup time')
+
+    def test_old_agency_vehicle_url_redirects_into_booking_flow(self):
+        agency_url = reverse('transportation:agency_vehicles', args=[self.agency.pk])
+        schedule = timezone.localtime(timezone.now() + timedelta(days=2))
+
+        response = self.client.get(agency_url, {'schedule': schedule.isoformat()})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response['Location'],
+            f'{self.url}?check_in={schedule:%Y-%m-%d}&time={schedule:%H:%M}',
+        )
+
+    def test_agency_list_links_directly_to_shared_booking_flow(self):
+        response = self.client.get(reverse('transportation:list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{self.url}?check_in=')
+        self.assertNotContains(response, f'href="{reverse("transportation:agency_vehicles", args=[self.agency.pk])}')
+
+    def test_vehicle_photo_is_shown_in_shared_booking_flow(self):
+        self.vehicle.image = 'transport_vehicles/route-van.jpg'
+        self.vehicle.save(update_fields=['image'])
+        self.vehicle.refresh_from_db()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context['cards'][0]['photos'],
+            [{'url': self.vehicle.image.url}],
+        )
 
     @override_settings(STORAGES={
         'staticfiles': {

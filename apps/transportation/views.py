@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.urls import reverse
 from atrue_core.decorators import manager_required, student_booking_required
 from accounts.roles import can_create_establishment
 from atrue_core.image_utils import (
@@ -126,25 +127,13 @@ def transportation_list(request):
 
 
 def agency_vehicles(request, agency_id):
-    """Choose a travel agency first (step 1), then pick a car (step 2)."""
-    default_schedule = timezone.now() + timedelta(hours=3)
-    schedule = _parse_datetime(request.GET.get('schedule'), default_schedule)
-    agency = get_object_or_404(
-        Agency.objects.prefetch_related('photos', 'vehicles', 'drivers'), pk=agency_id)
-    vehicles = []
-    for vehicle in agency.vehicles.all():
-        available = (vehicle.status == Vehicle.VehicleStatus.AVAILABLE
-                     and not _vehicle_conflict(vehicle, schedule))
-        vehicles.append({
-            'vehicle': vehicle,
-            'available': available,
-            'photo_url': _vehicle_photo_url(agency, vehicle),
-        })
-    return render(request, 'transportation/agency_vehicles.html', {
-        'agency': agency,
-        'vehicles': vehicles,
-        'schedule': schedule,
-    })
+    """Keep the former agency detail URL forwarding into the shared booking flow."""
+    schedule = _parse_datetime(
+        request.GET.get('schedule'),
+        timezone.now() + timedelta(hours=3),
+    )
+    flow_url = reverse('transportation:flow_select', args=[agency_id])
+    return redirect(f'{flow_url}?check_in={schedule:%Y-%m-%d}&time={schedule:%H:%M}')
 
 
 @login_required
