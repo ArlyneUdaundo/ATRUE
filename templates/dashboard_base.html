@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261106-airline-management-card-2">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261112-mobile-notifications-fit">
     <link rel="stylesheet" href="{% static 'css/photo-upload.css' %}?v=20261028-photo-upload-2">
     <link rel="stylesheet" href="{% static 'css/payment-methods.css' %}?v=20261013-payment-methods-4">
     <link rel="stylesheet" href="{% static 'css/agoda.css' %}?v=20261110-booking-summary-sidebar-1">
@@ -96,7 +96,6 @@
                         <a href="{% url 'accounts:logout' %}" class="user-dd-item"><span class="dd-chip udd-security"><i class="fas fa-sign-out-alt"></i></span><span class="dd-txt"><b>Log Out</b><small>Sign out of your account</small></span></a>
                     </div>
                 </div>
-                <button class="icon-btn nav-toggle" id="navToggle" aria-label="Menu"><i class="fas fa-bars"></i></button>
             </div>
         </div>
 
@@ -222,11 +221,6 @@ function confirmAction(message) {
     return confirm(message || 'Are you sure you want to continue?');
 }
 document.addEventListener('DOMContentLoaded', () => {
-    const nav = document.getElementById('topNav');
-    const toggle = document.getElementById('navToggle');
-    if (toggle) {
-        toggle.addEventListener('click', () => nav.classList.toggle('open'));
-    }
     document.querySelectorAll('.nav-dd-toggle').forEach(t => {
         t.addEventListener('click', (e) => {
             e.preventDefault();
@@ -250,11 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
             userDd.classList.toggle('open');
         });
     }
-    nav.querySelectorAll('a').forEach(a => {
-        if (a.classList.contains('nav-dd-toggle')) return;
-        a.addEventListener('click', () => nav.classList.remove('open'));
-    });
-
     document.querySelectorAll('form[data-submit-loading]').forEach(form => {
         form.addEventListener('submit', () => {
             if (form.dataset.submitting) return;
