@@ -225,6 +225,7 @@ class AssignedTourPackageDirectoryTests(TestCase):
             f'href="{reverse("tour_package:book_package", args=[self.package.pk])}"')
         self.assertContains(details, 'Book Tour Package')
         self.assertEqual(booking.status_code, 200)
+        self.assertContains(booking, 'class="ag-booking" data-keep-booking-summary')
         self.assertContains(booking, 'Guest information &amp; booking details')
         self.assertContains(booking, 'name="guest_full_name"')
         self.assertContains(booking, 'name="guest_emergency_contact_number"')
