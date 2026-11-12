@@ -388,6 +388,9 @@ input, select, textarea { font-family: inherit; }
     flex-direction: column;
     padding: 84px 24px 28px;
     gap: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 .mobile-drawer.open { transform: translateX(0); }
 .mobile-drawer a {
