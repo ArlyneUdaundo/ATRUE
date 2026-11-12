@@ -912,6 +912,14 @@ def assignment_tasks_for(assignment):
             item['description'] = 'Review and verify the payment for the assigned establishment.'
         elif category == Role.OperationCategory.CUSTOMER:
             item['description'] = 'Complete this customer booking step successfully.'
+        if role_code == 'PASSENGER_AIRLINE':
+            item['description'] = {
+                'Book Flight': 'Search for and submit a flight booking.',
+                'View Booking': 'Review your submitted flight booking details.',
+                'Manage Booking': 'Make and save an allowed change to your flight booking.',
+                'Select Seat': 'Choose and save a seat for your booked flight.',
+                'View Ticket': 'Open and review your flight e-ticket.',
+            }.get(item['label'], item['description'])
         if item['label'].startswith('Add ') and role_code != 'AIRLINE_OWNER':
             item['completion_events'] = ['ESTABLISHMENT_CREATED']
             item['description'] = 'Create and save the assigned business entity.'

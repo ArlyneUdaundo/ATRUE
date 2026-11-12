@@ -358,6 +358,13 @@ class SessionProgressTests(CompletionTestCase):
         self.assertEqual(tasks[2]['completion_events'], ['PASSENGER_BOOKING_MANAGED'])
         self.assertEqual(tasks[3]['completion_events'], ['PASSENGER_SEAT_SELECTED'])
         self.assertEqual(tasks[4]['completion_events'], [])
+        self.assertEqual([task['description'] for task in tasks], [
+            'Search for and submit a flight booking.',
+            'Review your submitted flight booking details.',
+            'Make and save an allowed change to your flight booking.',
+            'Choose and save a seat for your booked flight.',
+            'Open and review your flight e-ticket.',
+        ])
 
     def test_every_configured_role_task_has_a_trackable_and_unambiguous_action_route(self):
         configured_roles = [
@@ -644,6 +651,11 @@ class SessionProgressTests(CompletionTestCase):
         from simulation.views import assignment_progress_data
         assignment = self.assign(self.guest, 'PASSENGER_AIRLINE')
         initial = assignment_progress_data(assignment)
+        self.assertEqual(initial['title'], 'Airline Passenger Progress')
+        self.assertEqual(
+            initial['subtitle'],
+            'Track verified flight booking, booking management, and seat selection.')
+        self.assertEqual(initial['required'], 3)
         self.assertEqual((initial['tracked'], initial['completed'], initial['percent']), (3, 0, 0))
         self.assertEqual(initial['untracked'], 2)
         self.assertFalse(initial['ready_to_mark_done'])

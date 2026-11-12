@@ -855,8 +855,9 @@ def assignment_progress_data(assignment):
     completions = {item.task_key: item for item in assignment.task_completions.all()}
     role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
     is_hotel_guest = role_code == 'GUEST_HOTEL'
+    is_airline_passenger = role_code == 'PASSENGER_AIRLINE'
     guest_workflow_code = GUEST_ROLE_ALIASES.get(role_code, role_code)
-    is_guest = guest_workflow_code in GUEST_MODULES or role_code == 'PASSENGER_AIRLINE'
+    is_guest = guest_workflow_code in GUEST_MODULES or is_airline_passenger
     booking = (
         _booking_for_assignment(assignment, completions)
         if is_guest and role_code != 'PASSENGER_AIRLINE' else None)
@@ -939,10 +940,16 @@ def assignment_progress_data(assignment):
         required and completed_required == required
             and assignment.status == SimulationRoleAssignment.AssignmentStatus.ACTIVE),
         'is_complete': is_complete, 'state': state,
-        'title': 'Hotel Booking Progress' if is_hotel_guest else 'Role Task Progress',
+        'title': (
+            'Hotel Booking Progress' if is_hotel_guest else
+            'Airline Passenger Progress' if is_airline_passenger else
+            'Role Task Progress'
+        ),
         'subtitle': (
             'Track each verified step of the hotel guest workflow.'
             if is_hotel_guest else
+            'Track verified flight booking, booking management, and seat selection.'
+            if is_airline_passenger else
             f'Track verified completion for {assignment.role_label}.'),
         'success_message': success_message,
         'awaiting_message': awaiting_message,
