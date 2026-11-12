@@ -1,0 +1,93 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Tour Package Payment{% endblock %}
+
+{% block content %}
+<div class="ag-steps">
+    <div class="ag-step done"><i class="fas fa-check"></i> Your package</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step done"><i class="fas fa-check"></i> Guest information</div>
+    <span style="color:var(--slate-300)">—</span>
+    <div class="ag-step active"><i>3</i> Payment</div>
+</div>
+
+<div class="ag-booking" data-keep-booking-summary>
+    <div class="ag-booking-main">
+        <section class="ag-panel">
+            <div class="ag-panel-head">
+                <span class="ag-ph-ico"><i class="fas fa-wallet"></i></span>
+                <div><h3>Payment information</h3><p>Choose a payment method for your tour package</p></div>
+            </div>
+            <form method="post" id="payment-form" data-submit-loading>
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="payment-method">Payment Method</label>
+                    <select id="payment-method" name="payment_method" class="form-input" required>
+                        <option value="GCASH" {% if default_payment_method == 'GCASH' %}selected{% endif %}>GCash</option>
+                        <option value="MAYA" {% if default_payment_method == 'MAYA' %}selected{% endif %}>Maya</option>
+                        <option value="BANK_TRANSFER" {% if default_payment_method == 'BANK_TRANSFER' %}selected{% endif %}>Bank Transfer</option>
+                        <option value="CREDIT_CARD" {% if default_payment_method == 'CREDIT_CARD' %}selected{% endif %}>Credit Card</option>
+                        <option value="DEBIT_CARD" {% if default_payment_method == 'DEBIT_CARD' %}selected{% endif %}>Debit Card</option>
+                        <option value="PAYPAL" {% if default_payment_method == 'PAYPAL' %}selected{% endif %}>PayPal</option>
+                        <option value="QR_PH" {% if default_payment_method == 'QR_PH' %}selected{% endif %}>QR Ph</option>
+                    </select>
+                </div>
+                <div class="ag-panel-head" style="margin-top:22px">
+                    <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
+                    <div><h3>Payer information</h3><p>Provide the name and contact details of the payer</p></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="payer-name">Payer Name</label>
+                        <input id="payer-name" type="text" name="payer_name" class="form-input"
+                               value="{{ booking.payer_name|default:request.user.get_full_name|default:request.user.username }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="payer-contact">Payer Contact</label>
+                        <input id="payer-contact" type="text" name="payer_contact" class="form-input"
+                               value="{{ booking.payer_contact|default:request.user.contact_number }}" placeholder="Contact number or email">
+                    </div>
+                </div>
+                <label class="checkbox" style="margin-top:12px">
+                    <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
+                </label>
+            </form>
+            <a href="{% url 'tour_package:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:16px">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </section>
+    </div>
+
+    <aside class="ag-price-box">
+        <div class="ag-pb-head"><i class="fas fa-file-invoice-dollar"></i> <b>Booking summary</b></div>
+        <div class="ag-pb-body">
+            <div class="ag-pb-prop">
+                <span class="ag-pb-ico"><i class="fas fa-luggage-cart"></i></span>
+                <div><b>{{ package.name }}</b><small>{{ package.destination_name|default:"—" }} · {{ package.duration_days }} day(s)</small></div>
+            </div>
+            <div class="ag-pb-rows">
+                <div class="ag-pb-row"><span>Booking reference</span><b>{{ booking.booking_reference }}</b></div>
+                <div class="ag-pb-row"><span>Travel date</span><b>{{ booking.travel_date|date:"M d, Y" }}</b></div>
+                <div class="ag-pb-row"><span>Travelers</span><b>{{ booking.number_of_travelers }}</b></div>
+                {% if booking.guests.all %}
+                <div class="ag-pb-row"><span>Additional guests</span><b>{{ booking.guests.count }}</b></div>
+                {% endif %}
+            </div>
+            <div class="ag-pb-divider"></div>
+            <div class="ag-pb-total"><span>Total to pay</span><b>₱ {{ amount|floatformat:2 }}</b></div>
+        </div>
+        <div class="ag-pb-actions">
+            <button type="submit" form="payment-form" class="ag-btn ag-btn-block">
+                <i class="fas fa-lock"></i> Confirm &amp; Pay
+            </button>
+            <button type="submit" name="add_to_cart" value="1" form="payment-form" class="btn btn-outline" style="width:100%;margin-top:10px">
+                <i class="fas fa-cart-plus"></i> Add to Trip Cart
+            </button>
+            <button type="submit" name="book_and_add" value="1" form="payment-form" class="btn btn-outline" style="width:100%;margin-top:10px">
+                <i class="fas fa-plus"></i> Add to Establishment Booking
+            </button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Simulated payment · No real payment details</div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

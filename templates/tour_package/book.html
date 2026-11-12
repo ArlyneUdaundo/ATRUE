@@ -6,9 +6,9 @@
 <div class="ag-steps">
     <div class="ag-step done"><i class="fas fa-check"></i> Your package</div>
     <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step active"><i>2</i> Your details</div>
+    <div class="ag-step active"><i>2</i> Guest information</div>
     <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step"><i>3</i> Confirmation</div>
+    <div class="ag-step"><i>3</i> Payment</div>
 </div>
 
 {% if booking_error %}
@@ -100,7 +100,7 @@
             <div style="margin-top:18px">
                 <div class="ag-panel-head">
                     <span class="ag-ph-ico"><i class="fas fa-user-shield"></i></span>
-                    <div><h3>Lead customer &amp; payer</h3><p>Customer info comes from your account</p></div>
+                    <div><h3>Lead traveler</h3><p>Customer information from your account</p></div>
                 </div>
                 <div class="ag-customer-box">
                     <div class="ag-detail-row"><i class="fas fa-user"></i> {{ request.user.get_full_name|default:request.user.username }}</div>
@@ -109,64 +109,17 @@
                     <div class="ag-detail-row"><i class="fas fa-home"></i> {{ request.user.residential_address|default:'—' }}</div>
                     <div class="ag-detail-row" style="margin-left:26px"><i class="fas fa-medkit"></i> Emergency: {{ request.user.emergency_contact_name|default:'—' }} · {{ request.user.emergency_contact_number|default:'—' }}{% if request.user.emergency_contact_relationship %} ({{ request.user.emergency_contact_relationship }}){% endif %}</div>
                 </div>
-                <label class="checkbox" style="margin-bottom:10px">
-                    <input type="checkbox" id="payer-same" checked onchange="togglePayer()"> Payer is the same as the lead customer
-                </label>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Payer Name</label>
-                        <input type="text" name="payer_name" class="form-input" value="{{ request.user.get_full_name|default:'' }}" id="payer-name">
-                    </div>
-                    <div class="form-group">
-                        <label>Payer Contact</label>
-                        <input type="text" name="payer_contact" class="form-input" value="{{ request.user.contact_number|default:'' }}" id="payer-contact" placeholder="Contact number / email">
-                    </div>
-                </div>
             </div>
             <div class="form-grid" style="margin-top:16px">
                 <div class="form-group">
                     <label>End Time</label>
                     <input type="time" name="end_time" class="form-input">
                 </div>
-                <div class="form-group">
-                    <label>Payment Method</label>
-                    <select name="payment_method" class="form-input" required>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CREDIT_CARD">Credit Card</option>
-                    <option value="DEBIT_CARD">Debit Card</option>
-                    <option value="PAYPAL">PayPal</option>
-                    <option value="QR_PH">QR Ph</option></select>
-                </div>
             </div>
             <div class="form-group">
                 <label>Special Requests</label>
                 <textarea name="special_requests" class="form-input" rows="1"></textarea>
             </div>
-            <label class="checkbox" style="margin-bottom:6px">
-                <input type="checkbox" name="pay_later"> Pay later (booking stays pending)
-            </label>
-            <script>
-                function togglePayer() {
-                    var same = document.getElementById('payer-same');
-                    if (!same) return;
-                    var lock = same.checked;
-                    var name = document.getElementById('payer-name');
-                    var contact = document.getElementById('payer-contact');
-                    if (name) {
-                        name.readOnly = lock;
-                        name.style.background = lock ? 'var(--slate-100)' : '';
-                        if (lock) name.value = "{{ request.user.get_full_name|default:'' }}";
-                    }
-                    if (contact) {
-                        contact.readOnly = lock;
-                        contact.style.background = lock ? 'var(--slate-100)' : '';
-                        if (lock) contact.value = "{{ request.user.contact_number|default:'' }}";
-                    }
-                }
-                togglePayer();
-            </script>
             <a href="{% url 'tour_package:list' %}" class="ag-btn ag-btn-muted" style="width:100%;margin-top:8px"><i class="fas fa-arrow-left"></i> Cancel</a>
         </form>
     </div>
@@ -187,10 +140,8 @@
             <div class="ag-pb-total"><span>Total</span><b>₱ {{ package.price }}*</b></div>
         </div>
         <div class="ag-pb-actions">
-            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-lock"></i> Confirm &amp; Pay</button>
-        
-        <button type="submit" name="book_and_add" value="1" form="booking-form" class="btn btn-outline" style="width:100%;margin-top:10px"><i class="fas fa-plus"></i> Book & Add Another Package</button>
-            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Secured booking · Free simulation</div>
+            <button type="submit" form="booking-form" class="ag-btn ag-btn-block"><i class="fas fa-arrow-right"></i> Continue to Payment</button>
+            <div class="ag-pb-secure"><i class="fas fa-shield-alt"></i> Guest information is saved before payment</div>
             <div class="ag-pb-note">*Total = confirmed price + (extra heads × extra-person rate).</div>
         </div>
     </aside>

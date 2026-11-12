@@ -382,16 +382,57 @@ def book_package(request, package_id):
             number_of_travelers=travelers,
             number_of_adults=adults,
             number_of_children=children,
-            payment_method=request.POST.get('payment_method', 'GCASH'),
             special_requests=request.POST.get('special_requests', ''),
-            payer_name=request.POST.get('payer_name', ''),
-            payer_contact=request.POST.get('payer_contact', ''),
             status=Booking.Status.PENDING,
         )
         bill = create_bill(service='tour_package', customer=request.user, items=items, booking=booking)
         booking.total_bill = total
         booking.save(update_fields=['total_bill'])
         _save_guests(booking, request)
+
+        messages.success(request, 'Guest information saved. Review your package and continue to payment.')
+        return redirect('tour_package:booking_payment', booking_id=booking.id)
+    today = date.today()
+    booking_date = max(today, package.validity_start_date)
+    return render(request, 'tour_package/book.html', {
+        'package': package,
+        'today': today,
+        'booking_date': booking_date,
+    })
+
+
+@login_required
+@student_booking_required
+def package_booking_payment(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('package', 'customer').prefetch_related('guests'),
+        pk=booking_id,
+        customer=request.user,
+    )
+    if not may_book_package(request, booking.package_id):
+        raise PermissionDenied('Only the package customer may continue to payment.')
+
+    bill = bill_for_booking(booking)
+    if bill is None:
+        messages.error(request, 'The booking bill is missing. Please contact support.')
+        return redirect('tour_package:booking_detail', booking_id=booking.pk)
+    if booking.status != Booking.Status.PENDING or bill.payments.exists():
+        return redirect('tour_package:booking_detail', booking_id=booking.pk)
+
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method', 'GCASH')
+        if payment_method not in Booking.PaymentMethod.values:
+            messages.error(request, 'Choose a valid payment method.')
+            return redirect('tour_package:booking_payment', booking_id=booking.pk)
+        if (not booking.package.valid_on(booking.travel_date)
+                or not _components_bookable(booking.package)):
+            messages.error(request, 'This package or one of its components is no longer available for the selected date.')
+            return redirect('tour_package:booking_detail', booking.pk)
+
+        booking.payment_method = payment_method
+        booking.payer_name = request.POST.get('payer_name', '').strip()
+        booking.payer_contact = request.POST.get('payer_contact', '').strip()
+        booking.save(update_fields=['payment_method', 'payer_name', 'payer_contact'])
 
         from simulation.completion import complete_guest_booking
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
@@ -407,48 +448,39 @@ def book_package(request, package_id):
                 add_establishment_booking(request, booking)
             except ValueError as exc:
                 messages.error(request, str(exc))
-                return redirect('tour_package:booking_detail', booking.id)
+                return redirect('tour_package:booking_detail', booking.pk)
             messages.success(request, f'Added to this establishment booking: {booking.booking_reference}')
             return redirect('transactions:establishment_booking')
-
         if request.POST.get('add_to_cart') == '1':
-
-
             add_booking_to_cart(request, booking)
-
-
-            messages.success(request, f"Added to your Trip Cart: {booking.booking_reference}")
-
-
+            messages.success(request, f'Added to your Trip Cart: {booking.booking_reference}')
             return redirect('transactions:cart')
-
-
-
         if request.POST.get('pay_later') == 'on':
-            messages.success(request, f"Package booking saved! Reference: {booking.booking_reference} (pending payment)")
-            return redirect('tour_package:booking_detail', booking.id)
+            messages.success(request, f'Package booking saved! Reference: {booking.booking_reference} (pending payment)')
+            return redirect('tour_package:booking_detail', booking.pk)
+
         checkout(
             user=request.user,
             service='tour_package',
             booking=booking,
-            amount=total,
-            payment_method=request.POST.get('payment_method', 'GCASH'),
-            description=f"Tour package booking {booking.booking_reference}",
-            items=items,
+            amount=bill.total_amount,
+            payment_method=payment_method,
+            description=f'Tour package booking {booking.booking_reference}',
             bill=bill,
         )
         booking.refresh_from_db()
         booking.amount_paid = bill.amount_paid
         booking.balance_due = bill.balance_due
         booking.save(update_fields=['amount_paid', 'balance_due'])
-        messages.success(request, f"Package request submitted: {booking.booking_reference}. Payment is pending Billing Officer confirmation.")
-        return redirect('tour_package:booking_detail', booking.id)
-    today = date.today()
-    booking_date = max(today, package.validity_start_date)
-    return render(request, 'tour_package/book.html', {
-        'package': package,
-        'today': today,
-        'booking_date': booking_date,
+        messages.success(request, f'Package request submitted: {booking.booking_reference}. Payment is pending Billing Officer confirmation.')
+        return redirect('tour_package:booking_detail', booking.pk)
+
+    return render(request, 'tour_package/payment.html', {
+        'booking': booking,
+        'package': booking.package,
+        'bill': bill,
+        'amount': bill.total_amount,
+        'default_payment_method': booking.payment_method or 'GCASH',
     })
 
 

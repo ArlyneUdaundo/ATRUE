@@ -181,15 +181,27 @@ class AssignedTourPackageDirectoryTests(TestCase):
         response = self.client.post(
             reverse('tour_package:book_package', args=[self.package.pk]),
             {'travel_date': date.today().isoformat(), 'travelers': '1', 'adults': '1',
-             'payment_method': 'MAYA', 'pay_later': 'on',
              'guest_full_name': 'Additional Traveler',
              'guest_emergency_contact_name': 'Emergency Contact',
              'guest_emergency_contact_number': '09171234567',
              'guest_emergency_contact_relationship': 'Sibling'},
         )
 
-        self.assertEqual(response.status_code, 302)
         booking = Booking.objects.get(customer=user, package=self.package)
+        self.assertRedirects(
+            response,
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            fetch_redirect_response=False,
+        )
+        response = self.client.post(
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            {'payment_method': 'MAYA', 'pay_later': 'on'},
+        )
+        self.assertRedirects(
+            response,
+            reverse('tour_package:booking_detail', args=[booking.pk]),
+            fetch_redirect_response=False,
+        )
         guest = BookingGuest.objects.get(booking=booking)
         self.assertEqual(guest.full_name, 'Additional Traveler')
         self.assertEqual(guest.emergency_contact_name, 'Emergency Contact')
@@ -216,6 +228,8 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertContains(booking, 'Guest information &amp; booking details')
         self.assertContains(booking, 'name="guest_full_name"')
         self.assertContains(booking, 'name="guest_emergency_contact_number"')
+        self.assertNotContains(booking, '<select name="payment_method"')
+        self.assertContains(booking, 'Continue to Payment')
         self.assertContains(
             booking,
             f'min="{self.package.validity_start_date.isoformat()}"')
@@ -241,17 +255,71 @@ class AssignedTourPackageDirectoryTests(TestCase):
                 'travel_date': self.package.validity_start_date.isoformat(),
                 'travelers': '1',
                 'adults': '1',
-                'pay_later': 'on',
             },
-            follow=True,
         )
 
         self.assertContains(details, 'Book Tour Package')
         self.assertEqual(shared_booking_flow.status_code, 200)
         self.assertEqual(booking_form.status_code, 200)
-        self.assertEqual(response.status_code, 200)
         booking = Booking.objects.get(customer=user, package=self.package)
+        self.assertRedirects(
+            response,
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            fetch_redirect_response=False,
+        )
+        payment_page = self.client.get(
+            reverse('tour_package:booking_payment', args=[booking.pk]))
+        self.assertContains(payment_page, 'Payment information')
+        self.assertContains(payment_page, 'name="payment_method"')
+        response = self.client.post(
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            {'payment_method': 'GCASH', 'pay_later': 'on'},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, booking.booking_reference)
+
+    def test_package_payment_step_records_payment_after_guest_information(self):
+        user = User.objects.create_user(
+            'package-payment-step', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.client.force_login(user)
+
+        guest_response = self.client.post(
+            reverse('tour_package:book_package', args=[self.package.pk]),
+            {
+                'travel_date': self.package.validity_start_date.isoformat(),
+                'travelers': '1',
+                'adults': '1',
+            },
+        )
+        booking = Booking.objects.get(customer=user, package=self.package)
+
+        self.assertRedirects(
+            guest_response,
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            fetch_redirect_response=False,
+        )
+        payment_response = self.client.post(
+            reverse('tour_package:booking_payment', args=[booking.pk]),
+            {
+                'payment_method': 'MAYA',
+                'payer_name': 'Package Payer',
+                'payer_contact': '09171234567',
+            },
+        )
+
+        self.assertRedirects(
+            payment_response,
+            reverse('tour_package:booking_detail', args=[booking.pk]),
+            fetch_redirect_response=False,
+        )
+        bill = Bill.objects.get(customer=user, service='tour_package')
+        payment = Payment.objects.get(bill=bill)
+        booking.refresh_from_db()
+        self.assertEqual(booking.payment_method, 'MAYA')
+        self.assertEqual(booking.payer_name, 'Package Payer')
+        self.assertEqual(payment.method, 'MAYA')
 
     def test_unassigned_student_can_browse_public_package_records(self):
         user = User.objects.create_user(
