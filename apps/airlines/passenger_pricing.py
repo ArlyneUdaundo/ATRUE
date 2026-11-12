@@ -1,6 +1,8 @@
 """Age-based passenger classification and airline fare-rule calculations."""
 from decimal import Decimal, ROUND_HALF_UP
 
+from .models import AirlineFareRule
+
 ZERO = Decimal('0.00')
 CENT = Decimal('0.01')
 
