@@ -112,6 +112,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .side-brand b { display: block; font-size: 19px; font-weight: 800; letter-spacing: .04em; line-height: 1.2; color: var(--slate-900); }
 .side-brand small { display: block; font-size: 10px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--slate-500); margin-top: 2px; }
 
+.nav-toggle { display: none; flex-shrink: 0; }
+
 .top-nav {
     display: flex;
     align-items: center;
@@ -1210,10 +1212,11 @@ body.flight-booking-modal-open { overflow: hidden; }
     .top-nav { margin: 2px 24px 14px; flex-wrap: wrap; }
 }
 @media (max-width: 768px) {
-    .top-nav { display: flex; margin: 0 14px 14px; flex-wrap: wrap; }
-    .top-nav .nav-link { width: auto; }
-    .top-nav .nav-sep { display: none; }
-    .nav-dd { width: auto; }
+    .top-nav { display: none; margin: 0 14px 14px; }
+    .top-nav.open { display: flex; flex-direction: column; align-items: stretch; padding: 10px; background: rgba(255,255,255,0.85); border: 1px solid rgba(15,23,42,0.07); border-radius: 20px; }
+    .top-nav.open .nav-link { width: 100%; }
+    .top-nav.open .nav-sep { display: none; }
+    .nav-dd { width: 100%; }
     .nav-dd--ops { margin-left: 0; }
     .nav-dd--ops .nav-dd-menu { left: 0; right: auto; }
     .nav-dd-menu { position: static; display: none; box-shadow: none; border: none; padding: 4px 0 4px 12px; min-width: 0; }
@@ -1221,6 +1224,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .nav-dd-menu-lg { width: 100%; max-width: none; max-height: none; }
     .nav-dd.open .nav-dd-menu-lg { display: block; }
     .nav-dd-item { width: 100%; }
+    .nav-toggle { display: grid; }
     .stat-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
     .page-head { align-items: flex-start; flex-direction: column; }
     .page-head h1 { font-size: 23px; }
@@ -1274,7 +1278,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .topbar-space { display: none; }
     .topbar-right { margin-left: auto; }
     .topbar-search { min-width: 0; }
-    .top-nav { max-height: calc(100dvh - 92px); overflow-y: auto; }
+    .top-nav.open { max-height: calc(100dvh - 92px); overflow-y: auto; }
     .page-head, .card-head, .section-head { min-width: 0; }
     .page-head > *, .card-head > *, .section-head > * { min-width: 0; }
     .table-wrap { width: 100%; max-width: 100%; overflow-x: auto; }
