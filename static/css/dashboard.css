@@ -340,6 +340,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ========================================================================== */
 
 .profile-page { display: flex; flex-direction: column; gap: 22px; }
+.profile-breadcrumbs {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--slate-500);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.profile-breadcrumbs a { color: var(--blue-700); font-weight: 600; }
+.profile-breadcrumbs span { min-width: 0; overflow-wrap: anywhere; color: var(--slate-700); }
+.profile-breadcrumbs i { flex: 0 0 auto; color: var(--slate-400); font-size: 9px; }
 
 /* ---------- Header: photo -> name -> handle -> actions ---------- */
 
@@ -1216,6 +1228,7 @@ body.flight-booking-modal-open { overflow: hidden; }
     .user-chip { padding: 4px 10px 4px 4px; }
 }
 @media (max-width: 640px) {
+    .profile-breadcrumbs { display: flex; }
     .form-grid { grid-template-columns: 1fr; }
     .transport-schedule-controls { grid-template-columns: minmax(0, 1fr) minmax(120px, .7fr); }
     .cards-3 { grid-template-columns: 1fr; }

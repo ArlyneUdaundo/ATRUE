@@ -12,6 +12,17 @@ rather than one undifferentiated grid of fields.
 {% block title %}{{ account.get_full_name|default:account.username }} | User Account{% endblock %}
 
 {% block content %}
+<nav class="profile-breadcrumbs" aria-label="Breadcrumb">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+    {% if account.id == request.user.id %}
+    <span aria-current="page">My Account</span>
+    {% else %}
+    <a href="{% url 'accounts:account_list' %}">User Accounts</a>
+    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+    <span aria-current="page">{{ account.get_full_name|default:account.username }}</span>
+    {% endif %}
+</nav>
 {% if account.id == request.user.id %}
 <div class="profile-page">
 
