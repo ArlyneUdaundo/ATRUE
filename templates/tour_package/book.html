@@ -1,14 +1,17 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Book Tour Package{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/establishment-payment.css' %}?v=20261109-5">{% endblock %}
 
 {% block content %}
-<div class="ag-steps">
-    <div class="ag-step done"><i class="fas fa-check"></i> Your package</div>
-    <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step active"><i>2</i> Guest information</div>
-    <span style="color:var(--slate-300)">—</span>
-    <div class="ag-step"><i>3</i> Payment</div>
+<div class="page-head ep-page-head">
+    <div><h1>Guest Information</h1><p>{{ package.name }} · Enter traveler and emergency contact information before payment.</p></div>
+</div>
+<div class="ep-hotel-progress" aria-label="Booking progress">
+    <span>Package</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span class="is-current">Guest Info</span><i class="fas fa-arrow-right" aria-hidden="true"></i>
+    <span>Payment</span>
 </div>
 
 {% if booking_error %}

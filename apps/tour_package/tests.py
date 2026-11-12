@@ -269,8 +269,9 @@ class AssignedTourPackageDirectoryTests(TestCase):
         )
         payment_page = self.client.get(
             reverse('tour_package:booking_payment', args=[booking.pk]))
-        self.assertContains(payment_page, 'Payment information')
-        self.assertContains(payment_page, 'name="payment_method"')
+        self.assertContains(payment_page, 'Payment method')
+        self.assertContains(payment_page, 'class="ep-layout ep-hotel-payment"')
+        self.assertContains(payment_page, 'id="epDynamicFields"')
         response = self.client.post(
             reverse('tour_package:booking_payment', args=[booking.pk]),
             {'payment_method': 'GCASH', 'pay_later': 'on'},
