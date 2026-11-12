@@ -24,6 +24,9 @@
       data-taxes-per-passenger="{{ fare.taxes_per_passenger }}"
       data-insurance-basis="{{ fare.insurance_basis }}"
       data-default-flight-type="{{ default_flight_type }}"
+      data-pricing-configured="{{ pricing_configured|yesno:'true,false' }}"
+      data-is-sample="{{ is_sample|yesno:'true,false' }}"
+      data-lap-infants-per-adult="{{ lap_infants_per_adult|default:1 }}"
       data-initial-passengers="{{ passengers_param }}"
       data-departure-date="{{ departure_date|default:'' }}"
       data-back-url="{% url 'airlines:list' %}">
@@ -57,6 +60,13 @@
         In the live system these values come from the selected
         flight record and applicable fare rules.</span>
     </div>{% endif %}
+    {% if not is_sample and not pricing_configured %}
+    <div class="pd-sample-banner" role="alert">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span>The selected airline's passenger taxes and fees are still placeholder values.
+        A System Administrator must verify and configure its fare rules before checkout.</span>
+    </div>
+    {% endif %}
 
     <div class="pd-columns">
         <aside class="pd-col pd-col--summary">
@@ -97,6 +107,7 @@
 {{ seat_maps_by_class|json_script:"pd-cabin-seat-data" }}
 {{ selected|json_script:"pd-selected-flight-data" }}
 {{ passenger_profile|json_script:"pd-profile-data" }}
+{{ passenger_pricing|json_script:"pd-passenger-pricing" }}
 
 <script src="{% static 'js/passenger-details.js' %}?v=20261112-primary-profile-autofill-1"></script>
 </body>

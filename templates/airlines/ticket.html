@@ -214,7 +214,7 @@
                     <tr>
                         <td>{{ p.index }}</td>
                         <td><b>{{ p.name }}</b></td>
-                        <td>{{ p.class }}</td>
+                        <td>{% if p.category %}{{ p.category|title }}{% if p.category == 'infant' %} · {% if p.infant_travel_option == 'seat' %}Own seat{% else %}On lap{% endif %}{% endif %}<br>{% endif %}{{ p.class }}</td>
                         <td><span class="mono">{% if ticket.is_itinerary %}{{ p.seat_summary }}{% else %}{{ p.seat }}{% endif %}</span></td>
                         <td>{{ p.doc_type }}{% if p.doc_number != '—' %} · <span class="mono">{{ p.doc_number }}</span>{% endif %}</td>
                         <td><span class="mono">{{ p.ticket_number }}</span></td>
@@ -226,6 +226,21 @@
             <div class="etkt-note"><i class="fas fa-chair"></i> Seats are per segment: the first seat is on segment 1, the second on segment 2, and so on.</div>
             {% endif %}
             <div class="etkt-note"><i class="fas fa-user-clock"></i> Lead passenger: {{ ticket.lead.name }} · {{ ticket.lead.contact }} · {{ ticket.lead.email }}</div>
+            <h5 style="margin-top:16px"><i class="fas fa-receipt"></i> Passenger fare breakdown</h5>
+            <table class="etkt-table">
+                <thead><tr><th>Passenger</th><th>Fare</th><th>Taxes</th><th>Airline fees</th><th>Infant fee</th><th>Baggage</th><th>Seat</th><th>Insurance</th><th>Total</th></tr></thead>
+                <tbody>
+                    {% for p in ticket.passengers %}
+                    <tr>
+                        <td>{{ p.name }} · {{ p.category|title }}{% if p.category == 'infant' %} ({% if p.infant_travel_option == 'seat' %}Own seat{% else %}On lap{% endif %}){% endif %}</td>
+                        <td>₱{{ p.fare|floatformat:2 }}</td><td>₱{{ p.taxes|floatformat:2 }}</td>
+                        <td>₱{{ p.airline_fees|floatformat:2 }}</td><td>₱{{ p.infant_fee|floatformat:2 }}</td>
+                        <td>₱{{ p.baggage|floatformat:2 }}</td><td>₱{{ p.seat_charge|floatformat:2 }}</td>
+                        <td>₱{{ p.insurance|floatformat:2 }}</td><td><b>₱{{ p.total|floatformat:2 }}</b></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="etkt-section">
@@ -255,6 +270,9 @@
                     <h5><i class="fas fa-receipt"></i> Fare Summary</h5>
                     <table class="etkt-fare-table">
                         <tr><td>Base fare ({{ ticket.passenger_count }} passenger(s), {{ ticket.flight.number }})</td><td>₱ {{ ticket.fare.base_fare }}</td></tr>
+                        <tr><td>Taxes</td><td>₱ {{ ticket.fare.taxes }}</td></tr>
+                        <tr><td>Airline passenger fees</td><td>₱ {{ ticket.fare.airline_fees }}</td></tr>
+                        <tr><td>Infant on-lap fees</td><td>₱ {{ ticket.fare.infant_fees }}</td></tr>
                         {% for s in ticket.fare.services %}
                         <tr><td>Additional service · {{ s.label }}</td><td>₱ {{ s.amount }}</td></tr>
                         {% endfor %}

@@ -71,6 +71,15 @@
             <input type="date" data-pd-field="dob" aria-required="true">
             <span class="pd-field__err" data-pd-err="dob" role="alert"></span>
         </label>
+        <label class="pd-field pd-field--span-2" data-pd-infant-options hidden>
+            <span class="pd-field__label">Infant travel option <span class="pd-req">*</span></span>
+            <select data-pd-field="infant_travel_option" data-pd-infant-option>
+                <option value="lap">Infant on lap</option>
+                <option value="seat">Infant with own seat</option>
+            </select>
+            <span class="pd-field__hint">Lap infants share an eligible adult's place; an infant with a seat must have a separate assigned seat.</span>
+            <span class="pd-field__err" data-pd-err="infant_travel_option" role="alert"></span>
+        </label>
 
         <label class="pd-field">
             <span class="pd-field__label">Gender <span class="pd-req">*</span></span>

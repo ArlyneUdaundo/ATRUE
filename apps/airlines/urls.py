@@ -9,6 +9,8 @@ urlpatterns = [
     path('manage/', views.manage, name='manage'),
     path('airline/<int:airline_id>/', views.airline_detail, name='airline_detail'),
     path('<int:airline_id>/update/', views.update_airline, name='update_airline'),
+    path('<int:airline_id>/fare-rules/', views.airline_fare_rules,
+         name='airline_fare_rules'),
     path('aircrafts/', views.aircrafts, name='aircrafts'),
     path('aircraft/<int:aircraft_id>/', views.aircraft_detail, name='aircraft_detail'),
     path('<int:airline_id>/fleet/', views.airline_fleet, name='airline_fleet'),

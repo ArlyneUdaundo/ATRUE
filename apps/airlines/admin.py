@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    Aircraft, AircraftType, Airline, AirlineFleet, AirlinePhoto, Airport,
+    Aircraft, AircraftType, Airline, AirlineFareRule, AirlineFleet, AirlinePhoto, Airport,
     Booking, Cabin, Flight, FlightItinerary, Manufacturer, Seat, SeatLayout,
     SeatType, Service, FlightOfferSnapshot,
 )
@@ -19,6 +19,16 @@ class AirlineAdmin(admin.ModelAdmin):
     list_display = ('name', 'default_aircraft_type', 'contact_number', 'email', 'status')
     list_filter = ('status',)
     search_fields = ('name', 'airline_id')
+
+
+@admin.register(AirlineFareRule)
+class AirlineFareRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        'airline', 'adult_fare_percent', 'child_fare_percent',
+        'infant_seat_fare_percent', 'infant_lap_fee', 'tax_percent',
+        'additional_passenger_fee', 'is_configured', 'updated_at')
+    list_filter = ('is_configured',)
+    search_fields = ('airline__name', 'airline__airline_id')
 
 
 @admin.register(Aircraft)

@@ -246,6 +246,40 @@ def _build(builder_ctx):
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
+    p_fare_head = Paragraph('PASSENGER FARE BREAKDOWN', s_hdr)
+    p_fare_rows = [[
+        Paragraph('PASSENGER', s_label),
+        Paragraph('FARE', s_label), Paragraph('TAX', s_label),
+        Paragraph('AIRLINE FEE', s_label), Paragraph('INFANT', s_label),
+        Paragraph('BAGGAGE', s_label), Paragraph('SEAT', s_label),
+        Paragraph('INSURANCE', s_label), Paragraph('TOTAL', s_label),
+    ]]
+    for p in ctx['passengers']:
+        category = p.get('category') or 'Passenger'
+        if category == 'infant':
+            category += ' (' + ('own seat' if p.get('infant_travel_option') == 'seat' else 'on lap') + ')'
+        p_fare_rows.append([
+            Paragraph(_quote(p['name']) + ' · ' + _quote(category), s_small),
+            Paragraph(_php(p.get('fare', 0)), s_small),
+            Paragraph(_php(p.get('taxes', 0)), s_small),
+            Paragraph(_php(p.get('airline_fees', 0)), s_small),
+            Paragraph(_php(p.get('infant_fee', 0)), s_small),
+            Paragraph(_php(p.get('baggage', 0)), s_small),
+            Paragraph(_php(p.get('seat_charge', 0)), s_small),
+            Paragraph(_php(p.get('insurance', 0)), s_small),
+            Paragraph(_php(p.get('total', 0)), s_small),
+        ])
+    p_fare_tbl = Table(
+        p_fare_rows, colWidths=[95, 48, 48, 55, 48, 50, 45, 55, 65])
+    p_fare_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), LIGHT),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
 
     # ---- Booking & payment detail grid ------------------------------------
     def det(label, value):
@@ -280,6 +314,11 @@ def _build(builder_ctx):
         [Paragraph('FARE SUMMARY', s_hdr), Paragraph('', s_hdr)],
         [Paragraph(fare_label, s_small),
          Paragraph(_php(fare['base_fare']), s_value)],
+        [Paragraph('Taxes', s_small), Paragraph(_php(fare.get('taxes', 0)), s_value)],
+        [Paragraph('Airline passenger fees', s_small),
+         Paragraph(_php(fare.get('airline_fees', 0)), s_value)],
+        [Paragraph('Infant on-lap fees', s_small),
+         Paragraph(_php(fare.get('infant_fees', 0)), s_value)],
     ]
     for s in fare['services']:
         fare_rows.append([Paragraph('Additional service: %s' % _quote(s['label']), s_small),
@@ -301,7 +340,7 @@ def _build(builder_ctx):
         ('SPAN', (0, 0), (1, 0)),
         ('BOX', (0, 0), (-1, -1), 0.5, BORDER),
         ('INNERGRID', (0, 1), (-1, -1), 0.5, BORDER),
-        ('LINEABOVE', (0, 4), (-1, 4), 0.8, TEAL),
+        ('LINEABOVE', (0, len(fare_rows) - 4), (-1, len(fare_rows) - 4), 0.8, TEAL),
         ('ROWBACKGROUNDS', (1, 1), (-1, -2), [colors.white, LIGHT]),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
@@ -394,7 +433,8 @@ def _build(builder_ctx):
     # ---- Assemble ----------------------------------------------------------
     story = [header, Spacer(1, 6), _dashed_line(), Spacer(1, 8), band,
              Spacer(1, 12)] + segment_block + [
-             p_head, Spacer(1, 4), p_tbl, Spacer(1, 12),
+             p_head, Spacer(1, 4), p_tbl, Spacer(1, 6),
+             p_fare_head, Spacer(1, 4), p_fare_tbl, Spacer(1, 12),
              details, Spacer(1, 10), lower, Spacer(1, 14), _dashed_line(),
              Spacer(1, 8)]
     story.extend([

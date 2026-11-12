@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
@@ -255,6 +256,46 @@ class Airline(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class AirlineFareRule(models.Model):
+    """Airline-specific passenger pricing applied to a flight's cabin fare."""
+
+    airline = models.OneToOneField(
+        Airline, on_delete=models.CASCADE, related_name='passenger_fare_rules')
+    adult_fare_percent = models.DecimalField(
+        max_digits=7, decimal_places=2, default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(1000)])
+    child_fare_percent = models.DecimalField(
+        max_digits=7, decimal_places=2, default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(1000)])
+    infant_seat_fare_percent = models.DecimalField(
+        max_digits=7, decimal_places=2, default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(1000)])
+    infant_lap_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)])
+    tax_percent = models.DecimalField(
+        max_digits=7, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(1000)])
+    additional_passenger_fee = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)])
+    max_lap_infants_per_adult = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(4)])
+    is_configured = models.BooleanField(
+        default=False,
+        help_text="Enable only after these values have been checked against the airline's rules.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['airline__name']
+        verbose_name = 'airline passenger fare rule'
+        verbose_name_plural = 'airline passenger fare rules'
+
+    def __str__(self):
+        state = 'configured' if self.is_configured else 'placeholder'
+        return f'{self.airline.name} passenger fares ({state})'
 
 
 class AirlinePhotoQuerySet(models.QuerySet):
@@ -1587,6 +1628,9 @@ class Booking(BookingFieldsMixin):
             help_text="Per-passenger travel document (FR-020)")
         travel_document_number = models.CharField(max_length=50, blank=True)
         passenger_category = models.CharField(max_length=10, blank=True, default='')
+        infant_travel_option = models.CharField(
+            max_length=8, blank=True, default='',
+            choices=[('lap', 'Infant on lap'), ('seat', 'Infant with own seat')])
         passenger_classification = models.CharField(
             max_length=10, blank=True, default='',
             choices=[('adult', 'Adult'), ('child', 'Child'), ('infant', 'Infant'),
@@ -1601,6 +1645,16 @@ class Booking(BookingFieldsMixin):
         passport_expiry_date = models.DateField(null=True, blank=True)
         contact_email = models.EmailField(blank=True, default='')
         contact_number = models.CharField(max_length=40, blank=True, default='')
+        passenger_fare_amount = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0)
+        passenger_tax_amount = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0)
+        passenger_fee_amount = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0)
+        infant_fee_amount = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0)
+        passenger_insurance_amount = models.DecimalField(
+            max_digits=10, decimal_places=2, default=0)
 
         class Meta:
             constraints = [

@@ -57,6 +57,18 @@
         <a href="{% url 'airlines:airline_fleet' airline.id %}" class="btn btn-brand btn-sm">Add aircraft types</a>
         {% endif %}
     </div>
+    {% if user.is_system_admin %}
+    <div class="form-group">
+        <label>Passenger pricing</label>
+        <p class="meta">Configure age-based fares, taxes, fees, and lap-infant limits for this airline.</p>
+        <a href="{% url 'airlines:airline_fare_rules' airline.id %}" class="btn btn-outline btn-sm">
+            Manage passenger fare rules
+        </a>
+        {% if not fare_rules.is_configured %}
+        <span class="badge badge-yellow">Placeholder rules — not verified</span>
+        {% endif %}
+    </div>
+    {% endif %}
     {% endif %}
     <div class="form-group">
         <label>Status</label>

@@ -61,7 +61,9 @@ def _fare_summary(booking, bill):
     so nothing is invented: whatever the bill holds is grouped and totalled.
     """
     empty = {
-        'base_fare': Decimal(0), 'services': [],
+        'base_fare': Decimal(0), 'taxes': Decimal(0),
+        'airline_fees': Decimal(0), 'infant_fees': Decimal(0),
+        'services': [],
         'services_total': Decimal(0), 'baggage': Decimal(0), 'baggage_kg': Decimal(0),
         'other': [], 'total': Decimal(0),
         'paid': Decimal(0), 'balance': Decimal(0),
@@ -70,12 +72,10 @@ def _fare_summary(booking, bill):
     if bill is None:
         return empty
 
-    flight_numbers = {
-        getattr(flight, 'flight_number', '')
-        for flight in (booking.flight, getattr(booking, 'return_flight', None))
-        if flight is not None
-    }
     base_fare = Decimal(0)
+    taxes = Decimal(0)
+    airline_fees = Decimal(0)
+    infant_fees = Decimal(0)
     services = []
     services_total = Decimal(0)
     baggage = Decimal(0)
@@ -85,8 +85,14 @@ def _fare_summary(booking, bill):
         label = str(item.get('label', '') or item.get('description', ''))
         amount = _money(item.get('amount', item.get('total', 0)))
         bl = label.lower()
-        if label in flight_numbers:
+        if 'passenger fare' in bl:
             base_fare += amount
+        elif 'airline tax' in bl:
+            taxes += amount
+        elif 'airline passenger fee' in bl:
+            airline_fees += amount
+        elif 'infant on-lap fee' in bl:
+            infant_fees += amount
         elif 'baggage' in bl or 'luggage' in bl:
             baggage += amount
         elif amount > 0:
@@ -97,6 +103,9 @@ def _fare_summary(booking, bill):
 
     result = {
         'base_fare': base_fare,
+        'taxes': taxes,
+        'airline_fees': airline_fees,
+        'infant_fees': infant_fees,
         'services': services,
         'services_total': services_total,
         'baggage': baggage,
@@ -161,6 +170,20 @@ def _itinerary_passengers(booking, seats, itinerary):
             # manufacture one from the ATRUE booking reference.
             'ticket_number': '',
             'passenger_type': '',
+            'category': first.passenger_category or '',
+            'infant_travel_option': first.infant_travel_option or '',
+            'fare': sum((_money(e.passenger_fare_amount) for e in entries), Decimal(0)),
+            'taxes': sum((_money(e.passenger_tax_amount) for e in entries), Decimal(0)),
+            'airline_fees': sum((_money(e.passenger_fee_amount) for e in entries), Decimal(0)),
+            'infant_fee': sum((_money(e.infant_fee_amount) for e in entries), Decimal(0)),
+            'baggage': sum((_money(e.extra_baggage_charge) for e in entries), Decimal(0)),
+            'insurance': sum((_money(e.passenger_insurance_amount) for e in entries), Decimal(0)),
+            'seat_charge': sum((_money(e.seat_price) for e in entries), Decimal(0)),
+            'total': sum((
+                _money(e.passenger_fare_amount) + _money(e.passenger_tax_amount)
+                + _money(e.passenger_fee_amount) + _money(e.infant_fee_amount)
+                + _money(e.extra_baggage_charge) + _money(e.passenger_insurance_amount)
+                + _money(e.seat_price) for e in entries), Decimal(0)),
             'index': index + 1,
         })
     return rows
@@ -247,6 +270,27 @@ def _direct_passengers(booking, seats):
             'doc_number': seat.travel_document_number or '—',
             'ticket_number': '',
             'passenger_type': '',
+            'category': seat.passenger_category or '',
+            'infant_travel_option': seat.infant_travel_option or '',
+            'fare': (_money(seat.passenger_fare_amount)
+                     + (_money(return_seat.passenger_fare_amount) if return_seat else Decimal(0))),
+            'taxes': (_money(seat.passenger_tax_amount)
+                      + (_money(return_seat.passenger_tax_amount) if return_seat else Decimal(0))),
+            'airline_fees': (_money(seat.passenger_fee_amount)
+                             + (_money(return_seat.passenger_fee_amount) if return_seat else Decimal(0))),
+            'infant_fee': (_money(seat.infant_fee_amount)
+                           + (_money(return_seat.infant_fee_amount) if return_seat else Decimal(0))),
+            'baggage': _money(seat.extra_baggage_charge),
+            'insurance': _money(seat.passenger_insurance_amount),
+            'seat_charge': (_money(seat.seat_price)
+                            + (_money(return_seat.seat_price) if return_seat else Decimal(0))),
+            'total': sum((
+                _money(getattr(seat, field))
+                + (_money(getattr(return_seat, field)) if return_seat else Decimal(0))
+                for field in ('passenger_fare_amount', 'passenger_tax_amount',
+                              'passenger_fee_amount', 'infant_fee_amount',
+                              'passenger_insurance_amount', 'seat_price')
+            ), Decimal(0)) + _money(seat.extra_baggage_charge),
             'index': index + 1,
         })
     return rows

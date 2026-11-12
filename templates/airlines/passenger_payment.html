@@ -104,13 +104,15 @@
                 </div>
                 <div class="fp-checkout-passengers">
                     {% for passenger in ticket.passengers %}
-                    <div><span>{{ passenger.category|title }} · {{ passenger.name }}{% if passenger.seat %}<small>Seat {{ passenger.seat }}</small>{% endif %}<small>{% if passenger.extra_baggage_kg %}Extra baggage {{ passenger.extra_baggage_kg }} kg{% else %}No extra baggage{% endif %}</small></span></div>
+                    <div><span>{{ passenger.category|title }}{% if passenger.category == 'infant' %} · {% if passenger.infant_travel_option == 'seat' %}Own seat{% else %}On lap{% endif %}{% endif %} · {{ passenger.name }}{% if passenger.seat %}<small>Seat {{ passenger.seat }}</small>{% endif %}<small>Fare ₱{{ passenger.fare|floatformat:2 }} · Taxes ₱{{ passenger.taxes|floatformat:2 }} · Airline fees ₱{{ passenger.airline_fees|floatformat:2 }}{% if passenger.infant_fee %} · Infant fee ₱{{ passenger.infant_fee|floatformat:2 }}{% endif %}</small><small>{% if passenger.extra_baggage_kg %}Extra baggage {{ passenger.extra_baggage_kg }} kg · ₱{{ passenger.extra_baggage_charge|floatformat:2 }}{% else %}No extra baggage{% endif %} · Seat ₱{{ passenger.seat_charge|floatformat:2 }} · Insurance ₱{{ passenger.insurance_charge|floatformat:2 }} · Total ₱{{ passenger.total|floatformat:2 }}</small></span></div>
                     {% endfor %}
                 </div>
                 <div class="fp-checkout-fare">
                     <h3>Fare breakdown</h3>
                     <div><span>Base fare</span><b>₱ {{ ticket.fare.base_fare|floatformat:2 }}</b></div>
-                    <div><span>Taxes &amp; fees</span><b>₱ {{ ticket.fare.taxes|floatformat:2 }}</b></div>
+                    <div><span>Taxes</span><b>₱ {{ ticket.fare.taxes|floatformat:2 }}</b></div>
+                    <div><span>Airline passenger fees</span><b>₱ {{ ticket.fare.airline_fees|floatformat:2 }}</b></div>
+                    <div><span>Infant on-lap fees</span><b>₱ {{ ticket.fare.infant_fees|floatformat:2 }}</b></div>
                     {% if ticket.fare.baggage %}<div><span>Extra baggage</span><b>₱ {{ ticket.fare.baggage|floatformat:2 }}</b></div>{% endif %}
                     {% if ticket.fare.insurance %}<div><span>Travel insurance · {{ ticket.fare.insurance_plan }}</span><b>₱ {{ ticket.fare.insurance|floatformat:2 }}</b></div>{% endif %}
                     {% if ticket.fare.seats %}<div><span>Seat selection</span><b>₱ {{ ticket.fare.seats|floatformat:2 }}</b></div>{% endif %}

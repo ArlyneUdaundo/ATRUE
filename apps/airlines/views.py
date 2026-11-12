@@ -81,6 +81,7 @@ from .layouts import build_seat_map
 from .live_flights import LiveFlightSearchError, offer_rows, search_offers
 from .models import (
     Airline,
+    AirlineFareRule,
     AirlineFleet,
     AirlinePhoto,
     Aircraft,
@@ -99,6 +100,14 @@ from .models import (
     Service,
     TripRole,
     TripSegment,
+)
+from .passenger_pricing import (
+    age_on_date,
+    category_for_age,
+    category_pricing,
+    fare_rules_for_legs,
+    money as passenger_money,
+    quote_passenger_legs,
 )
 from .route_scope import normalize_route_scope, route_scope_for_legs
 from .sample_flights import sample_results
@@ -1353,8 +1362,13 @@ def manage(request):
 
 
 def _airline_form_context(airline=None):
+    fare_rules = None
+    if airline is not None:
+        fare_rules, _created = AirlineFareRule.objects.get_or_create(
+            airline=airline)
     return {
         'airline': airline,
+        'fare_rules': fare_rules,
         'fleet_types': _fleet_types(airline),
     }
 
@@ -1412,6 +1426,36 @@ def update_airline(request, airline_id):
         messages.success(request, "Airline updated.")
         return redirect('airlines:manage')
     return render(request, 'airlines/form.html', _airline_form_context(airline))
+
+
+@login_required
+def airline_fare_rules(request, airline_id):
+    if not request.user.is_system_admin:
+        raise PermissionDenied
+    airline = get_object_or_404(Airline, pk=airline_id)
+    rule, _created = AirlineFareRule.objects.get_or_create(airline=airline)
+    fields = (
+        'adult_fare_percent', 'child_fare_percent',
+        'infant_seat_fare_percent', 'infant_lap_fee',
+        'tax_percent', 'additional_passenger_fee',
+        'max_lap_infants_per_adult',
+    )
+    if request.method == 'POST':
+        for field in fields:
+            setattr(rule, field, request.POST.get(field, '').strip())
+        rule.is_configured = request.POST.get('is_configured') == 'on'
+        try:
+            rule.full_clean()
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+        else:
+            rule.save()
+            messages.success(request, f'Passenger fare rules saved for {airline.name}.')
+            return redirect('airlines:airline_fare_rules', airline_id=airline.pk)
+    return render(request, 'airlines/fare_rules_form.html', {
+        'airline': airline,
+        'fare_rules': rule,
+    })
 
 
 @manager_required
@@ -3862,6 +3906,11 @@ def passenger_details(request):
                 'checked_baggage_kg': flight.checked_baggage_kg or None,
             })
         selected['fare_classes'] = fare_class_options
+        airline_rules = fare_rules_for_legs(priced_legs)
+        passenger_pricing = category_pricing(
+            priced_legs, airline_rules, fare_class,
+            flight.itinerary.service_fee if flight.itinerary_id else 0)
+        pricing_configured = all(rule.is_configured for rule in airline_rules.values())
         international = route_scope == FlightItinerary.RouteScope.INTERNATIONAL
         fare = pd_sample.fare_context(selected)
         fare['currency'] = currency
@@ -3900,6 +3949,11 @@ def passenger_details(request):
             'selected': selected, 'flight': selected, 'fare': fare, 'seat_map': seat_map,
             'seat_maps_by_class': seat_maps_by_class,
             'refund': {'steps': [], 'statuses': []},
+            'passenger_pricing': passenger_pricing,
+            'pricing_configured': pricing_configured,
+            'lap_infants_per_adult': min(
+                (rule.max_lap_infants_per_adult
+                 for rule in airline_rules.values()), default=1),
             'passenger_profile': _passenger_profile(request.user),
             'default_flight_type': 'INTERNATIONAL' if international else 'DOMESTIC',
             'trip_type': flight.trip_type,
@@ -3919,6 +3973,43 @@ def passenger_details(request):
         index = 0
 
     selected = pd_sample.selected_flight(origin_code, destination_code, index)
+    sample_rule = AirlineFareRule.objects.filter(
+        airline__code__iexact=selected.get('airline_key', '')).first()
+    sample_base_fare = passenger_money(selected.get('price', 0))
+
+    def sample_category_quote(percentage, infant_lap=False):
+        fare_amount = passenger_money(sample_base_fare * passenger_money(percentage) / 100)
+        if infant_lap:
+            fare_amount = Decimal('0.00')
+        tax_amount = passenger_money(
+            fare_amount * passenger_money(sample_rule.tax_percent if sample_rule else 0) / 100)
+        passenger_fee = passenger_money(
+            sample_rule.additional_passenger_fee if sample_rule else 0)
+        infant_fee = passenger_money(
+            sample_rule.infant_lap_fee if sample_rule and infant_lap else 0)
+        return {
+            'fare': float(fare_amount), 'tax': float(tax_amount),
+            'fee': float(passenger_fee), 'infant_fee': float(infant_fee),
+            'seat_fare': float(fare_amount), 'seat_tax': float(tax_amount),
+            'seat_fee': float(passenger_fee),
+            'rules_configured': bool(sample_rule and sample_rule.is_configured),
+        }
+
+    sample_pricing = {
+        'adult': sample_category_quote(
+            sample_rule.adult_fare_percent if sample_rule else 100),
+        'child': sample_category_quote(
+            sample_rule.child_fare_percent if sample_rule else 100),
+        'infant': sample_category_quote(
+            sample_rule.infant_seat_fare_percent if sample_rule else 100, True),
+    }
+    if sample_rule:
+        infant_seat_quote = sample_category_quote(sample_rule.infant_seat_fare_percent)
+        sample_pricing['infant'].update({
+            'seat_fare': infant_seat_quote['fare'],
+            'seat_tax': infant_seat_quote['tax'],
+            'seat_fee': infant_seat_quote['fee'],
+        })
     default_flight_type = 'INTERNATIONAL' if _is_international_route(
         selected) else 'DOMESTIC'
 
@@ -3929,11 +4020,17 @@ def passenger_details(request):
         'seat_map': pd_sample.seat_map_context(selected.get('aircraft')),
         'seat_maps_by_class': {},
         'refund': pd_sample.refund_context(),
+        'passenger_pricing': {
+            **sample_pricing,
+        },
+        'pricing_configured': bool(sample_rule and sample_rule.is_configured),
+        'lap_infants_per_adult': (
+            sample_rule.max_lap_infants_per_adult if sample_rule else 1),
         'passenger_profile': _passenger_profile(request.user),
         'default_flight_type': default_flight_type,
         'trip_type': request.GET.get('trip_type', 'one-way'),
         'return_date': request.GET.get('return_date', ''),
-        'departure_date': request.GET.get('departure_date', ''),
+        'departure_date': request.GET.get('departure_date') or timezone.localdate().isoformat(),
         'passengers_param': _passenger_breakdown_param(request.GET.get('passengers', '')),
         'is_sample': True,
     }
@@ -3961,6 +4058,14 @@ def confirm_passenger_details(request):
         flight = next((row for row in flight_rows if row['id'] == flight_id), None)
         if flight is None:
             raise ValueError('Please return to flight details and choose a valid flight.')
+        sample_airline = Airline.objects.filter(
+            code__iexact=flight.get('airline_key', '')).first()
+        sample_rule = (
+            AirlineFareRule.objects.filter(airline=sample_airline).first()
+            if sample_airline else None)
+        if not sample_rule or not sample_rule.is_configured:
+            raise ValueError(
+                'A System Administrator must verify this airline’s fare rules before checkout.')
 
         passengers = payload.get('passengers')
         if not isinstance(passengers, list) or not passengers or len(passengers) > 19:
@@ -3970,6 +4075,11 @@ def confirm_passenger_details(request):
         flight_type = 'DOMESTIC' if origin_country and origin_country == destination_country else 'INTERNATIONAL'
         international = flight_type == 'INTERNATIONAL'
         passenger_counts = {'adult': 0, 'child': 0, 'infant': 0}
+        try:
+            sample_travel_date = date.fromisoformat(
+                str(payload.get('departure_date') or ''))
+        except ValueError:
+            raise ValueError('A valid departure date is required to classify passengers.')
         passenger_rows = []
         seat_map = pd_sample.seat_map_context(flight.get('aircraft'))
         seat_lookup = {
@@ -4005,11 +4115,10 @@ def confirm_passenger_details(request):
             except (TypeError, ValueError):
                 raise ValueError('Enter a valid passenger date of birth.')
             try:
-                sample_travel_date = date.fromisoformat(str(payload.get('departure_date') or ''))
+                age = age_on_date(dob, sample_travel_date)
             except ValueError:
-                sample_travel_date = timezone.localdate()
-            age = sample_travel_date.year - dob.year - ((sample_travel_date.month, sample_travel_date.day) < (dob.month, dob.day))
-            expected_category = 'infant' if age < 2 else ('child' if age < 12 else 'adult')
+                raise ValueError('Passenger date of birth must be on or before departure.')
+            expected_category = category_for_age(age)
             suggested_classification = 'infant' if age < 2 else ('child' if age < 12 else ('senior' if age >= 60 else 'adult'))
             classification_matches_age = (
                 classification_value == 'pwd'
@@ -4037,25 +4146,54 @@ def confirm_passenger_details(request):
                  if option[0] == baggage_kg), None)
             if baggage_option is None:
                 raise ValueError('The baggage selection is invalid.')
+            infant_option = str(item.get('infant_travel_option') or 'lap').strip().lower()
+            if category == 'infant' and infant_option not in ('lap', 'seat'):
+                raise ValueError('Choose whether the infant will travel on a lap or in their own seat.')
+            if category != 'infant':
+                infant_option = 'seat'
             seat_number = str(item.get('seat') or '').strip().upper()
-            if category == 'infant':
-                seat_number = ''
-            elif seat_number:
+            if category == 'infant' and infant_option == 'lap' and seat_number:
+                raise ValueError('A lap infant cannot occupy a separate seat.')
+            requires_seat = category == 'child' or (
+                category == 'infant' and infant_option == 'seat')
+            if requires_seat and not seat_number:
+                raise ValueError('Children and infants with their own seat must have a separate seat assignment.')
+            if seat_number:
                 seat = seat_lookup.get(seat_number)
                 if not seat or seat['taken'] or seat_number in used_seats:
                     raise ValueError('One or more selected seats are unavailable. Please choose again.')
                 used_seats.add(seat_number)
             passenger_counts[category] += 1
+            lap_infant = category == 'infant' and infant_option == 'lap'
+            fare_percent = (
+                sample_rule.adult_fare_percent if category == 'adult' else
+                sample_rule.child_fare_percent if category == 'child' else
+                sample_rule.infant_seat_fare_percent)
+            passenger_fare = passenger_money(
+                Decimal(str(flight['price'])) * Decimal(fare_percent) / Decimal('100'))
+            if lap_infant:
+                passenger_fare = Decimal('0.00')
+            passenger_tax = passenger_money(
+                passenger_fare * Decimal(sample_rule.tax_percent) / Decimal('100'))
+            passenger_fee = passenger_money(sample_rule.additional_passenger_fee)
+            infant_fee = passenger_money(sample_rule.infant_lap_fee) if lap_infant else Decimal('0.00')
             passenger_rows.append({
                 'name': name,
                 'category': category,
                 'category_label': dict((key, label) for key, label, _hint
                                        in pd_sample.PASSENGER_CATEGORIES)[category],
+                'infant_travel_option': infant_option if category == 'infant' else '',
                 'seat': seat_number or 'No seat',
                 'seat_category': seat_lookup[seat_number]['category_label'] if seat_number else '',
                 'seat_price': seat_lookup[seat_number]['price'] if seat_number else 0,
                 'extra_baggage_kg': baggage_kg,
                 'extra_baggage_charge': baggage_option[1],
+                'baggage': baggage_option[1],
+                'fare': float(passenger_fare),
+                'taxes': float(passenger_tax),
+                'airline_fees': float(passenger_fee),
+                'infant_fee': float(infant_fee),
+                'insurance_charge': 0,
                 'details': {
                     'email': email,
                     'phone_code': str(details.get('phone_code') or '+63')[:6],
@@ -4070,8 +4208,13 @@ def confirm_passenger_details(request):
                     'classification': classification_value,
                 },
             })
-        if passenger_counts['adult'] < 1 or passenger_counts['infant'] > passenger_counts['adult']:
-            raise ValueError('The passenger count is invalid.')
+        lap_infant_count = sum(
+            row['category'] == 'infant' and row['infant_travel_option'] == 'lap'
+            for row in passenger_rows)
+        if (passenger_counts['adult'] < 1
+                or lap_infant_count > passenger_counts['adult'] * sample_rule.max_lap_infants_per_adult):
+            raise ValueError(
+                f'Each adult may accompany up to {sample_rule.max_lap_infants_per_adult} lap infant(s).')
         if (passenger_counts['adult'] > pd_sample.MAX_ADULTS
                 or passenger_counts['child'] > pd_sample.MAX_CHILDREN
                 or passenger_counts['infant'] > pd_sample.MAX_INFANTS):
@@ -4084,30 +4227,39 @@ def confirm_passenger_details(request):
             raise ValueError('The selected extras are invalid.')
         if insurance_plan[2] > 0 and not payload.get('insurance_terms_acknowledged'):
             raise ValueError('Please acknowledge the insurance terms before selecting coverage.')
+        insurance_per_passenger = (
+            passenger_money(insurance_plan[2])
+            if pd_sample.INSURANCE_CHARGE_BASIS == 'per_passenger'
+            else passenger_money(insurance_plan[2] / len(passenger_rows)))
+        for row in passenger_rows:
+            row['insurance_charge'] = float(insurance_per_passenger)
+            row['insurance'] = float(insurance_per_passenger)
+            row['seat_charge'] = row['seat_price']
+            row['total'] = float(sum((
+                Decimal(str(row['fare'])), Decimal(str(row['taxes'])),
+                Decimal(str(row['airline_fees'])), Decimal(str(row['infant_fee'])),
+                Decimal(str(row['extra_baggage_charge'])),
+                Decimal(str(row['seat_price'])), insurance_per_passenger,
+            ), Decimal('0.00')))
         if not payload.get('policy_acknowledged'):
             raise ValueError('Please acknowledge the cancellation and refund policy.')
 
         passenger_total = len(passenger_rows)
-        base_fare = int(flight['price']) * passenger_total
-        taxes = pd_sample.TAXES_AND_FEES_PER_PASSENGER * passenger_total
+        base_fare = sum(row['fare'] for row in passenger_rows)
+        taxes = sum(row['taxes'] for row in passenger_rows)
+        airline_fees = sum(row['airline_fees'] for row in passenger_rows)
+        infant_fees = sum(row['infant_fee'] for row in passenger_rows)
         baggage_total = sum(row['extra_baggage_charge'] for row in passenger_rows)
         baggage_kg_total = sum(row['extra_baggage_kg'] for row in passenger_rows)
-        insurance_total = (insurance_plan[2] * passenger_total
-                           if pd_sample.INSURANCE_CHARGE_BASIS == 'per_passenger'
-                           else insurance_plan[2])
+        insurance_total = sum(row['insurance_charge'] for row in passenger_rows)
         seat_total = sum(row['seat_price'] for row in passenger_rows)
-        total = base_fare + taxes + baggage_total + insurance_total + seat_total
+        total = sum(row['total'] for row in passenger_rows)
 
         departure_date = ''
         arrival_date = ''
-        date_value = str(payload.get('departure_date') or '').strip()
-        try:
-            travel_date = date.fromisoformat(date_value)
-            departure_date = travel_date.strftime('%B %d, %Y')
-            arrival_date = (travel_date + timedelta(days=1 if flight['overnight'] else 0)).strftime('%B %d, %Y')
-        except ValueError:
-            departure_date = 'Date not provided'
-            arrival_date = departure_date
+        departure_date = sample_travel_date.strftime('%B %d, %Y')
+        arrival_date = (sample_travel_date + timedelta(
+            days=1 if flight['overnight'] else 0)).strftime('%B %d, %Y')
 
         ticket = {
             'booking_reference': 'ATR-' + uuid.uuid4().hex[:8].upper(),
@@ -4144,6 +4296,8 @@ def confirm_passenger_details(request):
                 'passenger_count': passenger_total,
                 'base_fare': base_fare,
                 'taxes': taxes,
+                'airline_fees': airline_fees,
+                'infant_fees': infant_fees,
                 'baggage': baggage_total,
                 'insurance': insurance_total,
                 'seats': seat_total,
@@ -4207,9 +4361,19 @@ def _database_ticket_context(booking, order, flight, passengers, total,
         },
         'passengers': [
             {'name': passenger['name'], 'category': passenger['category'],
+             'infant_travel_option': passenger['infant_travel_option'],
              'seat': passenger['seat'],
+             'fare': float(passenger['pricing']['fare']),
+             'taxes': float(passenger['pricing']['tax']),
+             'airline_fees': float(passenger['pricing']['fee']),
+             'infant_fee': float(passenger['pricing']['infant_fee']),
+             'baggage': float(passenger['extra_baggage_charge']),
              'extra_baggage_kg': float(passenger['extra_baggage_kg']),
-             'extra_baggage_charge': float(passenger['extra_baggage_charge'])}
+             'extra_baggage_charge': float(passenger['extra_baggage_charge']),
+             'seat_charge': float(passenger['pricing']['seat']),
+             'insurance': float(passenger['pricing']['insurance']),
+             'insurance_charge': float(passenger['pricing']['insurance']),
+             'total': float(passenger['pricing']['total'])}
             for passenger in passengers
         ],
         'extras': {
@@ -4217,10 +4381,14 @@ def _database_ticket_context(booking, order, flight, passengers, total,
         },
         'fare': {
             'passenger_count': len(passengers),
-            'base_fare': float(Decimal(total) - Decimal(baggage_charge)
-                               - Decimal(insurance_charge or 0)
-                               - Decimal(booking.seat_selection or 0)),
-            'taxes': 0,
+            'base_fare': float(sum(
+                (passenger['pricing']['fare'] for passenger in passengers), Decimal('0.00'))),
+            'taxes': float(sum(
+                (passenger['pricing']['tax'] for passenger in passengers), Decimal('0.00'))),
+            'airline_fees': float(sum(
+                (passenger['pricing']['fee'] for passenger in passengers), Decimal('0.00'))),
+            'infant_fees': float(sum(
+                (passenger['pricing']['infant_fee'] for passenger in passengers), Decimal('0.00'))),
             'baggage': float(Decimal(baggage_charge or 0)),
             'insurance': float(Decimal(insurance_charge or 0)),
             'insurance_plan': booking.travel_insurance_plan,
@@ -4279,9 +4447,12 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             dob = date.fromisoformat(str(details['dob']))
         except (TypeError, ValueError):
             return HttpResponseBadRequest('Enter a valid passenger birth date.')
-        age = travel_date.year - dob.year - ((travel_date.month, travel_date.day) < (dob.month, dob.day))
-        expected = 'infant' if age < 2 else ('child' if age < 12 else 'adult')
-        if expected != category or age < 0:
+        try:
+            age = age_on_date(dob, travel_date)
+        except ValueError:
+            return HttpResponseBadRequest('Passenger date of birth must be on or before departure.')
+        expected = category_for_age(age)
+        if expected != category:
             return HttpResponseBadRequest('Passenger category does not match age on the departure date.')
         classification_value = str(details.get('classification') or category).strip().lower()
         allowed_classifications = {'adult', 'child', 'infant', 'senior', 'pwd'}
@@ -4322,8 +4493,16 @@ def _confirm_database_passenger_details(request, payload, flight_id):
         if baggage_kg not in (0, 5, 10, 15, 20, 25, 30):
             return HttpResponseBadRequest('The baggage selection is invalid.')
         counts[category] += 1
+        infant_option = str(item.get('infant_travel_option') or 'lap').strip().lower()
+        if category == 'infant' and infant_option not in ('lap', 'seat'):
+            return HttpResponseBadRequest('Choose whether the infant will travel on a lap or in their own seat.')
+        if category == 'infant' and infant_option == 'lap' and item.get('seat'):
+            return HttpResponseBadRequest('A lap infant cannot occupy a separate seat.')
+        if category != 'infant':
+            infant_option = 'seat'
         cleaned.append({
             'category': category, 'name': name,
+            'infant_travel_option': infant_option,
             'first_name': first_name, 'middle_name': middle_name, 'last_name': last_name,
             'classification': classification_value,
             'dob': dob, 'gender': str(details.get('gender') or '')[:20],
@@ -4332,10 +4511,11 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             'phone_value': phone_value, 'passport': passport,
             'passport_country': passport_country, 'passport_expiry': passport_expiry,
             'extra_baggage_kg': baggage_kg,
-            'seat': str(item.get('seat') or '').strip().upper() if category != 'infant' else '',
+            'seat': str(item.get('seat') or '').strip().upper()
+                if category != 'infant' or infant_option == 'seat' else '',
         })
-    if counts['adult'] < 1 or counts['infant'] > counts['adult']:
-        return HttpResponseBadRequest('At least one adult is required, and each infant must travel with an adult.')
+    if counts['adult'] < 1:
+        return HttpResponseBadRequest('At least one adult passenger is required.')
     if counts['adult'] > pd_sample.MAX_ADULTS or counts['child'] > pd_sample.MAX_CHILDREN or counts['infant'] > pd_sample.MAX_INFANTS:
         return HttpResponseBadRequest('The passenger count is above the booking limit.')
     insurance_key = str(payload.get('insurance_key') or 'none')
@@ -4362,6 +4542,24 @@ def _confirm_database_passenger_details(request, payload, flight_id):
     if (fare_class not in dict(FARE_CLASS_CHOICES)
             or any(fare_class not in leg.cabin_classes for leg in priced_legs)):
         return HttpResponseBadRequest('The selected cabin is no longer available for every flight segment.')
+    airline_rules = fare_rules_for_legs(priced_legs)
+    if any(not airline_rules[leg.airline_id].is_configured for leg in priced_legs):
+        return HttpResponseBadRequest(
+            'An administrator must verify and configure the fare rules for every airline before checkout.')
+    lap_infant_limit = min(
+        airline_rules[leg.airline_id].max_lap_infants_per_adult for leg in priced_legs)
+    lap_infant_count = sum(
+        passenger['category'] == 'infant' and passenger['infant_travel_option'] == 'lap'
+        for passenger in cleaned)
+    if lap_infant_count > counts['adult'] * lap_infant_limit:
+        return HttpResponseBadRequest(
+            f'Each adult may accompany up to {lap_infant_limit} lap infant(s) on this flight.')
+    for passenger in cleaned:
+        needs_seat = passenger['category'] == 'child' or (
+            passenger['category'] == 'infant' and passenger['infant_travel_option'] == 'seat')
+        if needs_seat and not passenger['seat']:
+            return HttpResponseBadRequest(
+                'Children and infants with their own seat must have a separate seat assignment.')
     seat_quotes = {}
     seat_charge = Decimal('0.00')
     for seat_flight in seat_flights:
@@ -4376,58 +4574,76 @@ def _confirm_database_passenger_details(request, payload, flight_id):
 
     from django.db import IntegrityError
     from transactions.cart import create_single_booking_order
-    fare = flight.fare_for(fare_class)
-    per_person = Decimal(fare or 0)
-    if flight.itinerary_id:
-        per_person = sum((Decimal(leg.fare_for(fare_class) or 0) for leg in legs), Decimal('0'))
-        if flight.itinerary.service_fee:
-            per_person += flight.itinerary.service_fee
-    if return_flight:
-        per_person += Decimal(return_flight.fare_for(fare_class) or 0)
     for passenger in cleaned:
         passenger['extra_baggage_charge'] = baggage_charge_for_kg(
             flight.baggage_rate, passenger['extra_baggage_kg'])
+        passenger['pricing'], passenger['leg_pricing'] = {
+            'fare': Decimal('0.00'), 'tax': Decimal('0.00'),
+            'fee': Decimal('0.00'), 'infant_fee': Decimal('0.00'),
+            'baggage': passenger['extra_baggage_charge'],
+            'insurance': Decimal(insurance_plan[2]),
+            'seat': Decimal('0.00'),
+        }, []
+        for leg_index, leg in enumerate(priced_legs):
+            _total_quote, leg_quotes = quote_passenger_legs(
+                [leg], airline_rules, passenger['category'],
+                passenger['infant_travel_option'], fare_class)
+            quote = leg_quotes[0]
+            if flight.itinerary_id and leg_index == 0:
+                quote['fee'] += passenger_money(flight.itinerary.service_fee)
+            passenger['leg_pricing'].append(quote)
+            for key in ('fare', 'tax', 'fee', 'infant_fee'):
+                passenger['pricing'][key] += quote[key]
     baggage_charge = sum(
         (passenger['extra_baggage_charge'] for passenger in cleaned),
         Decimal('0.00'))
     baggage_kg_total = sum(
         passenger['extra_baggage_kg'] for passenger in cleaned)
-    insurance_charge = Decimal(insurance_plan[2]) * len(cleaned)
-    items = compute_airline_bill(flight, len(cleaned), fare, baggage_charge=baggage_charge,
-                                 baggage_kg=baggage_kg_total, return_flight=return_flight,
-                                 return_fare=return_flight.fare_for(fare_class) if return_flight else None,
-                                 itinerary_legs=[(leg, leg.fare_for(fare_class)) for leg in legs])
-    if insurance_charge:
-        items.append({
-            'label': f'Travel insurance — {insurance_plan[1]}',
-            'description': f'{insurance_plan[1]} for {len(cleaned)} passenger(s)',
-            'quantity': len(cleaned),
-            'rate': Decimal(insurance_plan[2]),
-            'amount': insurance_charge,
-        })
-    for passenger in cleaned:
-        if not passenger['seat']:
-            continue
-        line_charge = Decimal('0.00')
-        labels = []
-        for seat_flight in seat_flights:
-            quote = seat_quotes.get((seat_flight.pk, passenger['seat']))
-            if quote is None:
-                continue
-            line_charge += Decimal(quote['price'] or 0)
-            labels.append(f"{seat_flight.flight_number} {quote['label']}")
-        if line_charge:
+    insurance_charge = sum(
+        (passenger['pricing']['insurance'] for passenger in cleaned), Decimal('0.00'))
+    items = []
+
+    def add_bill_item(label, description, amount):
+        amount = passenger_money(amount)
+        if amount:
             items.append({
-                'label': f"Seat {passenger['seat']} ({labels[0] if labels else 'Seat selection'})",
-                'description': ' · '.join(labels),
-                'quantity': 1,
-                'rate': line_charge,
-                'amount': line_charge,
+                'label': label, 'description': description,
+                'quantity': 1, 'rate': amount, 'amount': amount,
             })
+
+    for passenger in cleaned:
+        for leg_index, leg in enumerate(priced_legs):
+            quote = passenger['leg_pricing'][leg_index]
+            suffix = f"{passenger['name']} · {leg.flight_number}"
+            add_bill_item(
+                f"Passenger fare — {passenger['category'].title()}",
+                suffix, quote['fare'])
+            add_bill_item('Airline tax', suffix, quote['tax'])
+            add_bill_item('Airline passenger fee', suffix, quote['fee'])
+            add_bill_item('Infant on-lap fee', suffix, quote['infant_fee'])
+        add_bill_item(
+            'Extra baggage',
+            f"{passenger['name']} · {passenger['extra_baggage_kg']} kg",
+            passenger['extra_baggage_charge'])
+        add_bill_item(
+            f'Travel insurance — {insurance_plan[1]}',
+            passenger['name'], passenger['pricing']['insurance'])
+        if passenger['seat']:
+            seat_total = Decimal('0.00')
+            seat_labels = []
+            for seat_flight in seat_flights:
+                quote = seat_quotes.get((seat_flight.pk, passenger['seat']))
+                if quote:
+                    seat_total += Decimal(quote['price'] or 0)
+                    seat_labels.append(f"{seat_flight.flight_number} {quote['label']}")
+            passenger['pricing']['seat'] = passenger_money(seat_total)
+            add_bill_item(
+                f"Seat selection — {passenger['name']} ({passenger['seat']})",
+                ' · '.join(seat_labels), seat_total)
     total = bill_items_total(items)
-    if flight.itinerary_id and total != (
-            per_person * len(cleaned) + baggage_charge + insurance_charge + seat_charge):
-        total = per_person * len(cleaned) + baggage_charge + insurance_charge + seat_charge
+    for passenger in cleaned:
+        passenger['pricing']['total'] = sum(
+            passenger['pricing'].values(), Decimal('0.00'))
     try:
         with transaction.atomic():
             list(Flight.objects.select_for_update().filter(pk__in=[leg.pk for leg in seat_flights]))
@@ -4455,6 +4671,7 @@ def _confirm_database_passenger_details(request, payload, flight_id):
             for index, passenger in enumerate(cleaned):
                 for leg_index, leg in enumerate(legs):
                     quote = seat_quotes.get((leg.pk, passenger['seat']), {})
+                    fare_quote = passenger['leg_pricing'][leg_index]
                     Booking.BookingSeat.objects.create(
                         booking=booking, passenger_name=passenger['name'],
                         seat_number=passenger['seat'],
@@ -4464,15 +4681,22 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                         seat_type=quote.get('code', ''),
                         seat_type_label=quote.get('label', ''),
                         seat_price=quote.get('price', 0),
-                        extra_baggage_kg=passenger['extra_baggage_kg'],
-                        extra_baggage_charge=passenger['extra_baggage_charge'],
+                        extra_baggage_kg=passenger['extra_baggage_kg'] if leg_index == 0 else 0,
+                        extra_baggage_charge=passenger['extra_baggage_charge'] if leg_index == 0 else 0,
                         passenger_category=passenger['category'],
+                        infant_travel_option=passenger['infant_travel_option'],
                         passenger_classification=passenger['classification'],
                         first_name=passenger['first_name'], middle_name=passenger['middle_name'],
                         last_name=passenger['last_name'], date_of_birth=passenger['dob'],
                         gender=passenger['gender'], nationality=passenger['nationality'],
                         contact_email=passenger['email'],
                         contact_number=passenger['phone'],
+                        passenger_fare_amount=fare_quote['fare'],
+                        passenger_tax_amount=fare_quote['tax'],
+                        passenger_fee_amount=fare_quote['fee'],
+                        infant_fee_amount=fare_quote['infant_fee'],
+                        passenger_insurance_amount=(
+                            passenger['pricing']['insurance'] if leg_index == 0 else 0),
                         travel_document_type='PASSPORT' if international else '',
                         travel_document_number=passenger['passport'],
                         passport_issuing_country=passenger['passport_country'],
@@ -4480,15 +4704,21 @@ def _confirm_database_passenger_details(request, payload, flight_id):
                     )
                 if return_flight:
                     quote = seat_quotes.get((return_flight.pk, passenger['seat']), {})
+                    fare_quote = passenger['leg_pricing'][len(legs)]
                     Booking.BookingSeat.objects.create(
                         booking=booking, passenger_name=passenger['name'], seat_number=passenger['seat'],
                         segment=TripSegment.RETURN, fare_class=fare_class,
                         seat_type=quote.get('code', ''),
                         seat_type_label=quote.get('label', ''),
                         seat_price=quote.get('price', 0),
-                        extra_baggage_kg=passenger['extra_baggage_kg'],
-                        extra_baggage_charge=passenger['extra_baggage_charge'],
-                        passenger_category=passenger['category'], first_name=passenger['first_name'],
+                        extra_baggage_kg=0, extra_baggage_charge=0,
+                        passenger_category=passenger['category'],
+                        infant_travel_option=passenger['infant_travel_option'],
+                        passenger_fare_amount=fare_quote['fare'],
+                        passenger_tax_amount=fare_quote['tax'],
+                        passenger_fee_amount=fare_quote['fee'],
+                        infant_fee_amount=fare_quote['infant_fee'],
+                        first_name=passenger['first_name'],
                         passenger_classification=passenger['classification'],
                         middle_name=passenger['middle_name'], last_name=passenger['last_name'],
                         date_of_birth=passenger['dob'], gender=passenger['gender'],

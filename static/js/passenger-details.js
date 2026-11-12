@@ -20,6 +20,8 @@
     var cabinSeatMaps = readJSON('pd-cabin-seat-data');
     var flightData = readJSON('pd-selected-flight-data');
     var passengerProfile = readJSON('pd-profile-data');
+    var passengerPricing = readJSON('pd-passenger-pricing');
+    var lapInfantLimit = Number(root.dataset.lapInfantsPerAdult) || 1;
 
     var state = {
         flightType: (root.dataset.defaultFlightType || 'DOMESTIC').toUpperCase(),
@@ -39,9 +41,11 @@
         infant: Number(fareData.max_infants) || 4
     };
     var BASE_FARE = Number(root.dataset.baseFare) || 0;
-    var TAX_PER_PAX = Number(root.dataset.taxesPerPassenger) || 0;
     var INSURANCE_BASIS = root.dataset.insuranceBasis || 'per_passenger';
-    var SEATABLE = { adult: true, child: true, infant: false };
+    function requiresSeat(passenger) {
+        return passenger.category !== 'infant' ||
+            (passenger.values && passenger.values.infant_travel_option === 'seat');
+    }
 
     // Seat categories and their prices come from the page's own pricing data,
     // so the picker, the summary and the fare total always agree.
@@ -77,7 +81,7 @@
         return CATEGORY_ORDER.reduce(function (sum, key) { return sum + state.counts[key]; }, 0);
     }
     function seatablePassengers() {
-        return state.passengers.filter(function (p) { return SEATABLE[p.category]; });
+        return state.passengers.filter(requiresSeat);
     }
 
     // ----------------------------------------------------- passenger list --
@@ -95,7 +99,7 @@
         // Drop seat assignments that no longer belong to anyone.
         var stillUsed = {};
         state.passengers.forEach(function (pax) {
-            if (pax.seat && SEATABLE[pax.category] && !stillUsed[pax.seat]) {
+            if (pax.seat && requiresSeat(pax) && !stillUsed[pax.seat]) {
                 stillUsed[pax.seat] = true;
             } else if (pax.seat) {
                 delete pax.seat;
@@ -114,7 +118,11 @@
     }
 
     function addPassenger(category) {
-        state.passengers.push({ category: category, number: state.passengers.length + 1 });
+        state.passengers.push({
+            category: category,
+            number: state.passengers.length + 1,
+            values: category === 'infant' ? { infant_travel_option: 'lap' } : {}
+        });
     }
 
     function removePassengerAt(index) {
@@ -123,15 +131,6 @@
         // A booking always keeps at least one adult, so the last one cannot go.
         if (pax.category === 'adult' && countOf('adult') <= 1) { return; }
         state.passengers.splice(index, 1);
-        // Never more infants than adults: drop the surplus infants too.
-        while (countOf('infant') > countOf('adult')) {
-            for (var j = state.passengers.length - 1; j >= 0; j -= 1) {
-                if (state.passengers[j].category === 'infant') {
-                    state.passengers.splice(j, 1);
-                    break;
-                }
-            }
-        }
         rebuildPassengers();
     }
 
@@ -146,6 +145,8 @@
             setText($('[data-pd-pax-label]', node), String(index + 1));
             var catLabel = categoryLabel(pax.category);
             setText($('[data-pd-pax-cat]', node), catLabel);
+            var infantOptions = $('[data-pd-infant-options]', node);
+            if (infantOptions) { infantOptions.hidden = pax.category !== 'infant'; }
             // Rewrite name attributes so posted data would be per passenger.
             $$('[name]', node).forEach(function (field) {
                 field.name = field.name.replace('__INDEX__', String(index));
@@ -164,6 +165,13 @@
                     var field = $('[data-pd-field="' + key + '"]', node);
                     if (field) { field.value = pax.values[key]; }
                 });
+            }
+            if (pax.category === 'infant' && pax.values) {
+                var infantOption = $('[data-pd-infant-option]', node);
+                if (infantOption) {
+                    infantOption.value = pax.values.infant_travel_option || 'lap';
+                    pax.values.infant_travel_option = infantOption.value;
+                }
             }
             bindPassengerFields(node, index);
             host.appendChild(node);
@@ -209,7 +217,24 @@
                 field.addEventListener('change', function () {
                     captureValues(index, node);
                     clearFieldError(field);
-                    if (field.getAttribute('data-pd-field') === 'dob') { suggestPassengerClassification(index, node); }
+                    var fieldName = field.getAttribute('data-pd-field');
+                    if (fieldName === 'dob') {
+                        var pax = state.passengers[index];
+                        if (pax) { pax.classificationTouched = false; }
+                        node = syncAgeCategory(index, node);
+                        suggestPassengerClassification(index, node);
+                    }
+                    if (fieldName === 'infant_travel_option') {
+                        var passenger = state.passengers[index];
+                        if (passenger && field.value === 'lap') {
+                            var formerSeat = passenger.seat;
+                            delete passenger.seat;
+                            if (formerSeat) { delete state.seats[formerSeat]; }
+                        }
+                        renderSeatPanel();
+                        renderSeatSummary();
+                        renderPassengerSeatLabels();
+                    }
                     updateContinueAvailability();
                 });
             }
@@ -252,6 +277,34 @@
         setText($('[data-pd-classification-hint]', node), 'Suggested from age ' + age + ' on the travel date. You can change this selection.');
         updateFare();
         updateContinueAvailability();
+    }
+
+    function syncAgeCategory(index, node) {
+        var pax = state.passengers[index];
+        var dob = $('[data-pd-field="dob"]', node);
+        if (!pax || !dob || !dob.value) { return node; }
+        var born = new Date(dob.value + 'T00:00:00');
+        var travel = new Date(
+            (root.dataset.departureDate || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
+        if (isNaN(born.getTime()) || isNaN(travel.getTime()) || born > travel) { return node; }
+        var age = travel.getFullYear() - born.getFullYear();
+        if (travel.getMonth() < born.getMonth() ||
+            (travel.getMonth() === born.getMonth() && travel.getDate() < born.getDate())) { age -= 1; }
+        var category = age < 2 ? 'infant' : (age < 12 ? 'child' : 'adult');
+        if (category === pax.category) { return node; }
+        pax.category = category;
+        pax.values = pax.values || {};
+        if (category === 'infant') {
+            if (pax.seat) {
+                delete state.seats[pax.seat];
+                delete pax.seat;
+            }
+            pax.values.infant_travel_option = 'lap';
+        } else {
+            delete pax.values.infant_travel_option;
+        }
+        rebuildPassengers();
+        return $('[data-pd-index="' + index + '"]');
     }
 
     function passengerDisplayName(pax, index) {
@@ -313,7 +366,6 @@
         var max = MAX[key] || 9;
         var min = key === 'adult' ? 1 : 0;
         value = Math.max(min, Math.min(max, Number(value) || 0));
-        if (key === 'infant') { value = Math.min(value, countOf('adult')); }
         var current = countOf(key);
         if (value === current) { return; }
         if (value < current) {
@@ -362,10 +414,10 @@
 
     function firstUnseatedIndex() {
         for (var i = 0; i < state.passengers.length; i += 1) {
-            if (SEATABLE[state.passengers[i].category] && !state.passengers[i].seat) { return i; }
+            if (requiresSeat(state.passengers[i]) && !state.passengers[i].seat) { return i; }
         }
         for (var j = 0; j < state.passengers.length; j += 1) {
-            if (SEATABLE[state.passengers[j].category]) { return j; }
+            if (requiresSeat(state.passengers[j])) { return j; }
         }
         return 0;
     }
@@ -405,7 +457,7 @@
     function seatTotal() {
         var total = 0;
         state.passengers.forEach(function (pax) {
-            if (!pax.seat || !SEATABLE[pax.category]) { return; }
+            if (!pax.seat || !requiresSeat(pax)) { return; }
             var info = seatInfo(pax.seat);
             total += info ? info.price : 0;
         });
@@ -417,7 +469,7 @@
         if (!list) { return; }
         list.innerHTML = '';
         state.passengers.forEach(function (pax, index) {
-            if (!SEATABLE[pax.category]) { return; }
+            if (!requiresSeat(pax)) { return; }
             var seat = pax.seat;
             var info = seatInfo(seat);
             var li = document.createElement('li');
@@ -499,7 +551,7 @@
         var totalEl = $('[data-pd-seat-modal-total]');
         if (!list) { return; }
         list.innerHTML = '';
-        var assigned = state.passengers.filter(function (p) { return p.seat && SEATABLE[p.category]; });
+        var assigned = state.passengers.filter(function (p) { return p.seat && requiresSeat(p); });
         if (!assigned.length) {
             var empty = document.createElement('li');
             empty.className = 'pd-seat-summary-panel__empty';
@@ -563,7 +615,7 @@
 
     function assignSeat(seatNumber) {
         var pax = state.passengers[activePaxIndex];
-        if (!pax || !SEATABLE[pax.category]) { return; }
+        if (!pax || !requiresSeat(pax)) { return; }
         var owner = seatOwner(seatNumber);
         if (owner === activePaxIndex) {
             // Clicking your own seat clears it.
@@ -586,7 +638,7 @@
         var next = -1;
         for (var i = 0; i < state.passengers.length; i += 1) {
             var cand = state.passengers[i];
-            if (SEATABLE[cand.category] && !cand.seat) { next = i; break; }
+            if (requiresSeat(cand) && !cand.seat) { next = i; break; }
         }
         activePaxIndex = next === -1 ? activePaxIndex : next;
         renderSeatPanel();
@@ -623,7 +675,7 @@
         var details = $('[data-pd-seat-selected-details]');
         if (!list) { return; }
         list.innerHTML = '';
-        var assigned = state.passengers.filter(function (p) { return p.seat && SEATABLE[p.category]; });
+        var assigned = state.passengers.filter(function (p) { return p.seat && requiresSeat(p); });
         if (assigned.length) {
             assigned.forEach(function (pax) {
                 var index = state.passengers.indexOf(pax);
@@ -667,29 +719,66 @@
     }
 
     // ------------------------------------------------------- fare summary --
+    function passengerFareParts(passenger, index) {
+        var quote = passengerPricing[passenger.category] || {};
+        var infantOption = passenger.values && passenger.values.infant_travel_option || 'lap';
+        var infant = passenger.category === 'infant';
+        var seatedInfant = infant && infantOption === 'seat';
+        var fare = Number(seatedInfant ? quote.seat_fare : quote.fare) || 0;
+        var tax = Number(seatedInfant ? quote.seat_tax : quote.tax) || 0;
+        var fee = Number(seatedInfant ? quote.seat_fee : quote.fee) || 0;
+        var infantFee = infant && !seatedInfant ? Number(quote.infant_fee) || 0 : 0;
+        var baggage = baggagePriceForPassenger(passenger);
+        var seat = 0;
+        if (passenger.seat && requiresSeat(passenger)) {
+            var seatQuote = seatInfo(passenger.seat);
+            seat = Number(seatQuote && seatQuote.price) || 0;
+        }
+        var insurance = INSURANCE_BASIS === 'per_passenger'
+            ? state.insurancePrice
+            : (index === 0 ? state.insurancePrice : 0);
+        return {
+            fare: fare, tax: tax, fee: fee, infantFee: infantFee,
+            baggage: baggage, insurance: insurance, seat: seat,
+            total: fare + tax + fee + infantFee + baggage + insurance + seat
+        };
+    }
+
+    function bookingFareTotals() {
+        return state.passengers.reduce(function (total, passenger, index) {
+            var parts = passengerFareParts(passenger, index);
+            Object.keys(parts).forEach(function (key) { total[key] += parts[key]; });
+            return total;
+        }, { fare: 0, tax: 0, fee: 0, infantFee: 0, baggage: 0,
+            insurance: 0, seat: 0, total: 0 });
+    }
+
+    function lapInfantCount() {
+        return state.passengers.filter(function (passenger) {
+            return passenger.category === 'infant' &&
+                (!passenger.values || passenger.values.infant_travel_option !== 'seat');
+        }).length;
+    }
+
     function updateFare() {
         var pax = totalPassengers();
-        var base = BASE_FARE * pax;
-        var taxes = TAX_PER_PAX * pax;
-        var baggage = baggageTotal();
-        var insurance = INSURANCE_BASIS === 'per_passenger'
-            ? state.insurancePrice * pax : state.insurancePrice;
-        var seatTotalAmount = seatTotal();
-        var total = base + taxes + baggage + insurance + seatTotalAmount;
+        var totals = bookingFareTotals();
 
-        setText($('[data-pd-fare-base]'), money(base));
-        setText($('[data-pd-fare-taxes]'), money(taxes));
+        setText($('[data-pd-fare-base]'), money(totals.fare));
+        setText($('[data-pd-fare-taxes]'), money(totals.tax));
+        setText($('[data-pd-fare-airline-fees]'), money(totals.fee));
+        setText($('[data-pd-fare-infant-fees]'), money(totals.infantFee));
         setText($('[data-pd-fare-pax]'), String(pax));
         setText($('[data-pd-fare-class-name]'), fareClassLabel(state.fareClassKey));
         setText($('[data-pd-summary-pax]'), pax + (pax === 1 ? ' traveller' : ' travellers'));
         setText($('[data-pd-summary-classifications]'), passengerClassificationSummary());
-        setText($('[data-pd-fare-baggage]'), money(baggage));
-        setText($('[data-pd-fare-insurance]'), money(insurance));
-        setText($('[data-pd-fare-seat]'), money(seatTotalAmount));
-        setText($('[data-pd-fare-total]'), money(total));
+        setText($('[data-pd-fare-baggage]'), money(totals.baggage));
+        setText($('[data-pd-fare-insurance]'), money(totals.insurance));
+        setText($('[data-pd-fare-seat]'), money(totals.seat));
+        setText($('[data-pd-fare-total]'), money(totals.total));
 
-        setText($('[data-pd-fare-base-note]'), base > 0 ? '(' + money(BASE_FARE) + ' \u00d7 ' + pax + ')' : '');
-        setText($('[data-pd-fare-tax-note]'), taxes > 0 ? '(' + money(TAX_PER_PAX) + ' \u00d7 ' + pax + ')' : '');
+        setText($('[data-pd-fare-base-note]'), pax ? 'age-based airline fare rules' : '');
+        setText($('[data-pd-fare-tax-note]'), totals.tax ? 'age-based airline tax rates' : '');
         var passengersWithBaggage = state.passengers.filter(function (passenger) {
             return baggageKgForPassenger(passenger) > 0;
         }).length;
@@ -700,7 +789,34 @@
             ? (INSURANCE_BASIS === 'per_passenger' ? '(' + money(state.insurancePrice) + ' \u00d7 ' + pax + ')' : '(flat)')
             : '');
         setText($('[data-pd-fare-per]'), pax > 0
-            ? money(total / pax) + ' per passenger on average' : '');
+            ? money(totals.total / pax) + ' per passenger on average' : '');
+        renderPassengerFareBreakdown();
+    }
+
+    function renderPassengerFareBreakdown() {
+        var container = $('[data-pd-passenger-fares]');
+        if (!container) { return; }
+        container.innerHTML = '';
+        state.passengers.forEach(function (passenger, index) {
+            var parts = passengerFareParts(passenger, index);
+            var name = passengerDisplayName(passenger, index);
+            var category = categoryLabel(passenger.category);
+            if (passenger.category === 'infant') {
+                category += passenger.values && passenger.values.infant_travel_option === 'seat'
+                    ? ' · Own seat' : ' · On lap';
+            }
+            var row = document.createElement('div');
+            row.className = 'pd-passenger-fare';
+            row.innerHTML =
+                '<b>' + escapeHtml(name) + ' · ' + escapeHtml(category) + '</b>' +
+                '<span>Fare ' + money(parts.fare) + ' · Taxes ' + money(parts.tax) +
+                ' · Airline fees ' + money(parts.fee) +
+                (parts.infantFee ? ' · Infant fee ' + money(parts.infantFee) : '') +
+                ' · Baggage ' + money(parts.baggage) +
+                ' · Seat ' + money(parts.seat) +
+                ' · Total ' + money(parts.total) + '</span>';
+            container.appendChild(row);
+        });
     }
 
     // ---------------------------------------------------------- insurance --
@@ -771,13 +887,34 @@
             } else { complete = false; }
             ready = ready && complete;
         });
+        var adultCount = countOf('adult');
+        var lapInfantLimitReached = lapInfantCount() > adultCount * lapInfantLimit;
+        var missingRequiredSeat = state.passengers.some(function (passenger) {
+            return (passenger.category === 'child' ||
+                (passenger.category === 'infant' &&
+                 passenger.values && passenger.values.infant_travel_option === 'seat')) &&
+                !passenger.seat;
+        });
+        ready = ready && adultCount > 0 && !lapInfantLimitReached &&
+            !missingRequiredSeat && root.dataset.pricingConfigured === 'true';
         $$('[data-pd-continue], [data-pd-continue-bottom]').forEach(function (button) {
             button.disabled = !ready;
         });
         var hint = $('[data-pd-continue-hint]');
         if (hint) {
-            setText(hint, ready ? 'Passenger information and policy acceptance are complete.'
-                : 'Complete required passenger details and accept the policy to continue.');
+            var message = ready ? 'Passenger information and policy acceptance are complete.'
+                : 'Complete required passenger details and accept the policy to continue.';
+            if (root.dataset.pricingConfigured !== 'true') {
+                message = 'Airline fare rules are placeholders. Ask a System Administrator to configure them before booking.';
+            } else if (lapInfantLimitReached) {
+                message = 'This airline allows up to ' + lapInfantLimit +
+                    ' lap infant(s) per adult. Add an adult or select an infant seat.';
+            } else if (missingRequiredSeat) {
+                message = 'Select a separate seat for every child and every infant traveling with a seat.';
+            } else if (!adultCount) {
+                message = 'At least one adult passenger is required.';
+            }
+            setText(hint, message);
         }
     }
 
@@ -817,6 +954,19 @@
             }
             if (!(v.gender || '').trim()) { fail(node, 'gender', 'Please select a gender.'); ok = false; }
             if (!(v.nationality || '').trim()) { fail(node, 'nationality', 'Please select a nationality.'); ok = false; }
+            if (pax.category === 'infant') {
+                if (!['lap', 'seat'].includes(v.infant_travel_option)) {
+                    fail(node, 'infant_travel_option', 'Choose whether this infant travels on a lap or with a seat.'); ok = false;
+                } else if (v.infant_travel_option === 'seat' && !pax.seat) {
+                    setErr('seats', 'Select a separate assigned seat for every infant traveling with a seat.');
+                    ok = false;
+                } else if (v.infant_travel_option === 'lap' && pax.seat) {
+                    fail(node, 'infant_travel_option', 'A lap infant cannot have a separate seat assignment.'); ok = false;
+                }
+            } else if (pax.category === 'child' && !pax.seat) {
+                setErr('seats', 'Select a separate assigned seat for every child passenger.');
+                ok = false;
+            }
             if (state.flightType === 'INTERNATIONAL' && !(v.passport || '').trim()) {
                 fail(node, 'passport', 'Passport number is required for international flights.'); ok = false;
             }
@@ -831,6 +981,19 @@
             }
         });
 
+        if (countOf('adult') < 1) {
+            setErr('seats', 'At least one adult passenger is required.');
+            ok = false;
+        }
+        if (lapInfantCount() > countOf('adult') * lapInfantLimit) {
+            setErr('seats', 'This airline allows up to ' + lapInfantLimit +
+                ' lap infant(s) per accompanying adult.');
+            ok = false;
+        }
+        if (root.dataset.pricingConfigured !== 'true') {
+            setErr('seats', 'A System Administrator must configure the selected airline fare rules before checkout.');
+            ok = false;
+        }
         if (!state.policyAck) {
             setErr('policy', 'Please acknowledge the cancellation and refund policy.');
             ok = false;
@@ -896,7 +1059,11 @@
         state.passengers.forEach(function (pax, index) {
             var v = pax.values || {};
             var bits = [(v.full_name || 'Passenger ' + (index + 1))];
-            if (SEATABLE[pax.category]) { bits.push('Seat ' + (pax.seat || 'not assigned')); }
+            bits.push(categoryLabel(pax.category));
+            if (pax.category === 'infant') {
+                bits.push(v.infant_travel_option === 'seat' ? 'Infant with own seat' : 'Infant on lap');
+            }
+            if (requiresSeat(pax)) { bits.push('Seat ' + (pax.seat || 'not selected')); }
             bits.push(passengerClassificationLabel((v.classification || pax.category)));
             bits.push(v.email || '');
             bits.push((v.phone_code || '') + ' ' + (v.phone || ''));
@@ -904,6 +1071,19 @@
             paxRows.push(row('Passenger ' + (index + 1), bits.filter(Boolean).join(' · ')));
         });
         body.appendChild(block('Passengers', paxRows));
+
+        var passengerFareRows = state.passengers.map(function (passenger, index) {
+            var parts = passengerFareParts(passenger, index);
+            return row(passengerDisplayName(passenger, index) + ' · ' +
+                categoryLabel(passenger.category),
+                'Fare ' + money(parts.fare) + ' · Taxes ' + money(parts.tax) +
+                ' · Airline fees ' + money(parts.fee) +
+                (parts.infantFee ? ' · Infant fee ' + money(parts.infantFee) : '') +
+                ' · Baggage ' + money(parts.baggage) +
+                ' · Seat ' + money(parts.seat) +
+                ' · Total ' + money(parts.total));
+        });
+        body.appendChild(block('Passenger fare breakdown', passengerFareRows));
 
         var services = state.passengers.map(function (pax, index) {
             return row('Passenger ' + (index + 1), baggageLabel(pax));
@@ -913,7 +1093,7 @@
         body.appendChild(block('Baggage & insurance', services));
 
         var seatCount = 0;
-        state.passengers.forEach(function(p) { if (p.seat && SEATABLE[p.category]) seatCount++; });
+        state.passengers.forEach(function(p) { if (p.seat && requiresSeat(p)) seatCount++; });
         body.appendChild(block('Seat selection', [
             row('Selected seats', seatCount > 0 ? seatCount + ' seat(s)' : 'None'),
             row('Seat selection total', money(seatTotal()))
@@ -923,18 +1103,17 @@
             row('Acknowledged', state.policyAck ? 'Yes' : 'No')
         ]));
 
-        var pax = totalPassengers();
-        var baggageAmount = baggageTotal();
-        var insuranceTotal = INSURANCE_BASIS === 'per_passenger' ? state.insurancePrice * pax : state.insurancePrice;
-        var seatTotalAmount = seatTotal();
+        var totals = bookingFareTotals();
         var priceRows = [
-            row('Base fare', money(BASE_FARE * pax)),
-            row('Taxes & fees', money(TAX_PER_PAX * pax)),
-            row('Extra baggage', money(baggageAmount)),
-            row('Travel insurance', money(insuranceTotal)),
-            row('Seat selection', money(seatTotalAmount))
+            row('Base fares', money(totals.fare)),
+            row('Taxes', money(totals.tax)),
+            row('Airline passenger fees', money(totals.fee)),
+            row('Infant on-lap fees', money(totals.infantFee)),
+            row('Extra baggage', money(totals.baggage)),
+            row('Travel insurance', money(totals.insurance)),
+            row('Seat selection', money(totals.seat))
         ];
-        body.appendChild(block('Price breakdown', priceRows, money(BASE_FARE * pax + TAX_PER_PAX * pax + baggageAmount + insuranceTotal + seatTotalAmount)));
+        body.appendChild(block('Price breakdown', priceRows, money(totals.total)));
     }
 
     function buildTicketPayload() {
@@ -951,6 +1130,8 @@
                     name: (pax.values && pax.values.full_name || '').trim(),
                     category: pax.category,
                     seat: pax.seat || '',
+                    infant_travel_option: pax.category === 'infant'
+                        ? (pax.values && pax.values.infant_travel_option || 'lap') : '',
                     baggage_kg: baggageKgForPassenger(pax),
                     details: Object.assign({}, pax.values || {})
                 };
@@ -1050,12 +1231,7 @@
     }
 
     function grandTotal() {
-        var pax = totalPassengers();
-        return money(
-            BASE_FARE * pax + TAX_PER_PAX * pax +
-            baggageTotal() +
-            (INSURANCE_BASIS === 'per_passenger' ? state.insurancePrice * pax : state.insurancePrice)
-        );
+        return money(bookingFareTotals().total);
     }
 
     function flightRouteText() {
