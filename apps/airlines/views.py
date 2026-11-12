@@ -3721,6 +3721,23 @@ def update_flight(request, flight_id):
                                        flight_classification=posted_classification))
 
 
+def _passenger_profile(user):
+    if not user.is_authenticated:
+        return {}
+    profile = {
+        'first_name': user.first_name,
+        'middle_name': user.middle_name or user.middle_initial,
+        'last_name': user.last_name,
+        'email': user.email,
+        'phone': user.contact_number,
+        'dob': user.date_of_birth.isoformat() if user.date_of_birth else '',
+        'gender': {'M': 'male', 'F': 'female'}.get(user.sex, ''),
+        'nationality': 'Philippines' if user.nationality == 'FILIPINO' else 'Other',
+        'phone_code': '+63',
+    }
+    return {key: value for key, value in profile.items() if value}
+
+
 @xframe_options_sameorigin
 def passenger_details(request):
     """Prototype passenger details, seat, baggage and insurance page.
@@ -3883,6 +3900,7 @@ def passenger_details(request):
             'selected': selected, 'flight': selected, 'fare': fare, 'seat_map': seat_map,
             'seat_maps_by_class': seat_maps_by_class,
             'refund': {'steps': [], 'statuses': []},
+            'passenger_profile': _passenger_profile(request.user),
             'default_flight_type': 'INTERNATIONAL' if international else 'DOMESTIC',
             'trip_type': flight.trip_type,
             'return_date': timezone.localtime(return_flight.departure_time).date().isoformat() if return_flight else '',
@@ -3911,6 +3929,7 @@ def passenger_details(request):
         'seat_map': pd_sample.seat_map_context(selected.get('aircraft')),
         'seat_maps_by_class': {},
         'refund': pd_sample.refund_context(),
+        'passenger_profile': _passenger_profile(request.user),
         'default_flight_type': default_flight_type,
         'trip_type': request.GET.get('trip_type', 'one-way'),
         'return_date': request.GET.get('return_date', ''),

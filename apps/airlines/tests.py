@@ -4204,6 +4204,33 @@ class FlightInsuranceCheckoutTests(TestCase):
 class PassengerDetailsPreviewTests(TestCase):
     """The prototype passenger details page and its query string handling."""
 
+    def test_signed_in_account_profile_is_passed_for_primary_passenger_prefill(self):
+        user = get_user_model().objects.create_user(
+            username='profile-passenger', password='pw', email='traveller@example.com',
+            first_name='Taylor', middle_name='Ari', last_name='Account',
+            contact_number='09171112222', date_of_birth='1990-04-03',
+            sex='F', nationality='FILIPINO',
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('airlines:passenger_details'), {
+            'origin': 'MNL', 'destination': 'CEB',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['passenger_profile'], {
+            'first_name': 'Taylor',
+            'middle_name': 'Ari',
+            'last_name': 'Account',
+            'email': 'traveller@example.com',
+            'phone': '09171112222',
+            'dob': '1990-04-03',
+            'gender': 'female',
+            'nationality': 'Philippines',
+            'phone_code': '+63',
+        })
+        self.assertContains(response, 'id="pd-profile-data"')
+
     def test_simulated_checkout_accepts_each_payment_method(self):
         ticket = {
             'booking_reference': 'ATR-TEST1234',

@@ -96,7 +96,8 @@
 {{ seat_map|json_script:"pd-seat-data" }}
 {{ seat_maps_by_class|json_script:"pd-cabin-seat-data" }}
 {{ selected|json_script:"pd-selected-flight-data" }}
+{{ passenger_profile|json_script:"pd-profile-data" }}
 
-<script src="{% static 'js/passenger-details.js' %}?v=20261111-passenger-baggage-1"></script>
+<script src="{% static 'js/passenger-details.js' %}?v=20261112-primary-profile-autofill-1"></script>
 </body>
 </html>

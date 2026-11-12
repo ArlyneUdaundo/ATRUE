@@ -19,6 +19,7 @@
     var seatData = readJSON('pd-seat-data');
     var cabinSeatMaps = readJSON('pd-cabin-seat-data');
     var flightData = readJSON('pd-selected-flight-data');
+    var passengerProfile = readJSON('pd-profile-data');
 
     var state = {
         flightType: (root.dataset.defaultFlightType || 'DOMESTIC').toUpperCase(),
@@ -1309,6 +1310,23 @@
         for (var i = 0; i < wanted; i += 1) { addPassenger(key); }
     });
 
+    var profileSeeded = false;
+    if (!savedDraft && Object.keys(passengerProfile).length) {
+        var primaryAdult = state.passengers.find(function (pax) { return pax.category === 'adult'; });
+        if (primaryAdult) {
+            var profileValues = {};
+            ['first_name', 'middle_name', 'last_name', 'email', 'phone', 'dob',
+                'gender', 'nationality', 'phone_code'].forEach(function (key) {
+                if (passengerProfile[key]) { profileValues[key] = passengerProfile[key]; }
+            });
+            profileValues.full_name = [
+                profileValues.first_name, profileValues.middle_name, profileValues.last_name
+            ].filter(Boolean).join(' ');
+            primaryAdult.values = profileValues;
+            profileSeeded = Boolean(profileValues.dob);
+        }
+    }
+
     if (savedDraft && Array.isArray(savedDraft.passengers)) {
         savedDraft.passengers.forEach(function (savedPassenger, index) {
             if (!state.passengers[index]) { return; }
@@ -1333,6 +1351,15 @@
 
     setFlightType(root.dataset.defaultFlightType || 'DOMESTIC');
     rebuildPassengers();
+    if (profileSeeded) {
+        var primaryAdultIndex = state.passengers.findIndex(function (pax) {
+            return pax.category === 'adult' && pax.values && pax.values.dob;
+        });
+        if (primaryAdultIndex !== -1) {
+            suggestPassengerClassification(
+                primaryAdultIndex, $('[data-pd-index="' + primaryAdultIndex + '"]'));
+        }
+    }
     syncCountInputs();
     var initialInsurance = insuranceOptions.find(function (option) { return option.checked; });
     if (initialInsurance) {

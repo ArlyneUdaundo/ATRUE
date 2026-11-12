@@ -836,13 +836,28 @@ def _room_display_status(room, check_in, check_out):
     return "Reserved"
 
 
-def _guest_line_defaults(rooms, user=None):
-    """Blank customer details, ordered by selected rooms."""
-    lines = [{
+def _primary_guest_defaults(user=None):
+    guest = {
         'first_name': '', 'middle_name': '', 'last_name': '',
         'email': '', 'contact': '', 'adults': 1, 'children': 0,
         'special_request': '', 'services': [], 'amenities': [],
-    } for _ in rooms]
+    }
+    if user is not None and getattr(user, 'is_authenticated', False):
+        guest.update({
+            'first_name': user.first_name,
+            'middle_name': user.middle_name or user.middle_initial,
+            'last_name': user.last_name,
+            'email': user.email,
+            'contact': user.contact_number,
+        })
+    return guest
+
+
+def _guest_line_defaults(rooms, user=None):
+    """Default the first room to the account owner; leave other rooms blank."""
+    lines = [_primary_guest_defaults() for _ in rooms]
+    if lines:
+        lines[0] = _primary_guest_defaults(user)
     return lines
 
 
@@ -1025,7 +1040,7 @@ def _render_room_selection(request, hotel, check_in, check_out, rooms_needed, ad
         'services': services,
         'amenities': amenities,
         'preselected': _preselected_data(selected_rooms, guest_lines),
-        'primary_guest': {},
+        'primary_guest': _primary_guest_defaults(request.user),
         'errors': errors or [],
     })
 
@@ -1375,7 +1390,7 @@ def hotel_group_guests(request):
             task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
         )
         return redirect('hotels:group_review_booking', booking_id=booking.pk)
-    guest_lines = _guest_line_defaults(rooms)
+    guest_lines = _guest_line_defaults(rooms, request.user)
     saved_booking_id = data.get('booking_id')
     if saved_booking_id:
         saved_booking = Booking.objects.filter(pk=saved_booking_id, customer=request.user).first()

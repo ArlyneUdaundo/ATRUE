@@ -8,6 +8,7 @@ from django.utils import timezone
 from locations.models import CityMunicipality, Country, Province, Region
 
 from hotels.models import Amenity, Booking, Hotel, Room, Service
+from hotels.views import _guest_line_defaults
 
 
 class HotelCountryTests(TestCase):
@@ -290,6 +291,42 @@ class HotelGroupRoomTabTests(TestCase):
         self.assertContains(response, 'room_0_first_name')
         self.assertContains(response, 'room_1_first_name')
         self.assertContains(response, self.service.name)
+
+    def test_only_the_first_room_is_prefilled_with_the_account_owner(self):
+        response = self.client.get(
+            reverse('hotels:group_start', args=[self.hotel.pk]),
+            {'check_in': self.check_in.isoformat(),
+             'check_out': self.check_out.isoformat(), 'rooms': 2},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['primary_guest']['first_name'], 'Taylor')
+        self.assertEqual(response.context['primary_guest']['last_name'], 'Account')
+        self.assertEqual(response.context['primary_guest']['email'], 't@example.com')
+        self.assertEqual(
+            response.context['primary_guest']['contact'], '09171112222')
+
+        guest_lines = _guest_line_defaults(self.rooms[:2], self.user)
+        self.assertEqual(guest_lines[0]['first_name'], 'Taylor')
+        self.assertEqual(guest_lines[1]['first_name'], '')
+
+    def test_legacy_guest_step_prefills_only_the_first_room(self):
+        session = self.client.session
+        session['hotel_group_booking'] = {
+            'hotel_id': self.hotel.pk,
+            'check_in': self.check_in.isoformat(),
+            'check_out': self.check_out.isoformat(),
+            'room_ids': [self.rooms[2].pk, self.rooms[0].pk],
+        }
+        session.save()
+
+        response = self.client.get(reverse('hotels:group_guests'))
+
+        self.assertEqual(response.status_code, 200)
+        room_forms = response.context['room_forms']
+        self.assertEqual(room_forms[0][1]['first_name'], 'Taylor')
+        self.assertEqual(room_forms[0][1]['email'], 't@example.com')
+        self.assertEqual(room_forms[1][1]['first_name'], '')
+        self.assertEqual(room_forms[1][1]['email'], '')
 
 
 class HotelGuestModalMarkupTests(TestCase):
