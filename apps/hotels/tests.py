@@ -419,15 +419,18 @@ class HotelGuestModalMarkupTests(TestCase):
         self.assertIn('id="guestModal"', html)
         self.assertGreater(html.index('id="guestModal"'), html.index('</main>'))
 
-    def test_guest_modal_has_cancel_and_continue_controls(self):
+    def test_guest_modal_has_save_and_continue_and_review_controls(self):
         html = self._page().content.decode()
         modal_at = html.index('id="guestModal"')
         modal_html = html[modal_at:html.index('id="roomModal"', modal_at)]
         self.assertIn('data-guest-close', modal_html)
         self.assertIn('id="guestModalSave"', modal_html)
-        self.assertIn('Guest Information', modal_html)
+        self.assertIn('id="guestModalRoomLabel">Room 1 Guest Information</span>', modal_html)
+        self.assertIn('Save and Continue', modal_html)
         self.assertNotIn('type="submit"', modal_html,
                          'the modal buttons must not submit the booking')
+        self.assertIn('id="continueBtn" type="submit"', html)
+        self.assertIn('Review &amp; Pay', html)
 
     def test_guest_section_is_not_rendered_as_a_page_section(self):
         """The booking computation summary stays on the page; the guest form

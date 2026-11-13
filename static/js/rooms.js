@@ -82,6 +82,7 @@
     var compareToggle = document.getElementById('compareToggle');
 
     var guestModal = document.getElementById('guestModal');
+    var guestModalRoomLabel = document.getElementById('guestModalRoomLabel');
     var guestModalSub = document.getElementById('guestModalSub');
     var guestSave = document.getElementById('guestModalSave');
     var guestOpener = null;
@@ -190,6 +191,19 @@
         if (ACTIVE < 0) ACTIVE = 0;
     }
 
+    function toggleRoomSelection(roomId, opener) {
+        if (guestModalOpen()) syncFromDom();
+        if (findIndex(roomId) !== -1) {
+            removeRoom(roomId);
+            updateRoomSelection(roomId);
+            return;
+        }
+        addRoom(roomId);
+        updateRoomSelection(roomId);
+        guestOpener = opener || null;
+        openGuestModal(roomId);
+    }
+
     // Refresh the right-hand booking summary as soon as room selection changes.
     function updateRoomSelection(roomId) {
         syncRoomIds();
@@ -285,46 +299,10 @@
 
     /* -------------------------------------------------- guest + summary */
 
-    function guestComplete(s) {
-        var g = s.guest || {};
-        return !!(g.first_name && g.last_name && g.email && g.contact) &&
-            (Number(g.adults || 0) + Number(g.children || 0)) >= 1;
-    }
-
-    function tabsMarkup() {
-        if (SELECTED.length < 2) return '';
-        return '<div class="bk-room-tabs" role="tablist" aria-label="Selected rooms">' +
-            SELECTED.map(function (s, i) {
-                return '<button type="button" role="tab" class="bk-room-tab' +
-                    (i === ACTIVE ? ' is-active' : '') + '" data-room-tab="' + i + '"' +
-                    ' id="bkRoomTab' + i + '" aria-controls="bkRoomPanel' + i + '"' +
-                    ' aria-selected="' + (i === ACTIVE ? 'true' : 'false') + '"' +
-                    ' tabindex="' + (i === ACTIVE ? '0' : '-1') + '">' +
-                    '<span class="bk-room-tab-no">Room ' + (i + 1) + '</span>' +
-                    '<span class="bk-room-tab-meta">' + esc(s.room_number) + '</span>' +
-                    (guestComplete(s) ? '<i class="fas fa-check bk-tab-done"></i>' : '') +
-                    '</button>';
-            }).join('') +
-        '</div>';
-    }
-
-    function paintTabs() {
-        var cards = wrap.querySelectorAll('.bk-guest-card');
-        for (var j = 0; j < cards.length; j++) cards[j].hidden = false;
-        var tabs = wrap.querySelectorAll('[data-room-tab]');
-        for (var i = 0; i < tabs.length; i++) {
-            var on = (i === ACTIVE);
-            tabs[i].classList.toggle('is-active', on);
-            tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
-            tabs[i].setAttribute('tabindex', on ? '0' : '-1');
-        }
-    }
-
     function setActive(i) {
         if (!SELECTED.length) return;
         syncFromDom();
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, i));
-        // Re-render all room forms so every selected room stays visible.
         renderSections();
     }
 
@@ -349,13 +327,15 @@
         syncFromDom();
         ACTIVE = Math.max(0, Math.min(SELECTED.length - 1, idx));
         var s = SELECTED[ACTIVE];
-        if (guestModalSub && s) {
-            guestModalSub.textContent = SELECTED.length > 1
-                ? 'Guest information for all ' + SELECTED.length + ' selected rooms. Room 1 uses your account profile; enter each additional room guest manually.'
-                : 'Guest information for this room. Room 1 uses your account profile.';
+        if (guestModalRoomLabel && s) {
+            guestModalRoomLabel.textContent = 'Room ' + (ACTIVE + 1) + ' Guest Information';
         }
-        // Show the modal immediately as part of the Select click. Every
-        // selected room has its own visible guest form in this modal.
+        if (guestModalSub && s) {
+            guestModalSub.textContent = ACTIVE === 0
+                ? 'Confirm the account guest details for Room 1.'
+                : 'Enter the guest information for Room ' + (ACTIVE + 1) + '.';
+        }
+        // Render only this room so later room details never require scrolling.
         guestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
         renderSections();
@@ -498,9 +478,9 @@
         '</section>';
     }
     function renderSections() {
-        wrap.innerHTML = tabsMarkup() + SELECTED.map(function (room, index) {
-            return buildSection(room, index);
-        }).join('');
+        if (ACTIVE >= SELECTED.length) ACTIVE = SELECTED.length - 1;
+        if (ACTIVE < 0) ACTIVE = 0;
+        wrap.innerHTML = SELECTED.length ? buildSection(SELECTED[ACTIVE], ACTIVE) : '';
         Array.prototype.forEach.call(wrap.querySelectorAll('[data-extras-toggle]'), function (toggle) {
             toggle.addEventListener('click', function () {
                 var kind = toggle.getAttribute('data-extras-toggle');
@@ -531,14 +511,7 @@
                 wrap.querySelectorAll('input, textarea, select'),
                 function (el) { el.setAttribute('form', form.id); });
         }
-        if (SELECTED.length === 0) {
-            ACTIVE = 0;
-            return;
-        }
-        if (ACTIVE >= SELECTED.length) {
-            ACTIVE = SELECTED.length - 1;
-        }
-        paintTabs();
+        if (SELECTED.length === 0) return;
     }
 
     function syncRoomIds() {
@@ -654,21 +627,6 @@
 
         renderSummary(rows, roomsSub, extraSub, svcSub, grand, okDates);
         updateGuestTotals(rows);
-        paintTabDone();
-    }
-
-    function paintTabDone() {
-        Array.prototype.forEach.call(wrap.querySelectorAll('[data-room-tab]'), function (t) {
-            var s = SELECTED[Number(t.getAttribute('data-room-tab'))];
-            if (!s) return;
-            var done = guestComplete(s);
-            var icon = t.querySelector('.bk-tab-done');
-            if (done && !icon) {
-                t.insertAdjacentHTML('beforeend', '<i class="fas fa-check bk-tab-done"></i>');
-            } else if (!done && icon) {
-                icon.parentNode.removeChild(icon);
-            }
-        });
     }
 
     function renderSummary(rows, roomsSub, extraSub, svcSub, grand, okDates) {
@@ -754,10 +712,8 @@
     }
 
     function showErrors(errs) {
-        if (errs.length) setActive(errs[0].index);
+        if (errs.length && ACTIVE !== errs[0].index) setActive(errs[0].index);
         clearErrors();
-        var firstBad = null;
-        var firstBadIdx = -1;
         errs.forEach(function (e) {
             var sec = document.querySelector('[data-guest-section="' + e.index + '"]');
             if (!sec) return;
@@ -767,11 +723,7 @@
                 box.innerHTML = '<b>Room ' + (e.index + 1) + '</b><ul style="margin:4px 0 0 16px">' +
                     e.msgs.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>';
             }
-            if (!firstBad) { firstBad = sec; firstBadIdx = e.index; }
         });
-        if (firstBad && firstBad.scrollIntoView) {
-            firstBad.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
     }
 
     function renderAll() {
@@ -950,7 +902,7 @@
         if (!modal) return;
         closeRoomLightbox();
         modal.classList.remove('open');
-        document.body.style.overflow = '';
+        if (!guestModalOpen()) document.body.style.overflow = '';
         activeModalRoomId = null;
     }
     /* ------------------------------------------------------------- wiring */
@@ -971,12 +923,7 @@
 
         Array.prototype.forEach.call(card.querySelectorAll('[data-room-book]'), function (b) {
             b.addEventListener('click', function () {
-                if (guestModalOpen()) syncFromDom();
-                // Match the resort picker: the selection control toggles the
-                // room in and out, while Guest info stays a separate action.
-                if (findIndex(roomId) !== -1) removeRoom(roomId);
-                else addRoom(roomId);
-                updateRoomSelection(roomId);
+                toggleRoomSelection(roomId, b);
             });
         });
 
@@ -1006,10 +953,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-compare-book]'), function (b) {
         b.addEventListener('click', function () {
             var roomId = Number(b.getAttribute('data-compare-book'));
-            if (guestModalOpen()) syncFromDom();
-            if (findIndex(roomId) !== -1) removeRoom(roomId);
-            else addRoom(roomId);
-            updateRoomSelection(roomId);
+            toggleRoomSelection(roomId, b);
         });
     });
 
@@ -1081,11 +1025,11 @@
     if (guestSave) {
         guestSave.addEventListener('click', function () {
             syncFromDom();
-            var errs = validateAll();
+            var errs = validateAll().filter(function (error) {
+                return error.index === ACTIVE;
+            });
             if (errs.length) { showErrors(errs); return; }
-            // Saving guest details submits the server form; Django persists the
-            // booking and sends the student straight to its review page.
-            if (form.requestSubmit) form.requestSubmit();
+            closeGuestModal();
         });
     }
     document.addEventListener('keydown', function (e) {
@@ -1130,26 +1074,52 @@
             }
             return;
         }
-        var tab = e.target.closest('[data-room-tab]');
-        if (tab) { setActive(Number(tab.getAttribute('data-room-tab'))); return; }
         var rm = e.target.closest('[data-remove-room]');
-        if (rm) { syncFromDom(); removeRoom(rm.getAttribute('data-remove-room')); renderAll(); }
+        if (rm) {
+            syncFromDom();
+            removeRoom(rm.getAttribute('data-remove-room'));
+            if (!SELECTED.length && guestModalOpen()) closeGuestModal();
+            renderAll();
+        }
     });
-    wrap.addEventListener('keydown', function (e) {
-        if (!SELECTED.length || SELECTED.length < 2) return;
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' &&
-            e.key !== 'Home' && e.key !== 'End') return;
-        if (!e.target.closest('[data-room-tab]')) return;
-        e.preventDefault();
-        var next = ACTIVE;
-        if (e.key === 'ArrowRight') next = (ACTIVE + 1) % SELECTED.length;
-        else if (e.key === 'ArrowLeft') next = (ACTIVE - 1 + SELECTED.length) % SELECTED.length;
-        else if (e.key === 'Home') next = 0;
-        else next = SELECTED.length - 1;
-        setActive(next);
-        var t = wrap.querySelector('[data-room-tab="' + next + '"]');
-        if (t) t.focus();
-    });
+
+    function addInactiveGuestFields() {
+        Array.prototype.forEach.call(form.querySelectorAll('[data-guest-hidden]'), function (el) {
+            el.parentNode.removeChild(el);
+        });
+        SELECTED.forEach(function (room, index) {
+            if (index === ACTIVE) return;
+            var guest = room.guest;
+            var values = {
+                first_name: guest.first_name,
+                middle_name: guest.middle_name,
+                last_name: guest.last_name,
+                email: guest.email,
+                contact: guest.contact,
+                adults: guest.adults,
+                children: guest.children,
+                special_request: guest.special_request
+            };
+            Object.keys(values).forEach(function (name) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'room_' + index + '_' + name;
+                input.value = values[name];
+                input.setAttribute('data-guest-hidden', '');
+                form.appendChild(input);
+            });
+            [['services', room.services], ['amenities', room.amenities]].forEach(function (group) {
+                group[1].forEach(function (id) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'room_' + index + '_' + group[0];
+                    input.value = id;
+                    input.setAttribute('data-guest-hidden', '');
+                    form.appendChild(input);
+                });
+            });
+        });
+    }
 
     form.addEventListener('submit', function (e) {
         if (bookingSubmitting) { e.preventDefault(); return; }
@@ -1162,6 +1132,7 @@
             showErrors(errs);
             return;
         }
+        addInactiveGuestFields();
         bookingSubmitting = true;
         // Trigger summary step before submitting
         document.dispatchEvent(new CustomEvent('atrue:hotel-guest-info-complete'));
@@ -1198,5 +1169,11 @@
     });
 
     renderAll();
+    if (document.getElementById('serverErrors') && SELECTED.length) {
+        var initialErrors = validateAll();
+        if (initialErrors.length) {
+            openGuestModal(SELECTED[initialErrors[0].index].room_id);
+            showErrors(initialErrors);
+        }
+    }
 })();
-
