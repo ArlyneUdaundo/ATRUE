@@ -408,7 +408,8 @@ def _record_task_event(target, task_event, user, *, booking_reference=''):
         role=target.role, role_assignment=target)
     from notifications.services import notify_assignment_task_completed
     notify_assignment_task_completed(
-        target, task['label'], user, booking_reference=booking_reference)
+        target, task['label'], user, booking_reference=booking_reference,
+        completion_event=task_event)
     return completion
 
 
@@ -503,7 +504,8 @@ def complete_activity_assignment(user, *, assignment=None, session=None,
                 role=target.role, role_assignment=target)
             from notifications.services import notify_assignment_task_completed
             notify_assignment_task_completed(
-                target, task['label'], user, booking_reference=booking_reference)
+                target, task['label'], user, booking_reference=booking_reference,
+                completion_event=task_event)
             if action:
                 log_activity(
                     target.student, action, details=details, session=target.session,

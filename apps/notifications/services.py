@@ -96,33 +96,61 @@ def notify_role_assignment(assignment, actor, *, modified=False, removed=False):
 
 
 def notify_assignment_task_completed(assignment, task_label, actor, *,
-                                     booking_reference=''):
-    """Notify the session instructor when a student's assigned workflow task completes."""
+                                     booking_reference='', completion_event=''):
+    """Notify the assigned student and instructor when a workflow task completes."""
     session = assignment.session
-    recipient = session.instructor if session else None
-    if recipient is None or recipient.pk == getattr(actor, 'pk', None):
-        return None
-
     student = assignment.student
     student_name = student.get_full_name().strip() or student.get_username()
-    message = f'{student_name} completed "{task_label}" as {assignment.get_role_display()}'
+    role = assignment.get_role_display()
+    session_name = session.name if session else assignment.activity_name
+    action_labels = {
+        'BOOKING_CONFIRMED': 'confirmed a booking',
+        'BOOKING_FULFILLED': 'completed a booking',
+        'CUSTOMER_BOOKING_SUBMITTED': 'submitted a booking',
+        'PAYMENT_VERIFIED': 'verified a payment',
+        'PAYMENT_REJECTED': 'rejected a payment',
+    }
+    action = action_labels.get(completion_event, '')
+    details = f'"{task_label}"'
+    if action:
+        details += f' ({action})'
+    details += f' as {role}'
     if assignment.establishment_id:
-        message += f' at {assignment.establishment.name}'
-    message += f' for {session.name}'
+        details += f' at {assignment.establishment.name}'
+    details += f' for {session_name}'
     if booking_reference:
-        message += f' (Reference: {booking_reference})'
-    message += '.'
-    return notify(
-        recipient,
+        details += f' (Reference: {booking_reference})'
+    details += '.'
+
+    student_notification = notify(
+        student,
         Notification.Type.STUDENT_WORK_COMPLETED,
-        message,
-        title='Student workflow completed',
+        f'You completed {details}',
+        title='Your workflow task completed',
         assignment=assignment,
         session=session,
         establishment=assignment.establishment,
         role=assignment.role_ref,
         actor=actor,
     )
+    instructor = session.instructor if session else assignment.assigned_by
+    instructor_notification = None
+    if (instructor is not None
+            and instructor.pk not in {
+                getattr(student, 'pk', None), getattr(actor, 'pk', None),
+            }):
+        instructor_notification = notify(
+            instructor,
+            Notification.Type.STUDENT_WORK_COMPLETED,
+            f'{student_name} completed {details}',
+            title='Student workflow completed',
+            assignment=assignment,
+            session=session,
+            establishment=assignment.establishment,
+            role=assignment.role_ref,
+            actor=actor,
+        )
+    return instructor_notification or student_notification
 
 
 def notify_many(recipients, notification_type, message, **kwargs):

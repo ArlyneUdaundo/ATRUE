@@ -124,8 +124,10 @@ class HelperTests(CompletionTestCase):
         other_instructor = User.objects.create_user(
             'other-completion-instructor', password='pw',
             account_type=User.AccountType.INSTRUCTOR)
-        first = complete_guest_booking(self.guest, assignment=assignment)
-        second = complete_guest_booking(self.guest, assignment=assignment)
+        first = complete_guest_booking(
+            self.guest, assignment=assignment, booking_reference='REF-1')
+        second = complete_guest_booking(
+            self.guest, assignment=assignment, booking_reference='REF-1')
         self.assertIsNotNone(first)
         self.assertEqual(second.pk, assignment.pk)
         self.assertEqual(
@@ -142,6 +144,18 @@ class HelperTests(CompletionTestCase):
         self.assertEqual(
             Notification.objects.filter(
                 recipient=self.instructor,
+                notification_type=Notification.Type.STUDENT_WORK_COMPLETED,
+            ).count(), 1)
+        student_notice = Notification.objects.get(
+            recipient=self.guest,
+            notification_type=Notification.Type.STUDENT_WORK_COMPLETED)
+        self.assertIn('You completed', student_notice.message)
+        self.assertIn('Book Flight', student_notice.message)
+        self.assertIn('REF-1', student_notice.message)
+        self.assertEqual(student_notice.assignment, assignment)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.guest,
                 notification_type=Notification.Type.STUDENT_WORK_COMPLETED,
             ).count(), 1)
         self.assertFalse(Notification.objects.filter(
@@ -254,6 +268,11 @@ class EngineCompletionTests(CompletionTestCase):
         self.assertTrue(SimulationAssignmentTaskCompletion.objects.filter(
             assignment=self.officer,
             task_key='travel_agency_reservation_agent.booking_work').exists())
+        notice = Notification.objects.get(
+            recipient=self.consultant,
+            notification_type=Notification.Type.STUDENT_WORK_COMPLETED)
+        self.assertIn('confirmed a booking', notice.message)
+        self.assertIn(self.session.name, notice.message)
 
     def test_settling_does_not_auto_mark_the_manager_assignment_done(self):
         trx = self._claimed()
