@@ -897,8 +897,11 @@
         });
         ready = ready && adultCount > 0 && !lapInfantLimitReached &&
             !missingRequiredSeat && root.dataset.pricingConfigured === 'true';
+        // Keep the review button clickable so pressing it on an incomplete
+        // form shows the red field errors instead of silently doing nothing.
         $$('[data-pd-continue], [data-pd-continue-bottom]').forEach(function (button) {
-            button.disabled = !ready;
+            button.disabled = false;
+            button.dataset.pdReady = ready ? 'true' : 'false';
         });
         var hint = $('[data-pd-continue-hint]');
         if (hint) {
