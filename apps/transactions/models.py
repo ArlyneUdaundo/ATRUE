@@ -41,6 +41,7 @@ BILL_STATUS_CHOICES = [
 PAYMENT_STATUS_CHOICES = [
     ('PENDING', 'Pending'),
     ('PAID', 'Paid'),
+    ('PARTIALLY_REFUNDED', 'Partially Refunded'),
     ('REFUNDED', 'Refunded'),
 ]
 
@@ -200,6 +201,7 @@ class Payment(BookingLinked):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         PAID = 'PAID', 'Paid'
+        PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED', 'Partially Refunded'
         REFUNDED = 'REFUNDED', 'Refunded'
 
     payment_reference = models.CharField(
@@ -208,8 +210,9 @@ class Payment(BookingLinked):
     bill = models.ForeignKey(Bill, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    refunded_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
-    status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
     paid_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -217,6 +220,15 @@ class Payment(BookingLinked):
 
     def get_method_display(self):
         return payment_method_label(self.method)
+
+    @property
+    def remaining_refundable(self):
+        return max(_money(0), _money(self.amount) - _money(self.refunded_amount))
+
+    @property
+    def can_refund(self):
+        return (self.status in (self.Status.PAID, self.Status.PARTIALLY_REFUNDED)
+                and self.remaining_refundable > 0)
 
     def __str__(self):
         return f"Payment {self.payment_reference}"

@@ -84,7 +84,7 @@
                     <td class="mono">{{ p.payment_reference }}</td>
                     <td class="mono">{{ p.bill.bill_reference|default:"—" }}</td>
                     <td><b>₱ {{ p.amount }}</b></td>
-                    <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
+                    <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% elif p.status == 'PARTIALLY_REFUNDED' %}badge-yellow{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span></td>
                     <td>{{ p.paid_at|date:"M d, Y H:i" }}</td>
                 </tr>
                 {% empty %}

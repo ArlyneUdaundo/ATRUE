@@ -33,7 +33,7 @@
         <div class="booking-billing-stat hbd-stat-balance"><small>{% if is_hotel_booking %}<i class="fas fa-clock"></i>{% endif %} Balance</small><strong>₱ {{ bill.balance_due|floatformat:2 }}</strong></div>
         <div class="booking-billing-stat hbd-stat-verify"><small>{% if is_hotel_booking %}<i class="fas fa-circle-info"></i>{% endif %} Verification</small><strong><span class="badge {% if bill.verified_at %}badge-green{% else %}badge-yellow{% endif %}">{% if bill.verified_at %}Verified{% else %}Pending{% endif %}</span></strong></div>
     </div>
-    {% if is_hotel_booking and bill.balance_due > 0 %}
+    {% if is_hotel_booking and bill.balance_due > 0 and booking.status != 'CANCELLED' %}
         {% if bill.customer_id == request.user.id %}
         <a href="{% url 'transactions:bill_detail' bill.id %}" class="hbd-proceed-payment"><i class="fas fa-credit-card"></i> Proceed to Payment <i class="fas fa-chevron-right"></i></a>
         {% else %}
@@ -48,7 +48,7 @@
     <h4 style="margin-top:18px">Payment history</h4>
     <div class="table-wrap">
         <table class="table">
-            <thead><tr><th>Reference</th><th>Amount</th><th>Method</th><th>Date</th></tr></thead>
+            <thead><tr><th>Reference</th><th>Amount</th><th>Method</th><th>Date</th><th>Status</th><th>Refunded</th></tr></thead>
             <tbody>
                 {% for payment in payments %}
                 <tr>
@@ -56,6 +56,8 @@
                     <td>₱ {{ payment.amount|floatformat:2 }}</td>
                     <td>{{ payment.get_method_display }}</td>
                     <td>{{ payment.paid_at|date:"M d, Y H:i"|default:"Pending" }}</td>
+                    <td><span class="badge {% if payment.status == 'REFUNDED' %}badge-gray{% elif payment.status == 'PARTIALLY_REFUNDED' %}badge-yellow{% elif payment.status == 'PAID' %}badge-green{% else %}badge-yellow{% endif %}">{{ payment.get_status_display }}</span></td>
+                    <td>₱ {{ payment.refunded_amount|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

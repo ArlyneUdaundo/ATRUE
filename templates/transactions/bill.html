@@ -82,9 +82,9 @@
         <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>Status</th><th>On</th><th></th></tr></thead>
         <tbody>
             {% for p in payments %}<tr>
-                <td class="mono">{{ p.payment_reference }}</td><td>₱ {{ p.amount|floatformat:2 }}</td><td>{{ p.get_method_display }}</td>
-                <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% else %}badge-blue{% endif %}">{{ p.status|title }}</span></td>
-                <td>{{ p.paid_at|date:'M d, Y H:i'|default:'Pending' }}</td><td>{% if p.status == 'PAID' %}<form method="post" onsubmit="return confirm('Refund this payment of ₱ {{ p.amount }}?')">{% csrf_token %}<input type="hidden" name="action" value="refund"><input type="hidden" name="payment_id" value="{{ p.pk }}"><button class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Refund</button></form>{% endif %}</td>
+                <td class="mono">{{ p.payment_reference }}</td><td>₱ {{ p.amount|floatformat:2 }}{% if p.refunded_amount %}<br><small class="meta">Refunded ₱ {{ p.refunded_amount|floatformat:2 }}</small>{% endif %}</td><td>{{ p.get_method_display }}</td>
+                <td><span class="badge {% if p.status == 'PAID' %}badge-green{% elif p.status == 'REFUNDED' %}badge-gray{% elif p.status == 'PARTIALLY_REFUNDED' %}badge-yellow{% else %}badge-blue{% endif %}">{{ p.get_status_display }}</span></td>
+                <td>{{ p.paid_at|date:'M d, Y H:i'|default:'Pending' }}</td><td>{% if p.can_refund %}<form method="post" onsubmit="return confirm('Refund the remaining ₱ {{ p.remaining_refundable|floatformat:2 }} on this payment?')">{% csrf_token %}<input type="hidden" name="action" value="refund"><input type="hidden" name="payment_id" value="{{ p.pk }}"><button class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Refund</button></form>{% endif %}</td>
             </tr>{% empty %}<tr><td colspan="6">No payments on this bill yet.</td></tr>{% endfor %}
         </tbody>
     </table></div>

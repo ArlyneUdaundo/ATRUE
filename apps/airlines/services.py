@@ -106,6 +106,120 @@ def cancel_reservation(trx, actor, *, remarks=''):
     return trx
 
 
+#: Statuses where a passenger or staff may still cancel the booking.
+CANCELABLE_STATUSES = (
+    Booking.Status.PENDING,
+    Booking.Status.ON_HOLD,
+    Booking.Status.RESERVED,
+    Booking.Status.CONFIRMED,
+    Booking.Status.MODIFIED,
+)
+
+
+def cancellation_quote(booking):
+    """Work out what a cancellation would refund under the fare rules."""
+    from decimal import Decimal
+
+    from atrue_core.services import bill_for_booking
+
+    itinerary = booking.itinerary
+    if itinerary is None and booking.flight_id:
+        itinerary = booking.flight.itinerary
+
+    if itinerary is not None:
+        refundable = bool(itinerary.is_refundable)
+        fee = Decimal(itinerary.cancellation_fee or 0)
+    else:
+        # Legacy direct bookings predate fare rules: refund the fare rather
+        # than silently keeping money the passenger was never warned about.
+        refundable = True
+        fee = Decimal('0')
+
+    bill = bill_for_booking(booking)
+    paid = Decimal(bill.amount_paid or 0) if bill else Decimal('0')
+    refund_due = max(Decimal('0'), paid - fee) if refundable else Decimal('0')
+    return {
+        'bill': bill,
+        'has_fare_terms': itinerary is not None,
+        'refundable': refundable,
+        'cancellation_fee': fee,
+        'paid': paid,
+        'refund_due': refund_due,
+    }
+
+
+def cancel_and_refund_booking(booking, actor, *, remarks=''):
+    """Cancel a flight booking and refund any paid amount it is owed.
+
+    The fare's own ``is_refundable`` flag and ``cancellation_fee`` decide how
+    much goes back. Refunds are split across the bill's paid payments so a
+    cancellation fee can be retained without inventing a separate charge.
+    """
+    from decimal import Decimal
+
+    from atrue_core.services import bill_for_booking, cancel_booking, refund_payment
+    from transactions.models import Payment
+
+    if booking.status == Booking.Status.CANCELLED:
+        raise AirlineWorkflowError('This booking is already cancelled.',
+                                   code='already_cancelled')
+    if booking.status not in CANCELABLE_STATUSES:
+        raise AirlineWorkflowError(
+            'This booking can no longer be cancelled.', code='not_cancellable')
+
+    quote = cancellation_quote(booking)
+    refunded = Decimal('0')
+
+    with db_transaction.atomic():
+        remaining = quote['refund_due']
+        bill = quote['bill']
+        if remaining > 0 and bill is not None:
+            payments = bill.payments.filter(
+                status__in=[Payment.Status.PAID, Payment.Status.PARTIALLY_REFUNDED],
+            ).order_by('paid_at', 'pk')
+            for payment in payments:
+                if remaining <= 0:
+                    break
+                available = payment.remaining_refundable
+                take = min(available, remaining)
+                if take <= 0:
+                    continue
+                refund_payment(
+                    payment=payment, user=actor, amount=take,
+                    description=(f'Refund for cancelled flight booking '
+                                 f'{booking.booking_reference}'))
+                refunded += take
+                remaining -= take
+
+        cancel_booking(booking, actor, reason=remarks)
+
+        bill = bill_for_booking(booking)
+        if bill is not None:
+            booking.refresh_from_db()
+            booking.amount_paid = bill.amount_paid
+            booking.balance_due = bill.balance_due
+            booking.save(update_fields=['amount_paid', 'balance_due'])
+
+    booking.refresh_from_db()
+    if refunded > 0:
+        message = (f'Booking {booking.booking_reference} was cancelled. '
+                   f'PHP {refunded:,.2f} was refunded to your original payment.')
+        notification_type = Notification.Type.PAYMENT_REFUNDED
+        title = 'Flight booking cancelled and refunded'
+    elif not quote['refundable']:
+        message = (f'Booking {booking.booking_reference} was cancelled. '
+                   'This fare is non-refundable, so no payment was returned.')
+        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
+        title = 'Flight booking cancelled'
+    else:
+        message = f'Booking {booking.booking_reference} was cancelled.'
+        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
+        title = 'Flight booking cancelled'
+    notify(booking.passenger, notification_type, message, title=title)
+
+    return {'refunded': refunded, 'quote': quote}
+
+
 def issue_ticket(trx, ticketing_officer, *, remarks=''):
     """Issue the simulated ticket once the reservation is approved.
 

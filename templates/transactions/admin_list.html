@@ -76,7 +76,7 @@
                     <td>{{ r.date|date:"M d, Y H:i" }}</td>
                     <td>{{ r.type }}</td>
                     <td>₱ {{ r.amount }}</td>
-                    <td><span class="badge {% if r.status == 'Completed' %}badge-green{% elif r.status == 'Pending' %}badge-yellow{% elif r.status == 'Refunded' %}badge-gray{% else %}badge-red{% endif %}">{{ r.status }}</span></td>
+                    <td><span class="badge {% if r.status == 'Completed' %}badge-green{% elif r.status == 'Pending' %}badge-yellow{% elif r.status == 'Refunded' or r.status == 'Partially Refunded' %}badge-gray{% else %}badge-red{% endif %}">{{ r.status }}</span></td>
                     <td>
                         {% if r.bill_id %}<a href="{% url 'transactions:bill_detail' r.bill_id %}" class="btn btn-ghost btn-sm">View</a>
                         {% else %}<a href="{% url 'transactions:admin_list' %}?q={{ r.reference }}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i></a>{% endif %}

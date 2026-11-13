@@ -7,7 +7,7 @@
 <div class="page-head airline-booking-header">
     <div><h1>Booking {{ booking.booking_reference }}</h1><p>Flight booking details, billing and status.</p></div>
     <div class="airline-booking-actions">
-        {% if bill and bill.balance_due > 0 and booking.passenger_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" target="_top" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
+        {% if bill and bill.balance_due > 0 and booking.passenger_id == request.user.id and booking.status != 'CANCELLED' %}<a href="{% url 'transactions:bill_detail' bill.id %}" target="_top" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'COMPLETED' or booking.status == 'MODIFIED' %}
         <a href="{% url 'airlines:ticket' booking.id %}" target="_top" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
@@ -108,6 +108,41 @@
 
     {% include 'transactions/_booking_billing.html' %}
 </div>
+
+{% if can_cancel_booking %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-rotate-left"></i> Cancel Booking &amp; Refund</h4>
+    <p class="meta">
+        {% if cancellation.refundable %}
+            This fare is refundable. Cancellation fee:
+            <b>PHP {{ cancellation.cancellation_fee|floatformat:2 }}</b>.
+            Amount paid: <b>PHP {{ cancellation.paid|floatformat:2 }}</b>.
+            Estimated refund:
+            <b>PHP {{ cancellation.refund_due|floatformat:2 }}</b>.
+        {% elif cancellation.has_fare_terms %}
+            This fare is non-refundable. The booking will be cancelled but no
+            payment will be returned.
+        {% else %}
+            Amount paid: <b>PHP {{ cancellation.paid|floatformat:2 }}</b>.
+            No fare rules are attached to this booking, so the paid amount is
+            refunded in full.
+        {% endif %}
+    </p>
+    <form method="post" data-submit-loading
+          onsubmit="return confirm('Cancel this booking and process any eligible refund?');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="cancel">
+        <div class="form-group">
+            <label for="cancel-reason">Reason for cancellation</label>
+            <textarea id="cancel-reason" name="manager_remarks" class="form-input" rows="2"
+                      placeholder="Optional"></textarea>
+        </div>
+        <button type="submit" class="btn btn-danger btn-sm">
+            <i class="fas fa-ban"></i> Cancel Booking &amp; Refund
+        </button>
+    </form>
+</div>
+{% endif %}
 
 {% if can_manage %}
     {% if not reservation_agent_restricted %}

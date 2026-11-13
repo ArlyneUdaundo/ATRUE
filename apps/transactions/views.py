@@ -490,9 +490,15 @@ def admin_list(request):
             'booking_ref': _linked_booking_ref(p),
             'customer': p.customer.get_full_name() or p.customer.username,
             'date': p.paid_at or p.pk,
-            'type': 'Refund' if p.status == 'REFUNDED' else 'Booking Payment',
+            'type': ('Refund' if p.status in (
+                Payment.Status.REFUNDED, Payment.Status.PARTIALLY_REFUNDED)
+                else 'Booking Payment'),
             'amount': p.amount,
-            'status': {'PENDING': 'Pending', 'PAID': 'Completed', 'REFUNDED': 'Refunded'}.get(p.status, p.status),
+            'status': {
+                'PENDING': 'Pending', 'PAID': 'Completed',
+                'PARTIALLY_REFUNDED': 'Partially Refunded',
+                'REFUNDED': 'Refunded',
+            }.get(p.status, p.status),
             'bill_id': p.bill_id,
         })
     for a in adjustments:
@@ -571,6 +577,7 @@ def admin_list(request):
         ],
         'status_choices': [('Pending', 'Pending'), ('Completed', 'Completed'),
                            ('Failed', 'Failed'), ('Cancelled', 'Cancelled'),
+                           ('Partially Refunded', 'Partially Refunded'),
                            ('Refunded', 'Refunded')],
     })
 
@@ -610,13 +617,21 @@ def bill_detail(request, bill_id):
                 else:
                     messages.success(request, "Payment submitted. It will remain pending until the Billing Officer confirms receipt.")
         elif action == 'refund':
-            payment = get_object_or_404(Payment, pk=request.POST.get('payment_id'), customer=request.user)
-            if payment.status == 'REFUNDED':
-                messages.warning(request, "This payment is already refunded.")
+            payment = get_object_or_404(
+                Payment, pk=request.POST.get('payment_id'), customer=request.user,
+                bill=bill)
+            if not payment.can_refund:
+                messages.warning(request, "This payment has no refundable balance.")
             else:
-                refund_payment(payment=payment, user=request.user,
-                               description=f"Refund of {payment.amount} from {bill.bill_reference}")
-                messages.success(request, "Payment refunded.")
+                try:
+                    refund_payment(
+                        payment=payment, user=request.user,
+                        amount=request.POST.get('amount') or None,
+                        description=f"Refund from {bill.bill_reference}")
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, "Payment refunded.")
         elif action == 'additional':
             purchase_type = request.POST.get('transaction_type', AdditionalTransaction.TransactionType.ADDITIONAL_SERVICE)
             description = request.POST.get('description', '').strip()

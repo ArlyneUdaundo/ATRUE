@@ -44,7 +44,6 @@ from atrue_core.slugs import get_object_by_slug_or_404
 from atrue_core.services import (
     bill_for_booking,
     bill_items_total,
-    cancel_booking,
     checkout,
     compute_airline_bill,
     confirm_booking,
@@ -5753,6 +5752,15 @@ def _reservation_agent_can_access_airline(user, airline):
     )
 
 
+def _cancellation_result_message(result):
+    refunded = result['refunded']
+    if refunded > 0:
+        return f'Booking cancelled. PHP {refunded:,.2f} was refunded.'
+    if not result['quote']['refundable']:
+        return 'Booking cancelled. This fare is non-refundable, so no payment was refunded.'
+    return 'Booking cancelled. There was no paid amount to refund.'
+
+
 @xframe_options_sameorigin
 @login_required
 def booking_detail(request, booking_id):
@@ -5761,6 +5769,8 @@ def booking_detail(request, booking_id):
         effective_role_keys,
     )
     from transactions.models import Bill, Payment
+
+    from .services import CANCELABLE_STATUSES, cancellation_quote
 
     booking = get_object_or_404(Booking.objects.select_related('passenger', 'flight__airline'), pk=booking_id)
     role_keys = effective_role_keys(request.user)
@@ -5779,6 +5789,12 @@ def booking_detail(request, booking_id):
 
     bill = bill_for_booking(booking)
     payments = bill.payments.all() if bill else Payment.objects.none()
+    cancellation = cancellation_quote(booking)
+    can_cancel_booking = (
+        booking.status in CANCELABLE_STATUSES
+        and (can_manage or booking.passenger_id == request.user.id)
+        and not (reservation_agent_restricted and can_manage)
+    )
     ticketing_restricted = (
         can_manage
         and bool(role_keys & AIRLINE_TICKETING_ROLE_KEYS)
@@ -5791,6 +5807,22 @@ def booking_detail(request, booking_id):
         and not can_access_module(request.user, 'airlines')
     )
     can_print_ticket = _can_print_airline_ticket(request.user, booking)
+
+    if (request.method == 'POST'
+            and request.POST.get('action') == 'cancel'
+            and booking.passenger_id == request.user.id
+            and not can_manage):
+        from .services import AirlineWorkflowError, cancel_and_refund_booking
+
+        try:
+            result = cancel_and_refund_booking(
+                booking, request.user,
+                remarks=request.POST.get('manager_remarks', '').strip())
+        except AirlineWorkflowError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, _cancellation_result_message(result))
+        return redirect('airlines:booking_detail', booking.id)
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
@@ -5913,9 +5945,19 @@ def booking_detail(request, booking_id):
             else:
                 messages.error(request, f"Invalid passenger count (max {flight.capacity}).")
         elif action == 'cancel':
-            cancel_booking(booking, request.user)
-            log_activity(booking.passenger, f"Flight {booking.booking_reference} cancelled",
-                         booking.flight.flight_number)
+            from .services import AirlineWorkflowError, cancel_and_refund_booking
+
+            try:
+                result = cancel_and_refund_booking(
+                    booking, request.user, remarks=remark)
+            except AirlineWorkflowError as exc:
+                messages.error(request, str(exc))
+            else:
+                log_activity(booking.passenger,
+                             f"Flight {booking.booking_reference} cancelled",
+                             booking.flight.flight_number)
+                messages.success(request, _cancellation_result_message(result))
+            return redirect('airlines:booking_detail', booking.id)
         elif action == 'pay':
             record_payment(
                 customer=request.user if request.user == booking.passenger else booking.passenger,
@@ -5964,6 +6006,8 @@ def booking_detail(request, booking_id):
         'can_mark_travelled': can_mark_travelled,
         'is_reservation_officer': reservation_agent_restricted,
         'can_print_ticket': can_print_ticket,
+        'can_cancel_booking': can_cancel_booking,
+        'cancellation': cancellation,
         'flight_capacity': booking.flight.capacity,
         'itinerary': itinerary,
         'itinerary_legs': legs,

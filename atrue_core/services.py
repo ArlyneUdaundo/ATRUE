@@ -131,31 +131,58 @@ def record_payment(*, customer, amount, method, service="", description="",
     return payment
 
 
-def refund_payment(*, payment, user, description=""):
-    """Reverse a completed payment (FR Module 36 - refund).
+def refund_payment(*, payment, user, amount=None, description=""):
+    """Reverse a completed payment, fully or partially (FR Module 36 - refund).
 
-    Marks the payment REFUNDED, reduces the linked bill's paid amount and
-    re-balances it, then logs both activity and a transaction record.
+    Reduces the linked bill's paid amount and re-balances it, then logs both
+    activity and a transaction record. A partial refund leaves the payment
+    ``PARTIALLY_REFUNDED`` so the remaining refundable balance stays visible.
     """
-    from decimal import Decimal
+    from decimal import Decimal, InvalidOperation
+
+    from django.db import transaction
 
     from transactions.models import Bill, Payment
 
-    if payment.status == 'REFUNDED':
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        if payment.status == Payment.Status.REFUNDED:
+            return payment
+        if payment.status not in (Payment.Status.PAID, Payment.Status.PARTIALLY_REFUNDED):
+            raise ValueError('Only paid payments can be refunded.')
+
+        remaining = max(Decimal(0), Decimal(payment.amount) - Decimal(payment.refunded_amount))
+        if amount is None:
+            refund_amount = remaining
+        else:
+            try:
+                refund_amount = Decimal(amount)
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise ValueError('Enter a valid refund amount.') from exc
+            if refund_amount <= 0:
+                raise ValueError('The refund amount must be greater than zero.')
+            refund_amount = min(refund_amount, remaining)
+        if refund_amount <= 0:
+            return payment
+
+        payment.refunded_amount = Decimal(payment.refunded_amount) + refund_amount
+        payment.status = (Payment.Status.REFUNDED
+                          if payment.refunded_amount >= Decimal(payment.amount)
+                          else Payment.Status.PARTIALLY_REFUNDED)
+        payment.save(update_fields=['status', 'refunded_amount'])
+
+        bill = None
+        if payment.bill_id:
+            bill = Bill.objects.select_for_update().get(pk=payment.bill_id)
+            bill.amount_paid = max(Decimal(0), Decimal(bill.amount_paid) - refund_amount)
+            bill.save(update_fields=['amount_paid'])
+            bill._refresh()
+
+        log_activity(user, "Refunded payment",
+                     f"Payment {payment.payment_reference} refunded - {refund_amount}")
+        record_transaction(TransactionRecord.RecordType.REFUND, make_reference("REF"), user,
+                           description or f"Refund of {refund_amount}")
         return payment
-    payment.status = 'REFUNDED'
-    payment.save(update_fields=['status'])
-    bill = payment.bill
-    if bill:
-        bill.amount_paid = Decimal(bill.amount_paid) - Decimal(payment.amount)
-        bill.amount_paid = max(Decimal(0), bill.amount_paid)
-        bill.save(update_fields=['amount_paid'])
-        bill._refresh()
-    log_activity(user, f"Refunded payment",
-                 f"Payment {payment.payment_reference} refunded - {payment.amount}")
-    record_transaction(TransactionRecord.RecordType.REFUND, make_reference("REF"), user,
-                       description or f"Refund of {payment.amount}")
-    return payment
 
 
 def create_bill(*, service, customer, items, booking=None):
@@ -446,11 +473,12 @@ def decline_booking(booking, user, reason='', notify=True, session=None, establi
     log_activity(user, "Booking declined", str(booking.pk))
 
 
-def cancel_booking(booking, user, release_callback=None):
+def cancel_booking(booking, user, release_callback=None, reason=''):
     """Mark booking CANCELLED and release the reserved resource (BR-021)."""
     from transactions.models import Bill, Cancellation
     customer = getattr(booking, 'customer', None) or getattr(booking, 'passenger', None) or user
-    cancellation = Cancellation(requested_by=user, status=Cancellation.Status.APPROVED)
+    cancellation = Cancellation(
+        requested_by=user, status=Cancellation.Status.APPROVED, reason=reason)
     cancellation.link_to_booking(booking)
     cancellation.save()
     booking.status = 'CANCELLED'
