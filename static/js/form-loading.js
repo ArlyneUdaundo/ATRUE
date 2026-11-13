@@ -167,19 +167,17 @@
         markInvalid(event.target);
     }, true);
 
-    document.addEventListener('submit', function (event) {
-        var form = event.target;
-        if (!form || !form.matches || !form.matches('form')) return;
-
+    // Shared validator: marks every unfinished/invalid field, focuses the
+    // first one and returns it (or null when the form is complete).
+    function validateForm(form) {
+        if (!form || !form.querySelectorAll) return null;
         var firstInvalid = null;
         fieldsInForm(form).forEach(function (field) {
             if (!needsHighlight(field)) return;
             markInvalid(field);
             if (!firstInvalid) firstInvalid = field;
         });
-
-        if (!firstInvalid) return;
-        event.preventDefault();
+        if (!firstInvalid) return null;
         try {
             firstInvalid.focus();
         } catch (error) {
@@ -188,6 +186,15 @@
         if (typeof firstInvalid.scrollIntoView === 'function') {
             firstInvalid.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
+        return firstInvalid;
+    }
+
+    window.ATRUE_validateForm = validateForm;
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || !form.matches || !form.matches('form')) return;
+        if (validateForm(form)) event.preventDefault();
     }, true);
 
     function revalidate(event) {

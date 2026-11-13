@@ -393,17 +393,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirmBtn) {
         confirmBtn.addEventListener('click', () => {
             const f = reviewForm;
+            if (!f) return;
             closeReview();
-            if (f) {
-                f.dataset.submitting = '1';
-                const aside = f.ownerDocument.querySelector('button[form="' + f.id + '"]');
-                if (aside) {
-                    aside.disabled = true;
-                    aside.dataset.originalHtml = aside.innerHTML;
-                    aside.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                }
-                f.requestSubmit();
+            // Keep the button clickable: if anything is missing or wrong, stay
+            // on the page and highlight the fields instead of submitting.
+            const invalid = window.ATRUE_validateForm ? window.ATRUE_validateForm(f) : null;
+            if (invalid) return;
+            f.dataset.submitting = '1';
+            const aside = f.ownerDocument.querySelector('button[form="' + f.id + '"]');
+            if (aside) {
+                aside.disabled = true;
+                aside.dataset.originalHtml = aside.innerHTML;
+                aside.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             }
+            f.requestSubmit();
         });
     }
 });
@@ -537,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="{% static 'js/guests-tables.js' %}?v=20261012e"></script>
 <script src="{% static 'js/establishment-modal.js' %}?v=20261106-flight-modal-minimal-2"></script>
     <script src="{% static 'js/delete-confirm-modal.js' %}?v=20261015-confirm-button-fix-2"></script>
-    <script src="{% static 'js/form-loading.js' %}?v=20261113-required-red-1"></script>
+    <script src="{% static 'js/form-loading.js' %}?v=20261113-required-red-2"></script>
     <script src="{% static 'js/photo-upload.js' %}?v=20261028-photo-upload-2"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function(){
