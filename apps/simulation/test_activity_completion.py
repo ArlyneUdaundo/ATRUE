@@ -23,6 +23,7 @@ from atrue_core.services import confirm_booking
 from establishments.models import Establishment, establishment_for_instance
 from hotels.models import Hotel
 from airlines.models import Airline
+from notifications.models import Notification
 from restaurants.models import Reservation as RestaurantReservation
 from restaurants.models import Restaurant, Table
 from restaurants.services import confirm_restaurant_reservation
@@ -120,6 +121,9 @@ class HelperTests(CompletionTestCase):
 
     def test_task_completion_is_idempotent(self):
         assignment = self.assign(self.guest, 'PASSENGER_AIRLINE')
+        other_instructor = User.objects.create_user(
+            'other-completion-instructor', password='pw',
+            account_type=User.AccountType.INSTRUCTOR)
         first = complete_guest_booking(self.guest, assignment=assignment)
         second = complete_guest_booking(self.guest, assignment=assignment)
         self.assertIsNotNone(first)
@@ -127,6 +131,23 @@ class HelperTests(CompletionTestCase):
         self.assertEqual(
             ActivityLog.objects.filter(
                 user=self.guest, action='Completed simulation task').count(), 1)
+        instructor_notice = Notification.objects.get(recipient=self.instructor)
+        self.assertEqual(
+            instructor_notice.notification_type,
+            Notification.Type.STUDENT_WORK_COMPLETED)
+        self.assertEqual(instructor_notice.assignment, assignment)
+        self.assertEqual(instructor_notice.actor, self.guest)
+        self.assertIn('completion-guest', instructor_notice.message)
+        self.assertIn('Book Flight', instructor_notice.message)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.instructor,
+                notification_type=Notification.Type.STUDENT_WORK_COMPLETED,
+            ).count(), 1)
+        self.assertFalse(Notification.objects.filter(
+            recipient=other_instructor,
+            notification_type=Notification.Type.STUDENT_WORK_COMPLETED,
+        ).exists())
         assignment.refresh_from_db()
         self.assertEqual(
             assignment.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
@@ -499,6 +520,9 @@ class SessionProgressTests(CompletionTestCase):
         self.assertIsNotNone(record_workflow_action(
             self.manager, 'hotels:update_service',
             task_assignment_id=assignment.pk))
+        instructor_notice = Notification.objects.get(recipient=self.instructor)
+        self.assertEqual(instructor_notice.assignment, assignment)
+        self.assertIn('Manage Services', instructor_notice.message)
         progress = assignment_progress_data(assignment)
         service_task = next(task for task in progress['tasks']
                             if task['key'] == 'hotels.task.03')

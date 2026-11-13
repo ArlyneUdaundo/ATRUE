@@ -5,6 +5,7 @@ from django.urls import reverse
 from notifications.models import Notification
 from notifications.services import notify
 from establishments.models import Establishment
+from simulation.models import SimulationRoleAssignment, SimulationSession
 from travel_agencies.models import TravelAgencyRequest
 
 
@@ -53,6 +54,47 @@ class NotificationInboxTests(TestCase):
         self.assertEqual(response.context['page_obj'].paginator.count, 1)
         self.assertEqual(response.context['page_obj'].object_list[0].notification_type,
                          Notification.Type.ROLE_ASSIGNED)
+
+    def test_workflow_category_shows_student_work_notifications(self):
+        self.make_notification(
+            notification_type=Notification.Type.STUDENT_WORK_COMPLETED,
+            message='A student completed a booking workflow.')
+        self.make_notification(notification_type=Notification.Type.ROLE_ASSIGNED)
+
+        response = self.client.get(
+            reverse('notifications:list'), {'category': 'workflow'})
+
+        self.assertEqual(response.context['page_obj'].paginator.count, 1)
+        self.assertContains(response, 'Student Workflow')
+
+    def test_instructor_opens_work_completion_at_the_session(self):
+        session = SimulationSession.objects.create(
+            name='Hotel Training', instructor=self.user)
+        student = get_user_model().objects.create_user(
+            username='workflow-student', password='pw',
+            account_type='STUDENT')
+        assignment = SimulationRoleAssignment.objects.create(
+            student=student, session=session, assigned_by=self.user,
+            role=SimulationRoleAssignment.Role.GUEST_HOTEL,
+            activity_name=session.name)
+        notification = notify(
+            self.user,
+            Notification.Type.STUDENT_WORK_COMPLETED,
+            'Student completed a workflow task.',
+            title='Student workflow completed',
+            assignment=assignment,
+            session=session,
+            actor=student,
+            role=assignment.role_ref,
+        )
+
+        response = self.client.post(
+            reverse('notifications:open', args=[notification.pk]))
+
+        self.assertRedirects(
+            response, f"{reverse('simulation:workspace')}#session-{session.pk}")
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_read)
 
     def test_history_is_paginated_without_dropping_old_notifications(self):
         for index in range(30):

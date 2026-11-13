@@ -30,6 +30,7 @@ def notification_list(request):
     category_prefixes = {
         'roles': ('ROLE_',),
         'sessions': ('SESSION_',),
+        'workflow': ('STUDENT_WORK_',),
         'bookings': ('HOTEL_', 'RESTAURANT_', 'RESORT_', 'STAYCATION_', 'ACTIVITY_',
                      'LANDMARK_', 'FLIGHT_', 'TRAVEL_', 'TOUR_', 'TRANSPORT_'),
         'payments': ('PAYMENT_', 'BILLING_'),
@@ -95,9 +96,13 @@ def _notification_destination(notification, user):
     if notification.assignment_id:
         from simulation.models import SimulationRoleAssignment
         assignment = SimulationRoleAssignment.objects.filter(
-            pk=notification.assignment_id, student=user).first()
-        if assignment:
+            pk=notification.assignment_id).select_related(
+                'session', 'session__instructor').first()
+        if assignment and assignment.student_id == user.pk:
             return reverse('simulation:role_detail', args=[assignment.pk])
+        if (assignment and assignment.session_id
+                and assignment.session.instructor_id == user.pk):
+            return f"{reverse('simulation:workspace')}#session-{assignment.session_id}"
     return reverse('notifications:list')
 
 

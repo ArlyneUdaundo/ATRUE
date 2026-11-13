@@ -24,6 +24,7 @@ class Notification(models.Model):
         ROLE_REMOVED = 'ROLE_REMOVED', 'Role removed'
         SESSION_ACTIVATED = 'SESSION_ACTIVATED', 'Simulation session activated'
         SESSION_COMPLETED = 'SESSION_COMPLETED', 'Simulation session completed'
+        STUDENT_WORK_COMPLETED = 'STUDENT_WORK_COMPLETED', 'Student workflow completed'
         # -- hotel workflow -------------------------------------------------
         HOTEL_RESERVATION_SUBMITTED = 'HOTEL_RESERVATION_SUBMITTED', 'Hotel reservation submitted'
         HOTEL_RESERVATION_APPROVED = 'HOTEL_RESERVATION_APPROVED', 'Hotel reservation approved'

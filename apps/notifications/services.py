@@ -95,6 +95,36 @@ def notify_role_assignment(assignment, actor, *, modified=False, removed=False):
     )
 
 
+def notify_assignment_task_completed(assignment, task_label, actor, *,
+                                     booking_reference=''):
+    """Notify the session instructor when a student's assigned workflow task completes."""
+    session = assignment.session
+    recipient = session.instructor if session else None
+    if recipient is None or recipient.pk == getattr(actor, 'pk', None):
+        return None
+
+    student = assignment.student
+    student_name = student.get_full_name().strip() or student.get_username()
+    message = f'{student_name} completed "{task_label}" as {assignment.get_role_display()}'
+    if assignment.establishment_id:
+        message += f' at {assignment.establishment.name}'
+    message += f' for {session.name}'
+    if booking_reference:
+        message += f' (Reference: {booking_reference})'
+    message += '.'
+    return notify(
+        recipient,
+        Notification.Type.STUDENT_WORK_COMPLETED,
+        message,
+        title='Student workflow completed',
+        assignment=assignment,
+        session=session,
+        establishment=assignment.establishment,
+        role=assignment.role_ref,
+        actor=actor,
+    )
+
+
 def notify_many(recipients, notification_type, message, **kwargs):
     """Fan a message out to several students; skips duplicates and empty sets."""
     if not recipients:
