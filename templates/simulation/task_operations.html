@@ -33,26 +33,4 @@
         </div>
     </div>
 </div>
-
-{% if progress.tasks %}
-<div class="card card-pad" style="margin-top:20px">
-    <div>
-        <h2 style="margin:0"><i class="fas fa-list-check"></i> Assigned Tasks</h2>
-        <p style="margin:6px 0 0;color:var(--slate-600)">Complete the tasks assigned for your {{ assignment.get_role_display }} role.</p>
-    </div>
-    <ol class="sim-task-list" style="margin-top:16px">
-        {% for task in progress.tasks %}
-        <li class="sim-task sim-task--{{ task.state }}" data-task-key="{{ task.key }}" data-task-base-state="{{ task.base_state }}">
-            <span class="sim-task-number">{{ forloop.counter }}</span>
-            <span class="sim-task-copy">
-                <span class="sim-task-label">{{ task.label }}</span>
-                {% if task.description %}<span class="sim-task-description">{{ task.description }}</span>{% endif %}
-            </span>
-            <span class="sim-task-status">{{ task.status }}</span>
-            {% if task.url %}<a href="{{ task.url }}" class="btn btn-brand btn-sm">Open Task</a>{% endif %}
-        </li>
-        {% endfor %}
-    </ol>
-</div>
-{% endif %}
 {% endblock %}

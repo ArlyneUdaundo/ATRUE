@@ -144,9 +144,6 @@ def do_task(request, assignment_id):
 
     request.session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
     operation = operation_with_urls(assignment, operation)
-    progress = assignment_progress_data(assignment)
-    for task, operation_task in zip(progress['tasks'], operation['tasks']):
-        task['url'] = operation_task['url']
 
     # Starting is idempotent across refreshes and concurrent opens. The
     # assignment timestamp is the durable state; the linked ActivityLog is its
@@ -175,7 +172,6 @@ def do_task(request, assignment_id):
     return render(request, 'simulation/task_operations.html', {
         'assignment': assignment,
         'operation': operation,
-        'progress': progress,
         'task_window': task_window_for(assignment),
         'task_status': 'In Progress' if assignment.started_at else 'Not Started',
     })
