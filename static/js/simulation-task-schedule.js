@@ -15,7 +15,11 @@
 
     button.addEventListener('click', function () {
       if (!button.disabled && button.dataset.taskUrl) {
-        window.location.assign(button.dataset.taskUrl);
+        var taskUrl = new URL(button.dataset.taskUrl, window.location.href);
+        var context = window.ATRUE_CTX
+          || new URL(window.location.href).searchParams.get('ctx');
+        if (context) taskUrl.searchParams.set('ctx', context);
+        window.location.assign(taskUrl.pathname + taskUrl.search + taskUrl.hash);
       }
     });
 
