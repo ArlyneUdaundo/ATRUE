@@ -1078,9 +1078,9 @@
             return;
         }
         var options = establishmentData[type] || [];
-        if (type === 'AIRLINE') {
-            var uniqueAirlines = Object.create(null);
-            var dedupedAirlines = [];
+        if (type === 'AIRLINE' || type === 'TOUR_PACKAGE') {
+            var uniqueEstablishments = Object.create(null);
+            var dedupedEstablishments = [];
             options.forEach(function (establishment) {
                 var name = String(establishment.name || '');
                 if (name.normalize) name = name.normalize('NFKC');
@@ -1088,16 +1088,16 @@
                     .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
                 if (!name) return;
 
-                var existing = uniqueAirlines[name];
+                var existing = uniqueEstablishments[name];
                 if (!existing) {
-                    uniqueAirlines[name] = establishment;
-                    dedupedAirlines.push(establishment);
+                    uniqueEstablishments[name] = establishment;
+                    dedupedEstablishments.push(establishment);
                 } else if (selected && String(establishment.id) === String(selected)) {
-                    dedupedAirlines[dedupedAirlines.indexOf(existing)] = establishment;
-                    uniqueAirlines[name] = establishment;
+                    dedupedEstablishments[dedupedEstablishments.indexOf(existing)] = establishment;
+                    uniqueEstablishments[name] = establishment;
                 }
             });
-            options = dedupedAirlines;
+            options = dedupedEstablishments;
         }
         var optional = Boolean(guest);
         var html = '<option value="">' + (optional ? 'No specific place'
