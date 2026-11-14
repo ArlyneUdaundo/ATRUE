@@ -489,21 +489,6 @@
     var connectingSection = form.querySelector('[data-connecting-section]');
     var airlineSelect = form.querySelector('[data-airline]');
 
-    // Keep one choice per displayed airline name, including names with invisible
-    // Unicode differences that can make duplicate records look identical.
-    if (airlineSelect) {
-        var seenAirlineNames = Object.create(null);
-        Array.prototype.slice.call(airlineSelect.options, 1).forEach(function (option) {
-            var name = option.textContent;
-            if (name.normalize) name = name.normalize('NFKC');
-            name = name.replace(/[\u200B-\u200D\uFEFF]/g, '')
-                .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-            if (!name) return;
-            if (seenAirlineNames[name]) option.remove();
-            else seenAirlineNames[name] = true;
-        });
-    }
-
     /* The airline <select> cannot render logos, so the chosen carrier's mark
        sits beside it and follows the selection. */
     var airlineLogo = document.getElementById('flightAirlineLogo');

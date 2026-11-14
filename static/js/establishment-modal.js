@@ -35,6 +35,23 @@
         body.innerHTML = '<div class="establishment-modal__loading"><i class="fas fa-spinner fa-spin"></i> ' + message + '</div>';
     }
 
+    function dedupeAirlineOptions(form) {
+        if (!form.matches('[data-flight-form]')) return;
+        var select = form.querySelector('[data-airline]');
+        if (!select) return;
+
+        var seen = Object.create(null);
+        Array.prototype.slice.call(select.options, 1).forEach(function (option) {
+            var name = option.textContent;
+            if (name.normalize) name = name.normalize('NFKC');
+            name = name.replace(/[\u200B-\u200D\uFEFF]/g, '')
+                .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+            if (!name) return;
+            if (seen[name]) option.remove();
+            else seen[name] = true;
+        });
+    }
+
     function prepareForm(form, url) {
         form.action = url.href;
         form.addEventListener('submit', submitForm);
@@ -78,6 +95,7 @@
         if (heading && !sourceForm.matches('[data-flight-form], [data-agency-form], [data-account-create-form], [data-tour-package-form], [data-service-form], [data-amenity-form], [data-resort-form], [data-staycation-form], [data-restaurant-form], [data-landmark-form], [data-activity-form]') && !heading.classList.contains('room-form-page-head') && !heading.classList.contains('unit-form-page-head') && !heading.classList.contains('hotel-form-page-head') && !heading.classList.contains('session-form-page-head')) body.appendChild(heading.cloneNode(true));
         var form = sourceForm.cloneNode(true);
         body.appendChild(form);
+        dedupeAirlineOptions(form);
         modal.classList.toggle('establishment-modal--flight', form.matches('[data-flight-form]'));
         var title = sourceForm.dataset.modalTitle || (heading && heading.querySelector('h1') && heading.querySelector('h1').textContent.trim());
         if (title) modal.querySelector('#establishmentModalTitle').textContent = title;
