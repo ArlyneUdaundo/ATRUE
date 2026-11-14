@@ -3,7 +3,7 @@
 {% block search_page %}
 <div class="bk-page">
 
-    <form class="bk-search-form" method="get" action="">
+    <form class="bk-search-form" method="get" action="" data-category="{{ category }}">
         {% include 'search/_search_bar.html' %}
 
         <div class="bk-body">

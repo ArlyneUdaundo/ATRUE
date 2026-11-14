@@ -87,15 +87,18 @@
     }
   }
 
-  /* ---- default dates ------------------------------------------- */
+  /* ---- default dates (Tour Packages wait for the visitor's choice) */
   var checkIn = qs('[name="check_in"]');
   var checkOut = qs('[name="check_out"]');
   var today = new Date();
-  if (checkIn && !checkIn.value) checkIn.value = fmtDate(today);
-  if (checkOut && !checkOut.value) {
-    var tmrw = new Date();
-    tmrw.setDate(tmrw.getDate() + 1);
-    checkOut.value = fmtDate(tmrw);
+  var packageSearchForm = qs('.bk-search-form[data-category="package"]');
+  if (!packageSearchForm) {
+    if (checkIn && !checkIn.value) checkIn.value = fmtDate(today);
+    if (checkOut && !checkOut.value) {
+      var tmrw = new Date();
+      tmrw.setDate(tmrw.getDate() + 1);
+      checkOut.value = fmtDate(tmrw);
+    }
   }
   function enforceDates() {
     if (checkIn && checkOut && checkIn.value && checkOut.value && checkIn.value >= checkOut.value) {
