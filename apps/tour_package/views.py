@@ -128,8 +128,6 @@ def package_list(request):
 def package_detail(request, package_id):
     """View a single tour package (FR-025 VIEW Package)."""
     packages = TourPackage.objects.prefetch_related('photos')
-    if not may_manage_package(request):
-        packages = scope_bookable_packages(request, packages)
     package = get_object_by_slug_or_404(
         packages, package_id)
     is_manager = may_manage_package(request, package.pk)

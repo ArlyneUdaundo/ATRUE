@@ -183,15 +183,12 @@ def scope_bookable_packages(request, queryset):
 
 
 def scope_directory_packages(request, queryset):
-    allowed = assigned_package_ids(request)
-    if allowed is None:
-        return queryset
-    if allowed:
-        return queryset.filter(pk__in=allowed)
-    if (_is_unassigned_public_booker(request)
-            or _is_unscoped_assigned_package_guest(request)):
-        return queryset
-    return queryset.none()
+    """Keep the active package directory visible across assignment scopes.
+
+    The directory is a public catalogue; package-specific booking permissions
+    remain enforced by ``scope_bookable_packages`` and the booking views.
+    """
+    return queryset
 
 
 def scope_customer_bookings(request, queryset, roles):

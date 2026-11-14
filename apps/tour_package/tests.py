@@ -149,7 +149,7 @@ class AssignedTourPackageDirectoryTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_assigned_guest_sees_only_the_assigned_package(self):
+    def test_assigned_guest_sees_all_public_packages_but_can_only_book_assigned(self):
         user = User.objects.create_user(
             'assigned-package-guest', password='pw', account_type=User.AccountType.STUDENT)
         self.client.force_login(user)
@@ -158,7 +158,11 @@ class AssignedTourPackageDirectoryTests(TestCase):
         response = self.client.get(reverse('tour_package:list'))
 
         self.assertContains(response, self.package.name)
-        self.assertNotContains(response, self.other_package.name)
+        self.assertContains(response, self.other_package.name)
+        detail = self.client.get(
+            reverse('tour_package:detail', args=[self.other_package.slug]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context['can_book'])
 
     def test_tour_guest_without_specific_package_sees_public_packages(self):
         user = User.objects.create_user(
@@ -176,7 +180,7 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertEqual(detail.status_code, 200)
         self.assertTrue(detail.context['can_book'])
 
-    def test_guest_cannot_open_or_book_an_unassigned_package(self):
+    def test_guest_can_view_but_cannot_book_an_unassigned_package(self):
         user = User.objects.create_user(
             'assigned-package-guest-2', password='pw', account_type=User.AccountType.STUDENT)
         self.client.force_login(user)
@@ -185,7 +189,8 @@ class AssignedTourPackageDirectoryTests(TestCase):
         detail = self.client.get(reverse('tour_package:detail', args=[self.other_package.slug]))
         booking = self.client.post(reverse('tour_package:book_package', args=[self.other_package.pk]))
 
-        self.assertEqual(detail.status_code, 404)
+        self.assertEqual(detail.status_code, 200)
+        self.assertFalse(detail.context['can_book'])
         self.assertEqual(booking.status_code, 404)
 
     def test_assigned_guest_can_book_the_assigned_package(self):
