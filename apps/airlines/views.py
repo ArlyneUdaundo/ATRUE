@@ -3243,6 +3243,10 @@ def flight_detail(request, flight_id):
             'first_leg': flight,
             'last_leg': flight,
             'remaining': remaining,
+            'seat_pricing_by_segment': [{
+                'label': flight.flight_number or flight.leg_label,
+                'seat_types': _customer_seat_types(_seat_map(flight), '₱'),
+            }],
             'route_points': route_points,
             'schedule_route_label': flight.leg_label,
             'schedule_airline': flight.airline,
@@ -3261,10 +3265,13 @@ def flight_detail(request, flight_id):
                 'airlines:update_flight', args=[flight.id]
             ),
         })
+    seat_pricing = _customer_seat_types(_seat_map(flight), '₱')
     return render(request, 'airlines/flight_detail.html', {
         'flight': flight,
         'remaining': remaining,
         'seat_layout': flight.seat_layout,
+        'seat_pricing': seat_pricing,
+        'seat_pricing_note': _seat_types_note(seat_pricing),
         'can_book_flight': (
             active_assignment is not None
             and active_assignment.role == 'PASSENGER_AIRLINE'
@@ -3315,6 +3322,10 @@ def itinerary_detail(request, itinerary_id):
     legs = itinerary.ordered_legs
     timing = itinerary_timing(legs)
     segment_rows = _itinerary_seat_maps(itinerary)
+    seat_pricing_by_segment = [{
+        'label': row['flight'].flight_number or row['flight'].leg_label,
+        'seat_types': _customer_seat_types(row['seat_map'], '₱'),
+    } for row in segment_rows]
     route_points = []
     if legs:
         route_points.append({
@@ -3353,6 +3364,7 @@ def itinerary_detail(request, itinerary_id):
         'last_leg': legs[-1] if legs else None,
         'remaining': min([row['remaining'] for row in segment_rows] or [0]),
         'segment_maps': segment_rows,
+        'seat_pricing_by_segment': seat_pricing_by_segment,
         'itinerary_active': itinerary_active,
         'itinerary_status_label': itinerary_status_label,
         'aircraft_label': aircraft_label,
@@ -3384,11 +3396,16 @@ def itinerary_public_detail(request, itinerary_id):
         return redirect('airlines:list')
     timing = itinerary.timing
     segment_rows = _itinerary_seat_maps(itinerary)
+    seat_pricing_by_segment = [{
+        'label': row['flight'].flight_number or row['flight'].leg_label,
+        'seat_types': _customer_seat_types(row['seat_map'], '₱'),
+    } for row in segment_rows]
     return render(request, 'airlines/itinerary_public.html', {
         'itinerary': itinerary,
         'timing': timing,
         'legs': itinerary.ordered_legs,
         'segment_rows': segment_rows,
+        'seat_pricing_by_segment': seat_pricing_by_segment,
         'remaining': min([row['remaining'] for row in segment_rows] or [0]),
         'trip_type': itinerary.trip_type,
     })

@@ -176,6 +176,34 @@
         </div>
     </section>
 
+    {% if seat_pricing_by_segment %}
+    <section class="itinerary-panel">
+        <h2><i class="fas fa-chair"></i> Seat Pricing</h2>
+        <div class="table-wrap" style="padding:0 16px 16px">
+            <table class="table">
+                <thead><tr><th>Segment</th><th>Seat type</th><th>Price per seat</th></tr></thead>
+                <tbody>
+                    {% for group in seat_pricing_by_segment %}
+                    {% for seat_type in group.seat_types %}
+                    <tr>
+                        <td>{{ group.label }}</td>
+                        <td>
+                            <span style="display:inline-block;width:11px;height:11px;border-radius:50%;border:1px solid #cbd5e1;background:{{ seat_type.color|default:'#ffffff' }};margin-right:8px;vertical-align:-1px"></span>
+                            {{ seat_type.label }}
+                        </td>
+                        <td><b>&#8369;{{ seat_type.price|floatformat:2 }}</b></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td>{{ group.label }}</td><td colspan="2" class="meta">No seat pricing configured.</td></tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="meta" style="margin:10px 0 0">Seat selection is optional. Prices are per seat, per traveller, and are added to the fare.</p>
+        </div>
+    </section>
+    {% endif %}
+
     <section class="itinerary-panel">
         <h2><i class="fas fa-plane"></i> Journey Timeline</h2>
         <div class="itinerary-timeline">

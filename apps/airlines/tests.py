@@ -637,6 +637,82 @@ class SeatMapTest(TestCase):
             [c['fare_field'] for c in sm['cabins']],
             ['first_class_fare', 'business_fare', 'economy_fare'])
 
+    def _price_seat(self):
+        types = ensure_seat_types()
+        seat = self.flight.seat_layout_record.seats.get(seat_number='1A')
+        seat.seat_type = types['extra_legroom']
+        seat.price_override = Decimal('1234.00')
+        seat.save()
+
+    def test_flight_detail_lists_seat_type_prices_for_managers(self):
+        self._price_seat()
+        manager = get_user_model().objects.create_user(
+            'seat-price-manager', password='x', is_staff=True)
+        self.client.force_login(manager)
+
+        response = self.client.get(
+            reverse('airlines:flight_detail', args=[self.flight.slug]))
+
+        self.assertTemplateUsed(response, 'airlines/itinerary_detail.html')
+        self.assertContains(response, 'Seat Pricing')
+        self.assertContains(response, 'Extra Legroom')
+        self.assertContains(response, '1234.00')
+
+    def test_flight_detail_lists_seat_type_prices_for_passengers(self):
+        from simulation.models import SimulationRoleAssignment
+
+        self._price_seat()
+        passenger = get_user_model().objects.create_user(
+            'seat-price-passenger', password='x', account_type='STUDENT')
+        assignment = SimulationRoleAssignment.objects.create(
+            student=passenger, role='PASSENGER_AIRLINE',
+            activity_name='Seat Pricing')
+        self.client.force_login(passenger)
+        session = self.client.session
+        session['active_simulation_task_assignment'] = assignment.pk
+        session.save()
+
+        response = self.client.get(
+            reverse('airlines:flight_detail', args=[self.flight.slug]))
+
+        self.assertTemplateUsed(response, 'airlines/flight_detail.html')
+        self.assertContains(response, 'Seat Pricing')
+        self.assertContains(response, 'Extra Legroom')
+        self.assertContains(response, '1234.00')
+
+    def test_itinerary_detail_lists_seat_type_prices(self):
+        self._price_seat()
+        origin = Airport.objects.create(
+            airport_name='Manila Airport', iata_code='MNL', city='Manila',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        destination = Airport.objects.create(
+            airport_name='Cebu Airport', iata_code='CEB', city='Cebu',
+            country='Philippines', timezone='Asia/Manila', status='ACTIVE')
+        self.flight.origin_airport = origin
+        self.flight.destination_airport = destination
+        self.flight.save(update_fields=['origin_airport', 'destination_airport'])
+        itinerary = FlightItinerary.objects.create(
+            airline=self.airline, base_fare=Decimal('30000.00'))
+        self.flight.itinerary = itinerary
+        self.flight.save(update_fields=['itinerary'])
+        manager = get_user_model().objects.create_user(
+            'seat-price-itinerary-manager', password='x', is_staff=True)
+        self.client.force_login(manager)
+
+        response = self.client.get(
+            reverse('airlines:itinerary_detail', args=[itinerary.pk]))
+
+        self.assertContains(response, 'Seat Pricing')
+        self.assertContains(response, 'Extra Legroom')
+        self.assertContains(response, '1234.00')
+
+        public_response = self.client.get(reverse(
+            'airlines:itinerary_public_detail', args=[itinerary.pk]))
+
+        self.assertContains(public_response, 'Seat Pricing')
+        self.assertContains(public_response, 'Extra Legroom')
+        self.assertContains(public_response, '1234.00')
+
 
 class FlightLocationTest(TestCase):
     """The worldwide location hierarchy wired into flights must survive the

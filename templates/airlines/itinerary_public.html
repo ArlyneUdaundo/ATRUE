@@ -86,6 +86,34 @@ DXB, so the page is that journey and nothing else.
     </div>
 </div>
 
+{% if seat_pricing_by_segment %}
+<div class="card card-pad" style="margin-bottom:18px">
+    <h3 style="margin:0 0 8px"><i class="fas fa-chair"></i> Seat Pricing</h3>
+    <p style="color:#64748b;margin:0 0 12px">Seat selection is optional. Prices are per seat, per traveller, and are added to the fare.</p>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Segment</th><th>Seat type</th><th>Price per seat</th></tr></thead>
+            <tbody>
+                {% for group in seat_pricing_by_segment %}
+                {% for seat_type in group.seat_types %}
+                <tr>
+                    <td>{{ group.label }}</td>
+                    <td>
+                        <span style="display:inline-block;width:11px;height:11px;border-radius:50%;border:1px solid #cbd5e1;background:{{ seat_type.color|default:'#ffffff' }};margin-right:8px;vertical-align:-1px"></span>
+                        {{ seat_type.label }}
+                    </td>
+                    <td><b>&#8369;{{ seat_type.price|floatformat:2 }}</b></td>
+                </tr>
+                {% empty %}
+                <tr><td>{{ group.label }}</td><td colspan="2" class="meta">No seat pricing configured.</td></tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <div class="card card-pad">
     <h3 style="margin:0 0 8px"><i class="fas fa-chair"></i> Seats by Segment</h3>
     <p style="color:#64748b;margin:0 0 12px">Each segment is a different aircraft, so you choose a seat on every one of them.</p>
