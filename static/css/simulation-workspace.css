@@ -1339,6 +1339,50 @@ body.sim-modal-open {
         padding: 12px 12px 2px;
     }
 
+    .sim-session-dialog .simulation-student-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        justify-content: initial;
+        gap: 8px 10px;
+        padding: 12px;
+    }
+
+    .sim-session-dialog .simulation-student-identity,
+    .sim-session-dialog .simulation-student-summary > .badge,
+    .sim-session-dialog .simulation-student-task-progress,
+    .sim-session-dialog .simulation-student-status {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .sim-session-dialog .simulation-student-summary > .badge {
+        justify-self: start;
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    .sim-session-dialog .simulation-student-name {
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+
+    .sim-session-dialog .simulation-student-task-progress {
+        white-space: normal;
+    }
+
+    .sim-session-dialog .simulation-student-status {
+        justify-self: start;
+        white-space: normal;
+    }
+
+    .sim-session-dialog .simulation-student-view {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+        align-self: center;
+        justify-self: end;
+    }
+
     .sim-session-foot {
         padding: 10px 14px 14px;
     }
