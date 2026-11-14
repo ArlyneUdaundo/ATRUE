@@ -1254,6 +1254,10 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Hotel Operations')
         self.assertContains(response, 'Manage Bookings and Guests')
+        self.assertContains(response, 'Assigned Tasks')
+        self.assertContains(response, 'Deliver or fulfil')
+        self.assertContains(
+            response, response.context['progress']['tasks'][0]['url'])
         self.assertContains(response, 'class="nav-dd-menu"')
         self.assertNotContains(response, 'Open Hotel Operations')
         self.assertNotContains(response, 'User Admins')
