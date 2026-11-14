@@ -290,10 +290,7 @@ def add_session(request):
 @login_required
 def add_announcement(request):
     """Send an instructor announcement or update to a session's students."""
-    modal_request = request.GET.get('modal') == '1' or request.POST.get('modal') == '1'
     if not _is_instructor(request.user):
-        if modal_request:
-            return JsonResponse({'error': 'Only instructors may post announcements.'}, status=403)
         messages.error(request, 'Only instructors may post announcements.')
         return redirect('simulation:workspace')
 
@@ -355,20 +352,14 @@ def add_announcement(request):
                 f'{title} sent to {len(recipients)} '
                 f'{"student" if len(recipients) == 1 else "students"}.',
             )
-            if modal_request:
-                return JsonResponse({
-                    'redirect': f"{reverse('simulation:workspace')}#session-{selected_session.pk}",
-                })
             return redirect(
                 f"{reverse('simulation:workspace')}#session-{selected_session.pk}")
 
-    return render(request,
-        'simulation/_announcement_form.html' if modal_request else 'simulation/add_announcement.html', {
+    return render(request, 'simulation/add_announcement.html', {
         'sessions': sessions,
         'kind_choices': kind_choices,
         'posted': posted,
         'errors': errors,
-        'modal_request': modal_request,
     })
 
 

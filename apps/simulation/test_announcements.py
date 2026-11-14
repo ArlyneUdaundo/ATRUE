@@ -1,5 +1,3 @@
-import re
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -92,34 +90,6 @@ class InstructorAnnouncementTests(TestCase):
 
         self.assertRedirects(response, reverse('simulation:workspace'))
         self.assertFalse(Notification.objects.exists())
-
-    def test_modal_request_returns_only_the_announcement_form(self):
-        response = self.client.get(f'{self.url}?modal=1')
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'simulation/_announcement_form.html')
-        self.assertContains(response, 'data-announcement-modal-form')
-        self.assertContains(response, f'{self.url}?modal=1')
-
-    def test_modal_post_returns_a_redirect_instead_of_a_page(self):
-        response = self.post(modal='1')
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()['redirect'],
-            f"{reverse('simulation:workspace')}#session-{self.session.pk}")
-        self.assertTrue(Notification.objects.filter(recipient=self.student).exists())
-
-    def test_workspace_loads_the_announcement_modal_once(self):
-        response = self.client.get(reverse('simulation:workspace'))
-
-        self.assertEqual(response.status_code, 200)
-        body = response.content.decode()
-
-        self.assertEqual(
-            len(re.findall(r'src="[^"]*simulation-announcement-modal[^"]*"', body)), 1)
-        self.assertContains(response, 'data-announcement-modal-open')
-        self.assertContains(response, 'data-announcement-dialog')
 
     def test_announcement_requires_a_title_and_message(self):
         response = self.post(title='', message='')
