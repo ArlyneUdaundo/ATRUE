@@ -808,17 +808,34 @@ def _attach_session_student_rows(sessions, students):
     for session in sessions:
         bucket = by_session.get(session.pk, {})
         session_assignments_for_card = session_assignments.get(session.pk, [])
+        assignment_progress = {
+            assignment.pk: assignment_progress_data(assignment)
+            for assignment in session_assignments_for_card
+        }
         assigned_students = {
             assignment.student_id for assignment in session_assignments_for_card}
         completed_students = {
             assignment.student_id for assignment in session_assignments_for_card
             if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE}
+        active_progress = [
+            assignment_progress[assignment.pk]
+            for assignment in session_assignments_for_card
+            if assignment.status in (
+                SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                SimulationRoleAssignment.AssignmentStatus.DONE,
+            )
+        ]
+        session.required_task_count = sum(
+            progress['required'] for progress in active_progress)
+        session.completed_task_count = sum(
+            progress['completed_required'] for progress in active_progress)
         session.assigned_student_count = len(assigned_students)
         session.completed_student_count = len(completed_students)
         session.has_assigned_students = bool(assigned_students)
         session.student_progress_percent = (
-            round(len(completed_students) * 100 / len(assigned_students))
-            if assigned_students else None)
+            round(session.completed_task_count * 100 / session.required_task_count)
+            if session.required_task_count else
+            0 if assigned_students else None)
         session.status_class = session.status.lower()
         session.schedule_label = _session_schedule_label(
             session, session_assignments_for_card)
@@ -826,11 +843,14 @@ def _attach_session_student_rows(sessions, students):
             {
                 'student': student,
                 'assignment': bucket.get(student.pk),
-                'progress': assignment_progress_data(bucket.get(student.pk)),
+                'progress': (
+                    assignment_progress[bucket[student.pk].pk]
+                    if student.pk in bucket else assignment_progress_data(None)
+                ),
                 'assignments': [
                     {
                         'assignment': assignment,
-                        'progress': assignment_progress_data(assignment),
+                        'progress': assignment_progress[assignment.pk],
                     }
                     for assignment in session_assignments_for_card
                     if assignment.student_id == student.pk

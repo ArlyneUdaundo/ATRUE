@@ -166,7 +166,20 @@
                 <div class="sim-session-progress-track" role="progressbar" aria-label="Student progress for {{ session.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ session.student_progress_percent }}">
                     <span style="width: {{ session.student_progress_percent }}%"></span>
                 </div>
-                <small>{{ session.completed_student_count }} of {{ session.assigned_student_count }} student{{ session.assigned_student_count|pluralize }} completed</small>
+                {% if session.required_task_count %}
+                <small class="sim-session-progress-caption">{{ session.completed_task_count }} of {{ session.required_task_count }} required tasks completed</small>
+                {% else %}
+                <small class="sim-session-progress-caption">No required tasks assigned</small>
+                {% endif %}
+                <div hidden data-session-progress-urls>
+                    {% for row in session.student_rows %}
+                        {% for item in row.assignments %}
+                            {% if item.assignment.status == 'ACTIVE' or item.assignment.status == 'DONE' %}
+                    <span data-progress-url="{% url 'simulation:assignment_progress' item.assignment.id %}"></span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
                 {% else %}
                 <p>No students assigned yet</p>
                 {% endif %}
@@ -897,6 +910,45 @@
             .catch(function () {});
     }
 
+    function refreshSessionProgressCards() {
+        document.querySelectorAll('.sim-session-progress-card').forEach(function (card) {
+            var urls = Array.prototype.map.call(
+                card.querySelectorAll('[data-session-progress-urls] [data-progress-url]'),
+                function (node) { return node.dataset.progressUrl; }
+            );
+            if (!urls.length) return;
+            Promise.all(urls.map(function (url) {
+                return fetch(url, { credentials: 'same-origin' })
+                    .then(function (response) { return response.ok ? response.json() : null; })
+                    .catch(function () { return null; });
+            })).then(function (results) {
+                if (results.some(function (result) {
+                    return !result || !result.ok || !result.progress;
+                })) return;
+                var required = 0;
+                var completed = 0;
+                results.forEach(function (result) {
+                    if (!['ACTIVE', 'DONE'].includes(result.progress.assignment_status)) return;
+                    required += Number(result.progress.required) || 0;
+                    completed += Number(result.progress.completed_required) || 0;
+                });
+                var percent = required ? Math.round(completed * 100 / required) : 0;
+                var percentNode = card.querySelector('.sim-session-progress-head strong');
+                var track = card.querySelector('.sim-session-progress-track');
+                var caption = card.querySelector('.sim-session-progress-caption');
+                if (percentNode) percentNode.textContent = percent + '%';
+                if (track) {
+                    track.setAttribute('aria-valuenow', String(percent));
+                    var bar = track.querySelector('span');
+                    if (bar) bar.style.width = percent + '%';
+                }
+                if (caption) caption.textContent = required
+                    ? completed + ' of ' + required + ' required tasks completed'
+                    : 'No required tasks assigned';
+            });
+        });
+    }
+
     function refreshStudentRows() {
         document.querySelectorAll('.simulation-student-row').forEach(function (row) {
             var details = row.querySelector('[data-session-progress]');
@@ -927,6 +979,8 @@
 
     window.setInterval(refreshStudentRows, 5000);
     refreshStudentRows();
+    window.setInterval(refreshSessionProgressCards, 5000);
+    refreshSessionProgressCards();
 
     document.addEventListener('simulation-assignment-completed', function (event) {
         var formNode = event.target.closest('form[data-mark-role-done]');

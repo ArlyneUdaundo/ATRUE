@@ -386,6 +386,33 @@ class SessionsDashboardTests(TestCase):
         self.assertEqual(session.completed_student_count, 0)
         self.assertEqual(session.student_progress_percent, 0)
 
+    def test_session_progress_increases_for_each_completed_required_task(self):
+        assignment = SimulationRoleAssignment.objects.create(
+            student=self.student, assigned_by=self.instructor,
+            role='HOTEL_MANAGER', activity_name=self.active.name,
+            session=self.active,
+            establishment=Establishment.objects.get(name='Dashboard Hotel'),
+        )
+        task = assignment_tasks_for(assignment)[0]
+        SimulationAssignmentTaskCompletion.objects.create(
+            assignment=assignment,
+            task_key=task['key'],
+            task_label=task['label'],
+            completion_event=task['completion_events'][0],
+            completed_by=self.student,
+        )
+
+        client = Client(SERVER_NAME='localhost')
+        client.force_login(self.instructor)
+        response = client.get(
+            reverse('simulation:workspace'), {'q': 'Active Session'})
+        session = response.context['sessions'][0]
+
+        self.assertEqual(session.required_task_count, 6)
+        self.assertEqual(session.completed_task_count, 1)
+        self.assertEqual(session.student_progress_percent, 17)
+        self.assertContains(response, '1 of 6 required tasks completed')
+
     def test_dashboard_exposes_specified_heading_toolbar_and_summary_cards(self):
         client = Client(SERVER_NAME='localhost')
         client.force_login(self.instructor)
