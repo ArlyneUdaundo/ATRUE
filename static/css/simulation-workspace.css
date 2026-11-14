@@ -1165,6 +1165,35 @@ body.sim-modal-open {
     background: transparent;
 }
 
+.sim-session-dialog .simulation-student-summary {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.1fr) minmax(175px, 1fr) minmax(210px, 1.2fr) minmax(100px, .55fr) max-content;
+    align-items: center;
+    justify-content: initial;
+    gap: 12px;
+}
+
+.sim-session-dialog .simulation-student-identity,
+.sim-session-dialog .simulation-student-summary > .badge,
+.sim-session-dialog .simulation-student-task-progress,
+.sim-session-dialog .simulation-student-status {
+    min-width: 0;
+    justify-self: start;
+}
+
+.sim-session-dialog .simulation-student-name {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.sim-session-dialog .simulation-student-task-progress {
+    white-space: normal;
+}
+
+.sim-session-dialog .simulation-student-view {
+    justify-self: end;
+}
+
 .sim-session-notice {
     margin: 12px 20px 0;
     padding: 10px 12px;
@@ -1316,6 +1345,42 @@ body.sim-modal-open {
     border-top: 1px solid var(--border);
 }
 
+@media (max-width: 900px) {
+    .sim-session-dialog .simulation-student-summary {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 10px;
+        padding: 12px;
+    }
+
+    .sim-session-dialog .simulation-student-identity,
+    .sim-session-dialog .simulation-student-summary > .badge,
+    .sim-session-dialog .simulation-student-task-progress,
+    .sim-session-dialog .simulation-student-status {
+        grid-column: 1;
+    }
+
+    .sim-session-dialog .simulation-student-summary > .badge {
+        justify-self: start;
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    .sim-session-dialog .simulation-student-task-progress,
+    .sim-session-dialog .simulation-student-status {
+        white-space: normal;
+    }
+
+    .sim-session-dialog .simulation-student-status {
+        justify-self: start;
+    }
+
+    .sim-session-dialog .simulation-student-view {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+        align-self: center;
+    }
+}
+
 @media (max-width: 560px) {
     .sim-session-modal,
     .sim-assign-modal {
@@ -1337,50 +1402,6 @@ body.sim-modal-open {
 
     .sim-session-body {
         padding: 12px 12px 2px;
-    }
-
-    .sim-session-dialog .simulation-student-summary {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        justify-content: initial;
-        gap: 8px 10px;
-        padding: 12px;
-    }
-
-    .sim-session-dialog .simulation-student-identity,
-    .sim-session-dialog .simulation-student-summary > .badge,
-    .sim-session-dialog .simulation-student-task-progress,
-    .sim-session-dialog .simulation-student-status {
-        grid-column: 1;
-        min-width: 0;
-    }
-
-    .sim-session-dialog .simulation-student-summary > .badge {
-        justify-self: start;
-        max-width: 100%;
-        white-space: normal;
-    }
-
-    .sim-session-dialog .simulation-student-name {
-        overflow-wrap: anywhere;
-        word-break: normal;
-    }
-
-    .sim-session-dialog .simulation-student-task-progress {
-        white-space: normal;
-    }
-
-    .sim-session-dialog .simulation-student-status {
-        justify-self: start;
-        white-space: normal;
-    }
-
-    .sim-session-dialog .simulation-student-view {
-        grid-column: 2;
-        grid-row: 1 / span 4;
-        align-self: center;
-        justify-self: end;
     }
 
     .sim-session-foot {
