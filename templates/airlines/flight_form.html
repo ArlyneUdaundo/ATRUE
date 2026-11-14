@@ -84,7 +84,7 @@
         {% else %}
         <div class="flight-airline-select" style="display:flex;align-items:center;gap:10px">
             <i class="fas fa-plane" aria-hidden="true"></i>
-            <select name="airline" id="flightAirline" class="form-input" data-airline required style="flex:1">
+            <select name="airline" id="flightAirline" class="form-input" data-airline{% if request.active_simulation_assignment.role == 'AIRLINE_MANAGER' or request.user.account_type == 'AIRLINE_MANAGER' %} data-dedupe-airline-options="true"{% endif %} required style="flex:1">
                 <option value="" data-logo="">Select an airline</option>
                 {% for a in airlines %}<option value="{{ a.id }}" data-logo="{{ a.logo_url }}" {% if airline and a.id == airline.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
             </select>
@@ -488,6 +488,22 @@
     var directSection = form.querySelector('[data-direct-section]');
     var connectingSection = form.querySelector('[data-connecting-section]');
     var airlineSelect = form.querySelector('[data-airline]');
+
+    // Airline records can have names that differ only by invisible Unicode
+    // characters. In the airline-manager picker, keep one option per displayed
+    // name so those records do not appear as duplicate choices.
+    if (airlineSelect && airlineSelect.dataset.dedupeAirlineOptions === 'true') {
+        var seenAirlineNames = Object.create(null);
+        Array.prototype.slice.call(airlineSelect.options, 1).forEach(function (option) {
+            var name = option.textContent;
+            if (name.normalize) name = name.normalize('NFKC');
+            name = name.replace(/[\u200B-\u200D\uFEFF]/g, '')
+                .replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+            if (!name) return;
+            if (seenAirlineNames[name]) option.remove();
+            else seenAirlineNames[name] = true;
+        });
+    }
 
     /* The airline <select> cannot render logos, so the chosen carrier's mark
        sits beside it and follows the selection. */
