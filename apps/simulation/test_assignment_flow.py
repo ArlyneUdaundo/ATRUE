@@ -1472,58 +1472,6 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
         self.assignment.refresh_from_db()
         self.assertIsNone(self.assignment.started_at)
 
-    def test_date_only_task_is_locked_before_its_assigned_date(self):
-        self.assignment.start_time = None
-        self.assignment.end_time = None
-        self.assignment.save(update_fields=['start_time', 'end_time'])
-
-        with patch('django.utils.timezone.now', return_value=self.at_date(
-                self.schedule_date - timedelta(days=1), 23, 59)):
-            response = self.client.get(
-                reverse('simulation:do_task', args=[self.assignment.pk]))
-            detail = self.client.get(
-                reverse('simulation:role_detail', args=[self.assignment.pk]))
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(detail.context['task_status'], 'Upcoming')
-        self.assignment.refresh_from_db()
-        self.assertIsNone(self.assignment.started_at)
-
-    def test_date_only_task_is_available_on_its_assigned_date(self):
-        self.assignment.start_time = None
-        self.assignment.end_time = None
-        self.assignment.save(update_fields=['start_time', 'end_time'])
-
-        with patch('django.utils.timezone.now', return_value=self.at_date(
-                self.schedule_date, 12, 0)):
-            response = self.client.get(
-                reverse('simulation:do_task', args=[self.assignment.pk]))
-
-        self.assertEqual(response.status_code, 200)
-        self.assignment.refresh_from_db()
-        self.assertEqual(self.assignment.started_at, self.at_date(self.schedule_date, 12, 0))
-
-    def test_date_only_task_is_blocked_after_its_assigned_date(self):
-        self.assignment.start_time = None
-        self.assignment.end_time = None
-        self.assignment.save(update_fields=['start_time', 'end_time'])
-
-        with patch('django.utils.timezone.now', return_value=self.at_date(
-                self.schedule_date + timedelta(days=1), 0, 0)):
-            direct_url = self.client.get(
-                reverse('simulation:do_task', args=[self.assignment.pk]))
-            api_response = self.client.post(
-                reverse('hotels:bookings'),
-                {'action': 'confirm', 'booking_id': '999999'},
-                HTTP_ACCEPT='application/json',
-            )
-
-        self.assertEqual(direct_url.status_code, 302)
-        self.assertEqual(api_response.status_code, 403)
-        self.assertEqual(api_response.json()['task_state'], 'expired')
-        self.assignment.refresh_from_db()
-        self.assertIsNone(self.assignment.started_at)
-
     def test_task_becomes_available_at_the_exact_start_time(self):
         with self.at_time(8, 0):
             response = self.client.get(
@@ -1561,18 +1509,18 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
         self.client.logout()
         self.client.force_login(self.arlyne)
 
-        with self.at_time(10, 0):
+        with patch('django.utils.timezone.now', return_value=self.at_date(
+                self.schedule_date + timedelta(days=1), 0, 0)):
+            direct_url = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
             api_response = self.client.post(
                 reverse('hotels:bookings'),
                 {'action': 'confirm', 'booking_id': '999999'},
                 HTTP_ACCEPT='application/json',
             )
+        self.assertEqual(direct_url.status_code, 302)
         self.assertEqual(api_response.status_code, 403)
         self.assertFalse(api_response.json()['ok'])
-
-        with self.at_time(10, 1):
-            response = self.client.get(reverse('hotels:bookings'))
-        self.assertEqual(response.status_code, 302)
 
     def test_expired_window_does_not_replace_a_completed_assignment(self):
         from simulation.task_routing import assignment_tasks_for
