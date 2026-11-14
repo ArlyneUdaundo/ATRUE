@@ -1078,7 +1078,7 @@
             return;
         }
         var options = establishmentData[type] || [];
-        if (type === 'AIRLINE' || type === 'TOUR_PACKAGE') {
+        if (type === 'AIRLINE' || type === 'TOUR_PACKAGE' || type === 'LANDMARK') {
             var uniqueEstablishments = Object.create(null);
             var dedupedEstablishments = [];
             options.forEach(function (establishment) {
