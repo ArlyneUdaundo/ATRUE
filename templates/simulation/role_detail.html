@@ -45,14 +45,15 @@
             </ul>
             {% endif %}
             <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--slate-600)">
-                <span><b>Status:</b> {{ task_status }}</span>
+                <span><b>Status:</b> <span data-task-schedule-status data-task-started="{% if assignment.started_at %}true{% else %}false{% endif %}" data-task-completed="{% if assignment.status == 'DONE' %}true{% else %}false{% endif %}">{{ task_status }}</span></span>
                 {% if assignment.started_at %}<span><b>Started:</b> {{ assignment.started_at|date:"M d, Y H:i" }}</span>{% endif %}
                 {% if assignment.completed_at %}<span><b>Completed:</b> {{ assignment.completed_at|date:"M d, Y H:i" }}</span>{% endif %}
             </div>
         </div>
         <div>
             {% if assignment.status == 'ACTIVE' and task_operation %}
-            <a href="{% url 'simulation:do_task' assignment.id %}" class="btn btn-brand" style="min-height:48px;padding:12px 22px;font-weight:700"><i class="fas fa-play"></i> {% if assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</a>
+            {% include 'simulation/_task_start_button.html' with task_assignment=assignment task_window=task_window task_button_large=True %}
+            {% if task_window.state != 'unscheduled' %}<p style="max-width:220px;margin:8px 0 0;color:var(--slate-600);font-size:12px">{{ task_window.message }}</p>{% endif %}
             {% elif assignment.status == 'DONE' %}
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
                 <span class="badge badge-green" style="padding:10px 14px"><i class="fas fa-check-circle"></i> Task Completed</span>
@@ -80,12 +81,12 @@
                 {% if progress.required %}{{ progress.completed_required }} of {{ progress.required }} required tasks completed · {{ progress.percent }}%{% else %}No required tasks are configured for this role.{% endif %}
             </p>
         </div>
-        <span class="badge {% if assignment.status == 'DONE' %}badge-green{% elif assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ assignment.get_status_display }}</span>
+        <span class="badge {% if assignment.status == 'DONE' %}badge-green{% elif task_status == 'Expired' %}badge-gray{% elif task_status == 'Upcoming' %}badge-gray{% elif assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ task_status }}</span>
     </div>
     {% if progress.tasks %}
     <ol class="sim-task-list" style="margin-top:16px">
         {% for task in progress.tasks %}
-        <li class="sim-task sim-task--{{ task.state }}" data-task-key="{{ task.key }}">
+        <li class="sim-task sim-task--{{ task.state }}" data-task-key="{{ task.key }}" data-task-base-state="{{ task.base_state }}">
             <span class="sim-task-number">{{ forloop.counter }}</span>
             <span class="sim-task-copy">
                 <span class="sim-task-label">{{ task.label }}</span>

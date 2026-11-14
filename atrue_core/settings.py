@@ -115,6 +115,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "atrue_core.middleware.SimulationTaskScheduleMiddleware",
     "atrue_core.middleware.ContactNumberValidationMiddleware",
     "atrue_core.middleware.PaymentMethodValidationMiddleware",
     "atrue_core.middleware.SimulationWorkflowTrackingMiddleware",

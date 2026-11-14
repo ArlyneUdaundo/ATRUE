@@ -4,7 +4,7 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261114-session-student-alignment">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261114-task-window-ui">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 <link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261109-centered">
 {% endblock %}
@@ -357,12 +357,13 @@
                             <div class="meta"><i class="fas fa-calendar-day"></i> {{ r.simulation_date|date:"M d, Y" }}{% if r.start_time and r.end_time %} · {{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
                         {% endif %}
                         <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ r.assigned_at|date:"M d, Y H:i" }}</div>
+                        {% if r.status == 'ACTIVE' and r.task_window.state == 'upcoming' %}<div class="meta"><i class="fas fa-clock"></i> Upcoming</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'expired' %}<div class="meta"><i class="fas fa-clock"></i> Time Ended</div>{% endif %}
                     </div>
                     <div class="scard-foot">
                         <div class="simulation-role-actions">
                             <a href="{% url 'simulation:role_detail' r.id %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
                             {% if r.status == 'ACTIVE' %}
-                            <a href="{% url 'simulation:do_task' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-play"></i> Do the Task</a>
+                            {% include 'simulation/_task_start_button.html' with task_assignment=r task_window=r.task_window %}
                             {% elif r.status == 'DONE' %}
                             <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
                             {% endif %}
@@ -409,7 +410,7 @@
                                 {% csrf_token %}<button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
                             </form>
                             {% elif not is_instructor and r.status == 'ACTIVE' %}
-                            <a href="{% url 'simulation:do_task' r.id %}" class="btn btn-brand btn-sm"><i class="fas fa-play"></i> Do the Task</a>
+                            {% include 'simulation/_task_start_button.html' with task_assignment=r task_window=r.task_window %}
                             {% elif r.status == 'DONE' %}
                             <span class="btn btn-ghost btn-sm" style="cursor:not-allowed"><i class="fas fa-circle-check"></i> Done</span>
                             {% endif %}

@@ -36,6 +36,7 @@ from .task_routing import (
     task_operation_for,
     assignment_tasks_for,
 )
+from .schedule import task_window_for
 
 
 def _notify_assignment(assignment, actor, *, modified=False):
@@ -136,6 +137,11 @@ def do_task(request, assignment_id):
         )
         return redirect('simulation:workspace')
 
+    task_window = task_window_for(assignment)
+    if task_window['state'] in {'upcoming', 'expired'}:
+        messages.warning(request, task_window['message'])
+        return redirect('simulation:role_detail', assignment_id=assignment.pk)
+
     request.session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
     operation = operation_with_urls(assignment, operation)
 
@@ -166,6 +172,8 @@ def do_task(request, assignment_id):
     return render(request, 'simulation/task_operations.html', {
         'assignment': assignment,
         'operation': operation,
+        'task_window': task_window_for(assignment),
+        'task_status': 'In Progress' if assignment.started_at else 'Not Started',
     })
 
 
@@ -249,9 +257,19 @@ def workspace(request):
                          session=role.session)
             messages.success(request, "Role deactivated.")
             return redirect('simulation:workspace')
+        roles = list(roles)
+        for role in roles:
+            role.task_window = task_window_for(role)
+        legacy_roles = [role for role in roles if role.session_id is None]
+        sessions = list(sessions)
+        for session in sessions:
+            for role in session.assignments.all():
+                role.task_window = task_window_for(role)
+    if is_instructor:
+        legacy_roles = roles.filter(session__isnull=True)
     return render(request, 'simulation/workspace.html', {
         'roles': roles,
-        'legacy_roles': roles.filter(session__isnull=True),
+        'legacy_roles': legacy_roles,
         'sessions': sessions,
         'is_instructor': is_instructor,
         'can_manage_all_sessions': is_manager(request.user),
@@ -830,6 +848,8 @@ def _attach_session_student_rows(sessions, students):
 
 _TASK_STATE_LABELS = {
     'completed': 'Completed',
+    'upcoming': 'Upcoming',
+    'expired': 'Expired',
     'awaiting': 'Awaiting Confirmation',
     'pending': 'Pending',
     'pending_verification': 'Pending verification',
@@ -935,12 +955,15 @@ def assignment_progress_data(assignment):
             'role': '', 'role_display': '',
             'ready_to_mark_done': False, 'is_complete': False,
             'state': 'empty', 'title': 'Session Progress',
+            'schedule_state': 'unscheduled', 'schedule_message': '',
+            'schedule_start_at': '', 'schedule_end_at': '',
             'subtitle': 'Updates only when the student completes a verified task in the simulation.',
             'success_message': '', 'awaiting_message': '',
             'assignment_status': '', 'assignment_status_display': '',
             'message': 'Assign a role to see session progress.',
         }
     tasks = assignment_tasks_for(assignment)
+    task_window = task_window_for(assignment)
     completions = {item.task_key: item for item in assignment.task_completions.all()}
     role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
     is_hotel_guest = role_code == 'GUEST_HOTEL'
@@ -983,10 +1006,14 @@ def assignment_progress_data(assignment):
                 completed += 1
                 if is_required:
                     completed_required += 1
+        base_state = state
+        if completion is None and task_window['state'] in {'upcoming', 'expired'}:
+            state = task_window['state']
         rendered.append({
             'key': task['key'], 'label': task['label'],
             'description': task.get('description', ''),
             'status': _TASK_STATE_LABELS[state], 'state': state,
+            'base_state': base_state,
             'icon': task.get('icon', ''), 'number': index,
             'tracked': trackable,
             'classification': task.get('classification', 'REQUIRED'),
@@ -997,10 +1024,16 @@ def assignment_progress_data(assignment):
     is_complete = bool(required and completed_required == required)
     if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
         state = 'done'
+    elif task_window['state'] == 'upcoming':
+        state = 'upcoming'
+    elif task_window['state'] == 'expired':
+        state = 'expired'
     elif is_complete:
         state = 'complete'
     elif any(item['state'] == 'awaiting' for item in rendered):
         state = 'awaiting'
+    elif task_window['state'] == 'available' and task_window['start_at']:
+        state = 'in_progress' if assignment.started_at else 'not_started'
     elif tracked:
         state = 'in_progress'
     else:
@@ -1044,6 +1077,10 @@ def assignment_progress_data(assignment):
         'awaiting_message': awaiting_message,
         'assignment_status': assignment.status,
         'assignment_status_display': assignment.get_status_display(),
+        'schedule_state': task_window['state'],
+        'schedule_message': task_window['message'],
+        'schedule_start_at': task_window['start_at'],
+        'schedule_end_at': task_window['end_at'],
         'required': required, 'completed_required': completed_required,
         'untracked_required': untracked_required,
         'message': ('Progress reflects verified required tasks only.' if required else
@@ -1783,10 +1820,22 @@ def role_detail(request, assignment_id):
     task_operation = task_operation_for(assignment)
     if task_operation is not None:
         task_operation = operation_with_urls(assignment, task_operation)
+    task_window = task_window_for(assignment)
+    if task_window['state'] != 'unscheduled':
+        request.simulation_task_schedule = {
+            **task_window,
+            'assignment_id': assignment.pk,
+            'role_detail_url': reverse('simulation:role_detail', args=[assignment.pk]),
+            'redirect_on_end': False,
+        }
     if assignment.status == SimulationRoleAssignment.AssignmentStatus.DONE:
         task_status = 'Completed'
     elif assignment.status != SimulationRoleAssignment.AssignmentStatus.ACTIVE:
         task_status = assignment.get_status_display()
+    elif task_window['state'] == 'upcoming':
+        task_status = 'Upcoming'
+    elif task_window['state'] == 'expired':
+        task_status = 'Expired'
     elif assignment.started_at:
         task_status = 'In Progress'
     else:
@@ -1796,6 +1845,7 @@ def role_detail(request, assignment_id):
         'progress': assignment_progress_data(assignment),
         'task_operation': task_operation,
         'task_status': task_status,
+        'task_window': task_window,
         'permissions': assignment.role_permissions(),
         'is_manager': is_manager(request.user),
         'can_manage': _is_instructor(request.user),

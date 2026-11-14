@@ -63,34 +63,52 @@ def notification_count(request):
 def simulation_task_context(request):
     """Expose the current tab's assigned operations module to the dashboard nav."""
     assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
-    if assignment_id is None:
+    schedule = getattr(request, 'simulation_task_schedule', None)
+    request_assignment = getattr(request, 'active_simulation_assignment', None)
+    if assignment_id is None and schedule is None and request_assignment is None:
         return {
             'active_simulation_task_context': False,
             'active_simulation_task_operation': None,
+            'active_simulation_task_schedule': None,
         }
     if not request.user.is_authenticated:
         return {
             'active_simulation_task_context': True,
             'active_simulation_task_operation': None,
+            'active_simulation_task_schedule': schedule,
         }
 
     from simulation.models import SimulationRoleAssignment
+    from simulation.schedule import task_window_for
+    from django.urls import reverse
 
-    assignment = (
-        SimulationRoleAssignment.objects
-        .filter(
-            pk=assignment_id,
-            student=request.user,
-            status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+    assignment = request_assignment
+    if assignment is None and assignment_id is not None:
+        assignment = (
+            SimulationRoleAssignment.objects
+            .filter(
+                pk=assignment_id,
+                student=request.user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            )
+            .select_related('role_ref', 'establishment', 'hotel')
+            .first()
         )
-        .select_related('role_ref', 'establishment', 'hotel')
-        .first()
-    )
     operation = task_operation_for(assignment) if assignment else None
     if operation is not None:
         operation = operation_with_urls(assignment, operation)
+    if schedule is None and assignment is not None:
+        window = task_window_for(assignment)
+        if window['state'] != 'unscheduled':
+            schedule = {
+                **window,
+                'assignment_id': assignment.pk,
+                'role_detail_url': reverse('simulation:role_detail', args=[assignment.pk]),
+                'redirect_on_end': window['state'] == 'available',
+            }
 
     return {
-        'active_simulation_task_context': True,
+        'active_simulation_task_context': bool(assignment_id is not None),
         'active_simulation_task_operation': operation,
+        'active_simulation_task_schedule': schedule,
     }

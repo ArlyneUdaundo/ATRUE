@@ -139,6 +139,113 @@ class PaymentMethodValidationMiddleware:
         return self.get_response(request)
 
 
+class SimulationTaskScheduleMiddleware:
+    """Enforce an assignment's time window before any task view runs."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return None
+
+        route_name = getattr(getattr(request, 'resolver_match', None), 'view_name', '')
+        if not route_name:
+            return None
+
+        from simulation.models import SimulationRoleAssignment
+        from simulation.schedule import task_window_for
+        from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY, task_operation_for
+        from django.urls import reverse
+
+        assignments = []
+        if route_name == 'simulation:do_task':
+            assignment = SimulationRoleAssignment.objects.filter(
+                pk=view_kwargs.get('assignment_id'),
+                student=user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            ).select_related('role_ref', 'establishment', 'hotel').first()
+            if assignment is not None:
+                assignments = [assignment]
+        else:
+            assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+            if assignment_id:
+                assignment = SimulationRoleAssignment.objects.filter(
+                    pk=assignment_id,
+                    student=user,
+                    status__in=(
+                        SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                        SimulationRoleAssignment.AssignmentStatus.DONE,
+                    ),
+                ).select_related('role_ref', 'establishment', 'hotel').first()
+                if assignment is not None:
+                    operation = task_operation_for(assignment)
+                    if operation and route_name in operation['allowed_routes']:
+                        assignments = [assignment]
+                        if assignment.status == SimulationRoleAssignment.AssignmentStatus.ACTIVE:
+                            request.active_simulation_assignment = assignment
+            else:
+                candidates = SimulationRoleAssignment.objects.filter(
+                    student=user,
+                    status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+                    simulation_date__isnull=False,
+                    start_time__isnull=False,
+                    end_time__isnull=False,
+                ).select_related('role_ref', 'establishment', 'hotel')
+                for candidate in candidates:
+                    operation = task_operation_for(candidate)
+                    if operation and route_name in operation['allowed_routes']:
+                        assignments.append(candidate)
+                if len(assignments) == 1:
+                    request.active_simulation_assignment = assignments[0]
+
+        if not assignments:
+            return None
+
+        # An unscheduled/available assignment for the same route remains a
+        # legitimate path; otherwise use the matching scheduled assignment.
+        windows = [(assignment, task_window_for(assignment))
+                   for assignment in assignments]
+        blocked = [(assignment, window) for assignment, window in windows
+                   if window['state'] in {'upcoming', 'expired'}]
+        if not blocked or any(window['state'] == 'available'
+                              for _assignment, window in windows):
+            return None
+
+        assignment, window = next(
+            ((assignment, window) for assignment, window in blocked
+             if window['state'] == 'upcoming'), blocked[0])
+        request.simulation_task_schedule_blocked = True
+        message = (
+            window['message'] if window['state'] == 'upcoming'
+            else 'The assigned task time window has ended.'
+        )
+        request.simulation_task_schedule = {
+            **window,
+            'assignment_id': assignment.pk,
+            'role_detail_url': reverse('simulation:role_detail', args=[assignment.pk]),
+            'redirect_on_end': False,
+        }
+        if ('application/json' in request.headers.get('Accept', '').lower()
+                or request.content_type == 'application/json'
+                or request.headers.get('X-Requested-With') == 'XMLHttpRequest'):
+            from django.http import JsonResponse
+            return JsonResponse({
+                'ok': False,
+                'error': message,
+                'task_state': window['state'],
+            }, status=403)
+
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        messages.warning(request, message)
+        return redirect('simulation:role_detail', assignment_id=assignment.pk)
+
+
 class SimulationWorkflowTrackingMiddleware:
     """Record assigned workflow tasks after a backend POST succeeds."""
 
@@ -147,7 +254,8 @@ class SimulationWorkflowTrackingMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.method != 'POST' or not getattr(request, 'user', None):
+        if (request.method != 'POST' or not getattr(request, 'user', None)
+                or getattr(request, 'simulation_task_schedule_blocked', False)):
             return response
         successful_redirect = 300 <= response.status_code < 400
         successful_json = (

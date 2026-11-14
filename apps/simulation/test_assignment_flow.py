@@ -12,10 +12,11 @@ establishment whose isolation is enforced through its own mirror column
 rather than given a whole module.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 import json
 import re
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -28,7 +29,9 @@ from airlines.tests import make_aircraft, make_airline
 from establishments.models import Establishment, establishment_for_instance
 from hotels.models import Booking, BookingRoom, Hotel, Room
 from locations.models import CityMunicipality, Country, Province, Region
-from simulation.models import ActivityLog, Role as RoleModel
+from simulation.models import (
+    ActivityLog, Role as RoleModel, SimulationAssignmentTaskCompletion,
+)
 from simulation.models import SimulationRoleAssignment, SimulationSession
 from simulation.role_catalogue import ROLE_CATALOGUE
 from simulation.task_routing import _OPERATIONS, _RESTAURANT_OPERATIONS, task_operation_for
@@ -1421,6 +1424,126 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         self.assignment.save(update_fields=['status'])
         response = self.client.get(reverse('simulation:do_task', args=[self.assignment.id]))
         self.assertEqual(response.status_code, 404)
+
+
+class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
+    schedule_date = date(2026, 11, 14)
+
+    def setUp(self):
+        super().setUp()
+        self.assignment = self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Timed Hotel Task',
+            simulation_date=self.schedule_date,
+            start_time=time(8, 0),
+            end_time=time(10, 0),
+        )
+        self.client.force_login(self.arlyne)
+
+    def at(self, hour, minute=0):
+        return timezone.make_aware(
+            datetime.combine(self.schedule_date, time(hour, minute)),
+            timezone.get_current_timezone(),
+        )
+
+    def at_time(self, hour, minute=0):
+        return patch('django.utils.timezone.now', return_value=self.at(hour, minute))
+
+    def test_before_start_is_upcoming_and_task_start_is_blocked(self):
+        with self.at_time(7, 59):
+            response = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+            detail = self.client.get(
+                reverse('simulation:role_detail', args=[self.assignment.pk]))
+            workspace = self.client.get(reverse('simulation:workspace'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.context['task_status'], 'Upcoming')
+        self.assertTrue(detail.context['task_window']['state'] == 'upcoming')
+        self.assertContains(detail, 'Upcoming')
+        self.assertContains(workspace, 'data-task-window-button')
+        self.assertContains(workspace, 'Upcoming')
+        self.assertContains(workspace, 'disabled')
+        self.assignment.refresh_from_db()
+        self.assertIsNone(self.assignment.started_at)
+
+    def test_task_becomes_available_at_the_exact_start_time(self):
+        with self.at_time(8, 0):
+            response = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.started_at, self.at(8, 0))
+
+    def test_task_actions_work_before_the_exact_end_time(self):
+        with self.at_time(8, 0):
+            started = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+        self.assertEqual(started.status_code, 200)
+
+        with self.at_time(9, 59):
+            response = self.client.get(reverse('hotels:bookings'))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_task_action_is_blocked_at_end_time(self):
+        with self.at_time(8, 0):
+            self.client.get(reverse('simulation:do_task', args=[self.assignment.pk]))
+
+        with self.at_time(10, 0):
+            response = self.client.get(reverse('hotels:bookings'))
+            detail = self.client.get(
+                reverse('simulation:role_detail', args=[self.assignment.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(detail.context['task_status'], 'Expired')
+        self.assertEqual(detail.context['progress']['tasks'][0]['state'], 'expired')
+
+    def test_direct_url_after_login_and_json_post_cannot_bypass_the_window(self):
+        self.client.logout()
+        self.client.force_login(self.arlyne)
+
+        with self.at_time(10, 0):
+            api_response = self.client.post(
+                reverse('hotels:bookings'),
+                {'action': 'confirm', 'booking_id': '999999'},
+                HTTP_ACCEPT='application/json',
+            )
+        self.assertEqual(api_response.status_code, 403)
+        self.assertFalse(api_response.json()['ok'])
+
+        with self.at_time(10, 1):
+            response = self.client.get(reverse('hotels:bookings'))
+        self.assertEqual(response.status_code, 302)
+
+    def test_expired_window_does_not_replace_a_completed_assignment(self):
+        from simulation.task_routing import assignment_tasks_for
+
+        task = assignment_tasks_for(self.assignment)[0]
+        SimulationAssignmentTaskCompletion.objects.create(
+            assignment=self.assignment,
+            task_key=task['key'],
+            task_label=task['label'],
+            completion_event=task['completion_events'][0],
+            completed_by=self.arlyne,
+        )
+        self.assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
+        self.assignment.completed_at = self.at(9, 30)
+        self.assignment.save(update_fields=['status', 'completed_at'])
+        self.client.logout()
+        self.client.force_login(self.arlyne)
+
+        with self.at_time(10, 1):
+            response = self.client.get(
+                reverse('simulation:role_detail', args=[self.assignment.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['task_status'], 'Completed')
+        self.assertEqual(response.context['progress']['tasks'][0]['state'], 'completed')
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, SimulationRoleAssignment.AssignmentStatus.DONE)
 
 
 class HotelAccessBoundaryTests(AssignmentFlowTestCase):

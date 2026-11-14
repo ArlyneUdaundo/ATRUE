@@ -23,6 +23,8 @@
                     {{ assignment.get_role_display }}
                 {% endif %}
             </div>
+            <div class="meta"><i class="fas fa-clock"></i> Task status: {{ task_status }}</div>
+            {% if task_window.state != 'unscheduled' %}<div class="meta"><i class="fas fa-hourglass-end"></i> {{ task_window.message }}</div>{% endif %}
             <div style="margin-top:18px">
                 <a href="{% url 'simulation:workspace' %}" class="btn btn-ghost">
                     <i class="fas fa-arrow-left"></i> My Roles

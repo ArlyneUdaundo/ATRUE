@@ -147,7 +147,7 @@
             {% endif %}
 
             {% if active_simulation_task_context %}
-            {% if active_simulation_task_operation %}
+            {% if active_simulation_task_operation and active_simulation_task_schedule.state != 'upcoming' and active_simulation_task_schedule.state != 'expired' %}
             <span class="nav-sep"></span>
             <div class="nav-dd nav-dd--ops active">
                 <a href="#" class="nav-link nav-dd-toggle"><i class="fas {{ active_simulation_task_operation.icon }}"></i> {{ active_simulation_task_operation.label }} <i class="fas fa-chevron-down"></i></a>
@@ -536,6 +536,8 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="{% static 'js/phone-validation.js' %}?v=20261014-11-digit"></script>
 <script src="{% static 'js/atrue-timepicker.js' %}?v=20261011-viewport-popup"></script>
 {% block extra_js %}{% endblock %}
+{% if active_simulation_task_schedule %}{{ active_simulation_task_schedule|json_script:"activeSimulationTaskSchedule" }}{% endif %}
+<script src="{% static 'js/simulation-task-schedule.js' %}?v=20261114-1"></script>
 <script src="{% static 'js/payment-methods.js' %}?v=20261013-payment-methods-4"></script>
 <script src="{% static 'js/guests-tables.js' %}?v=20261012e"></script>
 <script src="{% static 'js/establishment-modal.js' %}?v=20261106-flight-modal-minimal-2"></script>

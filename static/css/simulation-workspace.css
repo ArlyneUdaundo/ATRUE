@@ -17,6 +17,13 @@
     justify-content: flex-end;
 }
 
+.simulation-role-actions .btn:disabled,
+.btn[data-task-window-button]:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 .simulation-session-activities-head {
     justify-content: space-between;
     margin-bottom: 12px;
@@ -1003,6 +1010,8 @@
 .sim-task--awaiting .sim-task-status { background: #fff0d2; color: #a96000; }
 .sim-task--pending .sim-task-status,
 .sim-task--pending_verification .sim-task-status { background: #e5efff; color: #203c70; }
+.sim-task--upcoming .sim-task-status { background: #eff6ff; color: #1d4ed8; }
+.sim-task--expired .sim-task-status { background: #f1f5f9; color: #64748b; }
 .sim-task--pending .sim-task-number,
 .sim-task--pending_verification .sim-task-number { background: #e4efff; color: #173c78; }
 .sim-progress-legend {
