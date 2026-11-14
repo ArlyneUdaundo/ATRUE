@@ -193,8 +193,6 @@ class SimulationTaskScheduleMiddleware:
                     student=user,
                     status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
                     simulation_date__isnull=False,
-                    start_time__isnull=False,
-                    end_time__isnull=False,
                 ).select_related('role_ref', 'establishment', 'hotel')
                 for candidate in candidates:
                     operation = task_operation_for(candidate)
