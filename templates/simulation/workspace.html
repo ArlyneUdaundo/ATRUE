@@ -4,7 +4,7 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261102-guest-progress-2">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261114-announcement-modal">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 <link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261109-centered">
 {% endblock %}
@@ -21,10 +21,55 @@
         </div>
     </div>
     <div class="simulation-workspace-actions">
-        <a href="{% url 'simulation:add_announcement' %}" class="btn btn-outline"><i class="fas fa-bullhorn"></i> Post Announcement</a>
+        <button type="button" class="btn btn-outline" data-announcement-open aria-haspopup="dialog"><i class="fas fa-bullhorn"></i> Post Announcement</button>
         <a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a>
     </div>
 </header>
+
+<dialog class="sim-announcement-dialog" id="postAnnouncementDialog" aria-labelledby="announcementDialogTitle">
+    <div class="sim-announcement-dialog-head">
+        <div>
+            <h2 id="announcementDialogTitle">Post Announcement</h2>
+            <p>Send an announcement or update to students assigned to a simulation session.</p>
+        </div>
+        <button type="button" class="sim-announcement-dialog-close" data-announcement-close aria-label="Close announcement form"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    <form method="post" action="{% url 'simulation:add_announcement' %}" data-submit-loading>
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="workspaceAnnouncementSession">Session</label>
+            <select name="session" id="workspaceAnnouncementSession" class="form-input" required>
+                <option value="" disabled selected>Select a session</option>
+                {% for session in announcement_sessions %}
+                <option value="{{ session.pk }}">{{ session.name }}{% if session.session_id %} ({{ session.session_id }}){% endif %}</option>
+                {% empty %}
+                <option value="" disabled>No sessions available</option>
+                {% endfor %}
+            </select>
+            <span class="muted-hint">Only students assigned to this session will receive the notification.</span>
+        </div>
+        <div class="form-group">
+            <label for="workspaceAnnouncementKind">Type</label>
+            <select name="kind" id="workspaceAnnouncementKind" class="form-input">
+                {% for value, label in announcement_kind_choices %}
+                <option value="{{ value }}"{% if value == 'ANNOUNCEMENT' %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="workspaceAnnouncementTitle">Title</label>
+            <input type="text" name="title" id="workspaceAnnouncementTitle" class="form-input" maxlength="150" placeholder="e.g. Schedule change for tomorrow" required>
+        </div>
+        <div class="form-group">
+            <label for="workspaceAnnouncementMessage">Message</label>
+            <textarea name="message" id="workspaceAnnouncementMessage" class="form-input" rows="5" placeholder="Write the announcement students should see in their notifications." required></textarea>
+        </div>
+        <div class="simulation-session-form-actions">
+            <button type="submit" class="btn btn-brand"><i class="fas fa-bullhorn" aria-hidden="true"></i> Send Announcement</button>
+            <button type="button" class="btn btn-outline" data-announcement-close>Cancel</button>
+        </div>
+    </form>
+</dialog>
 
 <section class="sim-summary-grid" aria-label="Session summary">
     <article class="sim-summary-card sim-summary-card--blue">
@@ -1401,6 +1446,21 @@ document.addEventListener('DOMContentLoaded', function () {
     if (session && session.tagName === 'DETAILS') {
         session.open = true;
         session.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    var announcementDialog = document.getElementById('postAnnouncementDialog');
+    var announcementOpen = document.querySelector('[data-announcement-open]');
+    if (announcementDialog && announcementOpen && typeof announcementDialog.showModal === 'function') {
+        announcementOpen.addEventListener('click', function () {
+            announcementDialog.showModal();
+            var firstField = announcementDialog.querySelector('select, input, textarea');
+            if (firstField) firstField.focus();
+        });
+        announcementDialog.querySelectorAll('[data-announcement-close]').forEach(function (button) {
+            button.addEventListener('click', function () { announcementDialog.close(); });
+        });
+        announcementDialog.addEventListener('click', function (event) {
+            if (event.target === announcementDialog) announcementDialog.close();
+        });
     }
 });
 </script>{% endblock %}

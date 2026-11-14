@@ -173,12 +173,20 @@ def do_task(request, assignment_id):
 def workspace(request):
     is_instructor = _is_instructor(request.user)
     modal_context = {}
+    announcement_sessions = []
     summary = {}
     q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     sort = request.GET.get('sort', 'newest').strip()
 
     if is_instructor:
+        announcement_sessions_qs = SimulationSession.objects.exclude(
+            status=SimulationSession.Status.ARCHIVED)
+        if not is_manager(request.user):
+            announcement_sessions_qs = announcement_sessions_qs.filter(
+                instructor=request.user)
+        announcement_sessions = announcement_sessions_qs.order_by(
+            '-created_at', '-pk')
         roles = SimulationRoleAssignment.objects.select_related(
             'student', 'assigned_by', 'session', 'hotel',
         ).all()
@@ -252,6 +260,11 @@ def workspace(request):
         'q': q,
         'status_filter': status_filter,
         'sort': sort or 'newest',
+        'announcement_sessions': announcement_sessions,
+        'announcement_kind_choices': (
+            ('ANNOUNCEMENT', 'Announcement'),
+            ('UPDATE', 'Update'),
+        ),
         **modal_context,
     })
 
