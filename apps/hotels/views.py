@@ -14,7 +14,7 @@ from django.db.models import Q
 from django.core.validators import validate_email
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
-from accounts.roles import can_create_establishment, effective_role_keys
+from accounts.roles import can_create_establishment, effective_role_keys, is_platform_user
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
     hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
@@ -1688,23 +1688,26 @@ def booking_detail(request, booking_id):
         and not customer_read_only
     )
 
-    from accounts.roles import is_reservation_officer
     reservation_officer = (
-        is_reservation_officer(request.user, 'hotels')
+        not is_platform_user(request.user)
+        and 'HOTEL_RESERVATION_OFFICER' in effective_role_keys(request.user)
         and not customer_read_only
     )
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if can_process_checkin and action not in {'checkin', 'checkout'}:
-            raise PermissionDenied('Hotel Front Desk may only check guests in or out.')
-        if reservation_officer and action != 'confirm':
-            raise PermissionDenied('Reservation Officers may only confirm payment-verified reservations.')
+        if reservation_officer or can_process_checkin:
+            allowed_role_actions = (
+                ({'confirm'} if reservation_officer else set())
+                | ({'checkin', 'checkout'} if can_process_checkin else set())
+            )
+            if action not in allowed_role_actions:
+                raise PermissionDenied('Hotel staff may only perform their assigned booking actions.')
+        if action == 'confirm' and not reservation_officer:
+            raise PermissionDenied('Only the Hotel Reservation Officer may confirm a payment-verified booking.')
         if action in {'checkin', 'checkout'} and not can_process_checkin:
             raise PermissionDenied('Reservation Officers cannot process check-in or check-out.')
         if action == 'confirm':
-            if not reservation_officer:
-                raise PermissionDenied('Only the Hotel Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(booking, request.user)
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')

@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from locations.models import CityMunicipality, Country, Province, Region
 
-from hotels.models import Amenity, Booking, Hotel, Room, Service
+from hotels.models import Amenity, Booking, BookingRoom, Hotel, Room, Service
 from hotels.views import _guest_line_defaults
 
 
@@ -441,3 +441,61 @@ class HotelGuestModalMarkupTests(TestCase):
         self.assertGreater(modal_at, summary_at)
         # Only one guest host element exists, and it is the one in the modal.
         self.assertEqual(html.count('id="selectedRoomsSection"'), 1)
+
+
+class HotelReservationOfficerBookingTests(TestCase):
+    def setUp(self):
+        from django.contrib.contenttypes.models import ContentType
+        from django.utils import timezone
+        from accounts.models import User
+        from simulation.models import SimulationRoleAssignment
+        from transactions.models import Bill
+
+        self.instructor = User.objects.create_user(
+            username='reservation-test-instructor', password='pw',
+            account_type=User.AccountType.INSTRUCTOR,
+        )
+        self.officer = User.objects.create_user(
+            username='reservation-test-officer', password='pw',
+            account_type=User.AccountType.STUDENT,
+        )
+        self.guest = User.objects.create_user(username='reservation-test-guest', password='pw')
+        self.hotel = Hotel.objects.create(name='Reservation Test Hotel')
+        self.room = Room.objects.create(
+            hotel=self.hotel, room_number='201', rate='7600.00',
+        )
+        for role in ('HOTEL_RESERVATION_OFFICER', 'HOTEL_FRONT_DESK'):
+            SimulationRoleAssignment.objects.create(
+                student=self.officer, assigned_by=self.instructor, role=role,
+                hotel=self.hotel, activity_name='Reservation role test',
+            )
+        self.booking = Booking.objects.create(customer=self.guest, status='PENDING')
+        BookingRoom.objects.create(
+            booking=self.booking, room=self.room,
+            check_in=timezone.localdate(), check_out=timezone.localdate() + timedelta(days=1),
+        )
+        bill = Bill(
+            service='hotels', customer=self.guest, total_amount='7600.00',
+            amount_paid='7600.00', balance_due='0.00', status='FULLY_PAID',
+            verified_at=timezone.now(),
+        )
+        bill.content_type = ContentType.objects.get_for_model(self.booking)
+        bill.object_id = self.booking.pk
+        bill.save()
+        self.client.force_login(self.officer)
+
+    def test_reservation_officer_with_front_desk_role_can_review_and_confirm(self):
+        detail_url = reverse('hotels:booking_detail', args=[self.booking.pk])
+
+        response = self.client.get(detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Review Reservation')
+        self.assertContains(response, 'name="action" value="confirm"')
+        self.assertContains(response, 'Front Desk')
+
+        response = self.client.post(detail_url, {'action': 'confirm'})
+
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
