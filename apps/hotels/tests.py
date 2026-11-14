@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from locations.models import CityMunicipality, Country, Province, Region
+from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
 
 from hotels.models import Amenity, Booking, BookingRoom, Hotel, Room, Service
 from hotels.views import _guest_line_defaults
@@ -464,8 +465,9 @@ class HotelReservationOfficerBookingTests(TestCase):
         self.room = Room.objects.create(
             hotel=self.hotel, room_number='201', rate='7600.00',
         )
+        self.assignments = {}
         for role in ('HOTEL_RESERVATION_OFFICER', 'HOTEL_FRONT_DESK'):
-            SimulationRoleAssignment.objects.create(
+            self.assignments[role] = SimulationRoleAssignment.objects.create(
                 student=self.officer, assigned_by=self.instructor, role=role,
                 hotel=self.hotel, activity_name='Reservation role test',
             )
@@ -484,18 +486,54 @@ class HotelReservationOfficerBookingTests(TestCase):
         bill.save()
         self.client.force_login(self.officer)
 
-    def test_reservation_officer_with_front_desk_role_can_review_and_confirm(self):
+    def _activate_role(self, role):
+        session = self.client.session
+        session[TASK_ASSIGNMENT_SESSION_KEY] = self.assignments[role].pk
+        session.save()
+
+    def test_reservation_officer_confirms_and_front_desk_only_checks_in_or_out(self):
         detail_url = reverse('hotels:booking_detail', args=[self.booking.pk])
 
+        self._activate_role('HOTEL_RESERVATION_OFFICER')
         response = self.client.get(detail_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Review Reservation')
         self.assertContains(response, 'name="action" value="confirm"')
-        self.assertContains(response, 'Front Desk')
+        self.assertNotContains(response, '<h3>Front Desk</h3>')
 
+        self._activate_role('HOTEL_FRONT_DESK')
+        response = self.client.get(detail_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Review Reservation')
+        self.assertContains(response, '<h3>Front Desk</h3>')
+
+        response = self.client.post(detail_url, {'action': 'confirm'})
+
+        self.assertEqual(response.status_code, 403)
+
+        self._activate_role('HOTEL_RESERVATION_OFFICER')
         response = self.client.post(detail_url, {'action': 'confirm'})
 
         self.assertEqual(response.status_code, 302)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
+
+        self._activate_role('HOTEL_FRONT_DESK')
+        response = self.client.get(detail_url)
+        self.assertContains(response, 'Check-In Guest')
+        self.assertNotContains(response, 'Review Reservation')
+
+        response = self.client.post(detail_url, {'action': 'checkin'})
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CHECKED_IN)
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, 'Check-Out Guest')
+
+        response = self.client.post(detail_url, {'action': 'checkout'})
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CHECKED_OUT)

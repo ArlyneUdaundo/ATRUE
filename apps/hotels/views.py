@@ -14,7 +14,7 @@ from django.db.models import Q
 from django.core.validators import validate_email
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
-from accounts.roles import can_create_establishment, effective_role_keys, is_platform_user
+from accounts.roles import can_create_establishment, effective_role_keys
 from atrue_core.decorators import manager_required, student_booking_required
 from atrue_core.hotel_scope import (
     hotel_scoped, is_hotel_scoped, scope_hotels, scope_qs,
@@ -1682,17 +1682,17 @@ def booking_detail(request, booking_id):
         request.user.is_staff or is_manager_user(request.user)
     ) and not customer_read_only
 
-    from accounts.roles import can_process_booking_checkin
-    can_process_checkin = (
-        can_process_booking_checkin(request.user, 'hotels')
-        and not customer_read_only
-    )
-
-    reservation_officer = (
-        not is_platform_user(request.user)
-        and 'HOTEL_RESERVATION_OFFICER' in effective_role_keys(request.user)
-        and not customer_read_only
-    )
+    from accounts.roles import can_process_booking_checkin, is_reservation_officer
+    active_assignment = getattr(request, 'active_simulation_assignment', None)
+    active_role = active_assignment.role if active_assignment else None
+    if active_role in {'HOTEL_RESERVATION_OFFICER', 'HOTEL_FRONT_DESK'}:
+        reservation_officer = active_role == 'HOTEL_RESERVATION_OFFICER'
+        can_process_checkin = active_role == 'HOTEL_FRONT_DESK'
+    else:
+        reservation_officer = is_reservation_officer(request.user, 'hotels')
+        can_process_checkin = can_process_booking_checkin(request.user, 'hotels')
+    reservation_officer = reservation_officer and not customer_read_only
+    can_process_checkin = can_process_checkin and not customer_read_only
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
