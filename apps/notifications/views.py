@@ -35,7 +35,15 @@ def notification_list(request):
                      'LANDMARK_', 'FLIGHT_', 'TRAVEL_', 'TOUR_', 'TRANSPORT_'),
         'payments': ('PAYMENT_', 'BILLING_'),
     }
-    if category in category_prefixes:
+    if category == 'announcements':
+        qs = qs.filter(notification_type=Notification.Type.ANNOUNCEMENT)
+    elif category == 'updates':
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(notification_type=Notification.Type.UPDATE)
+            | Q(notification_type__endswith='_UPDATED')
+        )
+    elif category in category_prefixes:
         from django.db.models import Q
         category_query = Q()
         for prefix in category_prefixes[category]:

@@ -167,6 +167,24 @@ def notify_many(recipients, notification_type, message, **kwargs):
     return [notify(user, notification_type, message, **kwargs) for user in unique]
 
 
+def notify_announcement(recipients, announcement_type, title, message, *,
+                        session=None, actor=None):
+    """Deliver one instructor announcement or update to every session student."""
+    notification_type = (
+        Notification.Type.UPDATE if announcement_type == Notification.Type.UPDATE
+        else Notification.Type.ANNOUNCEMENT
+    )
+    return notify_many(
+        recipients,
+        notification_type,
+        message,
+        title=title,
+        session=session,
+        actor=actor,
+        related_object=session,
+    )
+
+
 def notify_service_booking(booking, event, actor=None):
     """Notify the booking owner about a persisted event in a bookable service."""
     labels = {

@@ -1,0 +1,61 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Post Announcement{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261005">
+{% endblock %}
+
+{% block content %}
+<div class="simulation-session-form-wrap">
+    <div class="page-head">
+        <div>
+            <h1>Post Announcement</h1>
+            <p>Send an announcement or update to every student assigned to a simulation session.</p>
+        </div>
+    </div>
+    <div class="card card-pad">
+        <form method="post" data-submit-loading>
+            {% csrf_token %}
+            {% if errors %}
+            <div class="alert alert-error" role="alert">
+                {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="announcementSession">Session</label>
+                <select name="session" id="announcementSession" class="form-input" required>
+                    <option value="" disabled {% if not posted.session %}selected{% endif %}>Select a session</option>
+                    {% for session in sessions %}
+                    <option value="{{ session.pk }}" {% if posted.session == session.pk|stringformat:"s" %}selected{% endif %}>{{ session.name }}{% if session.session_id %} ({{ session.session_id }}){% endif %}</option>
+                    {% empty %}
+                    <option value="" disabled>No sessions available</option>
+                    {% endfor %}
+                </select>
+                <span class="muted-hint">Only students assigned to this session will receive the notification.</span>
+            </div>
+            <div class="form-group">
+                <label for="announcementKind">Type</label>
+                <select name="kind" id="announcementKind" class="form-input">
+                    {% for value, label in kind_choices %}
+                    <option value="{{ value }}" {% if posted.kind == value or not posted and value == 'ANNOUNCEMENT' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="announcementTitle">Title</label>
+                <input type="text" name="title" id="announcementTitle" class="form-input" maxlength="150" value="{{ posted.title|default:'' }}" placeholder="e.g. Schedule change for tomorrow" required>
+            </div>
+            <div class="form-group">
+                <label for="announcementMessage">Message</label>
+                <textarea name="message" id="announcementMessage" class="form-input" rows="6" placeholder="Write the announcement students should see in their notifications." required>{{ posted.message|default:'' }}</textarea>
+            </div>
+            <div class="simulation-session-form-actions">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-bullhorn"></i> Send Announcement</button>
+                <a href="{% url 'simulation:workspace' %}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

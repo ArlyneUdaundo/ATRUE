@@ -67,6 +67,31 @@ class NotificationInboxTests(TestCase):
         self.assertEqual(response.context['page_obj'].paginator.count, 1)
         self.assertContains(response, 'Student Workflow')
 
+    def test_announcement_and_update_categories_are_filtered(self):
+        self.make_notification(notification_type=Notification.Type.ANNOUNCEMENT,
+                               message='Class starts at 8:00 AM.')
+        self.make_notification(notification_type=Notification.Type.UPDATE,
+                               message='The schedule changed.')
+        self.make_notification(
+            notification_type=Notification.Type.RESORT_RESERVATION_UPDATED,
+            message='Your resort reservation changed.')
+        self.make_notification(notification_type=Notification.Type.ROLE_ASSIGNED)
+
+        announcements = self.client.get(
+            reverse('notifications:list'), {'category': 'announcements'})
+        updates = self.client.get(
+            reverse('notifications:list'), {'category': 'updates'})
+
+        self.assertEqual(announcements.context['page_obj'].paginator.count, 1)
+        self.assertEqual(
+            announcements.context['page_obj'].object_list[0].notification_type,
+            Notification.Type.ANNOUNCEMENT)
+        self.assertEqual(updates.context['page_obj'].paginator.count, 2)
+        self.assertEqual(
+            {n.notification_type for n in updates.context['page_obj'].object_list},
+            {Notification.Type.UPDATE, Notification.Type.RESORT_RESERVATION_UPDATED},
+        )
+
     def test_instructor_opens_work_completion_at_the_session(self):
         session = SimulationSession.objects.create(
             name='Hotel Training', instructor=self.user)

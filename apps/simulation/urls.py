@@ -7,6 +7,7 @@ app_name = 'simulation'
 urlpatterns = [
     path('workspace/', views.workspace, name='workspace'),
     path('sessions/add/', views.add_session, name='add_session'),
+    path('announcements/add/', views.add_announcement, name='add_announcement'),
     path('sessions/<int:session_id>/update/', views.update_session, name='update_session'),
     path('sessions/<int:session_id>/assignment/', views.session_assignment, name='session_assignment'),
     path('sessions/<int:session_id>/students/<int:student_id>/progress/', views.session_student_progress, name='session_student_progress'),

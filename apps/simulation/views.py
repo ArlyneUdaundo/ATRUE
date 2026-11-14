@@ -288,6 +288,82 @@ def add_session(request):
 
 
 @login_required
+def add_announcement(request):
+    """Send an instructor announcement or update to a session's students."""
+    if not _is_instructor(request.user):
+        messages.error(request, 'Only instructors may post announcements.')
+        return redirect('simulation:workspace')
+
+    sessions = SimulationSession.objects.exclude(
+        status=SimulationSession.Status.ARCHIVED)
+    if not is_manager(request.user):
+        sessions = sessions.filter(instructor=request.user)
+    sessions = sessions.order_by('-created_at', '-pk')
+
+    kind_choices = (
+        ('ANNOUNCEMENT', 'Announcement'),
+        ('UPDATE', 'Update'),
+    )
+    posted = request.POST if request.method == 'POST' else None
+    errors = []
+
+    if request.method == 'POST':
+        session_id = (request.POST.get('session') or '').strip()
+        kind = (request.POST.get('kind') or 'ANNOUNCEMENT').strip()
+        title = (request.POST.get('title') or '').strip()
+        message = (request.POST.get('message') or '').strip()
+        selected_session = sessions.filter(pk=session_id).first() if session_id.isdigit() else None
+
+        if selected_session is None:
+            errors.append('Select a valid simulation session.')
+        if kind not in dict(kind_choices):
+            errors.append('Select whether this is an announcement or an update.')
+        if not title:
+            errors.append('Enter a title for the announcement.')
+        elif len(title) > 150:
+            errors.append('Announcement titles must be 150 characters or fewer.')
+        if not message:
+            errors.append('Enter the announcement message.')
+
+        recipients = list(selected_session.participants()) if selected_session else []
+        if selected_session is not None and not recipients:
+            errors.append('This session has no assigned students yet.')
+
+        if not errors:
+            from notifications.services import notify_announcement
+
+            with transaction.atomic():
+                notify_announcement(
+                    recipients,
+                    kind,
+                    title,
+                    message,
+                    session=selected_session,
+                    actor=request.user,
+                )
+                log_activity(
+                    request.user,
+                    f'Posted {kind.lower()}',
+                    f'{title} - {selected_session.name}',
+                    session=selected_session,
+                )
+            messages.success(
+                request,
+                f'{title} sent to {len(recipients)} '
+                f'{"student" if len(recipients) == 1 else "students"}.',
+            )
+            return redirect(
+                f"{reverse('simulation:workspace')}#session-{selected_session.pk}")
+
+    return render(request, 'simulation/add_announcement.html', {
+        'sessions': sessions,
+        'kind_choices': kind_choices,
+        'posted': posted,
+        'errors': errors,
+    })
+
+
+@login_required
 def update_session(request, session_id):
     """FR Update Simulation Session – instructor edits an existing session.
 

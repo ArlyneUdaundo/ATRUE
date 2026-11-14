@@ -81,6 +81,9 @@ class Notification(models.Model):
         PAYMENT_REFUNDED = 'PAYMENT_REFUNDED', 'Simulated payment refunded'
         TRANSACTION_CLAIMED = 'TRANSACTION_CLAIMED', 'Transaction claimed'
         TRANSACTION_ESCALATED = 'TRANSACTION_ESCALATED', 'Transaction needs attention'
+        # -- instructor announcements ----------------------------------------
+        ANNOUNCEMENT = 'ANNOUNCEMENT', 'Announcement'
+        UPDATE = 'UPDATE', 'Update'
         GENERAL = 'GENERAL', 'Notice'
 
     recipient = models.ForeignKey(
