@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261102-guest-progress-2">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 <link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261109-centered">
+<link rel="stylesheet" href="{% static 'css/simulation-announcement-modal.css' %}?v=20261114-1">
 {% endblock %}
 
 {% block content %}
@@ -21,7 +22,7 @@
         </div>
     </div>
     <div class="simulation-workspace-actions">
-        <a href="{% url 'simulation:add_announcement' %}" class="btn btn-outline"><i class="fas fa-bullhorn"></i> Post Announcement</a>
+        <a href="{% url 'simulation:add_announcement' %}" class="btn btn-outline" data-announcement-modal-open aria-haspopup="dialog"><i class="fas fa-bullhorn"></i> Post Announcement</a>
         <a href="{% url 'simulation:add_session' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Session</a>
     </div>
 </header>
@@ -1394,7 +1395,17 @@
 
 {% include 'simulation/_mark_done_modal.html' %}
 
+<dialog class="sim-announcement-dialog" data-announcement-dialog aria-labelledby="announcementModalTitle">
+    <div class="sim-announcement-dialog__panel">
+        <button type="button" class="sim-announcement-dialog__close" data-announcement-modal-close aria-label="Close announcement form"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+        <h2 id="announcementModalTitle">Post Announcement</h2>
+        <div data-announcement-modal-content aria-live="polite"><p>Loading announcement form…</p></div>
+    </div>
+</dialog>
+{% endblock %}
+
 {% block extra_js %}<script src="{% static 'js/role-dropdown.js' %}?v=20261011-1"></script>
+<script src="{% static 'js/simulation-announcement-modal.js' %}?v=20261114-1"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var session = location.hash && document.getElementById(location.hash.slice(1));
@@ -1404,4 +1415,3 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>{% endblock %}
-{% endblock %}
