@@ -473,12 +473,21 @@ def decline_booking(booking, user, reason='', notify=True, session=None, establi
     log_activity(user, "Booking declined", str(booking.pk))
 
 
-def cancel_booking(booking, user, release_callback=None, reason=''):
-    """Mark booking CANCELLED and release the reserved resource (BR-021)."""
+def cancel_booking(booking, user, release_callback=None, reason='', cancellation=None):
+    """Mark booking CANCELLED and release the reserved resource (BR-021).
+
+    Pass an existing ``cancellation`` request when the cancellation is the
+    approval of a reviewed request, so one request never becomes two rows.
+    """
     from transactions.models import Bill, Cancellation
     customer = getattr(booking, 'customer', None) or getattr(booking, 'passenger', None) or user
-    cancellation = Cancellation(
-        requested_by=user, status=Cancellation.Status.APPROVED, reason=reason)
+    if cancellation is None:
+        cancellation = Cancellation(
+            requested_by=user, status=Cancellation.Status.APPROVED, reason=reason)
+    else:
+        cancellation.status = Cancellation.Status.APPROVED
+        if reason:
+            cancellation.reason = reason
     cancellation.link_to_booking(booking)
     cancellation.save()
     booking.status = 'CANCELLED'

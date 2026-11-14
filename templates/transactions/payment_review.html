@@ -28,6 +28,77 @@
     </div>
 </div>
 
+{% if refund_rows %}
+<div class="payment-review-list" style="margin-bottom:24px">
+    {% for row in refund_rows %}
+    <section class="card payment-review-card">
+        <div class="payment-review-top">
+            <div>
+                <h2 class="payment-review-title">Refund request · {{ row.booking.booking_reference }}</h2>
+                <p class="payment-review-subtitle">{{ row.establishment|default:'Airline' }} · {{ row.booking.passenger.get_full_name|default:row.booking.passenger.username }}</p>
+            </div>
+            <span class="badge badge-yellow">Awaiting Billing Officer review</span>
+        </div>
+
+        <div class="payment-review-grid">
+            <div class="payment-review-field">
+                <span class="payment-review-label">Requested by</span>
+                <span class="payment-review-value">{{ row.cancellation.requested_by.get_full_name|default:row.cancellation.requested_by.username }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Requested on</span>
+                <span class="payment-review-value">{{ row.cancellation.requested_at|date:'M d, Y H:i' }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Amount paid</span>
+                <span class="payment-review-value">₱{{ row.quote.paid|floatformat:2 }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Refund policy</span>
+                <span class="payment-review-value">{% if row.quote.refundable %}{% if row.quote.has_fare_terms %}Refundable fare{% else %}No fare terms (full refund){% endif %}{% else %}Non-refundable fare{% endif %}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Cancellation fee</span>
+                <span class="payment-review-value">₱{{ row.quote.cancellation_fee|floatformat:2 }}</span>
+            </div>
+            <div class="payment-review-field">
+                <span class="payment-review-label">Refundable amount</span>
+                <span class="payment-review-value">₱{{ row.quote.refund_due|floatformat:2 }}</span>
+            </div>
+            <div class="payment-review-field" style="grid-column:span 2">
+                <span class="payment-review-label">Passenger reason</span>
+                <span class="payment-review-value">{{ row.cancellation.reason }}</span>
+            </div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="cancellation_id" value="{{ row.cancellation.pk }}">
+            <div class="form-group">
+                <label for="review-remarks-{{ row.cancellation.pk }}">Review remarks</label>
+                <textarea id="review-remarks-{{ row.cancellation.pk }}" name="review_remarks"
+                          class="form-input" rows="2"
+                          placeholder="Optional note shared with the passenger"></textarea>
+            </div>
+            <div class="payment-review-action">
+                <p class="payment-review-help">Approving cancels the booking and refunds the refundable amount after the cancellation fee. Rejecting keeps the booking active.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="submit" name="action" value="approve_refund" class="btn btn-brand btn-sm"
+                            onclick="return confirm('Approve this cancellation and process the policy-based refund?');">
+                        <i class="fas fa-check"></i> Approve refund
+                    </button>
+                    <button type="submit" name="action" value="reject_refund" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Reject this cancellation request? The booking will stay active.');">
+                        <i class="fas fa-xmark"></i> Reject request
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+    {% endfor %}
+</div>
+{% endif %}
+
 {% if rows %}
 <div class="payment-review-list">
     {% for row in rows %}

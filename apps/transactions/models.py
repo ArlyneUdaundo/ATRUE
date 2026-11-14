@@ -247,6 +247,13 @@ class Cancellation(BookingLinked):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cancellations'
     )
     reason = models.TextField(blank=True)
+    review_remarks = models.TextField(blank=True)
+    refund_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cancellation_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='processed_cancellations')
+    processed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=CANCELLATION_STATUS_CHOICES, default='REQUESTED')
     requested_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)

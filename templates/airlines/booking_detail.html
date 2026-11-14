@@ -109,36 +109,85 @@
     {% include 'transactions/_booking_billing.html' %}
 </div>
 
-{% if can_cancel_booking %}
+{% if pending_cancellation %}
 <div class="card card-pad" style="margin-top:16px">
-    <h4><i class="fas fa-rotate-left"></i> Cancel Booking &amp; Refund</h4>
+    <h4><i class="fas fa-clock"></i> Cancellation Request Pending Review</h4>
     <p class="meta">
+        Submitted {{ pending_cancellation.requested_at|date:"M d, Y H:i" }} by
+        {{ pending_cancellation.requested_by.get_full_name|default:pending_cancellation.requested_by.username }}.
+    </p>
+    <p><b>Reason:</b> {{ pending_cancellation.reason }}</p>
+    <p class="meta">
+        The Airline Billing Officer must confirm this request. The refund is not
+        automatic and follows the fare's refund policy.
         {% if cancellation.refundable %}
-            This fare is refundable. Cancellation fee:
+            Cancellation fee: <b>PHP {{ cancellation.cancellation_fee|floatformat:2 }}</b>.
+            Estimated refund:
+            <b>PHP {{ cancellation.refund_due|floatformat:2 }}</b>.
+        {% elif cancellation.has_fare_terms %}
+            This fare is non-refundable, so approval may cancel the booking
+            without returning any payment.
+        {% endif %}
+    </p>
+</div>
+{% elif latest_cancellation and latest_cancellation.status == 'APPROVED' %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-circle-check"></i> Cancellation Approved</h4>
+    <p class="meta">
+        Reviewed {{ latest_cancellation.processed_at|date:"M d, Y H:i" }}.
+        Refunded: <b>PHP {{ latest_cancellation.refund_amount|floatformat:2 }}</b>.
+        Cancellation fee retained:
+        <b>PHP {{ latest_cancellation.cancellation_fee|floatformat:2 }}</b>.
+    </p>
+    {% if latest_cancellation.review_remarks %}
+    <p><b>Billing Officer remarks:</b> {{ latest_cancellation.review_remarks }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if latest_cancellation and latest_cancellation.status == 'REJECTED' %}
+<div class="card card-pad" style="margin-top:16px;border-color:#fecaca;background:#fef2f2">
+    <h4><i class="fas fa-circle-xmark"></i> Cancellation Request Rejected</h4>
+    <p class="meta">
+        Reviewed {{ latest_cancellation.processed_at|date:"M d, Y H:i" }}.
+        Your booking remains active.
+    </p>
+    {% if latest_cancellation.review_remarks %}
+    <p><b>Billing Officer remarks:</b> {{ latest_cancellation.review_remarks }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if can_request_cancellation %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-rotate-left"></i> Request Cancellation &amp; Refund</h4>
+    <p class="meta">
+        A cancellation request is reviewed by the Airline Billing Officer. Refunds
+        are not automatic and follow the fare policy, so only part of the amount
+        paid may be refundable.
+        {% if cancellation.refundable %}
+            Cancellation fee:
             <b>PHP {{ cancellation.cancellation_fee|floatformat:2 }}</b>.
             Amount paid: <b>PHP {{ cancellation.paid|floatformat:2 }}</b>.
             Estimated refund:
             <b>PHP {{ cancellation.refund_due|floatformat:2 }}</b>.
         {% elif cancellation.has_fare_terms %}
-            This fare is non-refundable. The booking will be cancelled but no
-            payment will be returned.
+            This fare is non-refundable.
         {% else %}
             Amount paid: <b>PHP {{ cancellation.paid|floatformat:2 }}</b>.
-            No fare rules are attached to this booking, so the paid amount is
-            refunded in full.
         {% endif %}
     </p>
     <form method="post" data-submit-loading
-          onsubmit="return confirm('Cancel this booking and process any eligible refund?');">
+          onsubmit="return confirm('Submit this cancellation request for Billing Officer review?');">
         {% csrf_token %}
         <input type="hidden" name="action" value="cancel">
         <div class="form-group">
-            <label for="cancel-reason">Reason for cancellation</label>
+            <label for="cancel-reason">Reason for cancellation <span class="req">*</span></label>
             <textarea id="cancel-reason" name="manager_remarks" class="form-input" rows="2"
-                      placeholder="Optional"></textarea>
+                      placeholder="Explain why this booking should be cancelled" required></textarea>
         </div>
         <button type="submit" class="btn btn-danger btn-sm">
-            <i class="fas fa-ban"></i> Cancel Booking &amp; Refund
+            <i class="fas fa-paper-plane"></i> Submit Cancellation Request
         </button>
     </form>
 </div>

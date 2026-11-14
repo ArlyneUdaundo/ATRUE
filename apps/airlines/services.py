@@ -15,6 +15,7 @@ than a valid travel document.
 
 from django.db import transaction as db_transaction
 
+from atrue_core.services import log_activity
 from establishments.models import Establishment
 from notifications.models import Notification
 from notifications.services import notify
@@ -148,76 +149,225 @@ def cancellation_quote(booking):
     }
 
 
-def cancel_and_refund_booking(booking, actor, *, remarks=''):
-    """Cancel a flight booking and refund any paid amount it is owed.
+def latest_cancellation_request(booking):
+    """The most recent cancellation request recorded for a booking."""
+    from django.contrib.contenttypes.models import ContentType
 
-    The fare's own ``is_refundable`` flag and ``cancellation_fee`` decide how
-    much goes back. Refunds are split across the bill's paid payments so a
-    cancellation fee can be retained without inventing a separate charge.
-    """
-    from decimal import Decimal
+    from transactions.models import Cancellation
 
-    from atrue_core.services import bill_for_booking, cancel_booking, refund_payment
-    from transactions.models import Payment
+    content_type = ContentType.objects.get_for_model(booking)
+    return Cancellation.objects.filter(
+        content_type=content_type, object_id=booking.pk,
+    ).select_related('requested_by', 'processed_by').order_by('-requested_at').first()
 
+
+def pending_cancellation_request(booking):
+    from transactions.models import Cancellation
+
+    latest = latest_cancellation_request(booking)
+    return latest if latest is not None and latest.status == Cancellation.Status.REQUESTED else None
+
+
+def _notify_billing_officers(booking, message):
+    """Tell the airline's Billing Officers that a request needs review."""
+    from notifications.services import notify_many
+    from simulation.completion import establishment_for_booking
+    from simulation.models import SimulationRoleAssignment
+
+    try:
+        establishment = establishment_for_booking(booking)
+    except Exception:
+        establishment = None
+    if establishment is None:
+        return
+    officers = SimulationRoleAssignment.objects.filter(
+        role='AIRLINE_BILLING_OFFICER',
+        status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+        establishment=establishment,
+    ).select_related('student')
+    notify_many(
+        [row.student for row in officers],
+        Notification.Type.GENERAL,
+        message,
+        establishment=establishment,
+        related_object=booking,
+        title='Flight cancellation request',
+    )
+
+
+def request_cancellation_refund(booking, actor, *, reason):
+    """Record a cancellation/refund request for Billing Officer review."""
+    from transactions.models import Cancellation
+
+    reason = (reason or '').strip()
+    if not reason:
+        raise AirlineWorkflowError(
+            'Enter the reason for cancelling this booking.', code='reason_required')
     if booking.status == Booking.Status.CANCELLED:
         raise AirlineWorkflowError('This booking is already cancelled.',
                                    code='already_cancelled')
     if booking.status not in CANCELABLE_STATUSES:
         raise AirlineWorkflowError(
             'This booking can no longer be cancelled.', code='not_cancellable')
+    if pending_cancellation_request(booking) is not None:
+        raise AirlineWorkflowError(
+            'A cancellation request is already waiting for Billing Officer review.',
+            code='request_pending')
 
-    quote = cancellation_quote(booking)
+    cancellation = Cancellation(
+        requested_by=actor, status=Cancellation.Status.REQUESTED, reason=reason)
+    cancellation.link_to_booking(booking)
+    cancellation.save()
+
+    log_activity(actor, 'Cancellation request submitted',
+                 f'{booking.booking_reference} - {reason}')
+    if actor != booking.passenger:
+        log_activity(booking.passenger, 'Cancellation request submitted',
+                     booking.booking_reference)
+    notify(
+        booking.passenger, Notification.Type.GENERAL,
+        f'Your cancellation request for booking {booking.booking_reference} was '
+        'submitted. The Airline Billing Officer will review it and apply the fare '
+        'and refund policy.',
+        title='Cancellation request submitted',
+    )
+    _notify_billing_officers(
+        booking,
+        f'Cancellation request for booking {booking.booking_reference} is waiting '
+        'for your review.')
+    return cancellation
+
+
+def _refund_cancellation_payments(booking, actor, amount):
+    """Refund up to ``amount`` across the bill's paid payments."""
+    from decimal import Decimal
+
+    from atrue_core.services import refund_payment
+    from transactions.models import Payment
+
+    remaining = Decimal(amount or 0)
     refunded = Decimal('0')
+    bill = cancellation_quote(booking)['bill']
+    if remaining <= 0 or bill is None:
+        return refunded
+    payments = bill.payments.filter(
+        status__in=[Payment.Status.PAID, Payment.Status.PARTIALLY_REFUNDED],
+    ).order_by('paid_at', 'pk')
+    for payment in payments:
+        if remaining <= 0:
+            break
+        available = payment.remaining_refundable
+        take = min(available, remaining)
+        if take <= 0:
+            continue
+        refund_payment(
+            payment=payment, user=actor, amount=take,
+            description=(f'Refund for cancelled flight booking '
+                         f'{booking.booking_reference}'))
+        refunded += take
+        remaining -= take
+    return refunded
+
+
+def process_cancellation_refund(cancellation, actor, *, approve, remarks=''):
+    """Approve or reject a cancellation request as the Billing Officer.
+
+    Approval cancels the booking and refunds what the fare rules allow. The
+    cancellation fee is retained, so a refundable fare can still be a partial
+    refund, and a non-refundable fare refunds nothing.
+    """
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from atrue_core.services import bill_for_booking, cancel_booking
+    from transactions.models import Cancellation
+
+    review_remarks = (remarks or '').strip()
 
     with db_transaction.atomic():
-        remaining = quote['refund_due']
-        bill = quote['bill']
-        if remaining > 0 and bill is not None:
-            payments = bill.payments.filter(
-                status__in=[Payment.Status.PAID, Payment.Status.PARTIALLY_REFUNDED],
-            ).order_by('paid_at', 'pk')
-            for payment in payments:
-                if remaining <= 0:
-                    break
-                available = payment.remaining_refundable
-                take = min(available, remaining)
-                if take <= 0:
-                    continue
-                refund_payment(
-                    payment=payment, user=actor, amount=take,
-                    description=(f'Refund for cancelled flight booking '
-                                 f'{booking.booking_reference}'))
-                refunded += take
-                remaining -= take
+        cancellation = Cancellation.objects.select_for_update().get(pk=cancellation.pk)
+        if cancellation.status != Cancellation.Status.REQUESTED:
+            raise AirlineWorkflowError(
+                'This cancellation request has already been reviewed.',
+                code='request_reviewed')
+        booking = cancellation.booking
+        if booking is None:
+            raise AirlineWorkflowError(
+                'The booking for this cancellation request no longer exists.',
+                code='booking_missing')
 
-        cancel_booking(booking, actor, reason=remarks)
+        quote = cancellation_quote(booking)
+        now = timezone.now()
+        cancellation.processed_by = actor
+        cancellation.processed_at = now
+        cancellation.responded_at = now
+        cancellation.review_remarks = review_remarks
+        cancellation.cancellation_fee = quote['cancellation_fee']
+        refunded = Decimal('0')
 
-        bill = bill_for_booking(booking)
-        if bill is not None:
-            booking.refresh_from_db()
-            booking.amount_paid = bill.amount_paid
-            booking.balance_due = bill.balance_due
-            booking.save(update_fields=['amount_paid', 'balance_due'])
+        if approve:
+            if booking.status not in CANCELABLE_STATUSES:
+                raise AirlineWorkflowError(
+                    'This booking can no longer be cancelled.',
+                    code='not_cancellable')
+            refunded = _refund_cancellation_payments(
+                booking, actor, quote['refund_due'])
+            cancel_booking(
+                booking, actor, reason=cancellation.reason,
+                cancellation=cancellation)
+            bill = bill_for_booking(booking)
+            if bill is not None:
+                booking.refresh_from_db()
+                booking.amount_paid = bill.amount_paid
+                booking.balance_due = bill.balance_due
+                booking.save(update_fields=['amount_paid', 'balance_due'])
+            cancellation.status = Cancellation.Status.APPROVED
+            cancellation.refund_amount = refunded
+        else:
+            cancellation.status = Cancellation.Status.REJECTED
+        cancellation.save(update_fields=[
+            'status', 'refund_amount', 'cancellation_fee', 'review_remarks',
+            'processed_by', 'processed_at', 'responded_at',
+        ])
 
     booking.refresh_from_db()
-    if refunded > 0:
-        message = (f'Booking {booking.booking_reference} was cancelled. '
-                   f'PHP {refunded:,.2f} was refunded to your original payment.')
-        notification_type = Notification.Type.PAYMENT_REFUNDED
-        title = 'Flight booking cancelled and refunded'
-    elif not quote['refundable']:
-        message = (f'Booking {booking.booking_reference} was cancelled. '
-                   'This fare is non-refundable, so no payment was returned.')
-        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
-        title = 'Flight booking cancelled'
-    else:
-        message = f'Booking {booking.booking_reference} was cancelled.'
-        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
-        title = 'Flight booking cancelled'
-    notify(booking.passenger, notification_type, message, title=title)
+    if not approve:
+        notify(
+            booking.passenger, Notification.Type.GENERAL,
+            f'Your cancellation request for booking {booking.booking_reference} '
+            'was rejected.'
+            + (f' {review_remarks}' if review_remarks else ''),
+            title='Cancellation request rejected',
+        )
+        log_activity(actor, 'Cancellation request rejected',
+                     booking.booking_reference)
+        return {'approved': False, 'refunded': refunded, 'quote': quote}
 
-    return {'refunded': refunded, 'quote': quote}
+    if refunded > 0:
+        message = (f'Your cancellation request for booking '
+                   f'{booking.booking_reference} was approved. '
+                   f'PHP {refunded:,.2f} was refunded.')
+        if quote['cancellation_fee'] > 0:
+            message += f' Cancellation fee retained: PHP {quote["cancellation_fee"]:,.2f}.'
+        notification_type = Notification.Type.PAYMENT_REFUNDED
+        title = 'Cancellation approved and refunded'
+    elif not quote['refundable']:
+        message = (f'Your cancellation request for booking '
+                   f'{booking.booking_reference} was approved. This fare is '
+                   'non-refundable, so no payment was returned.')
+        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
+        title = 'Cancellation approved'
+    else:
+        message = (f'Your cancellation request for booking '
+                   f'{booking.booking_reference} was approved. There was no '
+                   'paid amount to refund.')
+        notification_type = Notification.Type.FLIGHT_RESERVATION_REJECTED
+        title = 'Cancellation approved'
+    notify(booking.passenger, notification_type, message, title=title)
+    log_activity(actor, 'Cancellation request approved',
+                 booking.booking_reference)
+    return {'approved': True, 'refunded': refunded, 'quote': quote}
 
 
 def issue_ticket(trx, ticketing_officer, *, remarks=''):

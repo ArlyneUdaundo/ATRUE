@@ -21,7 +21,7 @@ from atrue_core.services import (
 
 from simulation.models import BILLING_OFFICER_ROLE_CODES
 
-from .models import AdditionalTransaction, Bill, Payment, Receipt
+from .models import AdditionalTransaction, Bill, Cancellation, Payment, Receipt
 
 
 def _has_stored_field(instance, name):
@@ -57,6 +57,40 @@ def payment_review(request):
     if not is_admin and (assignment is None or assignment.establishment_id is None):
         raise PermissionDenied(
             'Open payment review from the assigned establishment task. Each Billing Officer assignment covers one establishment.')
+
+    if request.method == 'POST' and request.POST.get('cancellation_id'):
+        return _process_refund_request(request, assignment, is_admin)
+
+    refund_rows = []
+    requested = Cancellation.objects.filter(
+        status=Cancellation.Status.REQUESTED,
+    ).select_related('content_type', 'requested_by').order_by('requested_at')
+    for cancellation in requested:
+        if cancellation.content_type.app_label != 'airlines':
+            continue
+        booking = cancellation.booking
+        if booking is None:
+            continue
+        try:
+            from simulation.completion import establishment_for_booking
+            establishment = establishment_for_booking(booking)
+        except Exception:
+            continue
+        if (not is_admin and assignment is not None
+                and (establishment is None
+                     or establishment.pk != assignment.establishment_id)):
+            continue
+        from airlines.services import cancellation_quote
+        try:
+            quote = cancellation_quote(booking)
+        except Exception:
+            continue
+        refund_rows.append({
+            'cancellation': cancellation,
+            'booking': booking,
+            'establishment': establishment,
+            'quote': quote,
+        })
 
     bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
     rows = []
@@ -267,8 +301,64 @@ def payment_review(request):
         })
     return render(request, 'transactions/payment_review.html', {
         'rows': rows,
+        'refund_rows': refund_rows,
         'active_assignment': assignment,
     })
+
+
+def _process_refund_request(request, assignment, is_admin):
+    """Approve or reject an airline cancellation/refund request."""
+    from airlines.services import AirlineWorkflowError, process_cancellation_refund
+    from simulation.completion import establishment_for_booking
+
+    action = request.POST.get('action')
+    if action not in ('approve_refund', 'reject_refund'):
+        messages.error(request, 'Select whether to approve or reject this refund request.')
+        return redirect('transactions:payment_review')
+
+    cancellation = Cancellation.objects.filter(
+        pk=request.POST.get('cancellation_id'),
+        status=Cancellation.Status.REQUESTED,
+    ).select_related('content_type').first()
+    if cancellation is None:
+        messages.error(request, 'This cancellation request is no longer waiting for review.')
+        return redirect('transactions:payment_review')
+
+    booking = cancellation.booking
+    if booking is None or cancellation.content_type.app_label != 'airlines':
+        messages.error(request, 'This cancellation request is not for an airline booking.')
+        return redirect('transactions:payment_review')
+
+    try:
+        establishment = establishment_for_booking(booking)
+    except Exception:
+        establishment = None
+    if (not is_admin and assignment is not None
+            and (establishment is None
+                 or establishment.pk != assignment.establishment_id)):
+        raise PermissionDenied(
+            'This cancellation request is outside your assigned establishment.')
+
+    try:
+        result = process_cancellation_refund(
+            cancellation, request.user,
+            approve=action == 'approve_refund',
+            remarks=request.POST.get('review_remarks', ''),
+        )
+    except AirlineWorkflowError as exc:
+        messages.error(request, str(exc))
+        return redirect('transactions:payment_review')
+
+    if result['approved']:
+        messages.success(
+            request,
+            f'Cancellation request for {booking.booking_reference} approved. '
+            f'PHP {result["refunded"]:,.2f} was refunded.')
+    else:
+        messages.success(
+            request,
+            f'Cancellation request for {booking.booking_reference} rejected.')
+    return redirect('transactions:payment_review')
 
 
 def _notify_reservation_officers(booking, establishment, assignment, bill):
