@@ -138,13 +138,46 @@ def _is_unassigned_public_booker(request):
     ).exists()
 
 
+def _is_unscoped_assigned_package_guest(request):
+    """Whether the active guest assignment intentionally has no package scope.
+
+    Guest establishments are optional in the role assignment form. A student
+    assigned as a Tour Guest without a specific package should be able to browse
+    the public package directory, while guests assigned to one package remain
+    limited to that package.
+    """
+    user = request.user
+    if not user.is_authenticated or not user.is_bookable:
+        return False
+
+    active = getattr(request, 'active_simulation_assignment', None)
+    if active is None:
+        assignment_id = request.session.get('active_simulation_task_assignment')
+        if assignment_id:
+            from simulation.models import SimulationRoleAssignment
+
+            active = SimulationRoleAssignment.objects.filter(
+                pk=assignment_id,
+                student=user,
+                status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
+            ).first()
+
+    return bool(
+        active is not None
+        and active.status == 'ACTIVE'
+        and active.role in GUEST_ROLES
+        and active.establishment_id is None
+    )
+
+
 def scope_bookable_packages(request, queryset):
     allowed = package_ids_for_roles(request, GUEST_ROLES)
     if allowed is None:
         return queryset
     if allowed:
         return queryset.filter(pk__in=allowed)
-    if _is_unassigned_public_booker(request):
+    if (_is_unassigned_public_booker(request)
+            or _is_unscoped_assigned_package_guest(request)):
         return queryset
     return queryset.none()
 
@@ -155,7 +188,8 @@ def scope_directory_packages(request, queryset):
         return queryset
     if allowed:
         return queryset.filter(pk__in=allowed)
-    if _is_unassigned_public_booker(request):
+    if (_is_unassigned_public_booker(request)
+            or _is_unscoped_assigned_package_guest(request)):
         return queryset
     return queryset.none()
 
@@ -175,9 +209,11 @@ def may_book_package(request, package_id=None):
     if allowed is None:
         return True
     if package_id is None:
-        return bool(allowed) or _is_unassigned_public_booker(request)
+        return (bool(allowed) or _is_unassigned_public_booker(request)
+                or _is_unscoped_assigned_package_guest(request))
     return package_id in allowed or (
-        not allowed and _is_unassigned_public_booker(request))
+        not allowed and (_is_unassigned_public_booker(request)
+                         or _is_unscoped_assigned_package_guest(request)))
 
 
 def _entity_ids(allowed):

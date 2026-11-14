@@ -160,6 +160,22 @@ class AssignedTourPackageDirectoryTests(TestCase):
         self.assertContains(response, self.package.name)
         self.assertNotContains(response, self.other_package.name)
 
+    def test_tour_guest_without_specific_package_sees_public_packages(self):
+        user = User.objects.create_user(
+            'unscoped-package-guest', password='pw',
+            account_type=User.AccountType.STUDENT)
+        self.client.force_login(user)
+        self.set_task(self.assignment_for(user, Role.TOUR_GUEST, None))
+
+        directory = self.client.get(reverse('tour_package:list'))
+        detail = self.client.get(
+            reverse('tour_package:detail', args=[self.package.slug]))
+
+        self.assertContains(directory, self.package.name)
+        self.assertContains(directory, self.other_package.name)
+        self.assertEqual(detail.status_code, 200)
+        self.assertTrue(detail.context['can_book'])
+
     def test_guest_cannot_open_or_book_an_unassigned_package(self):
         user = User.objects.create_user(
             'assigned-package-guest-2', password='pw', account_type=User.AccountType.STUDENT)
