@@ -83,7 +83,7 @@
         if (query.get('reset_sent') === '1') {
             form.hidden = true;
             success.hidden = false;
-            success.querySelector('p').textContent = 'If an account matches that email, password reset instructions will be sent shortly.';
+            success.querySelector('p').textContent = 'If an account matches that email, reset instructions may be sent. Check your inbox and spam folder; if nothing arrives, contact support.';
             success.querySelector('[data-password-reset-back]').focus();
         }
     }

@@ -4,6 +4,8 @@ import json
 import re
 import smtplib
 import urllib.error
+from email import policy
+from email.parser import BytesParser
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -16,6 +18,43 @@ from activities.models import Activity, ActivityProvider, Booking
 from notifications.email_service import queue_booking_confirmation
 from notifications.email_service import _brevo_send, check_brevo_connection
 from notifications.models import EmailDelivery, PasswordResetToken
+
+
+class MockSMTPServer:
+    instances = []
+
+    def __init__(self, host, port, *, local_hostname=None, timeout=None, **kwargs):
+        self.host = host
+        self.port = port
+        self.local_hostname = local_hostname
+        self.timeout = timeout
+        self.starttls_context = None
+        self.auth = None
+        self.sender = None
+        self.recipients = None
+        self.raw_message = None
+        self.__class__.instances.append(self)
+
+    def starttls(self, context=None):
+        self.starttls_context = context
+
+    def login(self, user, password):
+        self.auth = (user, password)
+
+    def sendmail(self, sender, recipients, message):
+        self.sender = sender
+        self.recipients = recipients
+        self.raw_message = message
+        return {}
+
+    def quit(self):
+        return 221, b'bye'
+
+
+class RejectingMockSMTPServer(MockSMTPServer):
+    def login(self, user, password):
+        self.auth = (user, password)
+        raise smtplib.SMTPAuthenticationError(535, b'private account detail')
 
 
 @override_settings(APP_BASE_URL='https://example.test', BREVO_API_KEY='test-key',
@@ -69,6 +108,8 @@ class BrevoEmailTests(TestCase):
                                    HTTP_X_ATRUE_RESET_MODAL='1')
         self.assertEqual(known.json(), unknown.json())
         self.assertIn('If an account matches', known.json()['message'])
+        self.assertIn('may be sent', known.json()['message'])
+        self.assertNotIn('will be sent', known.json()['message'])
         self.assertEqual(send.call_count, 1)
         reset = PasswordResetToken.objects.get(user=self.user)
         self.assertEqual(reset.email_status, 'SENT')
@@ -109,6 +150,7 @@ class BrevoEmailTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
+        self.assertNotIn('will be sent', response.json()['message'])
         row = PasswordResetToken.objects.get(user=self.user)
         self.assertEqual(row.email_status, 'FAILED')
         self.assertEqual(row.provider_message_id, '')
@@ -379,38 +421,37 @@ class BrevoEmailTests(TestCase):
         GMAIL_SMTP_APP_PASSWORD='abcd efgh ijkl mnop',
         GMAIL_SENDER_NAME='ATRUE Reset',
     )
-    @patch('django.core.mail.EmailMultiAlternatives')
-    @patch('django.core.mail.get_connection')
-    def test_gmail_smtp_reset_uses_the_authenticated_gmail_sender(
-        self, get_connection, email_message
-    ):
-        email_message.return_value.send.return_value = 1
-
-        self.client.post(
-            reverse('accounts:forgot_password'), {'email': self.user.email},
-            HTTP_X_ATRUE_RESET_MODAL='1',
-        )
+    def test_gmail_smtp_reset_uses_the_authenticated_gmail_sender(self):
+        MockSMTPServer.instances.clear()
+        with patch(
+            'django.core.mail.backends.smtp.EmailBackend.connection_class',
+            MockSMTPServer,
+        ):
+            self.client.post(
+                reverse('accounts:forgot_password'), {'email': self.user.email},
+                HTTP_X_ATRUE_RESET_MODAL='1',
+            )
 
         row = PasswordResetToken.objects.get(user=self.user)
         self.assertEqual(row.email_status, 'SENT')
         self.assertEqual(row.provider_message_id, '')
-        get_connection.assert_called_once_with(
-            backend='django.core.mail.backends.smtp.EmailBackend',
-            host='smtp.gmail.com', port=587, username='reset-owner@gmail.com',
-            password='abcdefghijklmnop', use_tls=True, use_ssl=False, timeout=20,
+        smtp = MockSMTPServer.instances[-1]
+        self.assertEqual((smtp.host, smtp.port, smtp.timeout), ('smtp.gmail.com', 587, 20))
+        self.assertIsNotNone(smtp.starttls_context)
+        self.assertEqual(smtp.auth, ('reset-owner@gmail.com', 'abcdefghijklmnop'))
+        self.assertEqual(smtp.sender, 'ATRUE Reset <reset-owner@gmail.com>')
+        self.assertEqual(smtp.recipients, [self.user.email])
+        parsed = BytesParser(policy=policy.default).parsebytes(smtp.raw_message)
+        self.assertEqual(parsed['From'].addresses[0].addr_spec, 'reset-owner@gmail.com')
+        self.assertEqual(parsed['To'].addresses[0].addr_spec, self.user.email)
+        html = next(
+            part.get_content() for part in parsed.walk()
+            if part.get_content_type() == 'text/html'
         )
-        message = email_message.return_value
-        self.assertEqual(
-            email_message.call_args.kwargs['from_email'],
-            'ATRUE Reset <reset-owner@gmail.com>',
-        )
-        self.assertEqual(email_message.call_args.kwargs['to'], [self.user.email])
         self.assertIn(
             f'/accounts/reset-password/{self.user.pk}/#',
-            email_message.call_args.kwargs['body'],
+            html,
         )
-        message.attach_alternative.assert_called_once()
-        message.send.assert_called_once_with(fail_silently=False)
 
     @override_settings(
         PASSWORD_RESET_EMAIL_PROVIDER='gmail_smtp',
@@ -458,22 +499,24 @@ class BrevoEmailTests(TestCase):
         GMAIL_SMTP_APP_PASSWORD='app-password',
         GMAIL_SENDER_NAME='ATRUE Reset',
     )
-    @patch('django.core.mail.EmailMultiAlternatives')
-    @patch('django.core.mail.get_connection')
-    def test_gmail_smtp_auth_failure_is_sanitized(self, get_connection, email_message):
-        email_message.return_value.send.side_effect = smtplib.SMTPAuthenticationError(
-            535, b'private account detail'
-        )
-
+    def test_gmail_smtp_auth_failure_is_sanitized(self):
+        RejectingMockSMTPServer.instances.clear()
         with self.assertLogs('notifications.email_service', level='WARNING') as captured:
-            self.client.post(
-                reverse('accounts:forgot_password'), {'email': self.user.email},
-                HTTP_X_ATRUE_RESET_MODAL='1',
-            )
+            with patch(
+                'django.core.mail.backends.smtp.EmailBackend.connection_class',
+                RejectingMockSMTPServer,
+            ):
+                self.client.post(
+                    reverse('accounts:forgot_password'), {'email': self.user.email},
+                    HTTP_X_ATRUE_RESET_MODAL='1',
+                )
 
         row = PasswordResetToken.objects.get(user=self.user)
         self.assertEqual(row.email_status, 'FAILED')
         self.assertEqual(row.provider_message_id, '')
         self.assertIn('GMAIL_SMTP_AUTH_FAILED', captured.output[0])
         self.assertNotIn('private account detail', captured.output[0])
-        get_connection.assert_called_once()
+        self.assertEqual(
+            RejectingMockSMTPServer.instances[-1].auth,
+            ('reset-owner@gmail.com', 'app-password'),
+        )

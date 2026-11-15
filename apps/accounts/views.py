@@ -39,7 +39,10 @@ def forgot_password_view(request):
     from django.utils import timezone
     from notifications.models import PasswordResetRequest, PasswordResetToken
 
-    generic = 'If an account matches that email, password reset instructions will be sent shortly.'
+    generic = (
+        'If an account matches that email, reset instructions may be sent. '
+        'Check your inbox and spam folder; if nothing arrives, contact support.'
+    )
     if request.method == 'POST':
         email = (request.POST.get('email') or '').strip().casefold()[:254]
         ip = request.META.get('REMOTE_ADDR', '').strip()
