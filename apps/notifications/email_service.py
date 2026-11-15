@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import smtplib
 import urllib.request
 import urllib.error
 import uuid
@@ -22,6 +23,59 @@ logger = logging.getLogger(__name__)
 BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 BREVO_SENDERS_URL = 'https://api.brevo.com/v3/senders'
 RESEND_URL = 'https://api.resend.com/emails'
+
+
+def _gmail_smtp_password_reset_send(*, to_email, subject, html, text):
+    """Send reset mail through the Gmail account used as the From address."""
+    user = str(getattr(settings, 'GMAIL_SMTP_USER', '') or '').strip()
+    password = ''.join(str(
+        getattr(settings, 'GMAIL_SMTP_APP_PASSWORD', '') or ''
+    ).split())
+    sender_name = str(
+        getattr(settings, 'GMAIL_SENDER_NAME', '') or ''
+    ).replace('\r', ' ').replace('\n', ' ').strip()
+    if not user or not password:
+        raise RuntimeError('GMAIL_SMTP_CONFIGURATION_MISSING')
+    try:
+        validate_email(user)
+    except ValidationError as exc:
+        raise RuntimeError('GMAIL_SMTP_SENDER_INVALID') from exc
+    if user.rsplit('@', 1)[-1].casefold() not in {'gmail.com', 'googlemail.com'}:
+        raise RuntimeError('GMAIL_SMTP_SENDER_NOT_GMAIL')
+
+    from django.core.mail import EmailMultiAlternatives, get_connection
+
+    connection = get_connection(
+        backend='django.core.mail.backends.smtp.EmailBackend',
+        host='smtp.gmail.com',
+        port=587,
+        username=user,
+        password=password,
+        use_tls=True,
+        use_ssl=False,
+        timeout=20,
+    )
+    from_email = formataddr((sender_name, user)) if sender_name else user
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text,
+        from_email=from_email,
+        to=[to_email],
+        connection=connection,
+    )
+    message.attach_alternative(html, 'text/html')
+    try:
+        sent = message.send(fail_silently=False)
+    except smtplib.SMTPAuthenticationError as exc:
+        raise RuntimeError('GMAIL_SMTP_AUTH_FAILED') from exc
+    except TimeoutError as exc:
+        raise RuntimeError('GMAIL_SMTP_TIMEOUT') from exc
+    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, OSError) as exc:
+        raise RuntimeError('GMAIL_SMTP_CONNECTION_FAILED') from exc
+    except smtplib.SMTPException as exc:
+        raise RuntimeError('GMAIL_SMTP_REJECTED') from exc
+    if sent != 1:
+        raise RuntimeError('GMAIL_SMTP_REJECTED')
 
 
 def _brevo_config():
@@ -214,6 +268,11 @@ def _password_reset_send(provider, *, to_email, to_name, subject, html, text,
             to_email=to_email, to_name=to_name, subject=subject, html=html,
             text=text, idempotency_key=idempotency_key,
         )
+    if provider == 'gmail_smtp':
+        return _gmail_smtp_password_reset_send(
+            to_email=to_email, subject=subject, html=html,
+            text=text,
+        )
     raise RuntimeError('PASSWORD_RESET_PROVIDER_UNSUPPORTED')
 
 
@@ -226,6 +285,10 @@ def _password_reset_error_code(exc):
         'RESEND_TIMEOUT', 'RESEND_CONNECTION_FAILED', 'RESEND_INVALID_RESPONSE',
         'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED', 'BREVO_INVALID_RESPONSE',
         'BREVO_SENDER_NOT_VERIFIED',
+        'GMAIL_SMTP_CONFIGURATION_MISSING', 'GMAIL_SMTP_SENDER_INVALID',
+        'GMAIL_SMTP_SENDER_NOT_GMAIL', 'GMAIL_SMTP_AUTH_FAILED',
+        'GMAIL_SMTP_TIMEOUT', 'GMAIL_SMTP_CONNECTION_FAILED',
+        'GMAIL_SMTP_REJECTED',
     }
     if message in allowed:
         return message
@@ -439,17 +502,24 @@ def deliver_password_reset(token_id, raw_token):
         })
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
-        row.provider_message_id = _password_reset_send(
+        message_id = _password_reset_send(
             provider,
             to_email=row.user.email, to_name=row.user.get_full_name(),
             subject='Reset your ATRUE password', html=html, text=text,
             idempotency_key=f'password-reset:{row.pk}',
         )
+        row.provider_message_id = message_id or ''
         row.email_status = 'SENT'
-        logger.info(
-            'Password reset email accepted by %s API; token_id=%s provider_message_id=%s',
-            provider, row.pk, row.provider_message_id,
-        )
+        if message_id:
+            logger.info(
+                'Password reset email accepted by %s API; token_id=%s provider_message_id=%s',
+                provider, row.pk, message_id,
+            )
+        else:
+            logger.info(
+                'Password reset email accepted by %s SMTP relay; token_id=%s',
+                provider, row.pk,
+            )
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,

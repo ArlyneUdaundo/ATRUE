@@ -60,6 +60,12 @@ services:
         sync: false
       - key: RESEND_SENDER_NAME
         value: ATRUE Simulation Portal
+      - key: GMAIL_SMTP_USER
+        sync: false
+      - key: GMAIL_SMTP_APP_PASSWORD
+        sync: false
+      - key: GMAIL_SENDER_NAME
+        value: ATRUE Simulation Portal
       - key: APP_BASE_URL
         sync: false
       - key: SUPABASE_URL
