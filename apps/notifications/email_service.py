@@ -1,5 +1,6 @@
 """Brevo transactional mail helpers and a small database-backed outbox."""
 import base64
+from email.utils import formataddr
 import json
 import logging
 import os
@@ -11,13 +12,16 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.core.validators import validate_email
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 BREVO_SENDERS_URL = 'https://api.brevo.com/v3/senders'
+RESEND_URL = 'https://api.resend.com/emails'
 
 
 def _brevo_config():
@@ -129,6 +133,105 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
     if not isinstance(message_id, str) or not message_id.strip():
         raise RuntimeError('BREVO_INVALID_RESPONSE')
     return message_id.strip()
+
+
+def _resend_config():
+    """Return password-reset-only Resend settings without logging credentials."""
+    return {
+        'api_key': str(getattr(settings, 'RESEND_API_KEY', '') or '').strip(),
+        'sender_email': str(getattr(settings, 'RESEND_SENDER_EMAIL', '') or '').strip(),
+        'sender_name': str(getattr(settings, 'RESEND_SENDER_NAME', '') or '').strip(),
+    }
+
+
+def _resend_password_reset_send(*, to_email, to_name, subject, html, text,
+                                idempotency_key):
+    """Send one password-reset message through Resend's official REST API."""
+    config = _resend_config()
+    if not config['api_key'] or not config['sender_email']:
+        raise RuntimeError('RESEND_CONFIGURATION_MISSING')
+    try:
+        validate_email(config['sender_email'])
+    except ValidationError as exc:
+        raise RuntimeError('RESEND_SENDER_INVALID') from exc
+
+    sender_name = config['sender_name'].replace('\r', ' ').replace('\n', ' ').strip()
+    sender = formataddr((sender_name, config['sender_email'])) if sender_name else config['sender_email']
+    body = {
+        'from': sender,
+        'to': [to_email],
+        'subject': subject,
+        'html': html,
+        'text': text,
+    }
+    req = urllib.request.Request(
+        RESEND_URL, data=json.dumps(body).encode(), method='POST',
+        headers={
+            'authorization': f"Bearer {config['api_key']}",
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            'Idempotency-Key': str(uuid.uuid5(uuid.NAMESPACE_URL, idempotency_key)),
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as response:
+            result = json.loads(response.read().decode() or '{}')
+    except urllib.error.HTTPError as exc:
+        provider_code = ''
+        try:
+            error_body = json.loads(exc.read().decode() or '{}')
+            raw_code = error_body.get('name') or error_body.get('code') or ''
+            provider_code = re.sub(r'[^A-Za-z0-9_-]', '', str(raw_code))[:40].upper()
+        except (ValueError, AttributeError, UnicodeDecodeError):
+            pass
+        suffix = f'_{provider_code}' if provider_code else ''
+        raise RuntimeError(f'RESEND_HTTP_{exc.code}{suffix}') from exc
+    except TimeoutError as exc:
+        raise RuntimeError('RESEND_TIMEOUT') from exc
+    except urllib.error.URLError as exc:
+        if isinstance(getattr(exc, 'reason', None), TimeoutError):
+            raise RuntimeError('RESEND_TIMEOUT') from exc
+        raise RuntimeError('RESEND_CONNECTION_FAILED') from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError('RESEND_INVALID_RESPONSE') from exc
+
+    message_id = result.get('id') if isinstance(result, dict) else None
+    if not isinstance(message_id, str) or not message_id.strip():
+        raise RuntimeError('RESEND_INVALID_RESPONSE')
+    return message_id.strip()
+
+
+def _password_reset_send(provider, *, to_email, to_name, subject, html, text,
+                         idempotency_key):
+    """Dispatch reset mail only; booking email delivery always remains Brevo."""
+    if provider == 'brevo':
+        return _brevo_send(
+            to_email=to_email, to_name=to_name, subject=subject, html=html,
+            text=text, idempotency_key=idempotency_key,
+        )
+    if provider == 'resend':
+        return _resend_password_reset_send(
+            to_email=to_email, to_name=to_name, subject=subject, html=html,
+            text=text, idempotency_key=idempotency_key,
+        )
+    raise RuntimeError('PASSWORD_RESET_PROVIDER_UNSUPPORTED')
+
+
+def _password_reset_error_code(exc):
+    """Return a safe provider code; discard raw error bodies and PII."""
+    message = str(exc)
+    allowed = {
+        'EMAIL_CONFIGURATION_MISSING', 'PASSWORD_RESET_PROVIDER_UNSUPPORTED',
+        'RESEND_CONFIGURATION_MISSING', 'RESEND_SENDER_INVALID',
+        'RESEND_TIMEOUT', 'RESEND_CONNECTION_FAILED', 'RESEND_INVALID_RESPONSE',
+        'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED', 'BREVO_INVALID_RESPONSE',
+        'BREVO_SENDER_NOT_VERIFIED',
+    }
+    if message in allowed:
+        return message
+    if re.fullmatch(r'(?:BREVO|RESEND)_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
+        return message
+    return type(exc).__name__.upper()[:80]
 
 
 def _ticketable(booking):
@@ -316,12 +419,13 @@ def _booking_details(booking):
 
 
 def deliver_password_reset(token_id, raw_token):
-    """Send reset link through Brevo; raw token is held only in this callback."""
+    """Send reset link using the configured reset provider; token stays local."""
     from .models import PasswordResetToken
     row = PasswordResetToken.objects.select_related('user').filter(pk=token_id).first()
     if not row:
         return
     try:
+        provider = str(getattr(settings, 'PASSWORD_RESET_EMAIL_PROVIDER', 'brevo') or 'brevo').strip().lower()
         base = (getattr(settings, 'APP_BASE_URL', '') or
                 getattr(settings, 'RENDER_EXTERNAL_URL', '')).rstrip('/')
         if not base:
@@ -335,18 +439,19 @@ def deliver_password_reset(token_id, raw_token):
         })
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
-        row.provider_message_id = _brevo_send(
+        row.provider_message_id = _password_reset_send(
+            provider,
             to_email=row.user.email, to_name=row.user.get_full_name(),
             subject='Reset your ATRUE password', html=html, text=text,
             idempotency_key=f'password-reset:{row.pk}',
         )
         row.email_status = 'SENT'
         logger.info(
-            'Password reset email accepted by Brevo API; token_id=%s provider_message_id=%s',
-            row.pk, row.provider_message_id,
+            'Password reset email accepted by %s API; token_id=%s provider_message_id=%s',
+            provider, row.pk, row.provider_message_id,
         )
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
-                       _email_error_code(exc))
+                       _password_reset_error_code(exc))
     row.save(update_fields=['email_status', 'provider_message_id'])

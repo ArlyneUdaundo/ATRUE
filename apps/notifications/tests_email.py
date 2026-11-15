@@ -249,3 +249,125 @@ class BrevoEmailTests(TestCase):
 
         with self.assertRaisesRegex(RuntimeError, 'BREVO_SENDER_NOT_VERIFIED'):
             check_brevo_connection()
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='no-reply@example.test',
+        RESEND_SENDER_NAME='ATRUE Simulation Portal',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_resend_reset_uses_official_api_and_records_message_id(self, urlopen):
+        from unittest.mock import MagicMock
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = b'{"id":"resend-message-123"}'
+        urlopen.return_value = response
+
+        self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                         HTTP_X_ATRUE_RESET_MODAL='1')
+
+        row = PasswordResetToken.objects.get(user=self.user)
+        self.assertEqual(row.email_status, 'SENT')
+        self.assertEqual(row.provider_message_id, 'resend-message-123')
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://api.resend.com/emails')
+        self.assertEqual(request.get_header('Authorization'), 'Bearer test-resend-key')
+        payload = json.loads(request.data.decode())
+        self.assertEqual(payload['from'], 'ATRUE Simulation Portal <no-reply@example.test>')
+        self.assertEqual(payload['to'], [self.user.email])
+        self.assertIn(f'/accounts/reset-password/{self.user.pk}/#', payload['html'])
+        self.assertTrue(request.get_header('Idempotency-key'))
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='no-reply@example.test', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_resend_invalid_api_key_is_recorded_without_sensitive_response(self, urlopen):
+        urlopen.side_effect = urllib.error.HTTPError(
+            'https://api.resend.com/emails', 401, 'Unauthorized', {},
+            io.BytesIO(b'{"name":"invalid_api_key","message":"sensitive provider detail"}'),
+        )
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        row = PasswordResetToken.objects.get(user=self.user)
+        self.assertEqual(row.email_status, 'FAILED')
+        self.assertEqual(row.provider_message_id, '')
+        self.assertIn('RESEND_HTTP_401_INVALID_API_KEY', captured.output[0])
+        self.assertNotIn('sensitive provider detail', captured.output[0])
+        self.assertNotIn(self.user.email, captured.output[0])
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='',
+        RESEND_SENDER_EMAIL='no-reply@example.test', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_resend_missing_api_key_fails_closed_without_sending(self, urlopen):
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertEqual(PasswordResetToken.objects.get(user=self.user).email_status, 'FAILED')
+        self.assertIn('RESEND_CONFIGURATION_MISSING', captured.output[0])
+        urlopen.assert_not_called()
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='not-an-email', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_resend_invalid_sender_fails_closed_without_sending(self, urlopen):
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertEqual(PasswordResetToken.objects.get(user=self.user).email_status, 'FAILED')
+        self.assertIn('RESEND_SENDER_INVALID', captured.output[0])
+        urlopen.assert_not_called()
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='no-reply@example.test', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_resend_rejects_unverified_domain_without_leaking_provider_detail(self, urlopen):
+        urlopen.side_effect = urllib.error.HTTPError(
+            'https://api.resend.com/emails', 403, 'Forbidden', {},
+            io.BytesIO(b'{"name":"domain_not_verified","message":"verify domain secret detail"}'),
+        )
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertEqual(PasswordResetToken.objects.get(user=self.user).email_status, 'FAILED')
+        self.assertIn('RESEND_HTTP_403_DOMAIN_NOT_VERIFIED', captured.output[0])
+        self.assertNotIn('verify domain secret detail', captured.output[0])
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='disabled', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='no-reply@example.test', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_disabled_reset_provider_fails_without_fallback(self, urlopen):
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertEqual(PasswordResetToken.objects.get(user=self.user).email_status, 'FAILED')
+        self.assertIn('PASSWORD_RESET_PROVIDER_UNSUPPORTED', captured.output[0])
+        urlopen.assert_not_called()
+
+    @override_settings(
+        PASSWORD_RESET_EMAIL_PROVIDER='resend', RESEND_API_KEY='test-resend-key',
+        RESEND_SENDER_EMAIL='no-reply@example.test', RESEND_SENDER_NAME='ATRUE',
+    )
+    @patch('notifications.email_service.urllib.request.urlopen', side_effect=TimeoutError())
+    def test_resend_timeout_is_logged_as_safe_failure(self, urlopen):
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertEqual(PasswordResetToken.objects.get(user=self.user).email_status, 'FAILED')
+        self.assertIn('RESEND_TIMEOUT', captured.output[0])
+        urlopen.assert_called_once()

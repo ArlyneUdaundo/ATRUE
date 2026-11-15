@@ -46,11 +46,19 @@ services:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
+      - key: PASSWORD_RESET_EMAIL_PROVIDER
+        sync: false
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
         sync: false
       - key: BREVO_SENDER_NAME
+        value: ATRUE Simulation Portal
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_SENDER_EMAIL
+        sync: false
+      - key: RESEND_SENDER_NAME
         value: ATRUE Simulation Portal
       - key: APP_BASE_URL
         sync: false

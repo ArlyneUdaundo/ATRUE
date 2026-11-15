@@ -396,9 +396,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 # Brevo transactional email credentials/configuration are supplied by Render.
+# Password resets keep Brevo as the default; Resend can be selected independently
+# after its API key and verified sending domain are configured in Render.
+PASSWORD_RESET_EMAIL_PROVIDER = os.getenv("PASSWORD_RESET_EMAIL_PROVIDER", "brevo").strip().lower()
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_SENDER_EMAIL = os.getenv("RESEND_SENDER_EMAIL", "")
+RESEND_SENDER_NAME = os.getenv("RESEND_SENDER_NAME", "")
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
 
