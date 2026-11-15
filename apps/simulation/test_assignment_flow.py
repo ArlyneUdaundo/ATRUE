@@ -34,7 +34,10 @@ from simulation.models import (
 )
 from simulation.models import SimulationRoleAssignment, SimulationSession
 from simulation.role_catalogue import ROLE_CATALOGUE
-from simulation.task_routing import _OPERATIONS, _RESTAURANT_OPERATIONS, task_operation_for
+from simulation.task_routing import (
+    TASK_ASSIGNMENT_SESSION_KEY, _OPERATIONS, _RESTAURANT_OPERATIONS,
+    task_operation_for,
+)
 from staycations.models import Staycation
 
 User = get_user_model()
@@ -1478,6 +1481,7 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
                 reverse('simulation:do_task', args=[self.assignment.pk]))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'activeSimulationTaskSchedule')
         self.assignment.refresh_from_db()
         self.assertEqual(self.assignment.started_at, self.at(8, 0))
 
@@ -1521,6 +1525,105 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
         self.assertEqual(direct_url.status_code, 302)
         self.assertEqual(api_response.status_code, 403)
         self.assertFalse(api_response.json()['ok'])
+
+    def test_resume_after_end_is_blocked_and_clears_the_expired_task_context(self):
+        with self.at_time(8, 0):
+            started = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+        self.assertEqual(started.status_code, 200)
+        self.assertEqual(
+            self.client.session.get(TASK_ASSIGNMENT_SESSION_KEY), self.assignment.pk)
+
+        with self.at_time(10, 0):
+            resumed = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+
+        self.assertEqual(resumed.status_code, 302)
+        self.assertEqual(
+            resumed.url, reverse('simulation:role_detail', args=[self.assignment.pk]))
+        self.assertIsNone(self.client.session.get(TASK_ASSIGNMENT_SESSION_KEY))
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.started_at, self.at(8, 0))
+
+    def test_one_open_task_cannot_unlock_another_expired_matching_route(self):
+        self.assign(
+            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
+            activity_name='Available reservation task',
+            simulation_date=self.schedule_date,
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+        )
+
+        with self.at_time(10, 0):
+            response = self.client.get(reverse('hotels:bookings'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url, reverse('simulation:role_detail', args=[self.assignment.pk]))
+
+    def test_incomplete_legacy_schedule_is_locked_instead_of_resuming_unrestricted(self):
+        self.assignment.start_time = None
+        self.assignment.save(update_fields=['start_time'])
+
+        with self.at_time(10, 0):
+            response = self.client.get(
+                reverse('simulation:do_task', args=[self.assignment.pk]))
+            detail = self.client.get(
+                reverse('simulation:role_detail', args=[self.assignment.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(detail.context['task_status'], 'Expired')
+        self.assertFalse(self.assignment.started_at)
+
+    def test_expired_resume_is_blocked_for_the_hotel_guest_billing_and_reservation_roles(self):
+        assignments = [self.assignment]
+        for role in (
+            Role.GUEST_HOTEL,
+            Role.HOTEL_BILLING_OFFICER,
+            Role.HOTEL_RESERVATION_OFFICER,
+        ):
+            assignments.append(self.assign(
+                self.arlyne, role, self.sunrise_est,
+                activity_name=f'Expired {role}',
+                simulation_date=self.schedule_date,
+                start_time=time(8, 0),
+                end_time=time(10, 0),
+            ))
+
+        for assignment in assignments:
+            with self.subTest(role=assignment.role):
+                assignment.started_at = self.at(8, 0)
+                assignment.save(update_fields=['started_at'])
+                with self.at_time(10, 0):
+                    response = self.client.get(
+                        reverse('simulation:do_task', args=[assignment.pk]))
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(
+                    response.url,
+                    reverse('simulation:role_detail', args=[assignment.pk]),
+                )
+
+    def test_each_student_uses_their_own_schedule_for_shared_hotel_routes(self):
+        other_assignment = self.assign(
+            self.angela, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Angela Hotel Task',
+            simulation_date=self.schedule_date,
+            start_time=time(8, 0),
+            end_time=time(12, 0),
+        )
+
+        with self.at_time(10, 0):
+            arlyne_response = self.client.get(reverse('hotels:bookings'))
+            self.client.force_login(self.angela)
+            angela_response = self.client.get(
+                reverse('simulation:do_task', args=[other_assignment.pk]))
+
+        self.assertEqual(arlyne_response.status_code, 302)
+        self.assertEqual(
+            arlyne_response.url,
+            reverse('simulation:role_detail', args=[self.assignment.pk]),
+        )
+        self.assertEqual(angela_response.status_code, 200)
 
     def test_expired_window_does_not_replace_a_completed_assignment(self):
         from simulation.task_routing import assignment_tasks_for

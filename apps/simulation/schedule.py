@@ -12,11 +12,22 @@ def task_window_for(assignment, now=None):
     behavior. Scheduled wall-clock times are interpreted in the project's
     current timezone and use an inclusive start, exclusive end boundary.
     """
-    if not (assignment.simulation_date and assignment.start_time and assignment.end_time):
+    schedule_values = (
+        assignment.simulation_date, assignment.start_time, assignment.end_time,
+    )
+    if not any(schedule_values):
         return {
             'state': 'unscheduled', 'can_start': True,
             'start_at': '', 'end_at': '', 'server_now': '',
             'message': '',
+        }
+
+    if not all(schedule_values):
+        now = timezone.localtime(now or timezone.now(), timezone.get_current_timezone())
+        return {
+            'state': 'expired', 'can_start': False,
+            'start_at': '', 'end_at': '', 'server_now': now.isoformat(),
+            'message': 'This task has an incomplete schedule and is locked. Contact your instructor.',
         }
 
     current_tz = timezone.get_current_timezone()

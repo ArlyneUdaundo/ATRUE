@@ -139,10 +139,11 @@ def do_task(request, assignment_id):
 
     task_window = task_window_for(assignment)
     if task_window['state'] in {'upcoming', 'expired'}:
+        if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
+            request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
         messages.warning(request, task_window['message'])
         return redirect('simulation:role_detail', assignment_id=assignment.pk)
 
-    request.session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
     operation = operation_with_urls(assignment, operation)
 
     # Starting is idempotent across refreshes and concurrent opens. The
@@ -156,6 +157,14 @@ def do_task(request, assignment_id):
             student=request.user,
             status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
         )
+        task_window = task_window_for(assignment)
+        if task_window['state'] in {'upcoming', 'expired'}:
+            if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
+                request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
+            messages.warning(request, task_window['message'])
+            return redirect('simulation:role_detail', assignment_id=assignment.pk)
+
+        request.session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
         if assignment.started_at is None:
             assignment.started_at = timezone.now()
             assignment.save(update_fields=['started_at'])
