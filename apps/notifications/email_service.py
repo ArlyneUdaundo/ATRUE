@@ -65,7 +65,8 @@ def _email_error_code(exc):
     message = str(exc)
     if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE',
                    'ETICKET_GENERATION_FAILED', 'BOOKING_NOT_CONFIRMED',
-                   'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED'}:
+                   'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED',
+                   'BREVO_INVALID_RESPONSE'}:
         return message
     if re.fullmatch(r'BREVO_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
         return message
@@ -119,7 +120,10 @@ def _brevo_send(*, to_email, to_name, subject, html, text, idempotency_key,
         if isinstance(getattr(exc, 'reason', None), TimeoutError):
             raise RuntimeError('BREVO_TIMEOUT') from exc
         raise RuntimeError('BREVO_CONNECTION_FAILED') from exc
-    return result.get('messageId', '')
+    message_id = result.get('messageId')
+    if not isinstance(message_id, str) or not message_id.strip():
+        raise RuntimeError('BREVO_INVALID_RESPONSE')
+    return message_id.strip()
 
 
 def _ticketable(booking):
@@ -327,6 +331,7 @@ def deliver_password_reset(token_id, raw_token):
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
         brevo = _brevo_config()
+        delivery_channel = 'smtp'
         if all(brevo.values()):
             try:
                 row.provider_message_id = _brevo_send(
@@ -334,6 +339,7 @@ def deliver_password_reset(token_id, raw_token):
                     subject='Reset your ATRUE password', html=html, text=text,
                     idempotency_key=f'password-reset:{row.pk}',
                 )
+                delivery_channel = 'brevo_api'
             except Exception as exc:
                 if not _smtp_is_configured():
                     raise
@@ -343,6 +349,7 @@ def deliver_password_reset(token_id, raw_token):
                 )
                 try:
                     _send_password_reset_smtp(row, text, html)
+                    delivery_channel = 'smtp_fallback'
                 except Exception as smtp_exc:
                     logger.warning(
                         'Password reset SMTP fallback failed; token_id=%s code=%s',
@@ -354,7 +361,11 @@ def deliver_password_reset(token_id, raw_token):
             # when the separate Brevo API credentials are not present.
             _send_password_reset_smtp(row, text, html)
         row.email_status = 'SENT'
-        logger.info('Password reset email accepted by provider; token_id=%s', row.pk)
+        logger.info(
+            'Password reset email accepted by transport; channel=%s token_id=%s '
+            'provider_message_id=%s',
+            delivery_channel, row.pk, row.provider_message_id or 'unavailable',
+        )
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
