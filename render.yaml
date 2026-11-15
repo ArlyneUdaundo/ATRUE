@@ -18,6 +18,7 @@ services:
         value: "True"
       - key: SECRET_KEY
         generateValue: true
+      # Set this in the Render service to its same-region Postgres internal URL.
       - key: DATABASE_URL
         sync: false
       - key: ALLOWED_HOSTS

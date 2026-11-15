@@ -183,6 +183,12 @@ WSGI_APPLICATION = "atrue_core.wsgi.application"
 # still be opened on a machine with no PostgreSQL server; production settings
 # refuse to start on it (see _assert_production_database below).
 _database_url = os.getenv("DATABASE_URL", "").strip()
+_is_render = os.getenv("RENDER", "").strip().casefold() == "true"
+
+if _is_render and not _database_url:
+    raise RuntimeError(
+        "DATABASE_URL must be set on Render to the PostgreSQL internal URL."
+    )
 
 if _database_url:
     import dj_database_url
@@ -191,6 +197,7 @@ if _database_url:
         "default": dj_database_url.parse(
             _database_url,
             conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "600")),
+            ssl_require=_is_render,
         )
     }
 elif os.getenv("DB_ENGINE", "").strip().lower() == "sqlite":
