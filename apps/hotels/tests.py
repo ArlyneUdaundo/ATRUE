@@ -484,6 +484,7 @@ class HotelReservationOfficerBookingTests(TestCase):
         bill.content_type = ContentType.objects.get_for_model(self.booking)
         bill.object_id = self.booking.pk
         bill.save()
+        self.bill = bill
         self.client.force_login(self.officer)
 
     def _activate_role(self, role):
@@ -502,12 +503,21 @@ class HotelReservationOfficerBookingTests(TestCase):
         self.assertContains(response, 'name="action" value="confirm"')
         self.assertNotContains(response, '<h3>Front Desk</h3>')
 
+        response = self.client.post(detail_url, {'action': 'checkin'})
+        self.assertEqual(response.status_code, 403)
+
         self._activate_role('HOTEL_FRONT_DESK')
         response = self.client.get(detail_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Review Reservation')
         self.assertContains(response, '<h3>Front Desk</h3>')
+
+        response = self.client.post(detail_url, {'action': 'checkin'})
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.PENDING)
+        self.assertIsNone(self.booking.checked_in_at)
 
         response = self.client.post(detail_url, {'action': 'confirm'})
 
@@ -525,15 +535,104 @@ class HotelReservationOfficerBookingTests(TestCase):
         self.assertContains(response, 'Check-In Guest')
         self.assertNotContains(response, 'Review Reservation')
 
+        self._activate_role('HOTEL_FRONT_DESK')
+        dashboard = self.client.get(reverse('hotels:bookings'))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertEqual(
+            [item['booking'].pk for item in dashboard.context['front_desk_pending_checkin']],
+            [self.booking.pk],
+        )
+        self.assertContains(dashboard, self.guest.username)
+        self.assertContains(dashboard, self.room.room_number)
+        self.assertContains(dashboard, 'Fully Paid')
+        self.assertContains(dashboard, 'Check-In')
+
         response = self.client.post(detail_url, {'action': 'checkin'})
         self.assertEqual(response.status_code, 302)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.CHECKED_IN)
+        self.assertIsNotNone(self.booking.checked_in_at)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.status, Room.RoomStatus.OCCUPIED)
+        from simulation.models import ActivityLog
+        self.assertTrue(ActivityLog.objects.filter(
+            user=self.officer, role_assignment=self.assignments['HOTEL_FRONT_DESK'],
+            action='Guest checked in', details=str(self.booking.pk),
+        ).exists())
+        checked_in_at = self.booking.checked_in_at
+
+        response = self.client.post(detail_url, {'action': 'checkin'})
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CHECKED_IN)
+        self.assertEqual(self.booking.checked_in_at, checked_in_at)
 
         response = self.client.get(detail_url)
         self.assertContains(response, 'Check-Out Guest')
+        dashboard = self.client.get(reverse('hotels:bookings'))
+        self.assertFalse(dashboard.context['front_desk_pending_checkin'])
+        self.assertEqual(
+            [item['booking'].pk for item in dashboard.context['front_desk_checked_in']],
+            [self.booking.pk],
+        )
+        self.assertContains(dashboard, 'Currently Checked-in')
 
         response = self.client.post(detail_url, {'action': 'checkout'})
         self.assertEqual(response.status_code, 302)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.CHECKED_OUT)
+        self.assertIsNotNone(self.booking.checked_out_at)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.status, Room.RoomStatus.AVAILABLE)
+        self.assertTrue(ActivityLog.objects.filter(
+            user=self.officer, role_assignment=self.assignments['HOTEL_FRONT_DESK'],
+            action='Guest checked out', details=str(self.booking.pk),
+        ).exists())
+        checked_out_at = self.booking.checked_out_at
+
+        response = self.client.post(detail_url, {'action': 'checkout'})
+        self.assertEqual(response.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CHECKED_OUT)
+        self.assertEqual(self.booking.checked_out_at, checked_out_at)
+        dashboard = self.client.get(reverse('hotels:bookings'))
+        self.assertFalse(dashboard.context['front_desk_checked_in'])
+        self.assertEqual(
+            [item['booking'].pk for item in dashboard.context['front_desk_checked_out']],
+            [self.booking.pk],
+        )
+        self.assertContains(dashboard, 'Checked-out')
+
+    def test_front_desk_rejects_unverified_payment_and_early_checkin(self):
+        from transactions.models import Bill
+
+        self.booking.status = Booking.Status.CONFIRMED
+        self.booking.save(update_fields=['status'])
+        bill = self.bill
+        self._activate_role('HOTEL_FRONT_DESK')
+
+        bill.status = Bill.Status.UNPAID
+        bill.verified_at = None
+        bill.save(update_fields=['status', 'verified_at'])
+        self.client.post(
+            reverse('hotels:booking_detail', args=[self.booking.pk]),
+            {'action': 'checkin'},
+        )
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
+        self.assertIsNone(self.booking.checked_in_at)
+
+        bill.status = Bill.Status.FULLY_PAID
+        bill.verified_at = timezone.now()
+        bill.save(update_fields=['status', 'verified_at'])
+        entry = self.booking.room_entries.get()
+        entry.check_in = timezone.localdate() + timedelta(days=1)
+        entry.check_out = entry.check_in + timedelta(days=1)
+        entry.save(update_fields=['check_in', 'check_out'])
+        self.client.post(
+            reverse('hotels:booking_detail', args=[self.booking.pk]),
+            {'action': 'checkin'},
+        )
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
+        self.assertIsNone(self.booking.checked_in_at)

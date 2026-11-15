@@ -66,6 +66,46 @@
     </div>
 </form>
 
+{% if is_front_desk %}
+<section class="card card-pad" style="margin-bottom:18px">
+    <h2>Pending Check-in</h2>
+    {% for item in front_desk_pending_checkin %}
+    <div style="padding:14px 0;border-bottom:1px solid var(--slate-200,#e2e8f0)">
+        <strong>{{ item.booking.booking_reference }} · {{ item.booking.primary_guest_name|default:item.booking.customer.get_full_name|default:item.booking.customer.username }}</strong>
+        <p>{{ item.booking.guest.contact|default:item.booking.payer_contact|default:item.booking.customer.contact_number|default:'Contact not provided' }} · {{ item.booking.number_of_guests }} guest{{ item.booking.number_of_guests|pluralize }}</p>
+        <p>{% for entry in item.booking.room_entries.all %}{{ entry.room.hotel.name }} · Room {{ entry.room.room_number }}{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+        <p>Check-in {{ item.booking.check_in|date:'M d, Y' }} · Check-out {{ item.booking.check_out|date:'M d, Y' }} · Payment {{ item.bill.get_status_display }} · Reservation {{ item.booking.get_status_display }}</p>
+        <form method="post" action="{% url 'hotels:booking_detail' item.booking.pk %}">{% csrf_token %}<button name="action" value="checkin" class="btn btn-brand btn-sm">Check-In</button></form>
+    </div>
+    {% empty %}<p class="meta">No confirmed, paid reservations are scheduled for check-in today.</p>{% endfor %}
+</section>
+
+<section class="card card-pad" style="margin-bottom:18px">
+    <h2>Currently Checked-in</h2>
+    {% for item in front_desk_checked_in %}
+    <div style="padding:14px 0;border-bottom:1px solid var(--slate-200,#e2e8f0)">
+        <strong>{{ item.booking.booking_reference }} · {{ item.booking.primary_guest_name|default:item.booking.customer.get_full_name|default:item.booking.customer.username }}</strong>
+        <p>{{ item.booking.guest.contact|default:item.booking.payer_contact|default:item.booking.customer.contact_number|default:'Contact not provided' }} · {{ item.booking.number_of_guests }} guest{{ item.booking.number_of_guests|pluralize }}</p>
+        <p>{% for entry in item.booking.room_entries.all %}{{ entry.room.hotel.name }} · Room {{ entry.room.room_number }}{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+        <p>Check-in {{ item.booking.check_in|date:'M d, Y' }} · Check-out {{ item.booking.check_out|date:'M d, Y' }} · Payment {% if item.bill %}{{ item.bill.get_status_display }}{% else %}Unpaid{% endif %} · Reservation {{ item.booking.get_status_display }}{% if item.booking.checked_in_at %} · Actual check-in {{ item.booking.checked_in_at|date:'M d, Y H:i' }}{% endif %}</p>
+        <form method="post" action="{% url 'hotels:booking_detail' item.booking.pk %}">{% csrf_token %}<button name="action" value="checkout" class="btn btn-brand btn-sm">Check-Out</button></form>
+    </div>
+    {% empty %}<p class="meta">No guests are currently checked in.</p>{% endfor %}
+</section>
+
+<section class="card card-pad">
+    <h2>Checked-out</h2>
+    {% for item in front_desk_checked_out %}
+    <div style="padding:14px 0;border-bottom:1px solid var(--slate-200,#e2e8f0)">
+        <strong>{{ item.booking.booking_reference }} · {{ item.booking.primary_guest_name|default:item.booking.customer.get_full_name|default:item.booking.customer.username }}</strong>
+        <p>{{ item.booking.guest.contact|default:item.booking.payer_contact|default:item.booking.customer.contact_number|default:'Contact not provided' }} · {{ item.booking.number_of_guests }} guest{{ item.booking.number_of_guests|pluralize }}</p>
+        <p>{% for entry in item.booking.room_entries.all %}{{ entry.room.hotel.name }} · Room {{ entry.room.room_number }}{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+        <p>Scheduled {{ item.booking.check_in|date:'M d, Y' }} – {{ item.booking.check_out|date:'M d, Y' }} · Payment {% if item.bill %}{{ item.bill.get_status_display }}{% else %}Unpaid{% endif %} · Reservation {{ item.booking.get_status_display }}</p>
+        <p>Actual check-in {{ item.booking.checked_in_at|date:'M d, Y H:i'|default:'Not recorded' }} · Actual check-out {{ item.booking.checked_out_at|date:'M d, Y H:i'|default:'Not recorded' }}</p>
+    </div>
+    {% empty %}<p class="meta">No completed hotel stays yet.</p>{% endfor %}
+</section>
+{% else %}
 <div class="card">
     <div class="table-wrap">
         <table class="table">
@@ -93,4 +133,5 @@
         </table>
     </div>
 </div>
+{% endif %}
 {% endblock %}

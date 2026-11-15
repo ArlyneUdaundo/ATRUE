@@ -105,6 +105,30 @@ def _room_available_for_dates(room, check_in, check_out):
             and not _room_turnover_conflict(room, check_in))
 
 
+def _front_desk_payment_confirmed(booking):
+    from transactions.models import Bill
+
+    bill = bill_for_booking(booking)
+    return bool(
+        bill
+        and bill.status == Bill.Status.FULLY_PAID
+        and bill.verified_at
+    )
+
+
+def _front_desk_checkin_eligible(booking, today=None):
+    today = today or timezone.localdate()
+    check_in = booking.check_in
+    check_out = booking.check_out
+    return bool(
+        booking.status == Booking.Status.CONFIRMED
+        and _front_desk_payment_confirmed(booking)
+        and check_in
+        and check_out
+        and check_in <= today < check_out
+    )
+
+
 def _location_errors(province, municipality, barangay="", country=""):
     """Server-side check against the canonical (worldwide) location hierarchy.
 
@@ -1647,6 +1671,31 @@ def bookings(request):
         'status': 'status',
     }
     qs = qs.distinct().order_by(sort_map.get(sort, '-created_at'))
+    active_assignment = getattr(request, 'active_simulation_assignment', None)
+    is_front_desk = bool(
+        active_assignment and active_assignment.role == 'HOTEL_FRONT_DESK'
+    )
+    front_desk_pending_checkin = []
+    front_desk_checked_in = []
+    front_desk_checked_out = []
+    if is_front_desk:
+        for booking in qs:
+            if booking.status == Booking.Status.CONFIRMED:
+                if _front_desk_checkin_eligible(booking):
+                    front_desk_pending_checkin.append({
+                        'booking': booking,
+                        'bill': bill_for_booking(booking),
+                    })
+            elif booking.status == Booking.Status.CHECKED_IN:
+                front_desk_checked_in.append({
+                    'booking': booking,
+                    'bill': bill_for_booking(booking),
+                })
+            elif booking.status == Booking.Status.CHECKED_OUT:
+                front_desk_checked_out.append({
+                    'booking': booking,
+                    'bill': bill_for_booking(booking),
+                })
     return render(request, 'hotels/bookings.html', {
         'bookings': qs,
         'hotels': scope_hotels(request, Hotel.objects.all()),
@@ -1656,6 +1705,10 @@ def bookings(request):
         'check_in': check_in,
         'check_out': check_out,
         'sort': sort,
+        'is_front_desk': is_front_desk,
+        'front_desk_pending_checkin': front_desk_pending_checkin,
+        'front_desk_checked_in': front_desk_checked_in,
+        'front_desk_checked_out': front_desk_checked_out,
     })
 
 
@@ -1694,7 +1747,7 @@ def booking_detail(request, booking_id):
     reservation_officer = reservation_officer and not customer_read_only
     can_process_checkin = can_process_checkin and not customer_read_only
 
-    if request.method == 'POST' and can_manage:
+    if request.method == 'POST' and (can_manage or can_process_checkin):
         action = request.POST.get('action')
         if reservation_officer or can_process_checkin:
             allowed_role_actions = (
@@ -1717,25 +1770,44 @@ def booking_detail(request, booking_id):
             decline_booking(booking, request.user)
             messages.success(request, "Booking declined.")
         elif action == 'checkin':
-            booking.status = Booking.Status.CHECKED_IN
-            booking.checked_in_at = timezone.now()
-            booking.save(update_fields=['status', 'checked_in_at'])
-            for room in booking.rooms.all():
-                room.status = Room.RoomStatus.OCCUPIED
-                room.save(update_fields=['status'])
-            log_activity(request.user, "Guest checked in", str(booking.pk))
+            with db_transaction.atomic():
+                booking = Booking.objects.select_for_update().get(pk=booking.pk)
+                if not _front_desk_checkin_eligible(booking):
+                    messages.error(
+                        request,
+                        'Check-in requires a confirmed, fully paid and verified booking on its scheduled check-in date.',
+                    )
+                    return redirect('hotels:booking_detail', booking.id)
+                booking.status = Booking.Status.CHECKED_IN
+                booking.checked_in_at = timezone.now()
+                booking.save(update_fields=['status', 'checked_in_at'])
+                for room in booking.rooms.select_for_update():
+                    room.status = Room.RoomStatus.OCCUPIED
+                    room.save(update_fields=['status'])
+                log_activity(
+                    request.user, "Guest checked in", str(booking.pk),
+                    role_assignment=active_assignment,
+                )
             messages.success(request, "Guest checked in.")
         elif action == 'checkout':
-            booking.status = Booking.Status.CHECKED_OUT
-            booking.checked_out_at = timezone.now()
-            booking.save(update_fields=['status', 'checked_out_at'])
-            for room in booking.rooms.all():
-                room.status = Room.RoomStatus.AVAILABLE
-                room.save(update_fields=['status'])
-            from simulation.completion import record_booking_fulfilled
-            record_booking_fulfilled(booking, actor=request.user,
-                task_assignment_id=request.session.get('active_simulation_task_assignment'))
-            log_activity(request.user, "Guest checked out", str(booking.pk))
+            with db_transaction.atomic():
+                booking = Booking.objects.select_for_update().get(pk=booking.pk)
+                if booking.status != Booking.Status.CHECKED_IN:
+                    messages.error(request, 'Only a checked-in guest can be checked out.')
+                    return redirect('hotels:booking_detail', booking.id)
+                booking.status = Booking.Status.CHECKED_OUT
+                booking.checked_out_at = timezone.now()
+                booking.save(update_fields=['status', 'checked_out_at'])
+                for room in booking.rooms.select_for_update():
+                    room.status = Room.RoomStatus.AVAILABLE
+                    room.save(update_fields=['status'])
+                from simulation.completion import record_booking_fulfilled
+                record_booking_fulfilled(booking, actor=request.user,
+                    task_assignment_id=request.session.get('active_simulation_task_assignment'))
+                log_activity(
+                    request.user, "Guest checked out", str(booking.pk),
+                    role_assignment=active_assignment,
+                )
             messages.success(request, "Guest checked out.")
         elif action == 'modify':
             first_entry = booking.room_entries.first()
@@ -1796,6 +1868,9 @@ def booking_detail(request, booking_id):
         'can_manage_lifecycle': can_manage and not reservation_officer and not can_process_checkin,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,
         'can_process_checkin': can_process_checkin,
+        'can_checkin_guest': can_process_checkin and _front_desk_checkin_eligible(booking),
+        'can_checkout_guest': (
+            can_process_checkin and booking.status == Booking.Status.CHECKED_IN),
     })
 
 
