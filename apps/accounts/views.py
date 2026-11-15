@@ -22,6 +22,7 @@ import secrets
 from datetime import timedelta
 
 import datetime
+import ipaddress
 
 from atrue_core.services import log_activity
 
@@ -41,15 +42,30 @@ def forgot_password_view(request):
     generic = 'If an account matches that email, password reset instructions will be sent shortly.'
     if request.method == 'POST':
         email = (request.POST.get('email') or '').strip().casefold()[:254]
-        ip = request.META.get('REMOTE_ADDR', '')[:64]
+        ip = request.META.get('REMOTE_ADDR', '').strip()
+        # Render terminates public requests at Cloudflare/load-balancer proxies,
+        # so REMOTE_ADDR is commonly the proxy address shared by all visitors.
+        # Only honor forwarded client IP headers when proxy trust is enabled.
+        if getattr(settings, 'SECURE_PROXY_SSL_HEADER', None):
+            forwarded_ip = (request.META.get('HTTP_CF_CONNECTING_IP', '').strip()
+                            or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',', 1)[0].strip())
+            try:
+                ipaddress.ip_address(forwarded_ip)
+            except ValueError:
+                forwarded_ip = ''
+            if forwarded_ip:
+                ip = forwarded_ip
+        ip = ip[:64]
         secret = settings.SECRET_KEY.encode()
         digest = lambda value: hmac.new(secret, value.encode(), hashlib.sha256).hexdigest()
         now = timezone.now()
         PasswordResetRequest.objects.filter(created_at__lt=now-timedelta(days=2)).delete()
         email_digest, ip_digest = digest(email), digest(ip)
         PasswordResetRequest.objects.create(email_digest=email_digest, ip_digest=ip_digest)
-        limited = (PasswordResetRequest.objects.filter(email_digest=email_digest, created_at__gte=now-timedelta(hours=1)).count() > 5
-                   or PasswordResetRequest.objects.filter(ip_digest=ip_digest, created_at__gte=now-timedelta(hours=1)).count() > 20)
+        recent = PasswordResetRequest.objects.filter(created_at__gte=now-timedelta(hours=1))
+        email_limited = recent.filter(email_digest=email_digest).count() > 5
+        ip_limited = recent.filter(ip_digest=ip_digest).count() > 20
+        limited = email_limited or ip_limited
         valid_email = bool(email)
         if valid_email:
             try:
@@ -73,7 +89,10 @@ def forgot_password_view(request):
             else:
                 logger.warning('Password reset skipped: no active account matched the submitted email')
         elif limited:
-            logger.warning('Password reset request was rate-limited')
+            logger.warning(
+                'Password reset request was rate-limited; email_limit_hit=%s ip_limit_hit=%s',
+                email_limited, ip_limited,
+            )
         if request.headers.get('X-ATRUE-RESET-MODAL') == '1':
             return JsonResponse({'ok': True, 'message': generic})
         return redirect(f"{reverse('home')}?reset=1&reset_sent=1")
