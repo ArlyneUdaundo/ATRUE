@@ -129,9 +129,9 @@ _OPERATIONS = {
             tasks=(('Manage Rooms', 'hotels:rooms', 'fa-bed'),),
         ),
         'HOTEL_BILLING_OFFICER': _operation(
-            'Hotel Operations', 'transactions:admin_list', 'transactions',
-            {'admin_list'}, 'fa-file-invoice-dollar',
-            tasks=(('Manage Bills and Transactions', 'transactions:admin_list',
+            'Hotel Operations', 'transactions:payment_review', 'transactions',
+            {'payment_review'}, 'fa-file-invoice-dollar',
+            tasks=(('Review and confirm payments', 'transactions:payment_review',
                     'fa-file-invoice-dollar'),),
         ),
         'BILLING_OFFICER': _operation(

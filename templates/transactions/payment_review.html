@@ -114,7 +114,7 @@
         <div class="payment-review-grid">
             <div class="payment-review-field">
                 <span class="payment-review-label">Guest</span>
-                <span class="payment-review-value">{{ row.bill.customer.get_full_name|default:row.bill.customer.username }}</span>
+                <span class="payment-review-value">{{ row.booking.primary_guest_name|default:row.bill.customer.get_full_name|default:row.bill.customer.username }}</span>
             </div>
             <div class="payment-review-field">
                 <span class="payment-review-label">Bill reference</span>
@@ -144,6 +144,12 @@
                 <span class="payment-review-label">Guest account</span>
                 <span class="payment-review-value">{{ row.bill.customer.username }}</span>
             </div>
+            {% if row.booking.rooms.all %}
+            <div class="payment-review-field">
+                <span class="payment-review-label">Room details</span>
+                <span class="payment-review-value">{% for room in row.booking.rooms.all %}{{ room.room_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+            </div>
+            {% endif %}
         </div>
 
         <div class="payment-review-action">
@@ -154,7 +160,7 @@
                 {% if row.payment %}
                 <input type="hidden" name="payment_id" value="{{ row.payment.pk }}">
                 <input type="hidden" name="action" value="confirm_payment">
-                <button type="submit" class="btn btn-brand btn-sm">Confirm received payment</button>
+                <button type="submit" class="btn btn-brand btn-sm">Confirm Payment</button>
                 {% else %}
                 <input type="hidden" name="bill_id" value="{{ row.bill.pk }}">
                 <button type="submit" class="btn btn-brand btn-sm">Verify fully paid bill</button>

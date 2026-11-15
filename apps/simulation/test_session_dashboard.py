@@ -23,6 +23,7 @@ from simulation.models import (
 )
 from simulation.role_catalogue import sync_role_catalogue
 from simulation.task_routing import assignment_tasks_for
+from simulation.task_routing import task_operation_for
 from transactions.models import Bill, Payment
 
 User = get_user_model()
@@ -261,6 +262,60 @@ class HotelGuestTaskTests(HotelGuestFlowTestCase):
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PENDING)
         self.assertNotIn('PAYMENT_VERIFIED', self._events())
+
+    def test_hotel_billing_officer_route_opens_payment_review_for_legacy_assignment(self):
+        SimulationRoleAssignment.objects.filter(
+            pk=self.billing_assignment.pk).update(role_ref=None)
+        self.billing_assignment.refresh_from_db()
+
+        operation = task_operation_for(self.billing_assignment)
+
+        self.assertEqual(operation['route'], 'transactions:payment_review')
+        self.assertIn('transactions:payment_review', operation['allowed_routes'])
+
+    def test_billing_officer_can_review_and_confirm_submitted_payment(self):
+        record_hotel_guest_booking(
+            self.guest, self.booking, assignment=self.guest_assignment)
+        guest_client = Client(SERVER_NAME='localhost')
+        guest_client.force_login(self.guest)
+        submitted = guest_client.post(
+            reverse('transactions:bill_detail', args=[self.bill.pk]),
+            {'action': 'pay', 'amount': '1000.00', 'payment_method': 'GCASH'})
+        self.assertEqual(submitted.status_code, 302)
+        payment = Payment.objects.get(bill=self.bill)
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+
+        client = Client(SERVER_NAME='localhost')
+        client.force_login(self.billing)
+        session = client.session
+        session['active_simulation_task_assignment'] = self.billing_assignment.pk
+        session.save()
+
+        review = client.get(reverse('transactions:payment_review'))
+
+        self.assertEqual(review.status_code, 200)
+        self.assertContains(review, 'Confirm Payment')
+        self.assertContains(review, self.booking.booking_reference)
+        self.assertContains(review, self.hotel.name)
+        self.assertContains(review, self.room.room_number)
+        self.assertContains(review, self.billing.username)
+
+        response = client.post(
+            reverse('transactions:payment_review'),
+            {'payment_id': payment.pk, 'action': 'confirm_payment'})
+
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.bill.refresh_from_db()
+        self.booking.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PAID)
+        self.assertIsNotNone(payment.paid_at)
+        self.assertIn(self.billing.username, payment.receipts.get().remark)
+        self.assertEqual(self.bill.verified_by, self.billing)
+        self.assertIsNotNone(self.bill.verified_at)
+        self.assertEqual(self.booking.amount_paid, payment.amount)
+        self.assertEqual(self.booking.balance_due, Decimal('0.00'))
+        self.assertEqual(self.booking.status, Booking.Status.PENDING)
 
     def test_full_payment_then_reservation_confirmation_complete_last_two_tasks(self):
         record_hotel_guest_booking(

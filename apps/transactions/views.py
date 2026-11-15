@@ -128,7 +128,10 @@ def payment_review(request):
             Receipt.objects.create(
                 payment=payment, bill=bill, customer=payment.customer,
                 amount=payment.amount,
-                remark=f'Payment verified by Billing Officer for {bill.bill_reference}',
+                remark=(
+                    f'Payment verified by {request.user.get_username()} '
+                    f'for {bill.bill_reference}'
+                ),
             )
             if bill.status == Bill.Status.FULLY_PAID:
                 bill.verified_by = request.user
