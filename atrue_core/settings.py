@@ -424,6 +424,10 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "level": "ERROR",
         },
+        "console_email_warnings": {
+            "class": "logging.StreamHandler",
+            "level": "WARNING",
+        },
     },
     "loggers": {
         "django.request": {
@@ -434,6 +438,16 @@ LOGGING = {
         "hotels.views": {
             "handlers": ["console_errors"],
             "level": "ERROR",
+            "propagate": False,
+        },
+        "accounts.views": {
+            "handlers": ["console_email_warnings"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "notifications.email_service": {
+            "handlers": ["console_email_warnings"],
+            "level": "WARNING",
             "propagate": False,
         },
     },

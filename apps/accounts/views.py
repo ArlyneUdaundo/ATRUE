@@ -17,6 +17,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from urllib.parse import urlparse
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import timedelta
 
@@ -28,6 +29,8 @@ from .forms import (AccountCreateForm, ProfilePhotoForm, UserAccountForm,
                    UserLoginForm, UserRegistrationForm)
 from .models import ACCOUNT_TYPE_CHOICES, User
 from .roles import effective_role_keys
+
+logger = logging.getLogger(__name__)
 
 
 def forgot_password_view(request):
@@ -64,6 +67,10 @@ def forgot_password_view(request):
                         user=user, token_hash=token_hash, expires_at=now+timedelta(minutes=30))
                     transaction.on_commit(lambda pk=reset.pk, token=raw: __import__(
                         'notifications.email_service', fromlist=['deliver_password_reset']).deliver_password_reset(pk, token))
+            else:
+                logger.warning('Password reset skipped: no active account matched the submitted email')
+        elif limited:
+            logger.warning('Password reset request was rate-limited')
         if request.headers.get('X-ATRUE-RESET-MODAL') == '1':
             return JsonResponse({'ok': True, 'message': generic})
         return redirect(f"{reverse('home')}?reset=1&reset_sent=1")

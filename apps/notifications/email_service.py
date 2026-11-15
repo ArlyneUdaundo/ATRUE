@@ -334,13 +334,21 @@ def deliver_password_reset(token_id, raw_token):
                     subject='Reset your ATRUE password', html=html, text=text,
                     idempotency_key=f'password-reset:{row.pk}',
                 )
-            except RuntimeError as exc:
-                # Auth failures mean Brevo rejected the request, so SMTP can
-                # safely be tried without risking a duplicate reset email.
-                if not str(exc).startswith(('BREVO_HTTP_401', 'BREVO_HTTP_403')):
+            except Exception as exc:
+                if not _smtp_is_configured():
                     raise
-                logger.warning('Brevo rejected reset mail credentials; trying SMTP fallback')
-                _send_password_reset_smtp(row, text, html)
+                logger.warning(
+                    'Brevo reset delivery failed; trying SMTP fallback (code=%s)',
+                    _email_error_code(exc),
+                )
+                try:
+                    _send_password_reset_smtp(row, text, html)
+                except Exception as smtp_exc:
+                    logger.warning(
+                        'Password reset SMTP fallback failed; token_id=%s code=%s',
+                        row.pk, _email_error_code(smtp_exc),
+                    )
+                    raise
         else:
             # Render deployments may have SMTP credentials configured even
             # when the separate Brevo API credentials are not present.
@@ -351,6 +359,16 @@ def deliver_password_reset(token_id, raw_token):
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
                        _email_error_code(exc))
     row.save(update_fields=['email_status', 'provider_message_id'])
+
+
+def _smtp_is_configured():
+    """Only try SMTP when the deployment has a complete authenticated setup."""
+    return all((
+        str(getattr(settings, 'EMAIL_HOST', '') or '').strip(),
+        str(getattr(settings, 'EMAIL_HOST_USER', '') or '').strip(),
+        str(getattr(settings, 'EMAIL_HOST_PASSWORD', '') or '').strip(),
+        str(getattr(settings, 'DEFAULT_FROM_EMAIL', '') or '').strip(),
+    ))
 
 
 def _send_password_reset_smtp(row, text, html):
