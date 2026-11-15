@@ -1647,12 +1647,6 @@ def bookings(request):
         'status': 'status',
     }
     qs = qs.distinct().order_by(sort_map.get(sort, '-created_at'))
-    from accounts.roles import can_process_booking_checkin
-    active_assignment = getattr(request, 'active_simulation_assignment', None)
-    if active_assignment is not None:
-        can_process_checkin = active_assignment.role == 'HOTEL_FRONT_DESK'
-    else:
-        can_process_checkin = can_process_booking_checkin(request.user, 'hotels')
     return render(request, 'hotels/bookings.html', {
         'bookings': qs,
         'hotels': scope_hotels(request, Hotel.objects.all()),
@@ -1662,7 +1656,6 @@ def bookings(request):
         'check_in': check_in,
         'check_out': check_out,
         'sort': sort,
-        'can_process_checkin': can_process_checkin,
     })
 
 
