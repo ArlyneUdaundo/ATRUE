@@ -11,14 +11,13 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
-BREVO_ACCOUNT_URL = 'https://api.brevo.com/v3/account'
+BREVO_SENDERS_URL = 'https://api.brevo.com/v3/senders'
 
 
 def _brevo_config():
@@ -31,19 +30,19 @@ def _brevo_config():
 
 
 def check_brevo_connection():
-    """Validate configured Brevo credentials without sending an email."""
+    """Validate Brevo credentials and that the configured sender is active."""
     config = _brevo_config()
     if not all(config.values()):
         raise RuntimeError('EMAIL_CONFIGURATION_MISSING')
     req = urllib.request.Request(
-        BREVO_ACCOUNT_URL, method='GET',
+        BREVO_SENDERS_URL, method='GET',
         headers={'api-key': config['api_key'], 'accept': 'application/json'},
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
             if response.status != 200:
                 raise RuntimeError(f'BREVO_HTTP_{response.status}')
-            json.loads(response.read().decode() or '{}')
+            result = json.loads(response.read().decode() or '{}')
     except urllib.error.HTTPError as exc:
         provider_code = ''
         try:
@@ -57,6 +56,12 @@ def check_brevo_connection():
         raise RuntimeError(f'BREVO_HTTP_{exc.code}{suffix}') from exc
     except (TimeoutError, urllib.error.URLError) as exc:
         raise RuntimeError('BREVO_CONNECTION_FAILED') from exc
+    sender = next((
+        item for item in result.get('senders', [])
+        if str(item.get('email', '')).strip().casefold() == config['sender_email'].casefold()
+    ), None)
+    if not sender or sender.get('active') is not True:
+        raise RuntimeError('BREVO_SENDER_NOT_VERIFIED')
     return True
 
 
@@ -66,7 +71,7 @@ def _email_error_code(exc):
     if message in {'EMAIL_CONFIGURATION_MISSING', 'RECIPIENT_UNAVAILABLE',
                    'ETICKET_GENERATION_FAILED', 'BOOKING_NOT_CONFIRMED',
                    'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED',
-                   'BREVO_INVALID_RESPONSE'}:
+                   'BREVO_INVALID_RESPONSE', 'BREVO_SENDER_NOT_VERIFIED'}:
         return message
     if re.fullmatch(r'BREVO_HTTP_\d{3}(?:_[A-Z0-9_-]{1,40})?', message):
         return message
@@ -311,7 +316,7 @@ def _booking_details(booking):
 
 
 def deliver_password_reset(token_id, raw_token):
-    """Send reset link; raw token is held only in this post-commit callback."""
+    """Send reset link through Brevo; raw token is held only in this callback."""
     from .models import PasswordResetToken
     row = PasswordResetToken.objects.select_related('user').filter(pk=token_id).first()
     if not row:
@@ -330,65 +335,18 @@ def deliver_password_reset(token_id, raw_token):
         })
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
-        brevo = _brevo_config()
-        delivery_channel = 'smtp'
-        if all(brevo.values()):
-            try:
-                row.provider_message_id = _brevo_send(
-                    to_email=row.user.email, to_name=row.user.get_full_name(),
-                    subject='Reset your ATRUE password', html=html, text=text,
-                    idempotency_key=f'password-reset:{row.pk}',
-                )
-                delivery_channel = 'brevo_api'
-            except Exception as exc:
-                if not _smtp_is_configured():
-                    raise
-                logger.warning(
-                    'Brevo reset delivery failed; trying SMTP fallback (code=%s)',
-                    _email_error_code(exc),
-                )
-                try:
-                    _send_password_reset_smtp(row, text, html)
-                    delivery_channel = 'smtp_fallback'
-                except Exception as smtp_exc:
-                    logger.warning(
-                        'Password reset SMTP fallback failed; token_id=%s code=%s',
-                        row.pk, _email_error_code(smtp_exc),
-                    )
-                    raise
-        else:
-            # Render deployments may have SMTP credentials configured even
-            # when the separate Brevo API credentials are not present.
-            _send_password_reset_smtp(row, text, html)
+        row.provider_message_id = _brevo_send(
+            to_email=row.user.email, to_name=row.user.get_full_name(),
+            subject='Reset your ATRUE password', html=html, text=text,
+            idempotency_key=f'password-reset:{row.pk}',
+        )
         row.email_status = 'SENT'
         logger.info(
-            'Password reset email accepted by transport; channel=%s token_id=%s '
-            'provider_message_id=%s',
-            delivery_channel, row.pk, row.provider_message_id or 'unavailable',
+            'Password reset email accepted by Brevo API; token_id=%s provider_message_id=%s',
+            row.pk, row.provider_message_id,
         )
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
                        _email_error_code(exc))
     row.save(update_fields=['email_status', 'provider_message_id'])
-
-
-def _smtp_is_configured():
-    """Only try SMTP when the deployment has a complete authenticated setup."""
-    return all((
-        str(getattr(settings, 'EMAIL_HOST', '') or '').strip(),
-        str(getattr(settings, 'EMAIL_HOST_USER', '') or '').strip(),
-        str(getattr(settings, 'EMAIL_HOST_PASSWORD', '') or '').strip(),
-        str(getattr(settings, 'DEFAULT_FROM_EMAIL', '') or '').strip(),
-    ))
-
-
-def _send_password_reset_smtp(row, text, html):
-    message = EmailMultiAlternatives(
-        subject='Reset your ATRUE password', body=text,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[row.user.email],
-    )
-    message.attach_alternative(html, 'text/html')
-    if message.send(fail_silently=False) != 1:
-        raise RuntimeError('EMAIL_NOT_ACCEPTED')

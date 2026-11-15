@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from activities.models import Activity, ActivityProvider, Booking
 from notifications.email_service import queue_booking_confirmation
-from notifications.email_service import _brevo_send
+from notifications.email_service import _brevo_send, check_brevo_connection
 from notifications.models import EmailDelivery, PasswordResetToken
 
 
@@ -25,7 +25,10 @@ class BrevoEmailTests(TestCase):
             username='emailguest', email='guest@example.test', password='InitialPass!879')
 
     @patch('notifications.email_service._brevo_send', return_value='provider-message-1')
-    def test_booking_email_is_saved_once_and_only_after_commit(self, send):
+    @patch('notifications.email_service._build_ticket_pdf', return_value={
+        'name': 'booking-test.pdf', 'content': b'%PDF-test',
+    })
+    def test_booking_email_is_saved_once_and_only_after_commit(self, build_pdf, send):
         provider = ActivityProvider.objects.create(name='Provider', location='Manila')
         activity = Activity.objects.create(provider=provider, name='Kayak', fee='100.00')
         booking = Booking.objects.create(customer=self.user, activity=activity,
@@ -86,6 +89,35 @@ class BrevoEmailTests(TestCase):
             'new_password2': 'AgainPassword!4682',
         })
         self.assertContains(reused, 'invalid, expired, or already used', status_code=400)
+
+    @patch('notifications.email_service._brevo_send', side_effect=RuntimeError('BREVO_HTTP_401_UNAUTHORIZED'))
+    def test_reset_api_failure_is_recorded_and_never_reported_as_sent(self, send):
+        with self.assertLogs('notifications.email_service', level='WARNING') as captured:
+            response = self.client.post(
+                reverse('accounts:forgot_password'), {'email': self.user.email},
+                HTTP_X_ATRUE_RESET_MODAL='1',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        row = PasswordResetToken.objects.get(user=self.user)
+        self.assertEqual(row.email_status, 'FAILED')
+        self.assertEqual(row.provider_message_id, '')
+        self.assertEqual(send.call_count, 1)
+        self.assertIn('BREVO_HTTP_401_UNAUTHORIZED', captured.output[0])
+        self.assertNotIn(self.user.email, captured.output[0])
+
+    @patch('notifications.email_service._brevo_send')
+    def test_invalid_email_does_not_call_brevo(self, send):
+        response = self.client.post(
+            reverse('accounts:forgot_password'), {'email': 'not-an-email'},
+            HTTP_X_ATRUE_RESET_MODAL='1',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertFalse(PasswordResetToken.objects.filter(user=self.user).exists())
+        send.assert_not_called()
 
     def test_forgot_password_direct_route_redirects_to_shared_modal(self):
         response = self.client.get(reverse('accounts:forgot_password'))
@@ -152,3 +184,31 @@ class BrevoEmailTests(TestCase):
             _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
                         html='Hi', text='Hi', idempotency_key='test-http-error')
         self.assertNotIn('sensitive detail', str(raised.exception))
+
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_brevo_check_confirms_configured_sender_is_active(self, urlopen):
+        from unittest.mock import MagicMock
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__enter__.return_value.read.return_value = json.dumps({
+            'senders': [{'email': 'noreply@example.test', 'active': True}],
+        }).encode()
+        urlopen.return_value = response
+
+        self.assertTrue(check_brevo_connection())
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://api.brevo.com/v3/senders')
+        self.assertEqual(request.get_header('Api-key'), 'test-key')
+
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_brevo_check_rejects_unverified_sender(self, urlopen):
+        from unittest.mock import MagicMock
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__enter__.return_value.read.return_value = json.dumps({
+            'senders': [{'email': 'noreply@example.test', 'active': False}],
+        }).encode()
+        urlopen.return_value = response
+
+        with self.assertRaisesRegex(RuntimeError, 'BREVO_SENDER_NOT_VERIFIED'):
+            check_brevo_connection()

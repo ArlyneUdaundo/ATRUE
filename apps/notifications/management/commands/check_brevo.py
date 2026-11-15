@@ -17,10 +17,12 @@ class Command(BaseCommand):
                 'BREVO_CONNECTION_FAILED': (
                     'Could not reach api.brevo.com from this environment.'
                 ),
+                'BREVO_SENDER_NOT_VERIFIED': (
+                    'BREVO_SENDER_EMAIL is not an active, verified Brevo sender.'
+                ),
             }
             message = reasons.get(str(exc), f'Brevo API check failed: {exc}')
             raise CommandError(message) from exc
         self.stdout.write(self.style.SUCCESS(
-            'Brevo API credentials are valid. Sender configuration is present; '
-            'confirm the sender or domain is verified in Brevo.'
+            'Brevo API credentials are valid and BREVO_SENDER_EMAIL is active in Brevo.'
         ))
