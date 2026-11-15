@@ -69,7 +69,7 @@
 <div class="card">
     <div class="table-wrap">
         <table class="table">
-            <thead><tr><th>Photo</th><th>Reference</th><th>Guest</th><th>Hotel / Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Bill</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Photo</th><th>Reference</th><th>Guest</th><th>Hotel / Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Bill</th><th>Status</th><th></th>{% if can_process_checkin %}<th>Front Desk</th>{% endif %}</tr></thead>
             <tbody>
                 {% for b in bookings %}
                 <tr>
@@ -85,9 +85,18 @@
                     <td>₱ {{ b.total_bill }}</td>
                     <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CANCELLED' %}badge-gray{% elif b.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
                     <td><a href="{% url 'hotels:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
+                    {% if can_process_checkin %}
+                    <td>
+                        {% if b.status == 'CONFIRMED' %}
+                        <form method="post" action="{% url 'hotels:booking_detail' b.id %}">{% csrf_token %}<button name="action" value="checkin" class="btn btn-brand btn-sm">Check-In</button></form>
+                        {% elif b.status == 'CHECKED_IN' %}
+                        <form method="post" action="{% url 'hotels:booking_detail' b.id %}">{% csrf_token %}<button name="action" value="checkout" class="btn btn-brand btn-sm">Check-Out</button></form>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
                 {% empty %}
-                <tr><td colspan="10"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings</h3></div></td></tr>
+                <tr><td colspan="{% if can_process_checkin %}11{% else %}10{% endif %}"><div class="empty"><i class="fas fa-ticket-alt"></i><h3>No bookings</h3></div></td></tr>
                 {% endfor %}
             </tbody>
         </table>

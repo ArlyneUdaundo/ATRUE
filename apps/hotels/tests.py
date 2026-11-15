@@ -521,6 +521,9 @@ class HotelReservationOfficerBookingTests(TestCase):
         self.assertEqual(self.booking.status, Booking.Status.CONFIRMED)
 
         self._activate_role('HOTEL_FRONT_DESK')
+        dashboard_url = reverse('hotels:bookings')
+        response = self.client.get(dashboard_url)
+        self.assertContains(response, 'Check-In')
         response = self.client.get(detail_url)
         self.assertContains(response, 'Check-In Guest')
         self.assertNotContains(response, 'Review Reservation')
@@ -532,8 +535,13 @@ class HotelReservationOfficerBookingTests(TestCase):
 
         response = self.client.get(detail_url)
         self.assertContains(response, 'Check-Out Guest')
+        response = self.client.get(dashboard_url)
+        self.assertContains(response, 'Check-Out')
 
         response = self.client.post(detail_url, {'action': 'checkout'})
         self.assertEqual(response.status_code, 302)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.CHECKED_OUT)
+        response = self.client.get(dashboard_url)
+        self.assertNotContains(response, '>Check-In</button>')
+        self.assertNotContains(response, '>Check-Out</button>')
