@@ -2,7 +2,9 @@ from datetime import date, timedelta
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
+from django.utils import timezone
 
 from establishments.models import establishment_for_instance
 from simulation.models import SimulationRoleAssignment
@@ -103,7 +105,20 @@ class AssignedResortBookingTests(TestCase):
         session.save()
 
     def test_guest_reservation_lands_pending_and_the_officer_confirms_it(self):
+        from transactions.models import Bill
+
         booking = self.make_reservation(self.unit)
+        Bill.objects.create(
+            service='resorts',
+            customer=booking.customer,
+            content_type=ContentType.objects.get_for_model(booking),
+            object_id=booking.pk,
+            total_amount=booking.total_bill,
+            amount_paid=booking.total_bill,
+            balance_due=0,
+            status=Bill.Status.FULLY_PAID,
+            verified_at=timezone.now(),
+        )
         self.assertEqual(booking.status, Reservation.Status.PENDING)
         self._activate()
 
@@ -127,6 +142,115 @@ class AssignedResortBookingTests(TestCase):
             response, f'<td class="mono">{mine.booking_reference}</td>')
         self.assertNotContains(
             response, f'<td class="mono">{theirs.booking_reference}</td>')
+
+    def test_resort_reservation_pages_use_the_hotel_booking_layout(self):
+        booking = self.make_reservation(self.unit)
+        self._activate()
+
+        bookings_page = self.client.get(reverse('resorts:bookings'))
+        self.assertContains(bookings_page, 'hotel-booking-filter-grid')
+        self.assertContains(bookings_page, '<th>Photo</th>')
+        self.assertContains(bookings_page, '<th>Resort / Unit</th>')
+
+        detail_page = self.client.get(
+            reverse('resorts:booking_detail', args=[booking.pk]))
+        self.assertContains(detail_page, 'hbd-main-grid')
+        self.assertContains(detail_page, 'hbd-gallery')
+        self.assertContains(detail_page, 'hbd-billing-wrap')
+
+    def test_resort_unit_type_filter_is_preserved_in_the_shared_list(self):
+        villa = RoomVilla.objects.create(
+            resort=self.resort, unit_number='V1', rate='2500',
+            unit_type=RoomVilla.UnitType.VILLA,
+        )
+        room_booking = self.make_reservation(self.unit)
+        villa_booking = self.make_reservation(villa)
+        self._activate()
+
+        response = self.client.get(
+            reverse('resorts:bookings'), {'unit_type': RoomVilla.UnitType.VILLA})
+
+        self.assertContains(response, villa_booking.booking_reference)
+        self.assertNotContains(response, room_booking.booking_reference)
+
+    def test_resort_front_desk_checkin_and_checkout_actions_still_work(self):
+        officer = User.objects.create_user(
+            'resort-front-desk-action', password='pw',
+            account_type=User.AccountType.STUDENT,
+        )
+        assignment = SimulationRoleAssignment.objects.create(
+            student=officer,
+            assigned_by=self.instructor,
+            role=SimulationRoleAssignment.Role.RESORT_FRONT_DESK,
+            establishment=establishment_for_instance(self.resort, create=True),
+            activity_name='Resort front desk actions',
+        )
+        booking = self.make_reservation(self.unit, status=Reservation.Status.CONFIRMED)
+        self.client.force_login(officer)
+        session = self.client.session
+        session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
+        session.save()
+
+        detail_url = reverse('resorts:booking_detail', args=[booking.pk])
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, 'hbd-main-grid')
+        self.assertContains(detail, 'name="action" value="checkin"')
+        checked_in = self.client.post(detail_url, {'action': 'checkin'})
+        self.assertEqual(checked_in.status_code, 302)
+        booking.refresh_from_db()
+        self.unit.refresh_from_db()
+        self.assertEqual(booking.status, Reservation.Status.CHECKED_IN)
+        self.assertEqual(self.unit.status, RoomVilla.Status.OCCUPIED)
+
+        checked_out = self.client.post(detail_url, {'action': 'checkout'})
+        self.assertEqual(checked_out.status_code, 302)
+        booking.refresh_from_db()
+        self.unit.refresh_from_db()
+        self.assertEqual(booking.status, Reservation.Status.CHECKED_OUT)
+        self.assertEqual(self.unit.status, RoomVilla.Status.AVAILABLE)
+
+    def test_resort_manager_modify_and_cancel_actions_still_work(self):
+        manager = User.objects.create_user(
+            'resort-manager-action', password='pw',
+            account_type=User.AccountType.STUDENT,
+        )
+        assignment = SimulationRoleAssignment.objects.create(
+            student=manager,
+            assigned_by=self.instructor,
+            role=SimulationRoleAssignment.Role.RESORT_MANAGER,
+            establishment=establishment_for_instance(self.resort, create=True),
+            activity_name='Resort manager actions',
+        )
+        self.client.force_login(manager)
+        session = self.client.session
+        session[TASK_ASSIGNMENT_SESSION_KEY] = assignment.pk
+        session.save()
+
+        booking = self.make_reservation(self.unit)
+        detail_url = reverse('resorts:booking_detail', args=[booking.pk])
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, 'hbd-main-grid')
+        self.assertContains(detail, 'name="action" value="modify"')
+        modified = self.client.post(detail_url, {
+            'action': 'modify',
+            'check_in': (date.today() + timedelta(days=10)).isoformat(),
+            'check_out': (date.today() + timedelta(days=12)).isoformat(),
+            'adults': '2',
+            'children': '0',
+        })
+        self.assertEqual(modified.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Reservation.Status.MODIFIED)
+
+        confirmed = self.make_reservation(
+            self.unit, status=Reservation.Status.CONFIRMED)
+        cancel_url = reverse('resorts:booking_detail', args=[confirmed.pk])
+        cancel_detail = self.client.get(cancel_url)
+        self.assertContains(cancel_detail, 'name="action" value="cancel"')
+        cancelled = self.client.post(cancel_url, {'action': 'cancel'})
+        self.assertEqual(cancelled.status_code, 302)
+        confirmed.refresh_from_db()
+        self.assertEqual(confirmed.status, Reservation.Status.CANCELLED)
 
     def test_reservation_officer_gets_403_for_an_unassigned_resort_booking(self):
         theirs = self.make_reservation(self.other_unit)

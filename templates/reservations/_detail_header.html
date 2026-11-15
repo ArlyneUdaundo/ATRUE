@@ -1,0 +1,17 @@
+<div class="page-head hbd-page-head">
+    <div class="hbd-heading">
+        <a href="{% if reservation_type == 'resort' %}{% url 'resorts:bookings' %}{% else %}{% url 'hotels:bookings' %}{% endif %}" class="hbd-back" aria-label="Back to {% if reservation_type == 'resort' %}resort reservations{% else %}hotel bookings{% endif %}"><i class="fas fa-arrow-left"></i></a>
+        <div><h1>{% if reservation_type == 'resort' %}Reservation{% else %}Booking{% endif %} {{ booking.booking_reference }}</h1><p>{% if reservation_type == 'resort' %}Resort reservation details, billing and status.{% else %}Hotel reservation details, billing and status.{% endif %}</p></div>
+    </div>
+    <div class="hbd-heading-actions">
+        {% if reservation_type == 'resort' and bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Submit Payment</a>{% endif %}
+        {% if can_print_ticket %}
+        {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
+        <a href="{% if reservation_type == 'resort' %}{% url 'resorts:ticket' booking.id %}{% else %}{% url 'hotels:ticket' booking.id %}{% endif %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
+        {% else %}
+        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
+        {% endif %}
+        {% endif %}
+        <span class="hbd-status {% if booking.status == 'CONFIRMED' %}is-confirmed{% elif booking.status == 'CANCELLED' %}is-cancelled{% elif booking.status == 'CHECKED_IN' %}is-active{% else %}is-pending{% endif %}"><i class="fas {% if booking.status == 'CONFIRMED' %}fa-circle-check{% elif booking.status == 'CANCELLED' %}fa-circle-xmark{% else %}fa-clock{% endif %}"></i>{{ booking.get_status_display }}</span>
+    </div>
+</div>

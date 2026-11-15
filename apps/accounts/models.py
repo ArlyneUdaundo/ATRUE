@@ -116,6 +116,12 @@ class User(AbstractUser):
         from accounts.roles import can_access_module
         return bool(can_access_module(self, 'hotels'))
 
+    @property
+    def can_manage_resorts(self):
+        """True when this user may open resort operations routes."""
+        from accounts.roles import can_access_module
+        return bool(can_access_module(self, 'resorts'))
+
     @cached_property
     def is_airline_ticketing_only(self):
         from accounts.roles import is_airline_ticketing_only

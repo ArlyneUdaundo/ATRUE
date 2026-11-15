@@ -1647,10 +1647,16 @@ def bookings(request):
         'status': 'status',
     }
     qs = qs.distinct().order_by(sort_map.get(sort, '-created_at'))
+    scoped_hotels = scope_hotels(request, Hotel.objects.all())
+    hotel_scoped_user = is_hotel_scoped(request.user)
     return render(request, 'hotels/bookings.html', {
+        'reservation_type': 'hotel',
         'bookings': qs,
-        'hotels': scope_hotels(request, Hotel.objects.all()),
-        'hotel_scoped_user': is_hotel_scoped(request.user),
+        'hotels': scoped_hotels,
+        'properties': scoped_hotels,
+        'selected_property': hotel_id,
+        'hotel_scoped_user': hotel_scoped_user,
+        'property_scoped_user': hotel_scoped_user,
         'status': status,
         'q': q,
         'check_in': check_in,

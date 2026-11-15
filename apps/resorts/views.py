@@ -864,13 +864,16 @@ def book_resort(request, unit_id):
 
 @manager_required
 def bookings(request):
-    qs = Reservation.objects.select_related('customer', 'unit__resort')
+    qs = Reservation.objects.select_related('customer', 'unit__resort').prefetch_related(
+        'additional_guests', 'unit__resort__photos',
+    )
     resort_ids = _assigned_resort_ids(request)
     if resort_ids is not None:
         qs = (qs.filter(unit__resort_id__in=resort_ids) if resort_ids
               else qs.none())
     q = (request.GET.get('q') or '').strip()
     status = (request.GET.get('status') or '').strip()
+    resort_id = (request.GET.get('resort') or '').strip()
     unit_type = (request.GET.get('unit_type') or '').strip()
     check_in_from = (request.GET.get('check_in_from') or '').strip()
     check_out_to = (request.GET.get('check_out_to') or '').strip()
@@ -884,6 +887,8 @@ def bookings(request):
             | Q(unit__resort__name__icontains=q)
             | Q(unit__unit_number__icontains=q)
         )
+    if resort_id:
+        qs = qs.filter(unit__resort_id=resort_id)
     if status:
         qs = qs.filter(status=status)
     if unit_type:
@@ -900,15 +905,22 @@ def bookings(request):
     }
     qs = qs.order_by(sort_map.get(sort, '-created_at'))
     return render(request, 'resorts/bookings.html', {
+        'reservation_type': 'resort',
         'bookings': qs,
         'q': q,
         'status': status,
+        'selected_property': resort_id,
+        'property_scoped_user': resort_ids is not None,
         'unit_type': unit_type,
         'check_in_from': check_in_from,
         'check_out_to': check_out_to,
         'sort': sort,
         'unit_type_choices': RoomVilla.UnitType.choices,
         'resorts': (
+            Resort.objects.all() if resort_ids is None
+            else Resort.objects.filter(pk__in=resort_ids)
+        ),
+        'properties': (
             Resort.objects.all() if resort_ids is None
             else Resort.objects.filter(pk__in=resort_ids)
         ),

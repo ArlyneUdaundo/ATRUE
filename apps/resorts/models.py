@@ -247,5 +247,14 @@ class Reservation(BookingFieldsMixin):
     def number_of_guests(self):
         return self.number_of_adults + self.number_of_children
 
+    @property
+    def total_guest_count(self):
+        """Primary guest group plus any additional guest groups on the booking."""
+        additional_count = sum(
+            guest.adults + guest.children
+            for guest in self.additional_guests.all()
+        )
+        return self.number_of_guests + additional_count
+
     def __str__(self):
         return f"Reservation {self.booking_reference}"

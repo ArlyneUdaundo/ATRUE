@@ -7,22 +7,7 @@
 
 {% block content %}
 <div class="hbd-page">
-<div class="page-head hbd-page-head">
-    <div class="hbd-heading">
-        <a href="{% url 'hotels:bookings' %}" class="hbd-back" aria-label="Back to hotel bookings"><i class="fas fa-arrow-left"></i></a>
-        <div><h1>Booking {{ booking.booking_reference }}</h1><p>Hotel reservation details, billing and status.</p></div>
-    </div>
-    <div class="hbd-heading-actions">
-        {% if can_print_ticket %}
-        {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
-        <a href="{% url 'hotels:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
-        {% else %}
-        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
-        {% endif %}
-        {% endif %}
-        <span class="hbd-status {% if booking.status == 'CONFIRMED' %}is-confirmed{% elif booking.status == 'CANCELLED' %}is-cancelled{% elif booking.status == 'CHECKED_IN' %}is-active{% else %}is-pending{% endif %}"><i class="fas {% if booking.status == 'CONFIRMED' %}fa-circle-check{% elif booking.status == 'CANCELLED' %}fa-circle-xmark{% else %}fa-clock{% endif %}"></i>{{ booking.get_status_display }}</span>
-    </div>
-</div>
+{% include 'reservations/_detail_header.html' with reservation_type='hotel' booking=booking can_print_ticket=can_print_ticket %}
 
 {% if booking.status == 'PENDING' and not can_manage %}
 <div class="alert alert-info">
@@ -35,19 +20,7 @@
     <section class="hbd-panel hbd-stay-panel">
         {% with room=booking.rooms.all|first %}
         {% with hotel=room.hotel %}
-        <div class="hbd-gallery" data-hbd-gallery aria-label="{{ hotel.name }} property photos">
-            {% for photo in hotel.photos.all %}
-            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:hotel.name }}" class="hbd-gallery-image{% if forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
-            {% empty %}
-            <img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ hotel.name }}" class="hbd-gallery-image is-active" data-hbd-image>
-            {% endfor %}
-            <div class="hbd-gallery-label"><i class="fas fa-camera"></i> Property Photos</div>
-            {% if hotel.photos.all|length > 1 %}
-            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ hotel.photos.all|length }}</div>
-            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous property photo"><i class="fas fa-chevron-left"></i></button>
-            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next property photo"><i class="fas fa-chevron-right"></i></button>
-            {% endif %}
-        </div>
+        {% include 'reservations/_property_gallery.html' with reservation_property=hotel %}
 
         <div class="hbd-section-title"><i class="fas fa-bed"></i><h2>Guest &amp; Room</h2></div>
         <div class="hbd-info-list">

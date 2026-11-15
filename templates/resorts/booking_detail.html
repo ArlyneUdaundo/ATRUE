@@ -1,25 +1,12 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Resort Reservation Detail{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-6">{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Resort reservation details, billing and status.</p></div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
-        {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}
-        <a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm"><i class="fas fa-credit-card"></i> Submit Payment</a>
-        {% endif %}
-        {% if can_print_ticket %}
-        {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
-        <a href="{% url 'resorts:ticket' booking.id %}" class="btn btn-brand btn-sm"><i class="fas fa-print"></i> Print E-Ticket</a>
-        {% else %}
-        <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
-        {% endif %}
-        {% endif %}
-        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
-    </div>
-</div>
+<div class="hbd-page">
+{% include 'reservations/_detail_header.html' with reservation_type='resort' booking=booking can_print_ticket=can_print_ticket bill=bill %}
 
 {% if booking.status == 'PENDING' and not can_manage %}
 <div class="alert alert-info">
@@ -35,36 +22,42 @@
 </div>
 {% endif %}
 
-<div class="grid-2">
-    <div class="card card-pad">
-        <h3><i class="fas fa-umbrella-beach"></i> Guest &amp; Accommodation</h3>
-        <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
-        <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
-        <div class="meta">Selected units:
-            <div><b>Unit 1 — Primary Guest:</b> {{ booking.unit.resort.name }} — {{ booking.unit.unit_number }} ({{ booking.unit.get_unit_type_display }}) · {{ booking.customer.full_profile }} · {{ booking.customer.email }} · {{ booking.customer.contact_number }}</div>
-            {% for g in booking.additional_guests.all %}
-            {% if g.unit_id %}<div><b>Unit {{ g.selection_order }} — Additional Guest:</b> {{ g.unit.resort.name }} — {{ g.unit.unit_number }} ({{ g.unit.get_unit_type_display }}) · {{ g.first_name }} {{ g.middle_name }} {{ g.last_name }} · {{ g.email }} · {{ g.contact }} · {{ g.adults }} adult(s), {{ g.children }} child(ren){% if g.special_requests %} · {{ g.special_requests }}{% endif %}</div>{% endif %}
-            {% endfor %}
-        </div>
-        <div class="meta">Check-in: {{ booking.check_in|date:"M d, Y" }} · Check-out: {{ booking.check_out|date:"M d, Y" }} · {{ booking.nights }} night(s)</div>
-        <div class="meta">Guests: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C</div>
-        {% if booking.checked_in_at %}<div class="meta">Actual check-in: <b>{{ booking.checked_in_at|date:"M d, Y H:i" }}</b></div>{% endif %}
-        {% if booking.checked_out_at %}<div class="meta">Actual check-out: <b>{{ booking.checked_out_at|date:"M d, Y H:i" }}</b></div>{% endif %}
-        {% if booking.additional_guests.all %}
-        <div class="meta">Additional guests:
-            {% for g in booking.additional_guests.all %}<span class="service-chip">{{ g.first_name }} {{ g.last_name }}{% if g.country %} ({{ g.country }}){% endif %}</span>{% endfor %}
-        </div>
-        {% endif %}
-        {% if booking.manager_remarks %}<div class="meta">Manager remarks: {{ booking.manager_remarks }}</div>{% endif %}
-        {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
-        {% if booking.services.all %}
-        <div class="meta">Services:
-            {% for s in booking.services.all %}<span class="service-chip">{{ s.name }} (₱ {{ s.rate }})</span>{% endfor %}
-        </div>
-        {% endif %}
-    </div>
+<div class="hbd-main-grid">
+    <section class="hbd-panel hbd-stay-panel">
+        {% with resort=booking.unit.resort %}
+        {% include 'reservations/_property_gallery.html' with reservation_property=resort %}
 
-    {% include 'transactions/_booking_billing.html' %}
+        <div class="hbd-section-title"><i class="fas fa-umbrella-beach"></i><h2>Guest &amp; Accommodation</h2></div>
+        <div class="hbd-info-list">
+            <div class="hbd-info-row"><i class="fas fa-user"></i><span>Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></span></div>
+            <div class="hbd-info-row"><i class="fas fa-user-tag"></i><span>Payer: <b>{{ booking.payer_name|default:"Same as guest" }}</b></span></div>
+            <div class="hbd-info-row"><i class="fas fa-phone"></i><span>Guest contact: {{ booking.customer.email }}{% if booking.payer_contact %} &middot; {{ booking.payer_contact }}{% elif booking.customer.contact_number %} &middot; {{ booking.customer.contact_number }}{% endif %}</span></div>
+            <div class="hbd-info-row"><i class="fas fa-user-graduate"></i><span>Booked by: <b>{{ booking.customer.full_profile }}</b></span></div>
+        </div>
+
+        <div class="hbd-divider"></div>
+        <div class="hbd-section-title hbd-room-title"><i class="fas fa-door-open"></i><h2>Unit Details</h2></div>
+        <div class="hbd-info-list">
+            <div class="hbd-info-row"><i class="fas fa-umbrella-beach"></i><span>Accommodation: <b>{{ booking.unit.get_unit_type_display }}</b> &mdash; {{ resort.name }} &middot; {{ booking.unit.unit_number }}</span></div>
+            <div class="hbd-info-row"><i class="fas fa-user-group"></i><span>Guests: {{ booking.number_of_adults }}A / {{ booking.number_of_children }}C</span></div>
+            <div class="hbd-info-row"><i class="fas fa-bed"></i><span>Selected unit: Unit 1 &mdash; Primary Guest: {{ resort.name }} &mdash; {{ booking.unit.unit_number }} ({{ booking.unit.get_unit_type_display }})</span></div>
+            {% for guest in booking.additional_guests.all %}
+            <div class="hbd-info-row"><i class="fas fa-users"></i><span>Unit {{ guest.selection_order }} &mdash; Additional Guest: {% if guest.unit %}{{ guest.unit.resort.name }} &mdash; {{ guest.unit.unit_number }} ({{ guest.unit.get_unit_type_display }}) &middot; {% endif %}{{ guest.first_name }} {{ guest.middle_name }} {{ guest.last_name }} &middot; {{ guest.email }} &middot; {{ guest.contact }} &middot; {{ guest.adults }} adult(s), {{ guest.children }} child(ren){% if guest.country %} &middot; {{ guest.country }}{% endif %}{% if guest.special_requests %} &middot; {{ guest.special_requests }}{% endif %}</span></div>
+            {% endfor %}
+            <div class="hbd-info-row"><i class="fas fa-calendar-check"></i><span>Check-in: <b>{{ booking.check_in|date:'M d, Y' }}</b> &middot; Check-out: <b>{{ booking.check_out|date:'M d, Y' }}</b> ({{ booking.nights }} night{{ booking.nights|pluralize }})</span></div>
+            {% if booking.checked_in_at %}<div class="hbd-info-row"><i class="fas fa-right-to-bracket"></i><span>Actual check-in: {{ booking.checked_in_at|date:'M d, Y H:i' }}</span></div>{% endif %}
+            {% if booking.checked_out_at %}<div class="hbd-info-row"><i class="fas fa-right-from-bracket"></i><span>Actual check-out: {{ booking.checked_out_at|date:'M d, Y H:i' }}</span></div>{% endif %}
+            {% if booking.additional_guests.all %}<div class="hbd-info-row"><i class="fas fa-users"></i><span>Additional guests: {% for guest in booking.additional_guests.all %}{{ guest.first_name }} {{ guest.last_name }}{% if guest.country %} ({{ guest.country }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+            {% if booking.services.all %}<div class="hbd-info-row"><i class="fas fa-concierge-bell"></i><span>Services: {% for service in booking.services.all %}{{ service.name }} (&#8369; {{ service.rate }}){% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+            {% if booking.services_note %}<div class="hbd-info-row"><i class="fas fa-note-sticky"></i><span>Service requests: {{ booking.services_note }}</span></div>{% endif %}
+            {% if booking.special_requests %}<div class="hbd-info-row"><i class="fas fa-message"></i><span>Requests: {{ booking.special_requests }}</span></div>{% endif %}
+            {% if booking.manager_remarks %}<div class="hbd-info-row"><i class="fas fa-clipboard"></i><span>Resort remarks: {{ booking.manager_remarks }}</span></div>{% endif %}
+        </div>
+        <div class="hbd-location"><i class="fas fa-location-dot"></i><div><b>{{ resort.name }}{% if resort.municipality %} &middot; {{ resort.municipality }}{% endif %}</b><span>{{ resort.location }}</span></div></div>
+        {% endwith %}
+    </section>
+
+    <div class="hbd-billing-wrap">{% include 'transactions/_booking_billing.html' with is_resort_booking=True %}</div>
 </div>
 
 {% if can_manage_lifecycle %}
@@ -92,24 +85,11 @@
         </div>
         <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Save Modification</button>
     </form>
-
 </div>
 {% endif %}
 
-
 {% if is_front_desk %}
-<div class="card card-pad" style="margin-top:18px">
-    <h3><i class="fas fa-concierge-bell"></i> Front Desk</h3>
-    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}
-        {% if booking.status == 'CONFIRMED' %}
-        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Guest</button>
-        {% elif booking.status == 'CHECKED_IN' %}
-        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Guest</button>
-        {% else %}
-        <span class="meta">Front Desk actions are available after the Reservation Officer confirms the reservation.</span>
-        {% endif %}
-    </form>
-</div>
+<div class="card card-pad" style="margin-top:18px"><h3><i class="fas fa-concierge-bell"></i> Front Desk</h3><form method="post" style="display:flex;gap:10px;flex-wrap:wrap">{% csrf_token %}{% if booking.status == 'CONFIRMED' %}<button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Guest</button>{% elif booking.status == 'CHECKED_IN' %}<button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Guest</button>{% else %}<span class="meta">Front Desk actions are available after the Reservation Officer confirms the reservation.</span>{% endif %}</form></div>
 {% endif %}
 
 {% if is_reservation_officer and booking.status == 'PENDING' and bill and bill.status == 'FULLY_PAID' and bill.verified_at %}
@@ -121,4 +101,6 @@
 </div>
 {% endif %}
 
+<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>
+</div>
 {% endblock %}

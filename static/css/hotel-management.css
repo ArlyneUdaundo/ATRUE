@@ -134,6 +134,65 @@
     margin-bottom: 0;
 }
 
+/* The Resort list shares the hotel filters and table, with one additional
+   unit-type filter kept in a dedicated grid area. */
+.hotel-booking-filter-grid.resort-booking-filter-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-areas:
+        "query query status unit-type sort"
+        "hotel checkin checkout actions actions";
+}
+.hotel-booking-filter-grid.resort-booking-filter-grid--scoped {
+    grid-template-areas:
+        "query query status unit-type sort"
+        "checkin checkout actions actions actions";
+}
+.resort-booking-unit-type { grid-area: unit-type; }
+
+@media (max-width: 900px) {
+    .hotel-booking-filter-grid.resort-booking-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+            "query query"
+            "hotel status"
+            "unit-type unit-type"
+            "checkin checkout"
+            "sort actions";
+    }
+    .hotel-booking-filter-grid.resort-booking-filter-grid--scoped {
+        grid-template-areas:
+            "query query"
+            "status unit-type"
+            "checkin checkout"
+            "sort actions";
+    }
+}
+
+@media (max-width: 560px) {
+    .hotel-booking-filter-grid.resort-booking-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "query"
+            "hotel"
+            "status"
+            "unit-type"
+            "checkin"
+            "checkout"
+            "sort"
+            "actions";
+    }
+    .hotel-booking-filter-grid.resort-booking-filter-grid--scoped {
+        grid-template-areas:
+            "query"
+            "status"
+            "unit-type"
+            "checkin"
+            "checkout"
+            "sort"
+            "actions";
+    }
+}
+
 @media (max-width: 900px) {
     .hotel-compact-filter-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
