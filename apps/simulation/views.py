@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Prefetch, Q
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1679,20 +1679,46 @@ def session_assignment(request, session_id):
             clash=True,
         )
 
+    # A repeat override permits the same role in another activity/session, but
+    # this session has a stricter database rule: one active row per student,
+    # role and establishment. Check it here so the modal can explain the clash
+    # instead of receiving an HTML 500 response from the unique constraint.
+    same_session = SimulationRoleAssignment.objects.filter(
+        student=student,
+        session=session,
+        role_ref=role_row,
+        establishment=establishment,
+        status=active_status,
+    )
+    if existing is not None:
+        same_session = same_session.exclude(pk=existing.pk)
+    if same_session.exists():
+        return fail(
+            [f"This student already has {role_row.name} at this establishment "
+             "in this session. Edit that assignment instead."],
+            status=409,
+        )
+
     if existing is None:
-        with transaction.atomic():
-            assignment = SimulationRoleAssignment.objects.create(
-                student=student,
-                assigned_by=request.user,
-                role=role,
-                role_ref=role_row,
-                activity_name=session.name,
-                session=session,
-                establishment=establishment,
-                hotel=hotel,
-                **schedule,
+        try:
+            with transaction.atomic():
+                assignment = SimulationRoleAssignment.objects.create(
+                    student=student,
+                    assigned_by=request.user,
+                    role=role,
+                    role_ref=role_row,
+                    activity_name=session.name,
+                    session=session,
+                    establishment=establishment,
+                    hotel=hotel,
+                    **schedule,
+                )
+                _notify_assignment(assignment, request.user)
+        except IntegrityError:
+            return fail(
+                ['This assignment conflicts with another active role in this session. Refresh and try again.'],
+                status=409,
             )
-            _notify_assignment(assignment, request.user)
         action = 'assign'
         log_activity(request.user, f"Assigned {role} role",
                      f"{session.name} — {role_row.name}", session=session)
@@ -1720,7 +1746,14 @@ def session_assignment(request, session_id):
         existing.simulation_date = schedule.get('simulation_date')
         existing.start_time = schedule.get('start_time')
         existing.end_time = schedule.get('end_time')
-        existing.save()
+        try:
+            with transaction.atomic():
+                existing.save()
+        except IntegrityError:
+            return fail(
+                ['This assignment conflicts with another active role in this session. Refresh and try again.'],
+                status=409,
+            )
         assignment = existing
         action = 'edit'
         new_values = (
