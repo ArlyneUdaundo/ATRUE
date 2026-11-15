@@ -1,6 +1,14 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}{{ assignment.get_role_display }} | Simulation Role{% endblock %}
+
+{% block content_class %}sim-role-detail-main{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261114-task-window-ui">
+<link rel="stylesheet" href="{% static 'css/simulation-role-detail.css' %}?v=20261115-layout">
+{% endblock %}
 
 {% block content %}
 <style>
@@ -18,7 +26,8 @@
     #update-role .update-role-submit { grid-area: submit; width: 100%; min-height: 48px; justify-content: center; white-space: normal; }
 }
 </style>
-<div class="page-head">
+<div class="sim-role-detail">
+<div class="page-head sim-role-page-head">
     <div>
         <h1>Simulation Role</h1>
         <p>Assigned role details and applicable permissions (FR View Simulation Role).</p>
@@ -30,9 +39,15 @@
     </div>
 </div>
 
-<div class="card" style="margin-bottom:20px;border:1px solid var(--slate-200);box-shadow:0 12px 28px rgba(15,23,42,.07)">
-    <div class="card-pad" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
-        <div style="min-width:240px;flex:1">
+<div class="card sim-role-task-card">
+    <div class="sim-role-task-visual" aria-hidden="true">
+        {% if assignment.hotel.photos.all %}
+            {% with hotel_photo=assignment.hotel.photos.all|first %}
+                {% if hotel_photo.image %}<img src="{{ hotel_photo.image.url }}" alt="">{% else %}<i class="fas fa-hotel"></i>{% endif %}
+            {% endwith %}
+        {% else %}<i class="fas fa-hotel"></i>{% endif %}
+    </div>
+    <div class="sim-role-task-copy">
             <div class="meta" style="margin:0 0 6px"><i class="fas fa-play-circle"></i> Assigned task</div>
             <h2 style="margin:0 0 8px;color:var(--slate-900)">{{ task_operation.label|default:assignment.get_role_display }}</h2>
             <p style="margin:0;color:var(--slate-600)">
@@ -49,8 +64,8 @@
                 {% if assignment.started_at %}<span><b>Started:</b> {{ assignment.started_at|date:"M d, Y H:i" }}</span>{% endif %}
                 {% if assignment.completed_at %}<span><b>Completed:</b> {{ assignment.completed_at|date:"M d, Y H:i" }}</span>{% endif %}
             </div>
-        </div>
-        <div>
+    </div>
+    <div class="sim-role-task-action">
             {% if assignment.status == 'ACTIVE' and task_operation %}
             {% include 'simulation/_task_start_button.html' with task_assignment=assignment task_window=task_window task_button_large=True %}
             {% if task_window.state != 'unscheduled' %}<p style="max-width:220px;margin:8px 0 0;color:var(--slate-600);font-size:12px">{{ task_window.message }}</p>{% endif %}
@@ -69,20 +84,25 @@
             {% else %}
             <span class="badge badge-gray" style="padding:10px 14px">Task workflow unavailable</span>
             {% endif %}
-        </div>
     </div>
 </div>
 
-<div class="card card-pad" style="margin-top:20px">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+<div class="card card-pad sim-role-progress-card">
+    <div class="sim-role-progress-head">
         <div>
             <h3 style="margin:0"><i class="fas fa-list-check"></i> Verified Task Progress</h3>
             <p style="margin:6px 0 0;color:var(--slate-600)">
                 {% if progress.required %}{{ progress.completed_required }} of {{ progress.required }} required tasks completed · {{ progress.percent }}%{% else %}No required tasks are configured for this role.{% endif %}
             </p>
         </div>
-        <span class="badge {% if assignment.status == 'DONE' %}badge-green{% elif task_status == 'Expired' %}badge-gray{% elif task_status == 'Upcoming' %}badge-gray{% elif assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ task_status }}</span>
+        <div class="sim-role-progress-status">
+            <strong class="sim-role-progress-percent">{{ progress.percent|default:0 }}%</strong>
+            <span class="badge {% if assignment.status == 'DONE' %}badge-green{% elif task_status == 'Expired' %}badge-gray{% elif task_status == 'Upcoming' %}badge-gray{% elif assignment.status == 'ACTIVE' %}badge-blue{% else %}badge-gray{% endif %}">{{ task_status }}</span>
+        </div>
     </div>
+    {% if progress.required %}
+    <div class="sim-progress-track sim-role-progress-track {% if progress.percent >= 100 %}sim-progress--complete{% endif %}" role="progressbar" aria-label="Required task completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ progress.percent }}"><span style="width:{{ progress.percent }}%"></span></div>
+    {% endif %}
     {% if progress.tasks %}
     <ol class="sim-task-list" style="margin-top:16px">
         {% for task in progress.tasks %}
@@ -99,7 +119,7 @@
     {% endif %}
 </div>
 
-<div class="grid-2">
+<div class="grid-2 sim-role-info-grid">
     <div class="card">
         <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
             <div style="display:flex;align-items:center;gap:14px">
@@ -222,10 +242,13 @@
 </script>
 {% endif %}
 
-<div class="card" style="margin-top:20px">
-    <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
+<div class="card sim-role-history-card">
+    <div class="card-pad sim-role-history-head">
+        <div>
         <h3 style="margin:0"><i class="fas fa-history"></i> Student's Completed Roles</h3>
         <p style="color:var(--slate-500);font-size:13.5px;margin:0">Other simulation roles {{ assignment.student.get_full_name|default:assignment.student.username }} has already completed.</p>
+        </div>
+        <a href="{% if can_manage %}{% url 'simulation:role_list' %}{% else %}{% url 'simulation:workspace' %}{% endif %}" class="btn btn-ghost btn-sm">View All <i class="fas fa-arrow-right"></i></a>
     </div>
     {% if student_roles %}
     <div class="table-wrap">
@@ -247,5 +270,6 @@
     {% else %}
     <div class="empty"><i class="fas fa-check-double"></i><h3>No other roles yet</h3><p>This student has not completed any other simulation role.</p></div>
     {% endif %}
+</div>
 </div>
 {% endblock %}
