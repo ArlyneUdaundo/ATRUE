@@ -20,7 +20,8 @@ For low-volume staging, Gmail SMTP can send as the Gmail mailbox that authentica
    | `GMAIL_SENDER_NAME` | `ATRUE Simulation Portal` |
    | `APP_BASE_URL` | `https://atrue-performance-staging.onrender.com` |
 
-4. Save and redeploy. Submit a reset for an authorized test account and check the recipient inbox and spam folder. Gmail SMTP has no transactional-provider message ID; the application records SMTP acceptance, not delivery. Confirm actual receipt and complete the reset-link/login test.
+4. Save and redeploy. In Render **Logs**, a reset attempt records the selected provider without logging the recipient address or reset token. Failures are recorded with a sanitized code such as `GMAIL_SMTP_CONFIGURATION_MISSING`, `GMAIL_SMTP_AUTH_FAILED`, `GMAIL_SMTP_CONNECTION_FAILED`, `GMAIL_SMTP_TLS_FAILED`, or `GMAIL_SMTP_RECIPIENT_REJECTED`. Fix the corresponding Render setting or Gmail account issue, then redeploy and retry with an authorized test account.
+5. A `Password reset email accepted by gmail_smtp SMTP relay` log means Gmail accepted the message from the application; it does not prove inbox delivery. Gmail SMTP has no transactional-provider message ID. Confirm actual receipt in the recipient's inbox or spam folder, then test the reset link and sign in with the changed password.
 
 This is a no-purchase option for modest staging traffic, not a high-volume transactional service. Google currently documents a limit of 500 emails per day for personal Gmail accounts; account-specific anti-abuse limits may be lower. Do not use it for bulk mail. For dependable production-scale password resets, use a domain you control with a transactional provider.
 

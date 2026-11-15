@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import smtplib
+import ssl
 import urllib.request
 import urllib.error
 import uuid
@@ -42,6 +43,10 @@ def _gmail_smtp_password_reset_send(*, to_email, subject, html, text):
         raise RuntimeError('GMAIL_SMTP_SENDER_INVALID') from exc
     if user.rsplit('@', 1)[-1].casefold() not in {'gmail.com', 'googlemail.com'}:
         raise RuntimeError('GMAIL_SMTP_SENDER_NOT_GMAIL')
+    try:
+        validate_email(to_email)
+    except ValidationError as exc:
+        raise RuntimeError('GMAIL_SMTP_RECIPIENT_INVALID') from exc
 
     from django.core.mail import EmailMultiAlternatives, get_connection
 
@@ -68,10 +73,18 @@ def _gmail_smtp_password_reset_send(*, to_email, subject, html, text):
         sent = message.send(fail_silently=False)
     except smtplib.SMTPAuthenticationError as exc:
         raise RuntimeError('GMAIL_SMTP_AUTH_FAILED') from exc
+    except smtplib.SMTPRecipientsRefused as exc:
+        raise RuntimeError('GMAIL_SMTP_RECIPIENT_REJECTED') from exc
+    except smtplib.SMTPSenderRefused as exc:
+        raise RuntimeError('GMAIL_SMTP_SENDER_REJECTED') from exc
+    except (smtplib.SMTPNotSupportedError, ssl.SSLError) as exc:
+        raise RuntimeError('GMAIL_SMTP_TLS_FAILED') from exc
     except TimeoutError as exc:
         raise RuntimeError('GMAIL_SMTP_TIMEOUT') from exc
     except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, OSError) as exc:
         raise RuntimeError('GMAIL_SMTP_CONNECTION_FAILED') from exc
+    except smtplib.SMTPDataError as exc:
+        raise RuntimeError('GMAIL_SMTP_MESSAGE_REJECTED') from exc
     except smtplib.SMTPException as exc:
         raise RuntimeError('GMAIL_SMTP_REJECTED') from exc
     if sent != 1:
@@ -286,9 +299,11 @@ def _password_reset_error_code(exc):
         'BREVO_TIMEOUT', 'BREVO_CONNECTION_FAILED', 'BREVO_INVALID_RESPONSE',
         'BREVO_SENDER_NOT_VERIFIED',
         'GMAIL_SMTP_CONFIGURATION_MISSING', 'GMAIL_SMTP_SENDER_INVALID',
-        'GMAIL_SMTP_SENDER_NOT_GMAIL', 'GMAIL_SMTP_AUTH_FAILED',
+        'GMAIL_SMTP_SENDER_NOT_GMAIL', 'GMAIL_SMTP_RECIPIENT_INVALID',
+        'GMAIL_SMTP_AUTH_FAILED', 'GMAIL_SMTP_RECIPIENT_REJECTED',
+        'GMAIL_SMTP_SENDER_REJECTED', 'GMAIL_SMTP_TLS_FAILED',
         'GMAIL_SMTP_TIMEOUT', 'GMAIL_SMTP_CONNECTION_FAILED',
-        'GMAIL_SMTP_REJECTED',
+        'GMAIL_SMTP_MESSAGE_REJECTED', 'GMAIL_SMTP_REJECTED',
     }
     if message in allowed:
         return message
@@ -487,8 +502,14 @@ def deliver_password_reset(token_id, raw_token):
     row = PasswordResetToken.objects.select_related('user').filter(pk=token_id).first()
     if not row:
         return
+    provider = 'unknown'
     try:
         provider = str(getattr(settings, 'PASSWORD_RESET_EMAIL_PROVIDER', 'brevo') or 'brevo').strip().lower()
+        provider_label = provider if provider in {'brevo', 'resend', 'gmail_smtp'} else 'unsupported'
+        logger.info(
+            'Password reset email delivery started; token_id=%s provider=%s',
+            row.pk, provider_label,
+        )
         base = (getattr(settings, 'APP_BASE_URL', '') or
                 getattr(settings, 'RENDER_EXTERNAL_URL', '')).rstrip('/')
         if not base:
@@ -522,6 +543,9 @@ def deliver_password_reset(token_id, raw_token):
             )
     except Exception as exc:
         row.email_status = 'FAILED'
-        logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
-                       _password_reset_error_code(exc))
+        provider_label = provider if provider in {'brevo', 'resend', 'gmail_smtp'} else 'unsupported'
+        logger.warning(
+            'Password reset email failed; token_id=%s provider=%s code=%s',
+            row.pk, provider_label, _password_reset_error_code(exc),
+        )
     row.save(update_fields=['email_status', 'provider_message_id'])
