@@ -11,9 +11,9 @@ Set these values in the Render web service environment (never commit the API key
 | `BREVO_API_KEY` | A Brevo transactional API key, stored as a secret |
 | `BREVO_SENDER_EMAIL` | An email address registered and verified as a Brevo sender |
 | `BREVO_SENDER_NAME` | Sender display name, e.g. ATRUE Simulation Portal |
-| `APP_BASE_URL` | Canonical public HTTPS origin, e.g. `https://atrue-performance-staging.onrender.com` |
+| `APP_BASE_URL` | Optional canonical public HTTPS origin. Set this to the site's custom domain when one is configured; otherwise the app uses Render's `RENDER_EXTERNAL_URL`. |
 
-Verify the sender and sending domain in Brevo before enabling live sends. Configure the SPF/DKIM DNS records shown by Brevo for the sending domain. Set `APP_BASE_URL` to the production service origin when deploying production. Do not use a request Host header to construct reset links.
+Verify the sender and sending domain in Brevo before enabling live sends. Configure the SPF/DKIM DNS records shown by Brevo for the sending domain. For a custom domain, set `APP_BASE_URL` to that domain in Render and remove any stale value; otherwise reset links use Render's service URL. Do not use a request Host header to construct reset links.
 
 Deploy the migration with the application and confirm Render's build/start migration step applies it. The existing database URL and start/build commands are unchanged. To retry failed booking confirmations after configuring/fixing Brevo, run:
 

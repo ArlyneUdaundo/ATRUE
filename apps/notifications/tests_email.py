@@ -91,6 +91,18 @@ class BrevoEmailTests(TestCase):
         response = self.client.get(reverse('accounts:forgot_password'))
         self.assertRedirects(response, '/?reset=1')
 
+    @override_settings(APP_BASE_URL='', RENDER_EXTERNAL_URL='https://current-service.onrender.com')
+    @patch('notifications.email_service._brevo_send', return_value='reset-message')
+    def test_password_reset_link_uses_render_url_when_base_url_is_not_set(self, send):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse('accounts:forgot_password'), {'email': self.user.email},
+                             HTTP_X_ATRUE_RESET_MODAL='1')
+
+        self.assertIn(
+            'https://current-service.onrender.com/accounts/reset-password/',
+            send.call_args.kwargs['html'],
+        )
+
     def test_expired_and_invalid_reset_tokens_are_rejected(self):
         expired = PasswordResetToken.objects.create(
             user=self.user, token_hash=hashlib.sha256(b'old').hexdigest(),

@@ -399,7 +399,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "").rstrip("/")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
 
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"

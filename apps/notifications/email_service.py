@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -312,7 +313,8 @@ def deliver_password_reset(token_id, raw_token):
     if not row:
         return
     try:
-        base = getattr(settings, 'APP_BASE_URL', '').rstrip('/')
+        base = (getattr(settings, 'APP_BASE_URL', '') or
+                getattr(settings, 'RENDER_EXTERNAL_URL', '')).rstrip('/')
         if not base:
             raise RuntimeError('EMAIL_CONFIGURATION_MISSING')
         link = f'{base}/accounts/reset-password/{row.user_id}/#{raw_token}'
@@ -324,14 +326,39 @@ def deliver_password_reset(token_id, raw_token):
         })
         text = (f"Reset your ATRUE password: {link}\nThis link expires in 30 minutes. "
                 "If you did not request this, ignore this email.")
-        row.provider_message_id = _brevo_send(
-            to_email=row.user.email, to_name=row.user.get_full_name(),
-            subject='Reset your ATRUE password', html=html, text=text,
-            idempotency_key=f'password-reset:{row.pk}',
-        )
+        brevo = _brevo_config()
+        if all(brevo.values()):
+            try:
+                row.provider_message_id = _brevo_send(
+                    to_email=row.user.email, to_name=row.user.get_full_name(),
+                    subject='Reset your ATRUE password', html=html, text=text,
+                    idempotency_key=f'password-reset:{row.pk}',
+                )
+            except RuntimeError as exc:
+                # Auth failures mean Brevo rejected the request, so SMTP can
+                # safely be tried without risking a duplicate reset email.
+                if not str(exc).startswith(('BREVO_HTTP_401', 'BREVO_HTTP_403')):
+                    raise
+                logger.warning('Brevo rejected reset mail credentials; trying SMTP fallback')
+                _send_password_reset_smtp(row, text, html)
+        else:
+            # Render deployments may have SMTP credentials configured even
+            # when the separate Brevo API credentials are not present.
+            _send_password_reset_smtp(row, text, html)
         row.email_status = 'SENT'
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
                        _email_error_code(exc))
     row.save(update_fields=['email_status', 'provider_message_id'])
+
+
+def _send_password_reset_smtp(row, text, html):
+    message = EmailMultiAlternatives(
+        subject='Reset your ATRUE password', body=text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[row.user.email],
+    )
+    message.attach_alternative(html, 'text/html')
+    if message.send(fail_silently=False) != 1:
+        raise RuntimeError('EMAIL_NOT_ACCEPTED')

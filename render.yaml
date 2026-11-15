@@ -53,7 +53,7 @@ services:
       - key: BREVO_SENDER_NAME
         value: ATRUE Simulation Portal
       - key: APP_BASE_URL
-        value: https://atrue-performance-staging.onrender.com
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_S3_ENDPOINT
