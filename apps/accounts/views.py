@@ -65,8 +65,11 @@ def forgot_password_view(request):
                     PasswordResetToken.objects.filter(user=user, used_at__isnull=True).update(used_at=now)
                     reset = PasswordResetToken.objects.create(
                         user=user, token_hash=token_hash, expires_at=now+timedelta(minutes=30))
-                    transaction.on_commit(lambda pk=reset.pk, token=raw: __import__(
-                        'notifications.email_service', fromlist=['deliver_password_reset']).deliver_password_reset(pk, token))
+                # The token is committed when the atomic block exits. Deliver
+                # immediately afterward so this flow does not depend on an
+                # outer request transaction or deferred on_commit callbacks.
+                from notifications.email_service import deliver_password_reset
+                deliver_password_reset(reset.pk, raw)
             else:
                 logger.warning('Password reset skipped: no active account matched the submitted email')
         elif limited:

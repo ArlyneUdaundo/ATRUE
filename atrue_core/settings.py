@@ -428,6 +428,10 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "level": "WARNING",
         },
+        "console_email_info": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+        },
     },
     "loggers": {
         "django.request": {
@@ -446,8 +450,8 @@ LOGGING = {
             "propagate": False,
         },
         "notifications.email_service": {
-            "handlers": ["console_email_warnings"],
-            "level": "WARNING",
+            "handlers": ["console_email_info"],
+            "level": "INFO",
             "propagate": False,
         },
     },

@@ -354,6 +354,7 @@ def deliver_password_reset(token_id, raw_token):
             # when the separate Brevo API credentials are not present.
             _send_password_reset_smtp(row, text, html)
         row.email_status = 'SENT'
+        logger.info('Password reset email accepted by provider; token_id=%s', row.pk)
     except Exception as exc:
         row.email_status = 'FAILED'
         logger.warning('Password reset email failed; token_id=%s code=%s', row.pk,
