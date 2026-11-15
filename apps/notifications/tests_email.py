@@ -68,7 +68,10 @@ class BrevoEmailTests(TestCase):
                                    HTTP_X_ATRUE_RESET_MODAL='1')
         self.assertEqual(known.json(), unknown.json())
         self.assertIn('If an account matches', known.json()['message'])
+        self.assertEqual(send.call_count, 1)
         reset = PasswordResetToken.objects.get(user=self.user)
+        self.assertEqual(reset.email_status, 'SENT')
+        self.assertEqual(reset.provider_message_id, 'reset-message')
         html = send.call_args.kwargs['html']
         raw = re.search(r'reset-password/\d+/#([^"&]+)', html).group(1)
         self.assertEqual(reset.token_hash, hashlib.sha256(raw.encode()).hexdigest())
@@ -82,6 +85,11 @@ class BrevoEmailTests(TestCase):
             'new_password2': 'BetterPassword!4682',
         })
         self.assertContains(response, 'Your password has been changed successfully')
+        logged_in = self.client.post(reverse('accounts:login'), {
+            'username': self.user.email, 'password': 'BetterPassword!4682',
+        }, HTTP_X_ATRUE_LOGIN_MODAL='1')
+        self.assertEqual(logged_in.status_code, 200)
+        self.assertTrue(logged_in.json()['ok'])
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('BetterPassword!4682'))
         reused = self.client.post(reverse('accounts:reset_password', args=[self.user.pk]), {
@@ -117,6 +125,19 @@ class BrevoEmailTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertFalse(PasswordResetToken.objects.filter(user=self.user).exists())
+        send.assert_not_called()
+
+    @patch('notifications.email_service._brevo_send')
+    def test_unregistered_email_uses_generic_response_without_sending(self, send):
+        response = self.client.post(
+            reverse('accounts:forgot_password'), {'email': 'unknown@example.test'},
+            HTTP_X_ATRUE_RESET_MODAL='1',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertIn('If an account matches', response.json()['message'])
+        self.assertEqual(PasswordResetToken.objects.count(), 0)
         send.assert_not_called()
 
     def test_forgot_password_direct_route_redirects_to_shared_modal(self):
@@ -173,6 +194,22 @@ class BrevoEmailTests(TestCase):
         with self.assertRaisesRegex(RuntimeError, 'EMAIL_CONFIGURATION_MISSING'):
             _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
                         html='Hi', text='Hi', idempotency_key='test')
+
+    @override_settings(BREVO_SENDER_EMAIL='')
+    @patch('notifications.email_service.urllib.request.urlopen')
+    def test_missing_sender_configuration_is_handled_without_request(self, urlopen):
+        with self.assertRaisesRegex(RuntimeError, 'EMAIL_CONFIGURATION_MISSING'):
+            _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
+                        html='Hi', text='Hi', idempotency_key='test-missing-sender')
+        urlopen.assert_not_called()
+
+    @patch('notifications.email_service.urllib.request.urlopen', side_effect=TimeoutError())
+    def test_brevo_timeout_is_reported_as_a_safe_failure(self, urlopen):
+        with self.assertRaisesRegex(RuntimeError, 'BREVO_TIMEOUT') as raised:
+            _brevo_send(to_email='guest@example.test', to_name='', subject='Hello',
+                        html='Hi', text='Hi', idempotency_key='test-timeout')
+        self.assertEqual(str(raised.exception), 'BREVO_TIMEOUT')
+        urlopen.assert_called_once()
 
     @patch('notifications.email_service.urllib.request.urlopen')
     def test_brevo_http_error_exposes_safe_status_and_provider_code(self, urlopen):
