@@ -90,13 +90,13 @@
         {% if booking.status == 'PENDING' %}
         {% endif %}
         {% if booking.status == 'CONFIRMED' %}
-        {% if can_checkin_guest %}
+        {% if can_process_checkin %}
         <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In</button>
         {% endif %}
         <button name="action" value="cancel" class="btn btn-danger btn-sm" data-confirm="Cancel this booking and release the room?"><i class="fas fa-ban"></i> Cancel</button>
         {% endif %}
         {% if booking.status == 'CHECKED_IN' %}
-        {% if can_checkout_guest %}
+        {% if can_process_checkin %}
         <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out</button>
         {% endif %}
         {% endif %}
@@ -142,7 +142,7 @@
 
 
 {% if can_process_checkin %}
-<div class="card card-pad" style="margin-top:18px"><h3>Front Desk</h3><form method="post">{% csrf_token %}{% if can_checkin_guest %}<button name="action" value="checkin" class="btn btn-brand btn-sm">Check-In Guest</button>{% elif can_checkout_guest %}<button name="action" value="checkout" class="btn btn-brand btn-sm">Check-Out Guest</button>{% elif booking.status == 'CONFIRMED' %}<span class="meta">Check-in is available only after payment is verified and on the scheduled check-in date.</span>{% else %}<span class="meta">This reservation is not currently eligible for a front-desk action.</span>{% endif %}</form></div>
+<div class="card card-pad" style="margin-top:18px"><h3>Front Desk</h3><form method="post">{% csrf_token %}{% if booking.status == 'CONFIRMED' %}<button name="action" value="checkin" class="btn btn-brand btn-sm">Check-In Guest</button>{% elif booking.status == 'CHECKED_IN' %}<button name="action" value="checkout" class="btn btn-brand btn-sm">Check-Out Guest</button>{% else %}<span class="meta">Available after the Reservation Officer confirms the booking.</span>{% endif %}</form></div>
 {% endif %}
 
 {% if is_reservation_officer and booking.status == 'PENDING' and bill and bill.verified_at and bill.status == 'FULLY_PAID' %}

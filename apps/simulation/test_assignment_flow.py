@@ -1664,21 +1664,6 @@ class HotelAccessBoundaryTests(AssignmentFlowTestCase):
         self.grand_booking = self.book(self.grand, self.grand_room, self.john)
         self.client.force_login(self.arlyne)
 
-    def _make_booking_checkin_ready(self, booking):
-        from django.contrib.contenttypes.models import ContentType
-        from transactions.models import Bill
-
-        booking.status = Booking.Status.CONFIRMED
-        booking.save(update_fields=['status'])
-        Bill.objects.create(
-            content_type=ContentType.objects.get_for_model(booking),
-            object_id=booking.pk,
-            service='hotels', customer=booking.customer,
-            total_amount=Decimal('2500.00'), amount_paid=Decimal('2500.00'),
-            balance_due=Decimal('0.00'), status=Bill.Status.FULLY_PAID,
-            verified_at=timezone.now(),
-        )
-
     # -- list screens are filtered, not emptied ------------------------------
 
     def test_manage_lists_only_the_assigned_hotel(self):
@@ -1769,7 +1754,6 @@ class HotelAccessBoundaryTests(AssignmentFlowTestCase):
         self.assertContains(response, self.john.get_full_name())
 
     def test_can_check_in_a_guest_at_the_assigned_hotel(self):
-        self._make_booking_checkin_ready(self.sunrise_booking)
         response = self.client.post(
             reverse('hotels:booking_detail', args=[self.sunrise_booking.id]),
             {'action': 'checkin'})
@@ -1778,7 +1762,6 @@ class HotelAccessBoundaryTests(AssignmentFlowTestCase):
         self.assertEqual(self.sunrise_booking.status, Booking.Status.CHECKED_IN)
 
     def test_can_check_out_and_release_the_room(self):
-        self._make_booking_checkin_ready(self.sunrise_booking)
         self.client.post(reverse('hotels:booking_detail', args=[self.sunrise_booking.id]),
                          {'action': 'checkin'})
         self.client.post(reverse('hotels:booking_detail', args=[self.sunrise_booking.id]),
@@ -1835,7 +1818,6 @@ class HotelAccessBoundaryTests(AssignmentFlowTestCase):
         self.assertEqual(self.sunrise_booking.status, Booking.Status.CONFIRMED)
 
     def test_can_update_booking_status_at_their_own_hotel(self):
-        self._make_booking_checkin_ready(self.sunrise_booking)
         self.client.post(reverse('hotels:booking_detail', args=[self.sunrise_booking.id]),
                          {'action': 'checkin'})
         self.client.post(reverse('hotels:booking_detail', args=[self.sunrise_booking.id]),
