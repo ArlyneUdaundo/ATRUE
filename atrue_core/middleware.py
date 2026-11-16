@@ -157,6 +157,14 @@ class SimulationTaskScheduleMiddleware:
         if not route_name:
             return None
 
+        # The account menu's "My Bookings" link is customer navigation, not a
+        # simulation task. It shares ``transactions:booking_list`` with the
+        # guest operations, so it marks itself and skips the task-window gate;
+        # simulation task links never carry this marker.
+        if (route_name == 'transactions:booking_list'
+                and request.GET.get('nav') == 'my-bookings'):
+            return None
+
         from simulation.models import SimulationRoleAssignment
         from simulation.schedule import task_window_for
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY, task_operation_for
