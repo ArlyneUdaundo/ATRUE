@@ -41,6 +41,14 @@
         </p>
         {% if latest_cancellation.review_remarks %}<p><b>Remarks:</b> {{ latest_cancellation.review_remarks }}</p>{% endif %}
     </div>
+    {% elif not can_request %}
+    <div class="card card-pad" style="background:#f8fafc;border-color:#e2e8f0">
+        <h4><i class="fas fa-circle-info"></i> Booking {{ booking.get_status_display }}</h4>
+        <p class="meta">
+            This booking can no longer be cancelled online. Review the booking
+            status or contact the service provider if you need further help.
+        </p>
+    </div>
     {% else %}
     {% if latest_cancellation and latest_cancellation.status == 'REJECTED' %}
     <div class="card card-pad" style="background:#fef2f2;border-color:#fecaca">

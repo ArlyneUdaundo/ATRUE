@@ -217,6 +217,10 @@ def request_cancellation_refund(booking, actor, *, reason, proof=None, proof_typ
     proof_fields = {}
     if proof is not None:
         from transactions.cancellation import validate_proof
+        if proof_type not in Cancellation.ProofType.values:
+            raise AirlineWorkflowError(
+                'Select the type of proof you are uploading.',
+                code='proof_type')
         try:
             validate_proof(proof)
         except Exception as exc:

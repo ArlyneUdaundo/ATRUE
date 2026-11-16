@@ -18,7 +18,9 @@
                     <td class="mono">{{ r.reference }}</td>
                     <td>{{ r.details }}</td>
                     <td><span class="badge {% if r.status == 'CONFIRMED' or r.status == 'COMPLETED' or r.status == 'CHECKED_OUT' or r.status == 'USED' %}badge-green{% elif r.status == 'CANCELLED' or r.status == 'DECLINED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.status|title }}</span>
-                        {% if r.pending_cancellation %}<span class="badge badge-yellow">Refund pending</span>{% endif %}
+                        {% if r.pending_cancellation %}<span class="badge badge-yellow">Refund pending</span>
+                        {% elif r.latest_cancellation %}<span class="badge {% if r.latest_cancellation.status == 'APPROVED' %}badge-green{% else %}badge-gray{% endif %}">Refund {{ r.latest_cancellation.get_status_display }}</span>
+                        {% endif %}
                     </td>
                     <td>{{ r.created|date:"M d, Y" }}</td>
                     <td>

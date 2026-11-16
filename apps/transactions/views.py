@@ -533,11 +533,10 @@ def _user_bookings(user, request=None):
         from tour_package.models import Booking as TourPackageBooking
         packages = TourPackageBooking.objects.filter(customer=user)
         if request is not None:
-            allowed = _package_scope(request)
-            if allowed is not None:
-                packages = packages.filter(package_id__in=allowed)
+            from tour_package.scope import may_book_package
         for b in packages:
-            pairs.append((b, 'package'))
+            if request is None or may_book_package(request, b.package_id):
+                pairs.append((b, 'package'))
     except Exception:
         pass
     pairs.sort(key=lambda p: getattr(p[0], 'created_at', None) or p[0].pk, reverse=True)
@@ -1013,31 +1012,45 @@ def booking_list(request):
 def request_booking_cancellation(request, app_label, model_name, object_id):
     """Ask for proof of ownership before accepting a cancellation request."""
     from .cancellation import (
-        SERVICE_NAMESPACES, latest_cancellation_request, pending_cancellation_request,
-        request_cancellation, resolve_owned_booking,
+        SERVICE_NAMESPACES, can_request_cancellation, latest_cancellation_request,
+        pending_cancellation_request, request_cancellation, resolve_owned_booking,
     )
 
     booking = resolve_owned_booking(request.user, app_label, model_name, object_id)
     if booking is None:
         raise Http404('Booking not found.')
-    if not _package_booking_accessible(request, booking):
-        raise PermissionDenied(
-            'This Tour Package booking is not assigned to your account.')
+    if booking._meta.app_label == 'tour_package':
+        from tour_package.scope import may_book_package
+        if not may_book_package(request, booking.package_id):
+            raise PermissionDenied(
+                'This Tour Package booking is not assigned to your account.')
 
     namespace = SERVICE_NAMESPACES.get(app_label)
     detail_url = reverse(f'{namespace}:booking_detail', args=[booking.pk])
 
     if request.method == 'POST':
         cancellation = None
+        from airlines.services import AirlineWorkflowError
         try:
-            cancellation = request_cancellation(
-                booking, request.user,
-                reason=request.POST.get('reason', ''),
-                proof=request.FILES.get('proof'),
-                proof_type=request.POST.get('proof_type', ''),
-            )
-        except ValidationError as exc:
-            for message in exc.messages:
+            if app_label == 'airlines':
+                from airlines.services import (
+                    request_cancellation_refund as request_airline_cancellation,
+                )
+                cancellation = request_airline_cancellation(
+                    booking, request.user,
+                    reason=request.POST.get('reason', ''),
+                    proof=request.FILES.get('proof'),
+                    proof_type=request.POST.get('proof_type', ''),
+                )
+            else:
+                cancellation = request_cancellation(
+                    booking, request.user,
+                    reason=request.POST.get('reason', ''),
+                    proof=request.FILES.get('proof'),
+                    proof_type=request.POST.get('proof_type', ''),
+                )
+        except (ValidationError, AirlineWorkflowError) as exc:
+            for message in getattr(exc, 'messages', [str(exc)]):
                 messages.error(request, message)
         else:
             messages.success(
@@ -1051,6 +1064,7 @@ def request_booking_cancellation(request, app_label, model_name, object_id):
     return render(request, 'transactions/request_cancellation.html', {
         'booking': booking,
         'detail_url': detail_url,
+        'can_request': can_request_cancellation(booking, request.user),
         'pending_cancellation': pending_cancellation_request(booking),
         'latest_cancellation': latest_cancellation_request(booking),
         'proof_types': Cancellation.ProofType.choices,

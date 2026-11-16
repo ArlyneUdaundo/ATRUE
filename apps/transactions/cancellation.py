@@ -68,7 +68,7 @@ def resolve_owned_booking(user, app_label, model_name, object_id):
     booking = resolve_service_booking(app_label, model_name, object_id)
     if booking is None:
         return None
-    if booking_owner_id(booking) != user.pk and not user.is_staff:
+    if booking_owner_id(booking) != user.pk:
         return None
     return booking
 
@@ -94,7 +94,7 @@ def pending_cancellation_request(booking):
 def can_request_cancellation(booking, user=None):
     if booking is None:
         return False
-    if user is not None and booking_owner_id(booking) != user.pk and not user.is_staff:
+    if user is not None and booking_owner_id(booking) != user.pk:
         return False
     if booking.status not in CANCELABLE_STATUSES:
         return False
@@ -116,6 +116,10 @@ def validate_proof(proof):
 
 def request_cancellation(booking, user, *, reason, proof, proof_type):
     """Create a cancellation request that still needs staff approval."""
+    owner_id = booking_owner_id(booking)
+    if owner_id is None or owner_id != user.pk:
+        raise ValidationError(
+            'You can only request cancellation for your own booking.')
     reason = (reason or '').strip()
     if not reason:
         raise ValidationError('Enter the reason for cancelling this booking.')
