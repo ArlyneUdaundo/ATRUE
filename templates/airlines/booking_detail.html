@@ -117,6 +117,9 @@
         {{ pending_cancellation.requested_by.get_full_name|default:pending_cancellation.requested_by.username }}.
     </p>
     <p><b>Reason:</b> {{ pending_cancellation.reason }}</p>
+    {% if pending_cancellation.proof %}
+    <p><a class="btn btn-outline btn-sm" href="{{ pending_cancellation.proof.url }}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> View submitted proof</a></p>
+    {% endif %}
     <p class="meta">
         The Airline Billing Officer must confirm this request. The refund is not
         automatic and follows the fare's refund policy.
@@ -177,7 +180,7 @@
             Amount paid: <b>PHP {{ cancellation.paid|floatformat:2 }}</b>.
         {% endif %}
     </p>
-    <form method="post" data-submit-loading
+    <form method="post" enctype="multipart/form-data" data-submit-loading
           onsubmit="return confirm('Submit this cancellation request for Billing Officer review?');">
         {% csrf_token %}
         <input type="hidden" name="action" value="cancel">
@@ -185,6 +188,27 @@
             <label for="cancel-reason">Reason for cancellation <span class="req">*</span></label>
             <textarea id="cancel-reason" name="manager_remarks" class="form-input" rows="2"
                       placeholder="Explain why this booking should be cancelled" required></textarea>
+        </div>
+        <p class="meta">
+            Upload proof that you own this booking, such as a valid ID or your
+            e-ticket. Accepted files: PDF, JPG, PNG, or WEBP up to 10 MB.
+        </p>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="cancel-proof-type">Type of proof <span class="req">*</span></label>
+                <select id="cancel-proof-type" name="proof_type" class="form-input" required>
+                    <option value="">Select documentation</option>
+                    <option value="ID">Valid government-issued ID</option>
+                    <option value="ETICKET">E-Ticket / Booking voucher</option>
+                    <option value="PAYMENT">Proof of payment</option>
+                    <option value="OTHER">Other supporting document</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cancel-proof">Proof file <span class="req">*</span></label>
+                <input id="cancel-proof" type="file" name="proof" class="form-input"
+                       accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+            </div>
         </div>
         <button type="submit" class="btn btn-danger btn-sm">
             <i class="fas fa-paper-plane"></i> Submit Cancellation Request

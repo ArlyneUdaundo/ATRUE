@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 from decimal import Decimal
+import tempfile
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -213,12 +215,17 @@ class CancellationRefundTests(TestCase):
         self.assertEqual(cancellation.status, Cancellation.Status.APPROVED)
         self.assertEqual(cancellation.processed_by, self.officer)
 
+    @override_settings(
+        DEBUG=True, SUPABASE_PRIVATE_STORAGE_CONFIGURED=False,
+        MEDIA_ROOT=tempfile.mkdtemp())
     def test_a_passenger_can_submit_a_request_from_the_booking_page(self):
         self.client.force_login(self.passenger)
 
         response = self.client.post(
             reverse('airlines:booking_detail', args=[self.booking.pk]),
-            {'action': 'cancel', 'manager_remarks': 'Change of plans'})
+            {'action': 'cancel', 'manager_remarks': 'Change of plans',
+             'proof_type': 'ID',
+             'proof': SimpleUploadedFile('id.png', b'proof', content_type='image/png')})
 
         self.assertRedirects(
             response, reverse('airlines:booking_detail', args=[self.booking.pk]))

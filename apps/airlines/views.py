@@ -5833,10 +5833,21 @@ def booking_detail(request, booking_id):
             and not can_manage):
         from .services import AirlineWorkflowError
 
+        proof = request.FILES.get('proof')
+        proof_type = request.POST.get('proof_type', '')
+        if proof is None:
+            messages.error(
+                request,
+                'Upload proof that you own this booking, such as a valid ID or your e-ticket.')
+            return redirect('airlines:booking_detail', booking.id)
+        if not proof_type:
+            messages.error(request, 'Select the type of proof you are uploading.')
+            return redirect('airlines:booking_detail', booking.id)
         try:
             request_cancellation_refund(
                 booking, request.user,
-                reason=request.POST.get('manager_remarks', ''))
+                reason=request.POST.get('manager_remarks', ''),
+                proof=proof, proof_type=proof_type)
         except AirlineWorkflowError as exc:
             messages.error(request, str(exc))
         else:

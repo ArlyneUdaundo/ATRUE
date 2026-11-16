@@ -3,8 +3,9 @@ from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -66,8 +67,6 @@ def payment_review(request):
         status=Cancellation.Status.REQUESTED,
     ).select_related('content_type', 'requested_by').order_by('requested_at')
     for cancellation in requested:
-        if cancellation.content_type.app_label != 'airlines':
-            continue
         booking = cancellation.booking
         if booking is None:
             continue
@@ -80,16 +79,32 @@ def payment_review(request):
                 and (establishment is None
                      or establishment.pk != assignment.establishment_id)):
             continue
-        from airlines.services import cancellation_quote
-        try:
-            quote = cancellation_quote(booking)
-        except Exception:
-            continue
+        if cancellation.content_type.app_label == 'airlines':
+            from airlines.services import cancellation_quote
+            try:
+                quote = cancellation_quote(booking)
+            except Exception:
+                continue
+        else:
+            from atrue_core.services import bill_for_booking
+            bill = bill_for_booking(booking)
+            paid = bill.amount_paid if bill is not None else 0
+            quote = {
+                'bill': bill, 'paid': paid, 'refundable': True,
+                'has_fare_terms': False, 'cancellation_fee': 0,
+                'refund_due': paid,
+            }
         refund_rows.append({
             'cancellation': cancellation,
             'booking': booking,
             'establishment': establishment,
             'quote': quote,
+            'customer_name': (
+                getattr(getattr(booking, 'customer', None), 'get_full_name', lambda: '')()
+                or getattr(getattr(booking, 'customer', None), 'username', '')
+                or getattr(getattr(booking, 'passenger', None), 'get_full_name', lambda: '')()
+                or getattr(getattr(booking, 'passenger', None), 'username', '')
+            ),
         })
 
     bills = Bill.objects.filter(status=Bill.Status.FULLY_PAID, verified_at__isnull=True)
@@ -325,6 +340,28 @@ def _process_refund_request(request, assignment, is_admin):
     ).select_related('content_type').first()
     if cancellation is None:
         messages.error(request, 'This cancellation request is no longer waiting for review.')
+        return redirect('transactions:payment_review')
+
+    if cancellation.content_type.app_label != 'airlines':
+        from .cancellation import process_generic_cancellation
+        try:
+            result = process_generic_cancellation(
+                cancellation, request.user,
+                approve=action == 'approve_refund',
+                remarks=request.POST.get('review_remarks', ''),
+            )
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+        else:
+            reference = cancellation.booking.booking_reference
+            if result['approved']:
+                messages.success(
+                    request,
+                    f'Cancellation for {reference} approved. '
+                    f'PHP {result["refunded"]:,.2f} was refunded.')
+            else:
+                messages.success(
+                    request, f'Cancellation for {reference} rejected.')
         return redirect('transactions:payment_review')
 
     booking = cancellation.booking
@@ -943,9 +980,16 @@ def _resolve_booking(app_label, model_name, object_id):
 @login_required
 def booking_list(request):
     """Unified 'My Bookings' across every service app (replaces removed bookings app)."""
+    from .cancellation import (
+        can_request_cancellation,
+        latest_cancellation_request, pending_cancellation_request,
+    )
     rows = []
     for item in _user_bookings(request.user, request):
         booking = item['booking']
+        cancel_url = reverse(
+            'transactions:request_cancellation',
+            args=[booking._meta.app_label, booking._meta.model_name, booking.pk])
         rows.append({
             'item': item,
             'service': item['service'],
@@ -955,9 +999,62 @@ def booking_list(request):
             'created': getattr(booking, 'created_at', None) or booking.pk,
             'bill': bill_for_booking(booking),
             'detail_url': item['detail_url'],
+            'cancel_url': (cancel_url
+                           if can_request_cancellation(booking, request.user)
+                           else ''),
+            'pending_cancellation': pending_cancellation_request(booking),
+            'latest_cancellation': latest_cancellation_request(booking),
         })
     rows.sort(key=lambda r: r['created'] or 0, reverse=True)
     return render(request, 'transactions/bookings.html', {'rows': rows})
+
+
+@login_required
+def request_booking_cancellation(request, app_label, model_name, object_id):
+    """Ask for proof of ownership before accepting a cancellation request."""
+    from .cancellation import (
+        SERVICE_NAMESPACES, latest_cancellation_request, pending_cancellation_request,
+        request_cancellation, resolve_owned_booking,
+    )
+
+    booking = resolve_owned_booking(request.user, app_label, model_name, object_id)
+    if booking is None:
+        raise Http404('Booking not found.')
+    if not _package_booking_accessible(request, booking):
+        raise PermissionDenied(
+            'This Tour Package booking is not assigned to your account.')
+
+    namespace = SERVICE_NAMESPACES.get(app_label)
+    detail_url = reverse(f'{namespace}:booking_detail', args=[booking.pk])
+
+    if request.method == 'POST':
+        try:
+            cancellation = request_cancellation(
+                booking, request.user,
+                reason=request.POST.get('reason', ''),
+                proof=request.FILES.get('proof'),
+                proof_type=request.POST.get('proof_type', ''),
+            )
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
+        else:
+            messages.success(
+                request,
+                f'Cancellation request for {booking.booking_reference} submitted. '
+                'It will be reviewed with the proof you uploaded.')
+            return redirect(detail_url)
+    else:
+        cancellation = None
+
+    return render(request, 'transactions/request_cancellation.html', {
+        'booking': booking,
+        'detail_url': detail_url,
+        'pending_cancellation': pending_cancellation_request(booking),
+        'latest_cancellation': latest_cancellation_request(booking),
+        'proof_types': Cancellation.ProofType.choices,
+        'submitted': cancellation,
+    })
 @xframe_options_sameorigin
 @login_required
 def trip_cart(request):

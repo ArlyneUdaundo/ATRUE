@@ -195,7 +195,7 @@ def _notify_billing_officers(booking, message):
     )
 
 
-def request_cancellation_refund(booking, actor, *, reason):
+def request_cancellation_refund(booking, actor, *, reason, proof=None, proof_type=''):
     """Record a cancellation/refund request for Billing Officer review."""
     from transactions.models import Cancellation
 
@@ -214,8 +214,20 @@ def request_cancellation_refund(booking, actor, *, reason):
             'A cancellation request is already waiting for Billing Officer review.',
             code='request_pending')
 
+    proof_fields = {}
+    if proof is not None:
+        from transactions.cancellation import validate_proof
+        try:
+            validate_proof(proof)
+        except Exception as exc:
+            raise AirlineWorkflowError(
+                ' '.join(getattr(exc, 'messages', [str(exc)])),
+                code='proof_required') from exc
+        proof_fields = {'proof': proof, 'proof_type': proof_type}
+
     cancellation = Cancellation(
-        requested_by=actor, status=Cancellation.Status.REQUESTED, reason=reason)
+        requested_by=actor, status=Cancellation.Status.REQUESTED,
+        reason=reason, **proof_fields)
     cancellation.link_to_booking(booking)
     cancellation.save()
 

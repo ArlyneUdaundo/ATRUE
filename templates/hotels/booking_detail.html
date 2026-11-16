@@ -1,5 +1,6 @@
 {% extends 'dashboard_base.html' %}
 {% load static %}
+{% load cancellation_tags %}
 
 {% block title %}Hotel Booking Detail{% endblock %}
 
@@ -128,5 +129,6 @@
 {% endif %}
 
 <script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>
+{% cancellation_panel booking %}
 </div>
 {% endblock %}

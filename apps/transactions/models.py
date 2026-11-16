@@ -5,6 +5,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
 from atrue_core.payment_methods import PAYMENT_METHOD_CHOICES, payment_method_label
+from atrue_core.storage_backends import ProofDocumentStorage
 
 import uuid
 
@@ -243,10 +244,21 @@ class Cancellation(BookingLinked):
         APPROVED = 'APPROVED', 'Approved'
         REJECTED = 'REJECTED', 'Rejected'
 
+    class ProofType(models.TextChoices):
+        ID = 'ID', 'Valid government-issued ID'
+        ETICKET = 'ETICKET', 'E-Ticket / Booking voucher'
+        PAYMENT = 'PAYMENT', 'Proof of payment'
+        OTHER = 'OTHER', 'Other supporting document'
+
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cancellations'
     )
     reason = models.TextField(blank=True)
+    proof_type = models.CharField(
+        max_length=10, choices=ProofType.choices, blank=True)
+    proof = models.FileField(
+        upload_to='cancellation_proofs/%Y/%m/', blank=True,
+        storage=ProofDocumentStorage())
     review_remarks = models.TextField(blank=True)
     refund_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cancellation_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)

@@ -1,0 +1,51 @@
+{% if booking %}
+{% if pending_cancellation %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-clock"></i> Cancellation Request Pending Review</h4>
+    <p class="meta">
+        Submitted {{ pending_cancellation.requested_at|date:"M d, Y H:i" }}.
+        Your proof of ownership was received and will be checked before the
+        booking is cancelled or refunded.
+    </p>
+    <p><b>Reason:</b> {{ pending_cancellation.reason }}</p>
+    {% if pending_cancellation.proof %}
+    <p><a class="btn btn-outline btn-sm" href="{{ pending_cancellation.proof.url }}" target="_blank" rel="noopener">
+        <i class="fas fa-paperclip"></i> View submitted proof
+    </a></p>
+    {% endif %}
+</div>
+{% elif latest_cancellation and latest_cancellation.status == 'APPROVED' %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-circle-check"></i> Cancellation Approved</h4>
+    <p class="meta">
+        Reviewed {{ latest_cancellation.processed_at|date:"M d, Y H:i" }}.
+        Refunded: <b>PHP {{ latest_cancellation.refund_amount|floatformat:2 }}</b>.
+    </p>
+    {% if latest_cancellation.review_remarks %}
+    <p><b>Review remarks:</b> {{ latest_cancellation.review_remarks }}</p>
+    {% endif %}
+</div>
+{% elif latest_cancellation and latest_cancellation.status == 'REJECTED' %}
+<div class="card card-pad" style="margin-top:16px;border-color:#fecaca;background:#fef2f2">
+    <h4><i class="fas fa-circle-xmark"></i> Cancellation Request Rejected</h4>
+    <p class="meta">Reviewed {{ latest_cancellation.processed_at|date:"M d, Y H:i" }}. Your booking remains active.</p>
+    {% if latest_cancellation.review_remarks %}
+    <p><b>Review remarks:</b> {{ latest_cancellation.review_remarks }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if can_request %}
+<div class="card card-pad" style="margin-top:16px">
+    <h4><i class="fas fa-rotate-left"></i> Need to cancel this booking?</h4>
+    <p class="meta">
+        Submit a cancellation or refund request. For your security, you must
+        upload proof that you own this booking, such as a valid ID or your
+        e-ticket. Requests are reviewed before any refund is released.
+    </p>
+    <a class="btn btn-danger btn-sm" href="{{ cancel_url }}">
+        <i class="fas fa-ban"></i> Cancel / Request Refund
+    </a>
+</div>
+{% endif %}
+{% endif %}

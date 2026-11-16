@@ -94,6 +94,60 @@ class SupabasePrivateStorage(_SupabaseS3Storage):
 
 
 @deconstructible
+class ProofDocumentStorage(FileSystemStorage):
+    """Private storage for cancellation proof (IDs, e-tickets, payments).
+
+    Unlike establishment images, these documents may be PDFs, so they are not
+    forced through the image-only validator used by the public bucket.
+    """
+
+    @property
+    def _remote(self):
+        from django.conf import settings
+        if not settings.SUPABASE_PRIVATE_STORAGE_CONFIGURED:
+            if not settings.DEBUG:
+                raise ImproperlyConfigured(
+                    'Private Supabase Storage is required in production. Configure '
+                    'the SUPABASE_* server-side credentials and private bucket.'
+                )
+            return None
+        storage = getattr(self, '_proof_remote_storage', None)
+        if storage is None:
+            storage = SupabasePrivateStorage()
+            self._proof_remote_storage = storage
+        return storage
+
+    def save(self, name, content, max_length=None):
+        remote = self._remote
+        return (remote.save(name, content, max_length=max_length) if remote
+                else super().save(name, content, max_length=max_length))
+
+    def open(self, name, mode='rb'):
+        remote = self._remote
+        return remote.open(name, mode) if remote else super().open(name, mode)
+
+    def delete(self, name):
+        remote = self._remote
+        return remote.delete(name) if remote else super().delete(name)
+
+    def exists(self, name):
+        remote = self._remote
+        return remote.exists(name) if remote else super().exists(name)
+
+    def size(self, name):
+        remote = self._remote
+        return remote.size(name) if remote else super().size(name)
+
+    def url(self, name):
+        remote = self._remote
+        return remote.url(name) if remote else super().url(name)
+
+    def path(self, name):
+        remote = self._remote
+        return remote.path(name) if remote else super().path(name)
+
+
+@deconstructible
 class ProfilePictureStorage(FileSystemStorage):
     """Keep profile pictures private in Supabase, local in unconfigured dev."""
 

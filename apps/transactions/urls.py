@@ -13,6 +13,8 @@ urlpatterns = [
     path('additional/', views.additional_list, name='additional_list'),
     path('additional/add/', views.additional_add, name='additional_add'),
     path('bookings/', views.booking_list, name='booking_list'),
+    path('bookings/<str:app_label>/<str:model_name>/<int:object_id>/cancel/',
+         views.request_booking_cancellation, name='request_cancellation'),
     path('cart/', views.trip_cart, name='cart'),
     path('cart/remove/', views.trip_cart_remove, name='cart_remove'),
     path('cart/clear/', views.trip_cart_clear, name='cart_clear'),

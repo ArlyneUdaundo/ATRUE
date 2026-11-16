@@ -1,4 +1,5 @@
 {% extends 'dashboard_base.html' %}
+{% load cancellation_tags %}
 
 {% block title %}Restaurant Reservation Detail{% endblock %}
 
@@ -153,4 +154,5 @@
 </div>
 {% endif %}
 
+{% cancellation_panel booking %}
 {% endblock %}

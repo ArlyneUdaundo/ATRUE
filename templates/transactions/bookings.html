@@ -17,7 +17,9 @@
                     <td><span class="badge badge-blue">{{ r.service|title }}</span></td>
                     <td class="mono">{{ r.reference }}</td>
                     <td>{{ r.details }}</td>
-                    <td><span class="badge {% if r.status == 'CONFIRMED' or r.status == 'COMPLETED' or r.status == 'CHECKED_OUT' or r.status == 'USED' %}badge-green{% elif r.status == 'CANCELLED' or r.status == 'DECLINED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.status|title }}</span></td>
+                    <td><span class="badge {% if r.status == 'CONFIRMED' or r.status == 'COMPLETED' or r.status == 'CHECKED_OUT' or r.status == 'USED' %}badge-green{% elif r.status == 'CANCELLED' or r.status == 'DECLINED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ r.status|title }}</span>
+                        {% if r.pending_cancellation %}<span class="badge badge-yellow">Refund pending</span>{% endif %}
+                    </td>
                     <td>{{ r.created|date:"M d, Y" }}</td>
                     <td>
                         {% if r.detail_url %}
@@ -25,6 +27,9 @@
                         {% endif %}
                         {% if r.bill %}
                         <a class="btn btn-outline btn-sm" href="{% url 'transactions:bill_detail' r.bill.pk %}">View Bill</a>
+                        {% endif %}
+                        {% if r.cancel_url %}
+                        <a class="btn btn-danger btn-sm" href="{{ r.cancel_url }}">Cancel / Refund</a>
                         {% endif %}
                     </td>
                 </tr>

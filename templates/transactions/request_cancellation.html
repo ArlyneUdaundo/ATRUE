@@ -1,0 +1,88 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Cancel Booking{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Cancel / Request Refund</h1>
+        <p>Booking {{ booking.booking_reference }} &middot; {{ booking }}</p>
+    </div>
+    <div><a href="{{ detail_url }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Back to booking</a></div>
+</div>
+
+<div class="card card-pad">
+    <h3><i class="fas fa-shield-halved"></i> Verify ownership</h3>
+    <p class="meta">
+        To protect the account owner, every cancellation or refund request must
+        include proof of ownership. Upload a valid government-issued ID, your
+        e-ticket or booking voucher, or proof of payment. Files must be a PDF or
+        image (JPG, PNG, WEBP) and no larger than 10 MB.
+    </p>
+
+    {% if pending_cancellation %}
+    <div class="card card-pad" style="background:#fffbeb;border-color:#fde68a">
+        <h4><i class="fas fa-clock"></i> Request already pending</h4>
+        <p class="meta">
+            Submitted {{ pending_cancellation.requested_at|date:"M d, Y H:i" }}.
+            A reviewer will check your proof before processing the cancellation.
+        </p>
+        <p><b>Reason:</b> {{ pending_cancellation.reason }}</p>
+        {% if pending_cancellation.proof %}
+        <p><a class="btn btn-outline btn-sm" href="{{ pending_cancellation.proof.url }}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> View submitted proof</a></p>
+        {% endif %}
+    </div>
+    {% elif latest_cancellation and latest_cancellation.status == 'APPROVED' %}
+    <div class="card card-pad" style="background:#ecfdf5;border-color:#a7f3d0">
+        <h4><i class="fas fa-circle-check"></i> Cancellation approved</h4>
+        <p class="meta">
+            Reviewed {{ latest_cancellation.processed_at|date:"M d, Y H:i" }}.
+            Refunded: <b>PHP {{ latest_cancellation.refund_amount|floatformat:2 }}</b>.
+        </p>
+        {% if latest_cancellation.review_remarks %}<p><b>Remarks:</b> {{ latest_cancellation.review_remarks }}</p>{% endif %}
+    </div>
+    {% else %}
+    {% if latest_cancellation and latest_cancellation.status == 'REJECTED' %}
+    <div class="card card-pad" style="background:#fef2f2;border-color:#fecaca">
+        <h4><i class="fas fa-circle-xmark"></i> Previous request rejected</h4>
+        <p class="meta">Your booking remains active. You may submit a new request with clearer proof.</p>
+        {% if latest_cancellation.review_remarks %}<p><b>Remarks:</b> {{ latest_cancellation.review_remarks }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" data-submit-loading style="margin-top:16px">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="cancel-reason">Reason for cancellation <span class="req">*</span></label>
+            <textarea id="cancel-reason" name="reason" class="form-input" rows="3"
+                      placeholder="Explain why you need to cancel this booking" required></textarea>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="proof-type">Type of proof <span class="req">*</span></label>
+                <select id="proof-type" name="proof_type" class="form-input" required>
+                    <option value="">Select documentation</option>
+                    {% for value, label in proof_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="proof-file">Proof file <span class="req">*</span></label>
+                <input id="proof-file" type="file" name="proof" class="form-input"
+                       accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+            </div>
+        </div>
+        <p class="meta">
+            By submitting, you confirm you are the owner of this account or the
+            passenger on this booking. False documentation may result in the
+            request being rejected.
+        </p>
+        <button type="submit" class="btn btn-danger"
+                onclick="return confirm('Submit this cancellation request for review?');">
+            <i class="fas fa-paper-plane"></i> Submit Cancellation Request
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

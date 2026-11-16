@@ -66,8 +66,16 @@
                 <span class="payment-review-value">₱{{ row.quote.refund_due|floatformat:2 }}</span>
             </div>
             <div class="payment-review-field" style="grid-column:span 2">
-                <span class="payment-review-label">Passenger reason</span>
+                <span class="payment-review-label">Reason</span>
                 <span class="payment-review-value">{{ row.cancellation.reason }}</span>
+            </div>
+            <div class="payment-review-field" style="grid-column:span 2">
+                <span class="payment-review-label">Proof of ownership</span>
+                <span class="payment-review-value">
+                    {% if row.cancellation.proof %}
+                    <a href="{{ row.cancellation.proof.url }}" target="_blank" rel="noopener">{{ row.cancellation.get_proof_type_display|default:'View document' }}</a>
+                    {% else %}No document uploaded{% endif %}
+                </span>
             </div>
         </div>
 
