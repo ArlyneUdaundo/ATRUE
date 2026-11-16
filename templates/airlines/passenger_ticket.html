@@ -4,11 +4,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flight Ticket / E-Ticket · {{ ticket.booking_reference }}</title>
+    <title>Flight Ticket / E-Ticket ┬╖ {{ ticket.booking_reference }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/passenger-details.css' %}?v=20261022-1">
     {% include 'partials/tab_context.html' %}
     <style>
@@ -49,12 +49,12 @@
     </nav>
     <article class="pdt-card" id="ticket-document">
         <header class="pdt-head">
-            <div><p class="pdt-eyebrow">ATRUE Flights · Simulation</p><h1>Flight Ticket / E-Ticket</h1><p>Passenger itinerary and fare summary</p></div>
+            <div><p class="pdt-eyebrow">ATRUE Flights ┬╖ Simulation</p><h1>Flight Ticket / E-Ticket</h1><p>Passenger itinerary and fare summary</p></div>
             <span class="pdt-status"><i class="fas fa-circle-check"></i> {{ ticket.status }}</span>
         </header>
         <div class="pdt-ref">
             <div><span>Booking reference</span><strong>{{ ticket.booking_reference }}</strong></div>
-            <div><span>Airline · Flight</span><strong>{{ ticket.flight.airline }} · {{ ticket.flight.number }}</strong></div>
+            <div><span>Airline ┬╖ Flight</span><strong>{{ ticket.flight.airline }} ┬╖ {{ ticket.flight.number }}</strong></div>
             <div><span>Issued</span><strong>{{ ticket.issued_on }}</strong></div>
         </div>
         <section class="pdt-section">
@@ -74,22 +74,22 @@
         <section class="pdt-section">
             <h2><i class="fas fa-users"></i> Passengers and seats</h2>
             <table class="pdt-table"><thead><tr><th>Passenger</th><th>Type</th><th>Seat</th><th>Seat type</th></tr></thead><tbody>
-                {% for passenger in ticket.passengers %}<tr><td><strong>{{ passenger.name }}</strong></td><td>{{ passenger.category_label }}</td><td>{{ passenger.seat }}</td><td>{{ passenger.seat_category|default:'—' }}</td></tr>{% endfor %}
+                {% for passenger in ticket.passengers %}<tr><td><strong>{{ passenger.name }}</strong></td><td>{{ passenger.category_label }}</td><td>{{ passenger.seat }}</td><td>{{ passenger.seat_category|default:'ΓÇö' }}</td></tr>{% endfor %}
             </tbody></table>
         </section>
         <section class="pdt-section">
             <h2><i class="fas fa-receipt"></i> Fare details</h2>
             <table class="pdt-table pdt-fare"><tbody>
-                <tr><td>Base fare · {{ ticket.fare.passenger_count }} passenger(s)</td><td>₱{{ ticket.fare.base_fare|floatformat:2 }}</td></tr>
-                <tr><td>Taxes &amp; fees</td><td>₱{{ ticket.fare.taxes|floatformat:2 }}</td></tr>
-                <tr><td>Extra baggage{% if ticket.extras.extra_baggage_kg %} · {{ ticket.extras.extra_baggage_kg }} kg per passenger{% endif %}</td><td>₱{{ ticket.fare.baggage|floatformat:2 }}</td></tr>
-                <tr><td>Travel insurance · {{ ticket.extras.insurance }}</td><td>₱{{ ticket.fare.insurance|floatformat:2 }}</td></tr>
-                <tr><td>Seat selection</td><td>₱{{ ticket.fare.seats|floatformat:2 }}</td></tr>
-                <tr class="pdt-total"><td>Total amount</td><td>₱{{ ticket.fare.total|floatformat:2 }}</td></tr>
+                <tr><td>Base fare ┬╖ {{ ticket.fare.passenger_count }} passenger(s)</td><td>Γé▒{{ ticket.fare.base_fare|floatformat:2 }}</td></tr>
+                <tr><td>Taxes &amp; fees</td><td>Γé▒{{ ticket.fare.taxes|floatformat:2 }}</td></tr>
+                <tr><td>Extra baggage{% if ticket.extras.extra_baggage_kg %} ┬╖ {{ ticket.extras.extra_baggage_kg }} kg per passenger{% endif %}</td><td>Γé▒{{ ticket.fare.baggage|floatformat:2 }}</td></tr>
+                <tr><td>Travel insurance ┬╖ {{ ticket.extras.insurance }}</td><td>Γé▒{{ ticket.fare.insurance|floatformat:2 }}</td></tr>
+                <tr><td>Seat selection</td><td>Γé▒{{ ticket.fare.seats|floatformat:2 }}</td></tr>
+                <tr class="pdt-total"><td>Total amount</td><td>Γé▒{{ ticket.fare.total|floatformat:2 }}</td></tr>
             </tbody></table>
         </section>
         <div class="pdt-notice"><i class="fas fa-circle-info"></i><span><strong>Simulation only.</strong> {% if ticket.payment_status %}Your payment and flight booking are shown as successful for this project preview. No real payment was processed and no airline reservation was created.{% else %}Your details are confirmed for this project preview. No airline booking has been created and no payment has been processed.{% endif %}</span></div>
-        <footer class="pdt-footer">ATRUE Travel &amp; Tours · Booking reference {{ ticket.booking_reference }}</footer>
+        <footer class="pdt-footer">ATRUE Travel &amp; Tours ┬╖ Booking reference {{ ticket.booking_reference }}</footer>
     </article>
 </main>
 </body>

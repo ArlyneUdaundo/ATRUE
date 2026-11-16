@@ -7,7 +7,7 @@
     <title>{% block title %}Dashboard{% endblock %} | ATRUE</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261112-mobile-nav-desktop-hide">
     <link rel="stylesheet" href="{% static 'css/photo-upload.css' %}?v=20261028-photo-upload-2">
     <link rel="stylesheet" href="{% static 'css/payment-methods.css' %}?v=20261013-payment-methods-4">
@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="{% static 'css/ui-enhancements.css' %}?v=20261113-required-red-1">
 </head>
 <body>
+{% include "partials/offline_indicator.html" %}
 <a class="skip-link" href="#main">Skip to main content</a>
 <div class="dash">
     <!-- Header -->
@@ -65,7 +66,7 @@
                             <div style="flex:1;min-width:0">
                                 <div style="font-weight:600;font-size:14px">{{ n.title|default:n.get_notification_type_display }}</div>
                                 <div style="color:#475569;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.message }}</div>
-                                <div style="color:#94a3b8;font-size:11px;margin-top:4px">{{ n.created_at|date:"M d, Y H:i" }} · {% if n.is_read %}Read{% else %}Unread{% endif %}</div>
+                                <div style="color:#94a3b8;font-size:11px;margin-top:4px">{{ n.created_at|date:"M d, Y H:i" }} ┬╖ {% if n.is_read %}Read{% else %}Unread{% endif %}</div>
                             </div>
                             </button>
                         </form>
@@ -293,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reviewForm = null;
     }
     function fmtDate(v) {
-        if (!v) return 'â€”';
+        if (!v) return '├óΓé¼ΓÇ¥';
         const d = new Date(v + 'T00:00:00');
         if (isNaN(d)) return v;
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -344,9 +345,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (input.type === 'date') {
                     value = fmtDate(input.value);
                 } else if (input.tagName === 'TEXTAREA') {
-                    value = input.value || 'â€”';
+                    value = input.value || '├óΓé¼ΓÇ¥';
                 } else {
-                    value = input.value || 'â€”';
+                    value = input.value || '├óΓé¼ΓÇ¥';
                 }
                 if (value) grid.appendChild(reviewRow(labelEl.textContent.replace(/\s+/g, ' ').trim() || 'Other', value));
             });
@@ -364,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const seatMap = Array.from(form.querySelectorAll('input[name="seat_numbers"]'))
                     .map(i => i.value.trim());
                 paxNames.forEach((n, idx) => {
-                    grid.appendChild(reviewRow('Passenger ' + (idx + 1), n + (seatMap[idx] ? ' Â· Seat ' + seatMap[idx] : '')));
+                    grid.appendChild(reviewRow('Passenger ' + (idx + 1), n + (seatMap[idx] ? ' ├é┬╖ Seat ' + seatMap[idx] : '')));
                 });
             }
             // Selected payment method handled above via select; pay later check
@@ -377,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (priceBox.querySelector('.ag-pb-rows')) costs.innerHTML = priceBox.querySelector('.ag-pb-rows').innerHTML;
             const total = document.createElement('div');
             total.className = 'ag-review-total';
-            total.innerHTML = '<span>Total</span><b>' + (totalEl ? totalEl.querySelector('b').textContent : 'â€¦') + '</b>';
+            total.innerHTML = '<span>Total</span><b>' + (totalEl ? totalEl.querySelector('b').textContent : '├óΓé¼┬ª') + '</b>';
             costs.appendChild(total);
             sec.appendChild(costs);
             reviewBody.appendChild(sec);

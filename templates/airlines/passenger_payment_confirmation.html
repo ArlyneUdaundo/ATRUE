@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/flight-payment.css' %}?v=20261106-1">
     {% include 'partials/tab_context.html' %}
 </head>
@@ -24,22 +24,22 @@
             <div class="fp-confirm__notice"><i class="fas fa-circle-info"></i><span>Your booking is pending Billing Officer confirmation. The airline reservation officer will confirm it once payment is verified.</span></div>
             <div class="fp-confirm__reference"><span>Booking reference</span><strong>{{ ticket.booking_reference }}</strong></div>
             {% else %}
-            <p class="fp-confirm__eyebrow">ATRUE FLIGHTS · SIMULATION</p>
+            <p class="fp-confirm__eyebrow">ATRUE FLIGHTS ┬╖ SIMULATION</p>
             <h1>Payment Successful!</h1>
             <p class="fp-confirm__lead">Your flight booking has been confirmed in this project simulation.</p>
             <div class="fp-confirm__notice"><i class="fas fa-circle-info"></i><span>No real payment was processed and no airline reservation was created.</span></div>
             <div class="fp-confirm__reference"><span>Mock booking reference</span><strong>{{ ticket.booking_reference }}</strong></div>
             {% endif %}
             <div class="fp-confirm__details">
-                <div><span>Flight</span><b>{{ ticket.flight.airline }} · {{ ticket.flight.number }}</b></div>
-                <div><span>Route</span><b>{{ ticket.flight.origin_code }} → {{ ticket.flight.destination_code }}</b></div>
+                <div><span>Flight</span><b>{{ ticket.flight.airline }} ┬╖ {{ ticket.flight.number }}</b></div>
+                <div><span>Route</span><b>{{ ticket.flight.origin_code }} ΓåÆ {{ ticket.flight.destination_code }}</b></div>
                 <div><span>Travel date</span><b>{{ ticket.flight.departure_date }}</b></div>
                 <div><span>Passengers</span><b>{% for passenger in ticket.passengers %}{{ passenger.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</b></div>
                 <div><span>Payment method</span><b>{{ ticket.payment_method }}</b></div>
                 {% if ticket.is_database %}
-                <div><span>Amount submitted</span><b>₱{{ ticket.fare.total|floatformat:2 }}</b></div>
+                <div><span>Amount submitted</span><b>Γé▒{{ ticket.fare.total|floatformat:2 }}</b></div>
                 {% else %}
-                <div><span>Amount paid (simulated)</span><b>₱{{ ticket.fare.total|floatformat:2 }}</b></div>
+                <div><span>Amount paid (simulated)</span><b>Γé▒{{ ticket.fare.total|floatformat:2 }}</b></div>
                 {% endif %}
             </div>
             <div class="fp-confirm__actions">
