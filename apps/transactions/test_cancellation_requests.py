@@ -32,9 +32,7 @@ class GenericCancellationRequestTests(TestCase):
         self.room = Room.objects.create(
             hotel=self.hotel, room_number='101', rate='1500.00')
         self.booking = HotelBooking.objects.create(
-            customer=self.guest, status=HotelBooking.Status.CONFIRMED,
-            total_bill=Decimal('1500.00'), amount_paid=Decimal('1500.00'),
-            balance_due=Decimal('0.00'))
+            customer=self.guest, status=HotelBooking.Status.CONFIRMED)
         BookingRoom.objects.create(
             booking=self.booking, room=self.room,
             check_in=timezone.localdate(),

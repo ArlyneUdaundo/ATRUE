@@ -35,7 +35,7 @@
         <div class="payment-review-top">
             <div>
                 <h2 class="payment-review-title">Refund request · {{ row.booking.booking_reference }}</h2>
-                <p class="payment-review-subtitle">{{ row.establishment|default:'Airline' }} · {{ row.booking.passenger.get_full_name|default:row.booking.passenger.username }}</p>
+                <p class="payment-review-subtitle">{{ row.establishment|default:'Establishment' }} · {{ row.customer_name }}</p>
             </div>
             <span class="badge badge-yellow">Awaiting Billing Officer review</span>
         </div>

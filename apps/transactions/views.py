@@ -325,7 +325,7 @@ def payment_review(request):
 
 
 def _process_refund_request(request, assignment, is_admin):
-    """Approve or reject an airline cancellation/refund request."""
+    """Approve or reject a booking cancellation/refund request."""
     from airlines.services import AirlineWorkflowError, process_cancellation_refund
     from simulation.completion import establishment_for_booking
 
@@ -342,31 +342,9 @@ def _process_refund_request(request, assignment, is_admin):
         messages.error(request, 'This cancellation request is no longer waiting for review.')
         return redirect('transactions:payment_review')
 
-    if cancellation.content_type.app_label != 'airlines':
-        from .cancellation import process_generic_cancellation
-        try:
-            result = process_generic_cancellation(
-                cancellation, request.user,
-                approve=action == 'approve_refund',
-                remarks=request.POST.get('review_remarks', ''),
-            )
-        except ValidationError as exc:
-            messages.error(request, ' '.join(exc.messages))
-        else:
-            reference = cancellation.booking.booking_reference
-            if result['approved']:
-                messages.success(
-                    request,
-                    f'Cancellation for {reference} approved. '
-                    f'PHP {result["refunded"]:,.2f} was refunded.')
-            else:
-                messages.success(
-                    request, f'Cancellation for {reference} rejected.')
-        return redirect('transactions:payment_review')
-
     booking = cancellation.booking
-    if booking is None or cancellation.content_type.app_label != 'airlines':
-        messages.error(request, 'This cancellation request is not for an airline booking.')
+    if booking is None:
+        messages.error(request, 'The booking for this cancellation request no longer exists.')
         return redirect('transactions:payment_review')
 
     try:
@@ -378,6 +356,28 @@ def _process_refund_request(request, assignment, is_admin):
                  or establishment.pk != assignment.establishment_id)):
         raise PermissionDenied(
             'This cancellation request is outside your assigned establishment.')
+
+    if cancellation.content_type.app_label != 'airlines':
+        from .cancellation import process_generic_cancellation
+        try:
+            result = process_generic_cancellation(
+                cancellation, request.user,
+                approve=action == 'approve_refund',
+                remarks=request.POST.get('review_remarks', ''),
+            )
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+        else:
+            reference = booking.booking_reference
+            if result['approved']:
+                messages.success(
+                    request,
+                    f'Cancellation for {reference} approved. '
+                    f'PHP {result["refunded"]:,.2f} was refunded.')
+            else:
+                messages.success(
+                    request, f'Cancellation for {reference} rejected.')
+        return redirect('transactions:payment_review')
 
     try:
         result = process_cancellation_refund(
@@ -1028,6 +1028,7 @@ def request_booking_cancellation(request, app_label, model_name, object_id):
     detail_url = reverse(f'{namespace}:booking_detail', args=[booking.pk])
 
     if request.method == 'POST':
+        cancellation = None
         try:
             cancellation = request_cancellation(
                 booking, request.user,
