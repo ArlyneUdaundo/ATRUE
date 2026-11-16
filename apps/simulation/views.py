@@ -25,7 +25,6 @@ from .models import (
 from .role_catalogue import (
     ACTIVITY_ROLE_CODES,
     active_entries,
-    missing_active_codes,
     sync_activity_roles,
     sync_roles,
 )
@@ -693,15 +692,16 @@ def _offered_roles():
     """
     catalogue = active_entries()
     codes = [entry[0] for entry in catalogue]
-    missing = set(missing_active_codes())
+    roles = list(Role.objects.filter(code__in=codes, is_active=True))
+    missing = set(codes) - {role.code for role in roles}
     if missing:
         if missing.issubset(ACTIVITY_ROLE_CODES):
             sync_activity_roles()
         else:
             sync_roles()
+        roles = list(Role.objects.filter(code__in=codes, is_active=True))
     return {
-        role.code: role
-        for role in Role.objects.filter(code__in=codes, is_active=True)
+        role.code: role for role in roles
     }
 
 
@@ -1190,8 +1190,14 @@ def _assignment_picker_data():
     }
 
 
-def _assignment_json(assignment):
-    """One assignment as the JSON the session-page modal refreshes its row with."""
+def _assignment_json(assignment, *, include_progress=True):
+    """Serialize an assignment for the session page.
+
+    Edit responses only need fields that changed. The roster already has the
+    student's identity, assignment count, audit labels and progress snapshot,
+    so rebuilding those on every save adds queries and response work without
+    changing the page's state.
+    """
     def clock(value):
         return value.strftime('%H:%M') if value else ''
 
@@ -1201,10 +1207,9 @@ def _assignment_json(assignment):
             f"{assignment.start_time.strftime('%I:%M %p').lstrip('0')} – "
             f"{assignment.end_time.strftime('%I:%M %p').lstrip('0')}"
         )
-    return {
+    result = {
         'id': assignment.pk,
         'student_id': assignment.student_id,
-        'student_name': _student_display_name(assignment.student),
         'role': assignment.role,
         'role_display': assignment.get_role_display(),
         'establishment_id': assignment.establishment_id or '',
@@ -1217,20 +1222,25 @@ def _assignment_json(assignment):
         'time_display': time_display,
         'status': assignment.status,
         'status_display': assignment.get_status_display(),
-        'assigned_by_display': (
-            _student_display_name(assignment.assigned_by)
-            if assignment.assigned_by_id else 'Not assigned'
-        ),
-        'assigned_at_display': assignment.assigned_at.strftime('%b %d, %Y %H:%M'),
-        'assignment_count': SimulationRoleAssignment.objects.filter(
-            student_id=assignment.student_id, session_id=assignment.session_id,
-        ).count(),
         'view_url': reverse('simulation:role_detail', args=[assignment.pk]),
         'unassign_url': reverse('simulation:unassign', args=[assignment.pk]),
         'reactivate_url': reverse('simulation:reactivate', args=[assignment.pk]),
         'progress_url': reverse('simulation:assignment_progress', args=[assignment.pk]),
-        'progress': assignment_progress_data(assignment),
     }
+    if include_progress:
+        result.update({
+            'student_name': _student_display_name(assignment.student),
+            'assigned_by_display': (
+                _student_display_name(assignment.assigned_by)
+                if assignment.assigned_by_id else 'Not assigned'
+            ),
+            'assigned_at_display': assignment.assigned_at.strftime('%b %d, %Y %H:%M'),
+            'assignment_count': SimulationRoleAssignment.objects.filter(
+                student_id=assignment.student_id, session_id=assignment.session_id,
+            ).count(),
+            'progress': assignment_progress_data(assignment),
+        })
+    return result
 
 
 @login_required
@@ -1623,7 +1633,8 @@ def session_assignment(request, session_id):
     existing = None
     if assignment_id:
         existing = get_object_or_404(
-            SimulationRoleAssignment, pk=assignment_id, session=session)
+            SimulationRoleAssignment.objects.select_related('student'),
+            pk=assignment_id, session=session)
         if existing.status == SimulationRoleAssignment.AssignmentStatus.DONE:
             return fail(['Completed role assignments cannot be edited.'])
         student = existing.student
@@ -1692,21 +1703,21 @@ def session_assignment(request, session_id):
             # The row being edited is excluded, so keeping its current role never
             # requires the repeat checkbox. Repeating that role in another
             # session remains an explicit instructor choice.
-            clash_qs = SimulationRoleAssignment.objects.filter(
-                student=student, status=active_status,
-            ).filter(Q(role_ref=role_row) | Q(role=role))
-            if role in BILLING_OFFICER_ROLE_CODES:
-                clash_qs = clash_qs.filter(establishment=establishment)
-            if existing is not None:
-                clash_qs = clash_qs.exclude(pk=existing.pk)
-            clash = list(clash_qs.select_related('session').order_by('-assigned_at'))
-            if existing is None and clash and not repeat_override:
-                return fail(
-                    [f"{role_row.name} is already active for this student in "
-                     f"“{clash[0].activity_name}”. Tick “Assign this role again” "
-                     "to add another assignment."],
-                    clash=True,
-                )
+            clash = []
+            if existing is None:
+                clash_qs = SimulationRoleAssignment.objects.filter(
+                    student=student, status=active_status,
+                ).filter(Q(role_ref=role_row) | Q(role=role))
+                if role in BILLING_OFFICER_ROLE_CODES:
+                    clash_qs = clash_qs.filter(establishment=establishment)
+                clash = list(clash_qs.order_by('-assigned_at'))
+                if clash and not repeat_override:
+                    return fail(
+                        [f"{role_row.name} is already active for this student in "
+                         f"“{clash[0].activity_name}”. Tick “Assign this role again” "
+                         "to add another assignment."],
+                        clash=True,
+                    )
 
             same_session = SimulationRoleAssignment.objects.filter(
                 student=student, session=session, role_ref=role_row,
@@ -1772,7 +1783,11 @@ def session_assignment(request, session_id):
                 existing.simulation_date = schedule.get('simulation_date')
                 existing.start_time = schedule.get('start_time')
                 existing.end_time = schedule.get('end_time')
-                existing.save()
+                existing.save(update_fields=[
+                    'role', 'role_ref', 'establishment', 'hotel',
+                    'establishment_type', 'establishment_required',
+                    'simulation_date', 'start_time', 'end_time', 'updated_at',
+                ])
                 assignment = existing
                 new_values = (
                     assignment.role, assignment.establishment_id, assignment.session_id,
@@ -1815,7 +1830,8 @@ def session_assignment(request, session_id):
     return JsonResponse({
         'ok': True,
         'action': action,
-        'assignment': _assignment_json(assignment),
+        'assignment': _assignment_json(
+            assignment, include_progress=existing is None),
     })
 
 

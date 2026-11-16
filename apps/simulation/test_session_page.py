@@ -164,6 +164,11 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertEqual(assignment.establishment_id, self.sunrise_est.pk)
         self.assertEqual(assignment.simulation_date.isoformat(), '2026-10-01')
         self.assertEqual(assignment.start_time.strftime('%H:%M'), '08:00')
+        payload = response.json()['assignment']
+        self.assertEqual(payload['id'], assignment.pk)
+        self.assertNotIn('progress', payload)
+        self.assertNotIn('assignment_count', payload)
+        self.assertNotIn('assigned_by_display', payload)
 
         self.assertEqual(
             SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 1)

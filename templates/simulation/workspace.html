@@ -605,6 +605,8 @@
     var repeatHint = document.getElementById('modalRepeatHint');
     var errorsBox = document.getElementById('modalErrors');
     var saveBtn = document.getElementById('modalSave');
+    var savePending = false;
+    var saveButtonMarkup = saveBtn.innerHTML;
     var modalTitle = document.getElementById('assignmentModalTitle');
     var csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
 
@@ -1329,58 +1331,80 @@
         studentDetails.querySelector('.simulation-student-establishment-value').textContent = assignment.establishment || 'Not assigned';
         var statusValue = studentDetails.querySelector('.simulation-student-status-value');
         if (statusValue) statusValue.textContent = assignment.status_display;
-        studentDetails.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display || 'Not assigned';
-        studentDetails.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display || 'Not assigned';
-        var assignmentCount = Number(assignment.assignment_count || 0);
-        studentDetails.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
-            + ' assignment' + (assignmentCount === 1 ? '' : 's') + ' in this session';
+        if (assignment.assignment_count !== undefined) {
+            var assignmentCount = Number(assignment.assignment_count);
+            studentDetails.querySelector('.simulation-student-assignment-count').textContent = assignmentCount
+                + ' assignment' + (assignmentCount === 1 ? '' : 's') + ' in this session';
+        }
         studentDetails.querySelector('.simulation-student-date-value').textContent = assignment.simulation_date
             ? assignment.date_display : 'Not scheduled';
         studentDetails.querySelector('.simulation-student-time-value').textContent = assignment.time_display || 'Not set';
 
-        var endpoint = form.getAttribute('action');
-        var html = '';
-        if (assignment.status !== 'DONE') {
-            html += '<button type="button" class="btn btn-brand btn-sm js-assignment-open"'
-                + ' aria-haspopup="dialog"'
-                + ' data-endpoint="' + escapeHtml(endpoint) + '"'
-                + ' data-assignment-id="' + assignment.id + '"'
-                + ' data-session-id="' + escapeHtml(currentSessionId) + '"'
-                + ' data-student-id="' + escapeHtml(currentStudentId) + '"'
-                + ' data-student-name="' + escapeHtml(assignment.student_name) + '"'
-                + ' data-student-username="' + escapeHtml(row.dataset.studentUsername || '') + '"'
-                + ' data-role="' + escapeHtml(assignment.role) + '"'
-                + ' data-establishment-id="' + escapeHtml(assignment.establishment_id) + '"'
-                + ' data-date="' + escapeHtml(assignment.simulation_date) + '"'
-                + ' data-start="' + escapeHtml(assignment.start_time) + '"'
-                + ' data-end="' + escapeHtml(assignment.end_time) + '"><i class="fas fa-pen"></i> Edit Assignment</button>';
-        }
-        if (assignment.status === 'ACTIVE') {
-            html += ' <form method="post" action="' + escapeHtml(assignment.unassign_url) + '" data-mark-role-done style="display:inline">'
-                + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
-                + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
-        } else if (assignment.status === 'DONE') {
-            html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" style="display:inline">'
-                + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
-                + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button></form>';
-        }
-        studentDetails.querySelector('.simulation-student-actions').innerHTML = html;
         var progressNode = studentDetails.querySelector('[data-session-progress]');
         if (progressNode && assignment.progress_url) {
             progressNode.dataset.progressUrl = assignment.progress_url;
         }
-        renderProgress(progressNode, assignment.progress);
+        if (assignment.assigned_by_display) {
+            studentDetails.querySelector('.simulation-student-assigned-by-value').textContent = assignment.assigned_by_display;
+        }
+        if (assignment.assigned_at_display) {
+            studentDetails.querySelector('.simulation-student-assigned-at-value').textContent = assignment.assigned_at_display;
+        }
+        if (assignment.progress) {
+            var endpoint = form.getAttribute('action');
+            var html = '';
+            if (assignment.status !== 'DONE') {
+                html += '<button type="button" class="btn btn-brand btn-sm js-assignment-open"'
+                    + ' aria-haspopup="dialog"'
+                    + ' data-endpoint="' + escapeHtml(endpoint) + '"'
+                    + ' data-assignment-id="' + assignment.id + '"'
+                    + ' data-session-id="' + escapeHtml(currentSessionId) + '"'
+                    + ' data-student-id="' + escapeHtml(currentStudentId) + '"'
+                    + ' data-student-name="' + escapeHtml(assignment.student_name) + '"'
+                    + ' data-student-username="' + escapeHtml(row.dataset.studentUsername || '') + '"'
+                    + ' data-role="' + escapeHtml(assignment.role) + '"'
+                    + ' data-establishment-id="' + escapeHtml(assignment.establishment_id) + '"'
+                    + ' data-date="' + escapeHtml(assignment.simulation_date) + '"'
+                    + ' data-start="' + escapeHtml(assignment.start_time) + '"'
+                    + ' data-end="' + escapeHtml(assignment.end_time) + '"><i class="fas fa-pen"></i> Edit Assignment</button>';
+            }
+            if (assignment.status === 'ACTIVE') {
+                html += ' <form method="post" action="' + escapeHtml(assignment.unassign_url) + '" data-mark-role-done style="display:inline">'
+                    + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
+                    + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
+            } else if (assignment.status === 'DONE') {
+                html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" style="display:inline">'
+                    + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
+                    + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button></form>';
+            }
+            studentDetails.querySelector('.simulation-student-actions').innerHTML = html;
+            renderProgress(progressNode, assignment.progress);
+        } else {
+            var editButton = studentDetails.querySelector('.js-assignment-open');
+            if (editButton) {
+                editButton.dataset.assignmentId = assignment.id;
+                editButton.dataset.role = assignment.role;
+                editButton.dataset.establishmentId = assignment.establishment_id;
+                editButton.dataset.date = assignment.simulation_date;
+                editButton.dataset.start = assignment.start_time;
+                editButton.dataset.end = assignment.end_time;
+            }
+        }
     }
 
     form.addEventListener('submit', function (event) {
         event.preventDefault();
+        if (savePending) return;
         clearErrors();
         if (!currentAssignmentId && heldRole() && !repeatCheckbox.checked) {
             updateRepeat();
             showErrors(['This role is already active for this student. Tick “Assign this role again” to continue.']);
             return;
         }
+        savePending = true;
         saveBtn.disabled = true;
+        saveBtn.setAttribute('aria-busy', 'true');
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving…';
         fetch(form.getAttribute('action'), {
             method: 'POST',
             headers: {
@@ -1401,11 +1425,14 @@
                 return { ok: response.ok, status: response.status, data: data };
             });
         }).then(function (result) {
+            savePending = false;
             saveBtn.disabled = false;
+            saveBtn.removeAttribute('aria-busy');
+            saveBtn.innerHTML = saveButtonMarkup;
             if (result.data && result.data.ok) {
                 renderRow(result.data.assignment);
                 sessionNotice.textContent = result.data.action === 'edit'
-                    ? 'Assignment updated successfully.'
+                    ? 'Assignment updated successfully!'
                     : 'Role assigned successfully.';
                 sessionNotice.hidden = false;
                 close(true);
@@ -1423,7 +1450,10 @@
             }
         }).catch(function (error) {
             console.error('Could not save simulation assignment:', error);
+            savePending = false;
             saveBtn.disabled = false;
+            saveBtn.removeAttribute('aria-busy');
+            saveBtn.innerHTML = saveButtonMarkup;
             showErrors(['Could not reach the server to save this assignment. Check your connection and try again.']);
         });
     });
