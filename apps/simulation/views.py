@@ -135,7 +135,7 @@ def do_task(request, assignment_id):
     """
     assignment = get_object_or_404(
         request.user.simulation_roles.select_related(
-            'hotel', 'establishment', 'role_ref',
+            'hotel', 'establishment', 'role_ref', 'session',
         ),
         pk=assignment_id,
         status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
@@ -315,11 +315,11 @@ def add_session(request):
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip()
         description = (request.POST.get('description') or '').strip()
-        if not name:
-            messages.error(request, 'Enter a name for the session.')
         session_date = (request.POST.get('session_date') or '').strip()
         start_time = (request.POST.get('start_time') or '').strip()
         end_time = (request.POST.get('end_time') or '').strip()
+        if not name:
+            messages.error(request, 'Enter a name for the session.')
             return render(request, 'simulation/add_session.html', {
                 'name': name, 'description': description,
                 'session_date': session_date, 'start_time': start_time,
@@ -348,6 +348,7 @@ def add_session(request):
             name=name,
             description=description,
             instructor=request.user,
+            **schedule,
         )
         log_activity(request.user, 'Created simulation session', session.name, session=session)
         messages.success(request, f'{session.name} created. Add activities from its session card.')
@@ -453,12 +454,12 @@ def update_session(request, session_id):
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip()
         description = (request.POST.get('description') or '').strip()
-        start_date = (request.POST.get('start_date') or '').strip() or None
-        end_date = (request.POST.get('end_date') or '').strip() or None
-        status = (request.POST.get('status') or '').strip()
         session_date = (request.POST.get('session_date') or '').strip()
         start_time = (request.POST.get('start_time') or '').strip()
         end_time = (request.POST.get('end_time') or '').strip()
+        start_date = (request.POST.get('start_date') or '').strip() or None
+        end_date = (request.POST.get('end_date') or '').strip() or None
+        status = (request.POST.get('status') or '').strip()
 
         errors = []
         if not name:
@@ -467,13 +468,13 @@ def update_session(request, session_id):
             errors.append('Session names must be 150 characters or fewer.')
         if status not in SimulationSession.Status.values:
             errors.append('Select a valid session status.')
-        try:
-            import datetime
-            parsed = (
         schedule = _parse_schedule(
             session_date, start_time, end_time, required=True)
         if isinstance(schedule, str):
             errors.append(schedule)
+        try:
+            import datetime
+            parsed = (
                 datetime.date.fromisoformat(start_date) if start_date else None,
                 datetime.date.fromisoformat(end_date) if end_date else None,
             )
@@ -491,22 +492,22 @@ def update_session(request, session_id):
                 'session': session,
                 'name': name,
                 'description': description,
-                'start_date': start_date.isoformat() if start_date else '',
-                'end_date': end_date.isoformat() if end_date else '',
-                'status_values': SimulationSession.Status.values,
                 'session_date': session_date,
                 'start_time': start_time,
                 'end_time': end_time,
+                'start_date': start_date.isoformat() if start_date else '',
+                'end_date': end_date.isoformat() if end_date else '',
+                'status_values': SimulationSession.Status.values,
             })
 
         session.name = name
         session.description = description
-        session.start_date = start_date
-        session.end_date = end_date
-        previous_status = session.status
         session.session_date = schedule['session_date']
         session.start_time = schedule['start_time']
         session.end_time = schedule['end_time']
+        session.start_date = start_date
+        session.end_date = end_date
+        previous_status = session.status
         if status == SimulationSession.Status.ACTIVE and previous_status != status:
             session.activate()
         elif status == SimulationSession.Status.COMPLETED and previous_status != status:
@@ -526,12 +527,12 @@ def update_session(request, session_id):
                 'session': session,
                 'name': name,
                 'description': description,
-                'start_date': start_date.isoformat() if start_date else '',
-                'end_date': end_date.isoformat() if end_date else '',
-                'status_values': SimulationSession.Status.values,
                 'session_date': session_date,
                 'start_time': start_time,
                 'end_time': end_time,
+                'start_date': start_date.isoformat() if start_date else '',
+                'end_date': end_date.isoformat() if end_date else '',
+                'status_values': SimulationSession.Status.values,
             })
         log_activity(request.user, 'Updated simulation session', session.name, session=session)
         if previous_status != session.status:
@@ -564,12 +565,12 @@ def update_session(request, session_id):
         'session': session,
         'name': session.name,
         'description': session.description,
-        'start_date': session.start_date.isoformat() if session.start_date else '',
-        'end_date': session.end_date.isoformat() if session.end_date else '',
-        'status_values': SimulationSession.Status.values,
         'session_date': session.session_date.isoformat() if session.session_date else '',
         'start_time': session.start_time.strftime('%H:%M') if session.start_time else '',
         'end_time': session.end_time.strftime('%H:%M') if session.end_time else '',
+        'start_date': session.start_date.isoformat() if session.start_date else '',
+        'end_date': session.end_date.isoformat() if session.end_date else '',
+        'status_values': SimulationSession.Status.values,
     })
 
 
@@ -578,26 +579,26 @@ def _load_students(request):
     return User.objects.filter(account_type=User.AccountType.STUDENT).order_by('username')
 
 
-def _parse_schedule(date_str, start_str, end_str):
-    """Validate the optional simulation window.
+def _parse_schedule(date_str, start_str, end_str, *, required=False):
+    """Validate a complete shared session schedule.
 
-    Returns the model kwargs on success, or an error message string. All three
-    fields travel together: a date with no times (or vice versa) would describe
-    a window the platform cannot enforce, so a partial schedule is rejected
-    rather than silently stored as "no schedule".
+    Returns session model kwargs on success, or an error message string.
+    Session creation and editing require all three values; the optional mode is
+    used only while assigning into an already-existing session.
     """
     import datetime
 
     values = (date_str, start_str, end_str)
     if not any(values):
-        return {}
+        return ('Set the session date, start time and end time together.'
+                if required else {})
     if not all(values):
-        return "Set the simulation date, start time and end time together."
+        return "Set the session date, start time and end time together."
 
     try:
         sim_date = datetime.date.fromisoformat(date_str)
     except ValueError:
-        return "Enter a valid simulation date."
+        return "Enter a valid session date."
     try:
         start = datetime.time.fromisoformat(start_str)
         end = datetime.time.fromisoformat(end_str)
@@ -827,13 +828,14 @@ def _attach_session_student_rows(sessions, students):
     """
     sessions = list(sessions)
     students = list(students)
-    by_session = {}
-    counts = {}
-    session_assignments = {}
-    if sessions:
     from simulation.schedule import session_window_for
     for session in sessions:
         session.schedule_window = session_window_for(session)
+    by_session = {}
+    counts = {}
+    session_assignments = {}
+    assignments_by_student = {}
+    if sessions:
         assignments = (
             SimulationRoleAssignment.objects
             .filter(session__in=sessions)
@@ -883,8 +885,7 @@ def _attach_session_student_rows(sessions, students):
             if session.required_task_count else
             0 if assigned_students else None)
         session.status_class = session.status.lower()
-        session.schedule_label = _session_schedule_label(
-            session, session_assignments_for_card)
+        session.schedule_label = _session_schedule_label(session)
         session.student_rows = [
             {
                 'student': student,
@@ -916,13 +917,13 @@ _TASK_STATE_LABELS = {
     'completed': 'Completed',
     'upcoming': 'Upcoming',
     'expired': 'Expired',
+    'unconfigured': 'Schedule Required',
     'awaiting': 'Awaiting Confirmation',
     'pending': 'Pending',
     'pending_verification': 'Pending verification',
     'untracked': 'Not tracked',
     'failed': 'Failed',
     'cancelled': 'Cancelled',
-    'unconfigured': 'Schedule Required',
 }
 
 
@@ -1096,14 +1097,14 @@ def assignment_progress_data(assignment):
         state = 'upcoming'
     elif task_window['state'] == 'expired':
         state = 'expired'
+    elif task_window['state'] == 'unconfigured':
+        state = 'unconfigured'
     elif is_complete:
         state = 'complete'
     elif any(item['state'] == 'awaiting' for item in rendered):
         state = 'awaiting'
     elif task_window['state'] == 'available' and task_window['start_at']:
         state = 'in_progress' if assignment.started_at else 'not_started'
-    elif task_window['state'] == 'unconfigured':
-        state = 'unconfigured'
     elif tracked:
         state = 'in_progress'
     else:
@@ -1230,6 +1231,7 @@ def _assignment_json(assignment, *, include_progress=True):
     def clock(value):
         return value.strftime('%H:%M') if value else ''
 
+    session = assignment.session
     time_display = ''
     if session and session.start_time and session.end_time:
         time_display = (
@@ -1448,7 +1450,6 @@ def assign_role(request):
                 session=selected_session,
                 establishment=establishment,
                 hotel=hotel,
-                **schedule,
             )
             _notify_assignment(assignment, request.user)
         role_label = SimulationRoleAssignment(role=role).get_role_display()
@@ -1752,10 +1753,9 @@ def session_assignment(request, session_id):
                     status=409,
                 )
 
-            # A repeat checkbox does not override a timetable collision. Check
-            # every active assignment for this student, regardless of role,
-            # establishment, or session.
-            if schedule:
+            # Each assignment inherits the shared session schedule. A repeated
+            # role cannot overlap a different session for the same student.
+            if existing is None:
                 overlaps = SimulationRoleAssignment.objects.filter(
                     student=student,
                     status=active_status,
@@ -1781,7 +1781,6 @@ def session_assignment(request, session_id):
                     session=session,
                     establishment=establishment,
                     hotel=hotel,
-                    **schedule,
                 )
                 _notify_assignment(assignment, request.user)
             else:
@@ -1899,7 +1898,8 @@ def role_list(request):
         messages.error(request, "You are not authorised to review role assignments.")
         return redirect('simulation:workspace')
 
-    qs = SimulationRoleAssignment.objects.select_related('student', 'assigned_by', 'hotel')
+    qs = SimulationRoleAssignment.objects.select_related(
+        'student', 'assigned_by', 'hotel', 'session')
     q = (request.GET.get('q') or '').strip()
     role = (request.GET.get('role') or '').strip()
     status = (request.GET.get('status') or '').strip()
@@ -1968,12 +1968,12 @@ def role_detail(request, assignment_id):
         task_status = 'Upcoming'
     elif task_window['state'] == 'expired':
         task_status = 'Expired'
+    elif task_window['state'] == 'unconfigured':
+        task_status = 'Schedule Required'
     elif assignment.started_at:
         task_status = 'In Progress'
     else:
         task_status = 'Not Started'
-    elif task_window['state'] == 'unconfigured':
-        task_status = 'Schedule Required'
     return render(request, 'simulation/role_detail.html', {
         'assignment': assignment,
         'progress': assignment_progress_data(assignment),
