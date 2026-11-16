@@ -10,6 +10,7 @@ one active role per student).
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 
 from simulation.models import SimulationRoleAssignment, SimulationSession
 from simulation.test_assignment_flow import AssignmentFlowTestCase
@@ -23,7 +24,8 @@ class SessionPageRosterTests(AssignmentFlowTestCase):
         super().setUp()
         self.client.force_login(self.instructor)
         self.session = SimulationSession.objects.create(
-            name='Session 1', instructor=self.instructor)
+            name='Session 1', instructor=self.instructor,
+            session_date=timezone.localdate(), start_time='00:00', end_time='23:59')
 
     def test_every_student_gets_a_row_with_assign_or_edit(self):
         self.assign(
@@ -88,7 +90,8 @@ class StudentSessionPageTests(AssignmentFlowTestCase):
     def setUp(self):
         super().setUp()
         self.session = SimulationSession.objects.create(
-            name='Session 1', instructor=self.instructor)
+            name='Session 1', instructor=self.instructor,
+            session_date=timezone.localdate(), start_time='00:00', end_time='23:59')
         self.assign(
             self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
             activity_name='Session 1', session=self.session)
@@ -113,7 +116,8 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         super().setUp()
         self.client.force_login(self.instructor)
         self.session = SimulationSession.objects.create(
-            name='Session 1', instructor=self.instructor)
+            name='Session 1', instructor=self.instructor,
+            session_date='2026-09-26', start_time='07:00', end_time='17:00')
         self.url = reverse('simulation:session_assignment', args=[self.session.pk])
 
     def post(self, **overrides):
@@ -121,9 +125,6 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
             'student': self.arlyne.pk,
             'role': Role.HOTEL_FRONT_DESK,
             'establishment': self.sunrise_est.pk,
-            'simulation_date': '2026-09-26',
-            'start_time': '07:00',
-            'end_time': '17:00',
         }
         data.update(overrides)
         return self.client.post(self.url, data)
@@ -144,7 +145,7 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertEqual(payload['assignment']['role_display'], 'Hotel Front Desk Officer')
         self.assertEqual(payload['assignment']['establishment'], 'Sunrise Hotel')
 
-    def test_a_row_can_edit_its_assignment_and_schedule(self):
+    def test_a_row_can_edit_its_assignment_without_changing_the_shared_schedule(self):
         assignment = self.assign(
             self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
             activity_name='Activity 1', session=self.session)
@@ -152,9 +153,6 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         response = self.post(
             assignment_id=assignment.pk,
             role=Role.HOTEL_RESERVATION_OFFICER,
-            simulation_date='2026-10-01',
-            start_time='08:00',
-            end_time='12:00',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -162,8 +160,8 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         assignment.refresh_from_db()
         self.assertEqual(assignment.role, Role.HOTEL_RESERVATION_OFFICER)
         self.assertEqual(assignment.establishment_id, self.sunrise_est.pk)
-        self.assertEqual(assignment.simulation_date.isoformat(), '2026-10-01')
-        self.assertEqual(assignment.start_time.strftime('%H:%M'), '08:00')
+        self.assertEqual(assignment.session.session_date.isoformat(), '2026-09-26')
+        self.assertEqual(assignment.session.start_time.strftime('%H:%M'), '07:00')
         payload = response.json()['assignment']
         self.assertEqual(payload['id'], assignment.pk)
         self.assertNotIn('progress', payload)
@@ -185,9 +183,6 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         response = self.post(
             assignment_id=assignment.pk,
             role=Role.HOTEL_FRONT_DESK,
-            simulation_date='2026-10-01',
-            start_time='08:00',
-            end_time='12:00',
         )
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -208,11 +203,13 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertTrue(response.json()['clash'])
         self.assertIn('Assign this role again', response.json()['errors'][0])
 
-    def test_overlapping_schedule_is_rejected_even_with_repeat_override(self):
+    def test_overlapping_session_schedule_is_rejected_even_with_repeat_override(self):
+        other_session = SimulationSession.objects.create(
+            name='Another session', instructor=self.instructor,
+            session_date='2026-09-26', start_time='09:00', end_time='10:00')
         self.assign(
             self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
-            activity_name='Another session', simulation_date='2026-09-26',
-            start_time='09:00', end_time='10:00')
+            activity_name='Another session', session=other_session)
 
         response = self.post(assign_again='yes')
 
@@ -221,28 +218,23 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertFalse(
             SimulationRoleAssignment.objects.filter(session=self.session).exists())
 
-    def test_edit_rejects_overlap_and_keeps_the_existing_record(self):
+    def test_edit_keeps_the_session_schedule_and_existing_record(self):
         assignment = self.assign(
             self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
-            activity_name=self.session.name, session=self.session,
-            simulation_date='2026-09-26', start_time='07:00', end_time='08:00')
-        self.assign(
-            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
-            activity_name='Another session', simulation_date='2026-09-26',
-            start_time='09:00', end_time='10:00')
+            activity_name=self.session.name, session=self.session)
 
         response = self.post(
-            assignment_id=assignment.pk,
-            simulation_date='2026-09-26', start_time='09:30', end_time='10:30')
+            assignment_id=assignment.pk)
 
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
         assignment.refresh_from_db()
         self.assertEqual(assignment.role, Role.HOTEL_FRONT_DESK)
-        self.assertEqual(assignment.start_time.strftime('%H:%M'), '07:00')
+        self.assertEqual(assignment.session.start_time.strftime('%H:%M'), '07:00')
         self.assertEqual(
-            SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 2)
+            SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 1)
 
-    def test_a_row_can_save_a_resort_front_desk_assignment_and_schedule(self):
+    def test_a_row_can_save_a_resort_front_desk_assignment_on_the_shared_schedule(self):
         from establishments.models import Establishment
 
         resort = Establishment.objects.create(
@@ -255,9 +247,6 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
             assignment_id=assignment.pk,
             role=Role.RESORT_FRONT_DESK,
             establishment=resort.pk,
-            simulation_date='2026-11-15',
-            start_time='14:00',
-            end_time='14:30',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -265,9 +254,9 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         assignment.refresh_from_db()
         self.assertEqual(assignment.role, Role.RESORT_FRONT_DESK)
         self.assertEqual(assignment.establishment_id, resort.pk)
-        self.assertEqual(assignment.simulation_date.isoformat(), '2026-11-15')
-        self.assertEqual(assignment.start_time.strftime('%H:%M'), '14:00')
-        self.assertEqual(assignment.end_time.strftime('%H:%M'), '14:30')
+        self.assertEqual(assignment.session.session_date.isoformat(), '2026-09-26')
+        self.assertEqual(assignment.session.start_time.strftime('%H:%M'), '07:00')
+        self.assertEqual(assignment.session.end_time.strftime('%H:%M'), '17:00')
 
     def test_an_operational_role_still_needs_an_establishment(self):
         response = self.post(establishment='')
@@ -280,22 +269,6 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertTrue(response.json()['ok'])
         assignment = SimulationRoleAssignment.objects.get()
         self.assertIsNone(assignment.establishment_id)
-
-    def test_a_partial_or_backwards_schedule_is_refused(self):
-        for data in (
-            {'simulation_date': '2026-09-26', 'start_time': '', 'end_time': ''},
-            {'start_time': '17:00', 'end_time': '07:00'},
-        ):
-            with self.subTest(data=data):
-                response = self.post(**data)
-                self.assertEqual(response.status_code, 400)
-        self.assertFalse(SimulationRoleAssignment.objects.exists())
-
-    def test_the_schedule_is_optional(self):
-        response = self.post(simulation_date='', start_time='', end_time='')
-        self.assertTrue(response.json()['ok'])
-        assignment = SimulationRoleAssignment.objects.get()
-        self.assertIsNone(assignment.simulation_date)
 
     def test_a_duplicate_active_role_needs_the_override(self):
         self.assign(

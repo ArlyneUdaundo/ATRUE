@@ -1776,6 +1776,8 @@ body.sim-modal-open {
 
 .sim-status-active { background: #dcfce7; color: #15803d; }
 .sim-status-scheduled { background: #dbeafe; color: #1d4ed8; }
+.sim-status-ended { background: #fee2e2; color: #b91c1c; }
+.sim-status-schedule-required { background: #fef3c7; color: #92400e; }
 .sim-status-draft { background: #eef2f7; color: #475569; }
 .sim-status-completed { background: #e0f2fe; color: #0369a1; }
 .sim-status-archived { background: #f1f5f9; color: #64748b; }

@@ -59,12 +59,14 @@
                 <em class="muted-hint" id="addTourOperatorStatus" role="status" hidden></em>
             </div>
         </div>
+        {% if not session %}
         <fieldset style="border:0;padding:0;margin:0">
-            <label style="display:block;margin-bottom:8px">Simulation Schedule</label>
+            <label style="display:block;margin-bottom:8px">New Session Schedule</label>
+            <em class="muted-hint">Used only when this creates a new session. All students assigned later share this schedule.</em>
             <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px">
                 <div class="form-group" style="margin:0">
                     <label for="simDate">Date</label>
-                    <input type="date" name="simulation_date" id="simDate" class="form-input" value="{% if posted %}{{ posted.simulation_date }}{% endif %}">
+                    <input type="date" name="session_date" id="simDate" class="form-input" value="{% if posted %}{{ posted.session_date|default:posted.simulation_date }}{% endif %}">
                 </div>
                 <div class="form-group" style="margin:0">
                     <label for="startTime">Start Time</label>
@@ -76,6 +78,7 @@
                 </div>
             </div>
         </fieldset>
+        {% endif %}
         <div class="form-group" id="repeatGroup" style="display:none;margin-top:16px;padding:12px;border:1px solid #f0c36d;border-radius:10px;background:#fff8ec">
             <label style="display:flex;gap:9px;align-items:flex-start;margin:0;cursor:pointer">
                 <input type="checkbox" name="assign_again" value="yes" id="assignAgain" style="margin-top:3px">

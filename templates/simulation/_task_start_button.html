@@ -1,6 +1,8 @@
 {% if task_assignment.status == 'ACTIVE' %}
     {% if task_window.state == 'unscheduled' %}
     <a href="{% url 'simulation:do_task' task_assignment.id %}" class="btn btn-brand{% if task_button_large %} btn-lg{% else %} btn-sm{% endif %}"{% if task_button_large %} style="min-height:48px;padding:12px 22px;font-weight:700"{% endif %}><i class="fas fa-play"></i> {% if task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</a>
+    {% elif task_window.state == 'unconfigured' %}
+    <button type="button" class="btn btn-brand{% if task_button_large %} btn-lg{% else %} btn-sm{% endif %}" disabled><i class="fas fa-clock"></i> Schedule Required</button>
     {% else %}
     <button type="button" class="btn btn-brand{% if task_button_large %} btn-lg{% else %} btn-sm{% endif %}"{% if task_button_large %} style="min-height:48px;padding:12px 22px;font-weight:700"{% endif %} data-task-window-button
         data-task-url="{% url 'simulation:do_task' task_assignment.id %}"
@@ -10,7 +12,7 @@
         data-task-ready-label="{% if task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}"
         {% if not task_window.can_start %}disabled{% endif %}>
         <i class="fas fa-play"></i>
-        <span data-task-window-label>{% if task_window.state == 'upcoming' %}Upcoming{% elif task_window.state == 'expired' %}Time Ended{% elif task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</span>
+        <span data-task-window-label>{% if task_window.state == 'upcoming' %}Scheduled{% elif task_window.state == 'expired' %}Time Ended{% elif task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</span>
     </button>
     {% endif %}
 {% endif %}

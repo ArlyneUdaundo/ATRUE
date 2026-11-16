@@ -109,9 +109,9 @@
                     <td class="role-col-session">{{ r.activity_name }}</td>
                     <td class="role-col-hotel">{% if r.hotel %}{{ r.hotel.name }}{% else %}<span class="meta" style="margin:0">—</span>{% endif %}</td>
                     <td class="role-col-schedule">
-                        {% if r.simulation_date %}
-                            {{ r.simulation_date|date:"M d, Y" }}
-                            <div class="meta" style="margin:0">{% if r.start_time and r.end_time %}{{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
+                        {% if r.session.session_date %}
+                            {{ r.session.session_date|date:"M d, Y" }}
+                            <div class="meta" style="margin:0">{{ r.session.start_time|time:"g:i A" }} ? {{ r.session.end_time|time:"g:i A" }}</div>
                         {% else %}
                             <span class="meta" style="margin:0">—</span>
                         {% endif %}

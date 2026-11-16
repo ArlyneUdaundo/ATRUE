@@ -72,10 +72,9 @@ class SimulationRoleAssignment(models.Model):
     session is identified by ``activity_name``, a free-text title the
     instructor creates per session ("Activity 1", "Midterm Simulation"); it
     groups students but never decides anything about them. Each assignment
-    independently carries the role performed, the establishment it happens at
-    (``hotel``, for hotel roles) and the window it is allowed to run in
-    (``simulation_date``/``start_time``/``end_time``), so any number of students
-    can share one session name while holding their own role, venue and schedule.
+    independently carries the role performed and the establishment it happens
+    at (``hotel``, for hotel roles). Its schedule belongs to ``session`` and is
+    shared by every student assigned to that session.
     """
 
     class Role(models.TextChoices):
@@ -254,6 +253,8 @@ class SimulationRoleAssignment(models.Model):
         'hotels.Hotel', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='simulation_assignments'
     )
+    # Historical per-assignment schedule values are retained for migration
+    # safety only. Access checks and current UI read the shared session fields.
     simulation_date = models.DateField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
@@ -812,6 +813,9 @@ class SimulationSession(models.Model):
 
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    session_date = models.DateField(null=True, blank=True)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices,
                               default=Status.DRAFT, db_index=True)
 
@@ -833,6 +837,16 @@ class SimulationSession(models.Model):
                            | models.Q(end_date__gte=models.F('start_date'))),
                 name='sim_session_dates_ordered',
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(session_date__isnull=True,
+                             start_time__isnull=True, end_time__isnull=True)
+                    | models.Q(session_date__isnull=False,
+                               start_time__isnull=False, end_time__isnull=False,
+                               end_time__gt=models.F('start_time'))
+                ),
+                name='sim_session_schedule_complete',
+            ),
         ]
 
     def __str__(self):
@@ -849,6 +863,12 @@ class SimulationSession(models.Model):
     def clean(self):
         super().clean()
         errors = {}
+        schedule = (self.session_date, self.start_time, self.end_time)
+        if any(schedule) and not all(schedule):
+            errors['session_date'] = (
+                'Set the session date, start time and end time together.')
+        if self.start_time and self.end_time and self.end_time <= self.start_time:
+            errors['end_time'] = 'The end time must be later than the start time.'
         if self.start_date and self.end_date and self.end_date < self.start_date:
             errors['end_date'] = 'The end date cannot be earlier than the start date.'
         if self.status == self.Status.ACTIVE and self.start_date and \
@@ -856,6 +876,17 @@ class SimulationSession(models.Model):
             errors['status'] = ('This session starts in the future. Leave it Scheduled '
                                 'until it actually begins.')
         return self._raise(errors)
+
+    @property
+    def schedule_status_display(self):
+        from simulation.schedule import session_window_for
+
+        return {
+            'upcoming': 'Scheduled',
+            'available': 'Active',
+            'expired': 'Ended',
+            'unconfigured': 'Schedule Required',
+        }.get(session_window_for(self)['state'], 'Schedule Required')
 
     @staticmethod
     def _raise(errors):

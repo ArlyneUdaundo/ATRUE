@@ -140,7 +140,13 @@
             data-session-name="{{ session.name }}"
             data-session-start="{{ session.start_date|date:'M d, Y' }}"
             data-session-end="{{ session.end_date|date:'M d, Y' }}"
-            data-session-status="{{ session.get_status_display }}"
+            data-session-session-date="{{ session.session_date|date:'M d, Y' }}"
+            data-session-start-time="{{ session.start_time|time:'g:i A' }}"
+            data-session-end-time="{{ session.end_time|time:'g:i A' }}"
+            data-session-status="{{ session.schedule_status_display }}"
+            data-session-schedule-start-at="{{ session.schedule_window.start_at }}"
+            data-session-schedule-end-at="{{ session.schedule_window.end_at }}"
+            data-session-schedule-server-now="{{ session.schedule_window.server_now }}"
             aria-haspopup="dialog"
             {% endif %}>
             {% if is_instructor %}
@@ -226,8 +232,8 @@
                             <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}No activity assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% if row.assignment.status == 'DONE' %}<small>Assigned role as done</small>{% endif %}{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}No establishment{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Simulation Date</span><strong class="simulation-student-date-value">{% if row.assignment.simulation_date %}{{ row.assignment.simulation_date|date:"M d, Y" }}{% else %}Not scheduled{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Simulation Time</span><strong class="simulation-student-time-value">{% if row.assignment.start_time and row.assignment.end_time %}{{ row.assignment.start_time|time:"g:i A" }} – {{ row.assignment.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Session Date</span><strong class="simulation-student-date-value">{% if session.session_date %}{{ session.session_date|date:"M d, Y" }}{% else %}Not scheduled{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Session Time</span><strong class="simulation-student-time-value">{% if session.start_time and session.end_time %}{{ session.start_time|time:"g:i A" }} – {{ session.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned By</span><strong class="simulation-student-assigned-by-value">{% if row.assignment.assigned_by %}{{ row.assignment.assigned_by.get_full_name|default:row.assignment.assigned_by.username }}{% else %}Not assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Assigned On</span><strong class="simulation-student-assigned-at-value">{% if row.assignment %}{{ row.assignment.assigned_at|date:"M d, Y H:i" }}{% else %}Not assigned{% endif %}</strong></div>
                             <div class="simulation-student-detail-item">
@@ -318,9 +324,9 @@
                                 data-student-username="{{ row.student.username }}"
                                 data-role="{{ row.assignment.role }}"
                                 data-establishment-id="{{ row.assignment.establishment_id|default:'' }}"
-                                data-date="{{ row.assignment.simulation_date|date:'Y-m-d' }}"
-                                data-start="{{ row.assignment.start_time|time:'H:i' }}"
-                                data-end="{{ row.assignment.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
+                                data-date="{{ session.session_date|date:'Y-m-d' }}"
+                                data-start="{{ session.start_time|time:'H:i' }}"
+                                data-end="{{ session.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
                             {% if row.assignment.status == 'ACTIVE' %}
                             <form method="post" action="{% url 'simulation:unassign' row.assignment.id %}" data-mark-role-done style="display:inline">
                                 {% csrf_token %}<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
@@ -366,11 +372,11 @@
                         <h3>{{ r.activity_name }}</h3>
                         {% if r.assigned_by %}<div class="meta"><i class="fas fa-user-cog"></i> Assigned by {{ r.assigned_by.username }}</div>{% endif %}
                         {% if r.hotel %}<div class="meta"><i class="fas fa-building"></i> {{ r.hotel.name }}</div>{% endif %}
-                        {% if r.simulation_date %}
-                            <div class="meta"><i class="fas fa-calendar-day"></i> {{ r.simulation_date|date:"M d, Y" }}{% if r.start_time and r.end_time %} · {{ r.start_time|time:"g:i A" }} – {{ r.end_time|time:"g:i A" }}{% endif %}</div>
+                        {% if r.session.session_date %}
+                            <div class="meta"><i class="fas fa-calendar-day"></i> {{ r.session.session_date|date:"M d, Y" }}{% if r.session.start_time and r.session.end_time %} · {{ r.session.start_time|time:"g:i A" }} – {{ r.session.end_time|time:"g:i A" }}{% endif %}</div>
                         {% endif %}
                         <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ r.assigned_at|date:"M d, Y H:i" }}</div>
-                        {% if r.status == 'ACTIVE' and r.task_window.state == 'upcoming' %}<div class="meta"><i class="fas fa-clock"></i> Upcoming</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'expired' %}<div class="meta"><i class="fas fa-clock"></i> Time Ended</div>{% endif %}
+                        {% if r.status == 'ACTIVE' and r.task_window.state == 'upcoming' %}<div class="meta"><i class="fas fa-clock"></i> {{ r.task_window.message }}</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'expired' %}<div class="meta"><i class="fas fa-clock"></i> This session has ended.</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'unconfigured' %}<div class="meta"><i class="fas fa-clock"></i> Session schedule required.</div>{% endif %}
                     </div>
                     <div class="scard-foot">
                         <div class="simulation-role-actions">
@@ -497,7 +503,7 @@
             <header class="sim-assign-head">
                 <div>
                     <h2 id="assignmentModalTitle">Assign Role</h2>
-                    <p class="sim-assign-sub">Place this student in the session and set their schedule.</p>
+                    <p class="sim-assign-sub">Assign a role and establishment. This student follows the session's shared schedule.</p>
                 </div>
                 <button type="button" class="sim-assign-close" data-modal-close aria-label="Close"><i class="fas fa-xmark"></i></button>
             </header>
@@ -528,23 +534,6 @@
                             <button type="button" class="btn btn-outline btn-sm" id="modalAddTourOperatorButton" data-create-url="{% url 'simulation:create_tour_operator' %}">Add</button>
                         </div>
                         <span class="sim-assign-hint" id="modalAddTourOperatorStatus" role="status" hidden></span>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Assignment Schedule</label>
-                    <div class="sim-assign-grid">
-                        <div>
-                            <label class="sim-assign-sublabel" for="modalDate">Assignment Date</label>
-                            <input type="date" name="simulation_date" id="modalDate" class="form-input">
-                        </div>
-                        <div>
-                            <label class="sim-assign-sublabel" for="modalStart">Start Time</label>
-                            <input type="time" name="start_time" id="modalStart" class="form-input">
-                        </div>
-                        <div>
-                            <label class="sim-assign-sublabel" for="modalEnd">End Time</label>
-                            <input type="time" name="end_time" id="modalEnd" class="form-input">
-                        </div>
                     </div>
                 </div>
                 <div class="sim-assign-repeat" id="modalRepeatGroup" hidden>

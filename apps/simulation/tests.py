@@ -119,10 +119,10 @@ class AssignSimulationRoleTests(TestCase):
         a = self.assign(activity_name='Midterm Simulation',
                         role=SimulationRoleAssignment.Role.PASSENGER_AIRLINE,
                         establishment='',
-                        simulation_date='', start_time='', end_time='')
+                        session_date='2026-09-26', start_time='07:00', end_time='17:00')
         self.assertEqual(a.role, SimulationRoleAssignment.Role.PASSENGER_AIRLINE)
         self.assertIsNone(a.establishment)
-        self.assertIsNone(a.simulation_date)
+        self.assertEqual(str(a.session.session_date), '2026-09-26')
 
     def test_one_session_shared_by_students_with_own_roles(self):
         second = User.objects.create_user('maria', password='pw', first_name='Maria',
@@ -184,17 +184,22 @@ class AssignSimulationRoleTests(TestCase):
 
     def test_schedule_is_stored(self):
         a = self.assign()
-        self.assertEqual(str(a.simulation_date), '2026-09-26')
-        self.assertEqual(a.start_time.strftime('%H:%M'), '07:00')
-        self.assertEqual(a.end_time.strftime('%H:%M'), '17:00')
+        self.assertEqual(str(a.session.session_date), '2026-09-26')
+        self.assertEqual(a.session.start_time.strftime('%H:%M'), '07:00')
+        self.assertEqual(a.session.end_time.strftime('%H:%M'), '17:00')
 
-    def test_schedule_is_optional(self):
-        a = self.assign(simulation_date='', start_time='', end_time='')
-        self.assertIsNone(a.simulation_date)
-        self.assertIsNone(a.start_time)
+    def test_schedule_is_required_for_a_new_session(self):
+        response = self.post(simulation_date='', start_time='', end_time='')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(SimulationRoleAssignment.objects.filter(student=self.student).exists())
+
+    def test_incomplete_schedule_does_not_create_a_new_session(self):
+        response = self.post(session_date='2026-09-26', start_time='', end_time='')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(SimulationRoleAssignment.objects.filter(student=self.student).exists())
 
     def test_partial_schedule_is_rejected(self):
-        self.post(simulation_date='2026-09-26', start_time='', end_time='')
+        self.post(session_date='2026-09-26', start_time='', end_time='')
         self.assertFalse(SimulationRoleAssignment.objects.filter(student=self.student).exists())
 
     def test_end_before_start_is_rejected(self):

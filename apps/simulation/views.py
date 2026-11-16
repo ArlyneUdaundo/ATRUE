@@ -149,7 +149,7 @@ def do_task(request, assignment_id):
         return redirect('simulation:workspace')
 
     task_window = task_window_for(assignment)
-    if task_window['state'] in {'upcoming', 'expired'}:
+    if task_window['state'] in {'upcoming', 'expired', 'unconfigured'}:
         if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
             request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
         messages.warning(request, task_window['message'])
@@ -169,7 +169,7 @@ def do_task(request, assignment_id):
             status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
         )
         task_window = task_window_for(assignment)
-        if task_window['state'] in {'upcoming', 'expired'}:
+        if task_window['state'] in {'upcoming', 'expired', 'unconfigured'}:
             if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
                 request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
             messages.warning(request, task_window['message'])
@@ -235,7 +235,7 @@ def workspace(request):
         if sort == 'oldest':
             sessions_qs = sessions_qs.order_by('created_at', 'pk')
         elif sort == 'session_date':
-            sessions_qs = sessions_qs.order_by('start_date', 'created_at', 'pk')
+            sessions_qs = sessions_qs.order_by('session_date', 'created_at', 'pk')
         else:
             sort = 'newest'
             sessions_qs = sessions_qs.order_by('-created_at', '-pk')
@@ -317,13 +317,31 @@ def add_session(request):
         description = (request.POST.get('description') or '').strip()
         if not name:
             messages.error(request, 'Enter a name for the session.')
+        session_date = (request.POST.get('session_date') or '').strip()
+        start_time = (request.POST.get('start_time') or '').strip()
+        end_time = (request.POST.get('end_time') or '').strip()
             return render(request, 'simulation/add_session.html', {
-                'name': name, 'description': description, 'error': 'Enter a name for the session.',
+                'name': name, 'description': description,
+                'session_date': session_date, 'start_time': start_time,
+                'end_time': end_time, 'error': 'Enter a name for the session.',
             })
         if len(name) > 150:
             messages.error(request, 'Session names must be 150 characters or fewer.')
             return render(request, 'simulation/add_session.html', {
-                'name': name, 'description': description, 'error': 'Session names must be 150 characters or fewer.',
+                'name': name, 'description': description,
+                'session_date': session_date, 'start_time': start_time,
+                'end_time': end_time,
+                'error': 'Session names must be 150 characters or fewer.',
+            })
+
+        schedule = _parse_schedule(
+            session_date, start_time, end_time, required=True)
+        if isinstance(schedule, str):
+            messages.error(request, schedule)
+            return render(request, 'simulation/add_session.html', {
+                'name': name, 'description': description,
+                'session_date': session_date, 'start_time': start_time,
+                'end_time': end_time, 'error': schedule,
             })
 
         session = SimulationSession.objects.create(
@@ -335,7 +353,9 @@ def add_session(request):
         messages.success(request, f'{session.name} created. Add activities from its session card.')
         return redirect('simulation:workspace')
 
-    return render(request, 'simulation/add_session.html')
+    return render(request, 'simulation/add_session.html', {
+        'session_date': '', 'start_time': '', 'end_time': '',
+    })
 
 
 @login_required
@@ -436,6 +456,9 @@ def update_session(request, session_id):
         start_date = (request.POST.get('start_date') or '').strip() or None
         end_date = (request.POST.get('end_date') or '').strip() or None
         status = (request.POST.get('status') or '').strip()
+        session_date = (request.POST.get('session_date') or '').strip()
+        start_time = (request.POST.get('start_time') or '').strip()
+        end_time = (request.POST.get('end_time') or '').strip()
 
         errors = []
         if not name:
@@ -447,6 +470,10 @@ def update_session(request, session_id):
         try:
             import datetime
             parsed = (
+        schedule = _parse_schedule(
+            session_date, start_time, end_time, required=True)
+        if isinstance(schedule, str):
+            errors.append(schedule)
                 datetime.date.fromisoformat(start_date) if start_date else None,
                 datetime.date.fromisoformat(end_date) if end_date else None,
             )
@@ -467,6 +494,9 @@ def update_session(request, session_id):
                 'start_date': start_date.isoformat() if start_date else '',
                 'end_date': end_date.isoformat() if end_date else '',
                 'status_values': SimulationSession.Status.values,
+                'session_date': session_date,
+                'start_time': start_time,
+                'end_time': end_time,
             })
 
         session.name = name
@@ -474,6 +504,9 @@ def update_session(request, session_id):
         session.start_date = start_date
         session.end_date = end_date
         previous_status = session.status
+        session.session_date = schedule['session_date']
+        session.start_time = schedule['start_time']
+        session.end_time = schedule['end_time']
         if status == SimulationSession.Status.ACTIVE and previous_status != status:
             session.activate()
         elif status == SimulationSession.Status.COMPLETED and previous_status != status:
@@ -496,6 +529,9 @@ def update_session(request, session_id):
                 'start_date': start_date.isoformat() if start_date else '',
                 'end_date': end_date.isoformat() if end_date else '',
                 'status_values': SimulationSession.Status.values,
+                'session_date': session_date,
+                'start_time': start_time,
+                'end_time': end_time,
             })
         log_activity(request.user, 'Updated simulation session', session.name, session=session)
         if previous_status != session.status:
@@ -531,6 +567,9 @@ def update_session(request, session_id):
         'start_date': session.start_date.isoformat() if session.start_date else '',
         'end_date': session.end_date.isoformat() if session.end_date else '',
         'status_values': SimulationSession.Status.values,
+        'session_date': session.session_date.isoformat() if session.session_date else '',
+        'start_time': session.start_time.strftime('%H:%M') if session.start_time else '',
+        'end_time': session.end_time.strftime('%H:%M') if session.end_time else '',
     })
 
 
@@ -568,7 +607,7 @@ def _parse_schedule(date_str, start_str, end_str):
     if start >= end:
         return "The end time must be later than the start time."
 
-    return {'simulation_date': sim_date, 'start_time': start, 'end_time': end}
+    return {'session_date': sim_date, 'start_time': start, 'end_time': end}
 
 
 def _active_hotels():
@@ -765,33 +804,16 @@ def _session_summary(sessions):
     }
 
 
-def _session_schedule_label(session, assignments):
-    """Session dates plus the real clock range of its assignments, if any."""
-    start, end = session.start_date, session.end_date
-    if start and end:
-        if start == end:
-            date_label = f"{start:%b} {start.day}, {start.year}"
-        else:
-            date_label = (f"{start:%b} {start.day}, {start.year} – "
-                          f"{end:%b} {end.day}, {end.year}")
-    elif start:
-        date_label = f"{start:%b} {start.day}, {start.year}"
-    elif end:
-        date_label = f"Ends {end:%b} {end.day}, {end.year}"
-    else:
-        date_label = ''
-    starts = [a.start_time for a in assignments if a.start_time]
-    ends = [a.end_time for a in assignments if a.end_time]
-    time_label = ''
-    if starts and ends:
-        time_label = (f"{min(starts):%I:%M %p}".lstrip('0') + ' – '
-                      + f"{max(ends):%I:%M %p}".lstrip('0'))
-    elif starts:
-        time_label = 'From ' + f"{min(starts):%I:%M %p}".lstrip('0')
-    elif ends:
-        time_label = 'Until ' + f"{max(ends):%I:%M %p}".lstrip('0')
-    return ' · '.join(part for part in (date_label, time_label) if part) or 'Schedule not set'
-
+def _session_schedule_label(session):
+    """Format the single session-owned date and time window."""
+    if not all((session.session_date, session.start_time, session.end_time)):
+        return 'Schedule not set'
+    date_label = (
+        f"{session.session_date:%b} {session.session_date.day}, "
+        f"{session.session_date.year}")
+    start_label = session.start_time.strftime('%I:%M %p').replace(' 0', ' ')
+    end_label = session.end_time.strftime('%I:%M %p').replace(' 0', ' ')
+    return f'{date_label} | {start_label} - {end_label}'
 
 def _attach_session_student_rows(sessions, students):
     """Give every session a row per student for the expandable class list.
@@ -809,6 +831,9 @@ def _attach_session_student_rows(sessions, students):
     counts = {}
     session_assignments = {}
     if sessions:
+    from simulation.schedule import session_window_for
+    for session in sessions:
+        session.schedule_window = session_window_for(session)
         assignments = (
             SimulationRoleAssignment.objects
             .filter(session__in=sessions)
@@ -897,6 +922,7 @@ _TASK_STATE_LABELS = {
     'untracked': 'Not tracked',
     'failed': 'Failed',
     'cancelled': 'Cancelled',
+    'unconfigured': 'Schedule Required',
 }
 
 
@@ -1048,7 +1074,8 @@ def assignment_progress_data(assignment):
                 if is_required:
                     completed_required += 1
         base_state = state
-        if completion is None and task_window['state'] in {'upcoming', 'expired'}:
+        if completion is None and task_window['state'] in {
+                'upcoming', 'expired', 'unconfigured'}:
             state = task_window['state']
         rendered.append({
             'key': task['key'], 'label': task['label'],
@@ -1075,6 +1102,8 @@ def assignment_progress_data(assignment):
         state = 'awaiting'
     elif task_window['state'] == 'available' and task_window['start_at']:
         state = 'in_progress' if assignment.started_at else 'not_started'
+    elif task_window['state'] == 'unconfigured':
+        state = 'unconfigured'
     elif tracked:
         state = 'in_progress'
     else:
@@ -1202,10 +1231,10 @@ def _assignment_json(assignment, *, include_progress=True):
         return value.strftime('%H:%M') if value else ''
 
     time_display = ''
-    if assignment.start_time and assignment.end_time:
+    if session and session.start_time and session.end_time:
         time_display = (
-            f"{assignment.start_time.strftime('%I:%M %p').lstrip('0')} – "
-            f"{assignment.end_time.strftime('%I:%M %p').lstrip('0')}"
+            f"{session.start_time.strftime('%I:%M %p').replace(' 0', ' ')} - "
+            f"{session.end_time.strftime('%I:%M %p').replace(' 0', ' ')}"
         )
     result = {
         'id': assignment.pk,
@@ -1215,10 +1244,10 @@ def _assignment_json(assignment, *, include_progress=True):
         'establishment_id': assignment.establishment_id or '',
         'establishment': assignment.establishment.name if assignment.establishment_id else None,
         'activity_name': assignment.activity_name,
-        'simulation_date': assignment.simulation_date.isoformat() if assignment.simulation_date else '',
-        'date_display': assignment.simulation_date.strftime('%b %d, %Y') if assignment.simulation_date else '',
-        'start_time': clock(assignment.start_time),
-        'end_time': clock(assignment.end_time),
+        'simulation_date': session.session_date.isoformat() if session and session.session_date else '',
+        'date_display': session.session_date.strftime('%b %d, %Y') if session and session.session_date else '',
+        'start_time': clock(session.start_time if session else None),
+        'end_time': clock(session.end_time if session else None),
         'time_display': time_display,
         'status': assignment.status,
         'status_display': assignment.get_status_display(),
@@ -1281,7 +1310,8 @@ def assign_role(request):
         role = (request.POST.get('role') or '').strip()
         activity_name = (request.POST.get('activity_name') or '').strip()
         establishment_id = (request.POST.get('establishment') or '').strip()
-        sim_date = (request.POST.get('simulation_date') or '').strip()
+        sim_date = (request.POST.get('session_date')
+                    or request.POST.get('simulation_date') or '').strip()
         start_time = (request.POST.get('start_time') or '').strip()
         end_time = (request.POST.get('end_time') or '').strip()
 
@@ -1391,25 +1421,22 @@ def assign_role(request):
         # id from an older form is ignored rather than being allowed to pick the
         # place the student works.
 
-        schedule = _parse_schedule(sim_date, start_time, end_time)
-        if isinstance(schedule, str):
-            return again(schedule)
-
         if selected_session is None:
-            selected_session = SimulationSession.objects.filter(
+            selected_session = target_session
+        if selected_session is None:
+            schedule = _parse_schedule(
+                sim_date, start_time, end_time, required=True)
+            if isinstance(schedule, str):
+                return again(schedule)
+            selected_session = SimulationSession.objects.create(
                 name=activity_name,
                 instructor=request.user,
-                status__in=(
-                    SimulationSession.Status.DRAFT,
-                    SimulationSession.Status.SCHEDULED,
-                    SimulationSession.Status.ACTIVE,
-                ),
-            ).first()
-            if selected_session is None:
-                selected_session = SimulationSession.objects.create(
-                    name=activity_name,
-                    instructor=request.user,
-                )
+                **schedule,
+            )
+        elif not all((selected_session.session_date,
+                      selected_session.start_time, selected_session.end_time)):
+            return again(
+                'Set the session date, start time and end time before assigning students.')
 
         with transaction.atomic():
             assignment = SimulationRoleAssignment.objects.create(
@@ -1625,9 +1652,6 @@ def session_assignment(request, session_id):
     assignment_id = (request.POST.get('assignment_id') or '').strip()
     role = (request.POST.get('role') or '').strip()
     establishment_id = (request.POST.get('establishment') or '').strip()
-    sim_date = (request.POST.get('simulation_date') or '').strip()
-    start_time = (request.POST.get('start_time') or '').strip()
-    end_time = (request.POST.get('end_time') or '').strip()
     repeat_override = request.POST.get('assign_again') == 'yes'
 
     existing = None
@@ -1680,13 +1704,9 @@ def session_assignment(request, session_id):
         establishment = None
         hotel = None
 
-    schedule = _parse_schedule(sim_date, start_time, end_time)
-    if isinstance(schedule, str):
-        return fail([schedule])
-    if schedule and session.start_date and schedule['simulation_date'] < session.start_date:
-        return fail(['The assignment date is before this simulation session starts.'])
-    if schedule and session.end_date and schedule['simulation_date'] > session.end_date:
-        return fail(['The assignment date is after this simulation session ends.'])
+    if not all((session.session_date, session.start_time, session.end_time)):
+        return fail([
+            'Set the session date, start time and end time before assigning students.'])
 
     active_status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
     try:
@@ -1739,20 +1759,16 @@ def session_assignment(request, session_id):
                 overlaps = SimulationRoleAssignment.objects.filter(
                     student=student,
                     status=active_status,
-                    simulation_date=schedule['simulation_date'],
-                    start_time__lt=schedule['end_time'],
-                    end_time__gt=schedule['start_time'],
-                    start_time__isnull=False,
-                    end_time__isnull=False,
-                )
-                if existing is not None:
-                    overlaps = overlaps.exclude(pk=existing.pk)
-                conflict = overlaps.order_by('start_time').first()
+                    session__session_date=session.session_date,
+                    session__start_time__lt=session.end_time,
+                    session__end_time__gt=session.start_time,
+                ).exclude(session=session).select_related('session')
+                conflict = overlaps.order_by('session__start_time').first()
                 if conflict:
                     return fail([
                         f"This student already has an overlapping assignment in "
-                        f"“{conflict.activity_name}” ({conflict.start_time:%H:%M}–"
-                        f"{conflict.end_time:%H:%M}). Choose a different time."
+                        f"{conflict.activity_name} "
+                        f"({conflict.session.start_time:%H:%M}-{conflict.session.end_time:%H:%M}). Choose a different session time."
                     ], status=409)
 
             if existing is None:
@@ -1771,7 +1787,6 @@ def session_assignment(request, session_id):
             else:
                 old_values = (
                     existing.role, existing.establishment_id, existing.session_id,
-                    existing.simulation_date, existing.start_time, existing.end_time,
                 )
                 old_role = existing.get_role_display()
                 old_establishment = (
@@ -1780,18 +1795,14 @@ def session_assignment(request, session_id):
                 existing.role_ref = role_row
                 existing.establishment = establishment
                 existing.hotel = hotel
-                existing.simulation_date = schedule.get('simulation_date')
-                existing.start_time = schedule.get('start_time')
-                existing.end_time = schedule.get('end_time')
                 existing.save(update_fields=[
                     'role', 'role_ref', 'establishment', 'hotel',
                     'establishment_type', 'establishment_required',
-                    'simulation_date', 'start_time', 'end_time', 'updated_at',
+                    'updated_at',
                 ])
                 assignment = existing
                 new_values = (
                     assignment.role, assignment.establishment_id, assignment.session_id,
-                    assignment.simulation_date, assignment.start_time, assignment.end_time,
                 )
     except IntegrityError:
         logger.exception(
@@ -1907,7 +1918,7 @@ def role_list(request):
     if activity:
         qs = qs.filter(activity_name__icontains=activity)
     if sim_date:
-        qs = qs.filter(simulation_date=sim_date)
+        qs = qs.filter(session__session_date=sim_date)
     if hotel:
         qs = qs.filter(hotel_id=hotel if hotel.isdigit() else 0)
 
@@ -1961,6 +1972,8 @@ def role_detail(request, assignment_id):
         task_status = 'In Progress'
     else:
         task_status = 'Not Started'
+    elif task_window['state'] == 'unconfigured':
+        task_status = 'Schedule Required'
     return render(request, 'simulation/role_detail.html', {
         'assignment': assignment,
         'progress': assignment_progress_data(assignment),

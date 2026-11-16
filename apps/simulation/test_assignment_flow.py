@@ -1435,12 +1435,13 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
 
     def setUp(self):
         super().setUp()
+        self.session = SimulationSession.objects.create(
+            name='Timed Hotel Task', instructor=self.instructor,
+            session_date=self.schedule_date, start_time=time(8), end_time=time(10),
+        )
         self.assignment = self.assign(
             self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
-            activity_name='Timed Hotel Task',
-            simulation_date=self.schedule_date,
-            start_time=time(8, 0),
-            end_time=time(10, 0),
+            activity_name='Timed Hotel Task', session=self.session,
         )
         self.client.force_login(self.arlyne)
 
@@ -1468,9 +1469,10 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.context['task_status'], 'Upcoming')
         self.assertTrue(detail.context['task_window']['state'] == 'upcoming')
-        self.assertContains(detail, 'Upcoming')
+        self.assertContains(detail, 'Your session has not started yet')
+        self.assertContains(detail, 'Scheduled start time:')
         self.assertContains(workspace, 'data-task-window-button')
-        self.assertContains(workspace, 'Upcoming')
+        self.assertContains(workspace, 'Scheduled')
         self.assertContains(workspace, 'disabled')
         self.assignment.refresh_from_db()
         self.assertIsNone(self.assignment.started_at)
@@ -1546,12 +1548,13 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
         self.assertEqual(self.assignment.started_at, self.at(8, 0))
 
     def test_one_open_task_cannot_unlock_another_expired_matching_route(self):
+        other_session = SimulationSession.objects.create(
+            name='Available reservation task', instructor=self.instructor,
+            session_date=self.schedule_date, start_time=time(8), end_time=time(12),
+        )
         self.assign(
             self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
-            activity_name='Available reservation task',
-            simulation_date=self.schedule_date,
-            start_time=time(8, 0),
-            end_time=time(12, 0),
+            activity_name='Available reservation task', session=other_session,
         )
 
         with self.at_time(10, 0):
@@ -1562,8 +1565,10 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
             response.url, reverse('simulation:role_detail', args=[self.assignment.pk]))
 
     def test_incomplete_legacy_schedule_is_locked_instead_of_resuming_unrestricted(self):
-        self.assignment.start_time = None
-        self.assignment.save(update_fields=['start_time'])
+        self.session.session_date = None
+        self.session.start_time = None
+        self.session.end_time = None
+        self.session.save(update_fields=['session_date', 'start_time', 'end_time'])
 
         with self.at_time(10, 0):
             response = self.client.get(
@@ -1572,7 +1577,7 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
                 reverse('simulation:role_detail', args=[self.assignment.pk]))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(detail.context['task_status'], 'Expired')
+        self.assertEqual(detail.context['task_status'], 'Schedule Required')
         self.assertFalse(self.assignment.started_at)
 
     def test_expired_resume_is_blocked_for_the_hotel_guest_billing_and_reservation_roles(self):
@@ -1585,9 +1590,7 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
             assignments.append(self.assign(
                 self.arlyne, role, self.sunrise_est,
                 activity_name=f'Expired {role}',
-                simulation_date=self.schedule_date,
-                start_time=time(8, 0),
-                end_time=time(10, 0),
+                session=self.session,
             ))
 
         for assignment in assignments:
@@ -1603,13 +1606,11 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
                     reverse('simulation:role_detail', args=[assignment.pk]),
                 )
 
-    def test_each_student_uses_their_own_schedule_for_shared_hotel_routes(self):
+    def test_each_student_uses_the_session_schedule_for_shared_hotel_routes(self):
         other_assignment = self.assign(
             self.angela, Role.HOTEL_FRONT_DESK, self.sunrise_est,
             activity_name='Angela Hotel Task',
-            simulation_date=self.schedule_date,
-            start_time=time(8, 0),
-            end_time=time(12, 0),
+            session=self.session,
         )
 
         with self.at_time(10, 0):
@@ -1623,7 +1624,7 @@ class TaskScheduleEnforcementTests(AssignmentFlowTestCase):
             arlyne_response.url,
             reverse('simulation:role_detail', args=[self.assignment.pk]),
         )
-        self.assertEqual(angela_response.status_code, 200)
+        self.assertEqual(angela_response.status_code, 302)
 
     def test_expired_window_does_not_replace_a_completed_assignment(self):
         from simulation.task_routing import assignment_tasks_for
@@ -1892,6 +1893,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
         response = self.client.post(reverse('simulation:add_session'), {
             'name': 'Session 1',
             'description': 'Hotel operations practice',
+            'session_date': '2026-11-14', 'start_time': '08:00', 'end_time': '10:00',
         })
 
         self.assertRedirects(response, reverse('simulation:workspace'))
@@ -1908,6 +1910,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
     def test_session_card_add_activity_assigns_activity_to_that_session(self):
         session = SimulationSession.objects.create(
             name='Session 1', instructor=self.instructor,
+            session_date='2026-11-14', start_time='08:00', end_time='10:00',
         )
         response = self.client.get(
             reverse('simulation:assign'), {'session': session.pk})
@@ -1930,7 +1933,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
         workspace = self.client.get(reverse('simulation:workspace'))
         body = workspace.content.decode()
         self.assertLess(body.index('Session 1'), body.index('Activity 1'))
-        self.assertIn(f'?session={session.pk}', body)
+        self.assertIn(f'data-session-id="{session.pk}"', body)
 
     def test_instructor_can_update_a_session(self):
         session = SimulationSession.objects.create(
@@ -1942,6 +1945,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
             {
                 'name': 'Session 1 Revised',
                 'description': 'After editing',
+                'session_date': '2026-11-14', 'start_time': '08:00', 'end_time': '10:00',
                 'start_date': '',
                 'end_date': '',
                 'status': SimulationSession.Status.SCHEDULED,
@@ -1956,6 +1960,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
     def test_instructor_can_update_dates_and_status(self):
         session = SimulationSession.objects.create(
             name='Session 1', instructor=self.instructor,
+            session_date='2026-11-14', start_time='08:00', end_time='10:00',
             status=SimulationSession.Status.SCHEDULED,
         )
         self.client.post(
@@ -1963,6 +1968,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
             {
                 'name': 'Session 1',
                 'description': '',
+                'session_date': '2026-11-14', 'start_time': '08:00', 'end_time': '10:00',
                 'start_date': '2026-09-25',
                 'end_date': '2026-09-26',
                 'status': SimulationSession.Status.ACTIVE,
@@ -1971,13 +1977,14 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
         self.assertEqual(session.start_date.isoformat(), '2026-09-25')
         self.assertEqual(session.end_date.isoformat(), '2026-09-26')
         self.assertEqual(session.status, SimulationSession.Status.ACTIVE)
-        self.assertEqual(session.activated_at.date(),
+        self.assertEqual(timezone.localtime(session.activated_at).date(),
                          timezone.localdate())
 
     def test_update_session_renders_the_editable_fields(self):
         session = SimulationSession.objects.create(
             name='Session 1', instructor=self.instructor,
             description='Practice', start_date=date(2026, 9, 25),
+            session_date=date(2026, 11, 14), start_time=time(8), end_time=time(10),
             status=SimulationSession.Status.SCHEDULED,
         )
         response = self.client.get(
@@ -1993,11 +2000,13 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
         other = User.objects.create_user(
             'studentwouldbe', password='pw', account_type=User.AccountType.STUDENT)
         session = SimulationSession.objects.create(
-            name='Theirs', instructor=self.instructor)
+            name='Theirs', instructor=self.instructor,
+            session_date='2026-11-14', start_time='08:00', end_time='10:00')
         self.client.force_login(other)
         response = self.client.post(
             reverse('simulation:update_session', args=[session.pk]),
-            {'name': 'Mine now', 'description': '', 'start_date': '',
+            {'name': 'Mine now', 'description': '', 'session_date': '2026-11-14',
+             'start_time': '08:00', 'end_time': '10:00', 'start_date': '',
              'end_date': '', 'status': SimulationSession.Status.DRAFT})
         self.assertRedirects(response, reverse('simulation:workspace'))
         session.refresh_from_db()
@@ -2006,6 +2015,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
     def test_update_session_rejects_a_future_start_while_activating(self):
         session = SimulationSession.objects.create(
             name='Session 1', instructor=self.instructor,
+            session_date='2026-11-14', start_time='08:00', end_time='10:00',
             status=SimulationSession.Status.DRAFT,
         )
         response = self.client.post(
@@ -2013,6 +2023,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
             {
                 'name': 'Session 1',
                 'description': '',
+                'session_date': '2999-12-31', 'start_time': '08:00', 'end_time': '10:00',
                 'start_date': '2999-12-31',
                 'end_date': '',
                 'status': SimulationSession.Status.ACTIVE,
@@ -2024,7 +2035,8 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
 
     def test_update_session_keeps_assignments_intact(self):
         session = SimulationSession.objects.create(
-            name='Session 1', instructor=self.instructor)
+            name='Session 1', instructor=self.instructor,
+            session_date='2026-11-14', start_time='08:00', end_time='10:00')
         assignment = self.assign(
             self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
             activity_name='Activity 1')
@@ -2035,6 +2047,7 @@ class SimulationSessionManagementTests(AssignmentFlowTestCase):
             {
                 'name': 'Session 1 Renamed',
                 'description': '',
+                'session_date': '2026-11-14', 'start_time': '08:00', 'end_time': '10:00',
                 'start_date': '',
                 'end_date': '',
                 'status': SimulationSession.Status.SCHEDULED,

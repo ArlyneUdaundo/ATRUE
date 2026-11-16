@@ -91,7 +91,7 @@ def simulation_task_context(request):
                 student=request.user,
                 status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
             )
-            .select_related('role_ref', 'establishment', 'hotel')
+            .select_related('role_ref', 'establishment', 'hotel', 'session')
             .first()
         )
     operation = task_operation_for(assignment) if assignment else None

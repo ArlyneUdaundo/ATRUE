@@ -176,7 +176,7 @@ class SimulationTaskScheduleMiddleware:
                 pk=view_kwargs.get('assignment_id'),
                 student=user,
                 status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-            ).select_related('role_ref', 'establishment', 'hotel').first()
+            ).select_related('role_ref', 'establishment', 'hotel', 'session').first()
             if assignment is not None:
                 assignments = [assignment]
         else:
@@ -186,7 +186,7 @@ class SimulationTaskScheduleMiddleware:
                     pk=assignment_id,
                     student=user,
                     status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-                ).select_related('role_ref', 'establishment', 'hotel').first()
+                ).select_related('role_ref', 'establishment', 'hotel', 'session').first()
                 if assignment is not None:
                     operation = task_operation_for(assignment)
                     if operation and route_name in operation['allowed_routes']:
@@ -197,11 +197,7 @@ class SimulationTaskScheduleMiddleware:
                 candidates = SimulationRoleAssignment.objects.filter(
                     student=user,
                     status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
-                ).exclude(
-                    simulation_date__isnull=True,
-                    start_time__isnull=True,
-                    end_time__isnull=True,
-                ).select_related('role_ref', 'establishment', 'hotel')
+                ).select_related('role_ref', 'establishment', 'hotel', 'session')
                 for candidate in candidates:
                     operation = task_operation_for(candidate)
                     if operation and route_name in operation['allowed_routes']:
@@ -217,7 +213,7 @@ class SimulationTaskScheduleMiddleware:
         windows = [(assignment, task_window_for(assignment))
                    for assignment in assignments]
         blocked = [(assignment, window) for assignment, window in windows
-                   if window['state'] in {'upcoming', 'expired'}]
+                   if window['state'] in {'upcoming', 'expired', 'unconfigured'}]
         ambiguous = route_name != 'simulation:do_task' and len(assignments) > 1
         if not ambiguous and (not blocked or any(
                 window['state'] in {'available', 'unscheduled'}
@@ -231,7 +227,7 @@ class SimulationTaskScheduleMiddleware:
         else:
             assignment, window = assignments[0], windows[0][1]
         request.simulation_task_schedule_blocked = True
-        if (window['state'] == 'expired'
+        if (window['state'] in {'expired', 'unconfigured'}
                 and request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk):
             request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
         if ambiguous and not blocked:
@@ -239,7 +235,7 @@ class SimulationTaskScheduleMiddleware:
         elif window['state'] == 'upcoming':
             message = window['message']
         else:
-            message = window['message'] or 'The assigned task time window has ended.'
+            message = window['message'] or 'This session has ended. Access to your assigned task is no longer available.'
         request.simulation_task_schedule = {
             **window,
             'assignment_id': assignment.pk,

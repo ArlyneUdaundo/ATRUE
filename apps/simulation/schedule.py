@@ -1,51 +1,59 @@
-"""Time-window helpers for scheduled simulation assignments."""
+"""Shared time-window helpers for simulation sessions and their assignments."""
 
 from datetime import datetime
+from types import SimpleNamespace
 
 from django.utils import timezone
 
 
-def task_window_for(assignment, now=None):
-    """Return the authoritative execution state for an assignment's schedule.
+def _unconfigured_window(now):
+    return {
+        'state': 'unconfigured',
+        'can_start': False,
+        'start_at': '',
+        'end_at': '',
+        'server_now': now.isoformat(),
+        'message': (
+            'Your session schedule is not set yet. Please contact your instructor.'),
+    }
 
-    Assignments without a complete schedule keep their existing unrestricted
-    behavior. Scheduled wall-clock times are interpreted in the project's
-    current timezone and use an inclusive start, exclusive end boundary.
+
+def session_window_for(session, now=None):
+    """Return the shared session state using the configured server timezone.
+
+    The start boundary is inclusive and the end boundary is exclusive. An
+    incomplete legacy schedule fails closed; instructors can set it on the
+    session edit page and all linked assignments take effect immediately.
     """
-    schedule_values = (
-        assignment.simulation_date, assignment.start_time, assignment.end_time,
-    )
-    if not any(schedule_values):
-        return {
-            'state': 'unscheduled', 'can_start': True,
-            'start_at': '', 'end_at': '', 'server_now': '',
-            'message': '',
-        }
-
-    if not all(schedule_values):
-        now = timezone.localtime(now or timezone.now(), timezone.get_current_timezone())
-        return {
-            'state': 'expired', 'can_start': False,
-            'start_at': '', 'end_at': '', 'server_now': now.isoformat(),
-            'message': 'This task has an incomplete schedule and is locked. Contact your instructor.',
-        }
-
     current_tz = timezone.get_current_timezone()
-    start_at = timezone.make_aware(
-        datetime.combine(assignment.simulation_date, assignment.start_time), current_tz)
-    end_at = timezone.make_aware(
-        datetime.combine(assignment.simulation_date, assignment.end_time), current_tz)
     now = timezone.localtime(now or timezone.now(), current_tz)
+    schedule = (session.session_date, session.start_time, session.end_time)
+    if not all(schedule):
+        return _unconfigured_window(now)
+
+    start_at = timezone.make_aware(
+        datetime.combine(session.session_date, session.start_time), current_tz)
+    end_at = timezone.make_aware(
+        datetime.combine(session.session_date, session.end_time), current_tz)
+    if end_at <= start_at:
+        return _unconfigured_window(now)
 
     if now < start_at:
         state = 'upcoming'
-        message = f"This task becomes available at {start_at.strftime('%b %d, %Y %I:%M %p').lstrip('0')}."
+        display_start = start_at.strftime('%b %d, %Y %I:%M %p').replace(' 0', ' ')
+        message = (
+            'Your session has not started yet. Please wait until the scheduled '
+            f'start time. Scheduled start time: {display_start}.')
     elif now >= end_at:
         state = 'expired'
-        message = 'The assigned task time window has ended.'
+        message = (
+            'This session has ended. Access to your assigned task is no longer '
+            'available.')
     else:
         state = 'available'
-        message = f"Available until {end_at.strftime('%b %d, %Y %I:%M %p').lstrip('0')}."
+        message = (
+            'Session is active until '
+            f"{end_at.strftime('%b %d, %Y %I:%M %p').replace(' 0', ' ')}")
 
     return {
         'state': state,
@@ -55,3 +63,38 @@ def task_window_for(assignment, now=None):
         'server_now': now.isoformat(),
         'message': message,
     }
+
+
+def task_window_for(assignment, now=None):
+    """Return the access state shared by every assignment in its session.
+
+    Session-linked assignments always use the shared session schedule. A
+    sessionless record is a legacy assignment from before sessions existed; keep
+    its historical window behavior for compatibility while all new assignments
+    are created inside scheduled sessions.
+    """
+    session = getattr(assignment, 'session', None) if assignment is not None else None
+    if session is None:
+        legacy_schedule = (
+            getattr(assignment, 'simulation_date', None),
+            getattr(assignment, 'start_time', None),
+            getattr(assignment, 'end_time', None),
+        )
+        if all(legacy_schedule):
+            session = SimpleNamespace(
+                session_date=legacy_schedule[0],
+                start_time=legacy_schedule[1],
+                end_time=legacy_schedule[2],
+            )
+            return session_window_for(session, now=now)
+        current_tz = timezone.get_current_timezone()
+        current = timezone.localtime(now or timezone.now(), current_tz)
+        return {
+            'state': 'unscheduled',
+            'can_start': True,
+            'start_at': '',
+            'end_at': '',
+            'server_now': current.isoformat(),
+            'message': '',
+        }
+    return session_window_for(session, now=now)

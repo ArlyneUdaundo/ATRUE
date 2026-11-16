@@ -104,8 +104,33 @@
     });
   }
 
+  function monitorSessionStatus(summary) {
+    var start = Date.parse(summary.dataset.sessionScheduleStartAt || '');
+    var end = Date.parse(summary.dataset.sessionScheduleEndAt || '');
+    var offset = serverOffset(summary.dataset.sessionScheduleServerNow);
+    var badge = summary.querySelector('[data-session-schedule-status]');
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !badge) return;
+
+    function refresh() {
+      var now = Date.now() + offset;
+      var state = now < start ? 'scheduled' : now >= end ? 'ended' : 'active';
+      badge.textContent = 'Access: ' + (state === 'scheduled' ? 'Scheduled' : state === 'ended' ? 'Ended' : 'Active');
+      badge.classList.remove('sim-status-scheduled', 'sim-status-active', 'sim-status-ended');
+      badge.classList.add('sim-status-' + state);
+      if (state === 'ended') return;
+      var boundary = now < start ? start : end;
+      window.setTimeout(refresh, Math.max(0, Math.min(boundary - now, 2147483000)));
+    }
+
+    refresh();
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refresh();
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-task-window-button]').forEach(monitorTaskButton);
+    document.querySelectorAll('[data-session-open]').forEach(monitorSessionStatus);
     monitorActiveTask();
   });
 }());

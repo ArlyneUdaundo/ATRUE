@@ -148,7 +148,7 @@
             {% endif %}
 
             {% if active_simulation_task_context %}
-            {% if active_simulation_task_operation and active_simulation_task_schedule.state != 'upcoming' and active_simulation_task_schedule.state != 'expired' %}
+            {% if active_simulation_task_operation and active_simulation_task_schedule.state != 'upcoming' and active_simulation_task_schedule.state != 'expired' and active_simulation_task_schedule.state != 'unconfigured' %}
             <span class="nav-sep"></span>
             <div class="nav-dd nav-dd--ops active">
                 <a href="#" class="nav-link nav-dd-toggle"><i class="fas {{ active_simulation_task_operation.icon }}"></i> {{ active_simulation_task_operation.label }} <i class="fas fa-chevron-down"></i></a>
