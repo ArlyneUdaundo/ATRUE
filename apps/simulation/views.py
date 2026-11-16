@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -39,9 +40,20 @@ from .task_routing import (
 from .schedule import task_window_for
 
 
+logger = logging.getLogger(__name__)
+
+
 def _notify_assignment(assignment, actor, *, modified=False):
     from notifications.services import notify_role_assignment
-    notify_role_assignment(assignment, actor, modified=modified)
+    try:
+        notify_role_assignment(assignment, actor, modified=modified)
+    except Exception:
+        # A notification is a side effect of assigning a role. It must not turn
+        # a successful save into a failed request (or roll back a new assignment).
+        logger.exception(
+            'Could not notify student %s about assignment %s',
+            assignment.student_id, assignment.pk,
+        )
 
 
 def _notify_assignment_ended(assignment, actor):
@@ -1660,48 +1672,79 @@ def session_assignment(request, session_id):
     schedule = _parse_schedule(sim_date, start_time, end_time)
     if isinstance(schedule, str):
         return fail([schedule])
+    if schedule and session.start_date and schedule['simulation_date'] < session.start_date:
+        return fail(['The assignment date is before this simulation session starts.'])
+    if schedule and session.end_date and schedule['simulation_date'] > session.end_date:
+        return fail(['The assignment date is after this simulation session ends.'])
 
-    # One live role per student, unless the instructor deliberately repeats it.
-    # The row being edited is excluded so re-saving it is never a self-clash.
     active_status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
-    clash_qs = SimulationRoleAssignment.objects.filter(
-        student=student, role=role, status=active_status)
-    if role in BILLING_OFFICER_ROLE_CODES:
-        clash_qs = clash_qs.filter(establishment=establishment)
-    if existing is not None:
-        clash_qs = clash_qs.exclude(pk=existing.pk)
-    clash = list(clash_qs.order_by('-assigned_at'))
-    if clash and not repeat_override:
-        return fail(
-            [f"{role_row.name} is already an active assignment for this student "
-             f"in “{clash[0].activity_name}”. Tick “Assign this role again” to add "
-             "another."],
-            clash=True,
-        )
+    try:
+        with transaction.atomic():
+            # Serialize writes for this student while duplicate and schedule
+            # checks run, so two simultaneous saves cannot both pass the checks.
+            type(student).objects.select_for_update().get(pk=student.pk)
+            if existing is not None:
+                existing = SimulationRoleAssignment.objects.select_for_update().get(
+                    pk=existing.pk, session=session)
+                if existing.status == SimulationRoleAssignment.AssignmentStatus.DONE:
+                    return fail(['Completed role assignments cannot be edited.'])
 
-    # A repeat override permits the same role in another activity/session, but
-    # this session has a stricter database rule: one active row per student,
-    # role and establishment. Check it here so the modal can explain the clash
-    # instead of receiving an HTML 500 response from the unique constraint.
-    same_session = SimulationRoleAssignment.objects.filter(
-        student=student,
-        session=session,
-        role_ref=role_row,
-        establishment=establishment,
-        status=active_status,
-    )
-    if existing is not None:
-        same_session = same_session.exclude(pk=existing.pk)
-    if same_session.exists():
-        return fail(
-            [f"This student already has {role_row.name} at this establishment "
-             "in this session. Edit that assignment instead."],
-            status=409,
-        )
+            # The row being edited is excluded, so keeping its current role never
+            # requires the repeat checkbox. Repeating that role in another
+            # session remains an explicit instructor choice.
+            clash_qs = SimulationRoleAssignment.objects.filter(
+                student=student, status=active_status,
+            ).filter(Q(role_ref=role_row) | Q(role=role))
+            if role in BILLING_OFFICER_ROLE_CODES:
+                clash_qs = clash_qs.filter(establishment=establishment)
+            if existing is not None:
+                clash_qs = clash_qs.exclude(pk=existing.pk)
+            clash = list(clash_qs.select_related('session').order_by('-assigned_at'))
+            if existing is None and clash and not repeat_override:
+                return fail(
+                    [f"{role_row.name} is already active for this student in "
+                     f"“{clash[0].activity_name}”. Tick “Assign this role again” "
+                     "to add another assignment."],
+                    clash=True,
+                )
 
-    if existing is None:
-        try:
-            with transaction.atomic():
+            same_session = SimulationRoleAssignment.objects.filter(
+                student=student, session=session, role_ref=role_row,
+                establishment=establishment, status=active_status,
+            )
+            if existing is not None:
+                same_session = same_session.exclude(pk=existing.pk)
+            if same_session.exists():
+                return fail(
+                    [f"This student already has {role_row.name} at this "
+                     "establishment in this session. Edit that assignment instead."],
+                    status=409,
+                )
+
+            # A repeat checkbox does not override a timetable collision. Check
+            # every active assignment for this student, regardless of role,
+            # establishment, or session.
+            if schedule:
+                overlaps = SimulationRoleAssignment.objects.filter(
+                    student=student,
+                    status=active_status,
+                    simulation_date=schedule['simulation_date'],
+                    start_time__lt=schedule['end_time'],
+                    end_time__gt=schedule['start_time'],
+                    start_time__isnull=False,
+                    end_time__isnull=False,
+                )
+                if existing is not None:
+                    overlaps = overlaps.exclude(pk=existing.pk)
+                conflict = overlaps.order_by('start_time').first()
+                if conflict:
+                    return fail([
+                        f"This student already has an overlapping assignment in "
+                        f"“{conflict.activity_name}” ({conflict.start_time:%H:%M}–"
+                        f"{conflict.end_time:%H:%M}). Choose a different time."
+                    ], status=409)
+
+            if existing is None:
                 assignment = SimulationRoleAssignment.objects.create(
                     student=student,
                     assigned_by=request.user,
@@ -1714,11 +1757,39 @@ def session_assignment(request, session_id):
                     **schedule,
                 )
                 _notify_assignment(assignment, request.user)
-        except IntegrityError:
-            return fail(
-                ['This assignment conflicts with another active role in this session. Refresh and try again.'],
-                status=409,
-            )
+            else:
+                old_values = (
+                    existing.role, existing.establishment_id, existing.session_id,
+                    existing.simulation_date, existing.start_time, existing.end_time,
+                )
+                old_role = existing.get_role_display()
+                old_establishment = (
+                    existing.establishment.name if existing.establishment_id else None)
+                existing.role = role
+                existing.role_ref = role_row
+                existing.establishment = establishment
+                existing.hotel = hotel
+                existing.simulation_date = schedule.get('simulation_date')
+                existing.start_time = schedule.get('start_time')
+                existing.end_time = schedule.get('end_time')
+                existing.save()
+                assignment = existing
+                new_values = (
+                    assignment.role, assignment.establishment_id, assignment.session_id,
+                    assignment.simulation_date, assignment.start_time, assignment.end_time,
+                )
+    except IntegrityError:
+        logger.exception(
+            'Could not save simulation assignment (session=%s student=%s assignment=%s)',
+            session.pk, student.pk, assignment_id or None,
+        )
+        return fail(
+            ['The assignment conflicts with an existing role or invalid establishment. '
+             'No changes were saved; review the assignment and try again.'],
+            status=409,
+        )
+
+    if existing is None:
         action = 'assign'
         log_activity(request.user, f"Assigned {role} role",
                      f"{session.name} — {role_row.name}", session=session)
@@ -1731,35 +1802,7 @@ def session_assignment(request, session_id):
                 session=session,
             )
     else:
-        old_values = (
-            existing.role, existing.establishment_id, existing.session_id,
-            existing.simulation_date, existing.start_time, existing.end_time,
-        )
-        old_role = existing.get_role_display()
-        old_establishment = existing.establishment.name if existing.establishment_id else None
-        # ``save`` re-derives role_ref/hotel/establishment_type from these, so the
-        # fields are set plainly and saved whole rather than by field list.
-        existing.role = role
-        existing.role_ref = role_row
-        existing.establishment = establishment
-        existing.hotel = hotel
-        existing.simulation_date = schedule.get('simulation_date')
-        existing.start_time = schedule.get('start_time')
-        existing.end_time = schedule.get('end_time')
-        try:
-            with transaction.atomic():
-                existing.save()
-        except IntegrityError:
-            return fail(
-                ['This assignment conflicts with another active role in this session. Refresh and try again.'],
-                status=409,
-            )
-        assignment = existing
         action = 'edit'
-        new_values = (
-            assignment.role, assignment.establishment_id, assignment.session_id,
-            assignment.simulation_date, assignment.start_time, assignment.end_time,
-        )
         if old_values != new_values:
             _notify_assignment(assignment, request.user, modified=True)
         detail = f"{old_role} → {existing.get_role_display()}"

@@ -165,6 +165,105 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
         self.assertEqual(assignment.simulation_date.isoformat(), '2026-10-01')
         self.assertEqual(assignment.start_time.strftime('%H:%M'), '08:00')
 
+        self.assertEqual(
+            SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 1)
+        self.assertEqual(response.json()['assignment']['id'], assignment.pk)
+
+    def test_editing_an_assignment_does_not_require_the_repeat_checkbox(self):
+        self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Another session')
+        assignment = self.assign(
+            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
+            activity_name=self.session.name, session=self.session)
+
+        response = self.post(
+            assignment_id=assignment.pk,
+            role=Role.HOTEL_FRONT_DESK,
+            simulation_date='2026-10-01',
+            start_time='08:00',
+            end_time='12:00',
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['ok'])
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.role, Role.HOTEL_FRONT_DESK)
+        self.assertEqual(
+            SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 2)
+
+    def test_new_repeat_still_requires_explicit_checkbox(self):
+        self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name='Another session')
+
+        response = self.post()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()['clash'])
+        self.assertIn('Assign this role again', response.json()['errors'][0])
+
+    def test_overlapping_schedule_is_rejected_even_with_repeat_override(self):
+        self.assign(
+            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
+            activity_name='Another session', simulation_date='2026-09-26',
+            start_time='09:00', end_time='10:00')
+
+        response = self.post(assign_again='yes')
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('overlapping assignment', response.json()['errors'][0])
+        self.assertFalse(
+            SimulationRoleAssignment.objects.filter(session=self.session).exists())
+
+    def test_edit_rejects_overlap_and_keeps_the_existing_record(self):
+        assignment = self.assign(
+            self.arlyne, Role.HOTEL_FRONT_DESK, self.sunrise_est,
+            activity_name=self.session.name, session=self.session,
+            simulation_date='2026-09-26', start_time='07:00', end_time='08:00')
+        self.assign(
+            self.arlyne, Role.HOTEL_RESERVATION_OFFICER, self.sunrise_est,
+            activity_name='Another session', simulation_date='2026-09-26',
+            start_time='09:00', end_time='10:00')
+
+        response = self.post(
+            assignment_id=assignment.pk,
+            simulation_date='2026-09-26', start_time='09:30', end_time='10:30')
+
+        self.assertEqual(response.status_code, 409)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.role, Role.HOTEL_FRONT_DESK)
+        self.assertEqual(assignment.start_time.strftime('%H:%M'), '07:00')
+        self.assertEqual(
+            SimulationRoleAssignment.objects.filter(student=self.arlyne).count(), 2)
+
+    def test_a_row_can_save_a_resort_front_desk_assignment_and_schedule(self):
+        from establishments.models import Establishment
+
+        resort = Establishment.objects.create(
+            name='Casa Noracay Resorts', type=Establishment.Type.RESORT)
+        assignment = self.assign(
+            self.arlyne, Role.RESORT_FRONT_DESK, resort,
+            activity_name=self.session.name, session=self.session)
+
+        response = self.post(
+            assignment_id=assignment.pk,
+            role=Role.RESORT_FRONT_DESK,
+            establishment=resort.pk,
+            simulation_date='2026-11-15',
+            start_time='14:00',
+            end_time='14:30',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'], response.json())
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.role, Role.RESORT_FRONT_DESK)
+        self.assertEqual(assignment.establishment_id, resort.pk)
+        self.assertEqual(assignment.simulation_date.isoformat(), '2026-11-15')
+        self.assertEqual(assignment.start_time.strftime('%H:%M'), '14:00')
+        self.assertEqual(assignment.end_time.strftime('%H:%M'), '14:30')
+
     def test_an_operational_role_still_needs_an_establishment(self):
         response = self.post(establishment='')
         self.assertEqual(response.status_code, 400)

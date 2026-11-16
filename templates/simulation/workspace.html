@@ -1227,6 +1227,11 @@
     }
 
     function updateRepeat() {
+        if (currentAssignmentId) {
+            repeatGroup.hidden = true;
+            repeatCheckbox.checked = false;
+            return;
+        }
         var held = heldRole();
         if (!held) {
             repeatGroup.hidden = true;
@@ -1370,7 +1375,7 @@
     form.addEventListener('submit', function (event) {
         event.preventDefault();
         clearErrors();
-        if (heldRole() && !repeatCheckbox.checked) {
+        if (!currentAssignmentId && heldRole() && !repeatCheckbox.checked) {
             updateRepeat();
             showErrors(['This role is already active for this student. Tick “Assign this role again” to continue.']);
             return;
@@ -1385,8 +1390,15 @@
             body: new FormData(form),
             credentials: 'same-origin'
         }).then(function (response) {
-            return response.json().then(function (data) {
-                return { ok: response.ok, data: data };
+            return response.text().then(function (body) {
+                var data = null;
+                try {
+                    data = body ? JSON.parse(body) : null;
+                } catch (error) {
+                    // Django may return an HTML error or login page. Keep that
+                    // markup out of the dialog, but show enough to diagnose it.
+                }
+                return { ok: response.ok, status: response.status, data: data };
             });
         }).then(function (result) {
             saveBtn.disabled = false;
@@ -1399,14 +1411,20 @@
                 close(true);
                 return;
             }
-            var errors = (result.data && result.data.errors) || ['Could not save the assignment.'];
+            var errors = (result.data && result.data.errors)
+                || [result.status >= 500
+                    ? 'The server could not finish saving this assignment (HTTP ' + result.status + '). Refresh the page and check the assignment before trying again.'
+                    : result.status === 401 || result.status === 403
+                        ? 'Your session may have expired or you no longer have permission to edit this assignment. Refresh the page and sign in again.'
+                        : 'Could not save the assignment (HTTP ' + result.status + '). Please review the form and try again.'];
             showErrors(errors);
             if (result.data && result.data.clash) {
                 repeatGroup.hidden = false;
             }
-        }).catch(function () {
+        }).catch(function (error) {
+            console.error('Could not save simulation assignment:', error);
             saveBtn.disabled = false;
-            showErrors(['Could not save the assignment. Please try again.']);
+            showErrors(['Could not reach the server to save this assignment. Check your connection and try again.']);
         });
     });
 
