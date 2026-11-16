@@ -1935,11 +1935,6 @@ def role_detail(request, assignment_id):
         .prefetch_related('task_completions'),
         pk=assignment_id,
     )
-    assigned_hotel = assignment.hotel
-    if assignment.establishment_id and assignment.establishment.type == 'HOTEL':
-        assigned_hotel = assignment.establishment.entity or assigned_hotel
-    hotel_photo = assigned_hotel.photos.first() if assigned_hotel else None
-    hotel_image_url = hotel_photo.image.url if hotel_photo and hotel_photo.image else None
     if assignment.student != request.user and not is_manager(request.user):
         messages.error(request, "You may only view your own role assignments.")
         return redirect('simulation:workspace')
@@ -1972,7 +1967,6 @@ def role_detail(request, assignment_id):
         'task_operation': task_operation,
         'task_status': task_status,
         'task_window': task_window,
-        'hotel_image_url': hotel_image_url,
         'permissions': assignment.role_permissions(),
         'is_manager': is_manager(request.user),
         'can_manage': _is_instructor(request.user),

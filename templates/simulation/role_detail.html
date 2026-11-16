@@ -41,7 +41,11 @@
 
 <div class="card sim-role-assignment-card">
     <div class="sim-role-assignment-photo">
-        {% if hotel_image_url %}<img src="{{ hotel_image_url }}" alt="{{ assignment.establishment.name|default:assignment.hotel.name|default:'Hotel and resort' }}">{% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ assignment.establishment.name|default:assignment.hotel.name|default:'Hotel and resort' }}">{% endif %}
+        {% if assignment.hotel %}
+            {% with hotel_photo=assignment.hotel.photos.all|first %}
+                {% if hotel_photo.image %}<img src="{{ hotel_photo.image.url }}" alt="{{ assignment.hotel.name }}">{% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="{{ assignment.hotel.name }}">{% endif %}
+            {% endwith %}
+        {% else %}<img src="{% static 'img/hotel-placeholder.svg' %}" alt="Hotel and resort">{% endif %}
     </div>
     <div class="sim-role-assignment-content">
             <div class="meta" style="margin:0 0 6px"><i class="fas fa-play-circle"></i> Assigned task</div>
