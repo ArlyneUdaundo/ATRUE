@@ -38,6 +38,7 @@ def _has_stored_field(instance, name):
 def payment_review(request):
     """Billing Officer queue for verifying payments before reservation confirmation."""
     from simulation.models import SimulationRoleAssignment
+    from .cancellation import booking_summary
 
     assignment_id = request.session.get('active_simulation_task_assignment')
     assignment = (SimulationRoleAssignment.objects.filter(
@@ -97,6 +98,7 @@ def payment_review(request):
         refund_rows.append({
             'cancellation': cancellation,
             'booking': booking,
+            'booking_details': booking_summary(booking),
             'establishment': establishment,
             'quote': quote,
             'customer_name': (
@@ -1012,8 +1014,9 @@ def booking_list(request):
 def request_booking_cancellation(request, app_label, model_name, object_id):
     """Ask for proof of ownership before accepting a cancellation request."""
     from .cancellation import (
-        SERVICE_NAMESPACES, can_request_cancellation, latest_cancellation_request,
-        pending_cancellation_request, request_cancellation, resolve_owned_booking,
+        SERVICE_NAMESPACES, booking_summary, can_request_cancellation,
+        latest_cancellation_request, pending_cancellation_request,
+        request_cancellation, resolve_owned_booking,
     )
 
     booking = resolve_owned_booking(request.user, app_label, model_name, object_id)
@@ -1063,6 +1066,7 @@ def request_booking_cancellation(request, app_label, model_name, object_id):
 
     return render(request, 'transactions/request_cancellation.html', {
         'booking': booking,
+        'booking_details': booking_summary(booking),
         'detail_url': detail_url,
         'can_request': can_request_cancellation(booking, request.user),
         'pending_cancellation': pending_cancellation_request(booking),

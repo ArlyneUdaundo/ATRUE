@@ -11,6 +11,20 @@
     <div><a href="{{ detail_url }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> Back to booking</a></div>
 </div>
 
+{% if booking_details %}
+<div class="card card-pad" style="margin-bottom:16px">
+    <h3><i class="fas fa-receipt"></i> {{ booking_details.service }} details</h3>
+    <div class="form-grid">
+        {% for item in booking_details.rows %}
+        <div>
+            <span class="meta">{{ item.label }}</span>
+            <p style="margin:4px 0 0"><b>{{ item.value }}</b></p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="card card-pad">
     <h3><i class="fas fa-shield-halved"></i> Verify ownership</h3>
     <p class="meta">

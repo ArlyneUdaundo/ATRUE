@@ -277,6 +277,17 @@ class CrossServiceCancellationRequestTests(TestCase):
         })
 
     def test_every_supported_type_offers_its_owner_a_request_page(self):
+        expected_details = {
+            'hotels': ('Hotel Reservation', 'Cross Hotel', 'C1'),
+            'airlines': ('Airline Booking', 'Cross Air', 'Manila to Cebu'),
+            'resorts': ('Resort Reservation', 'Cross Resort', 'R1'),
+            'staycations': ('Staycation Reservation', 'Cross Staycation'),
+            'restaurants': ('Restaurant Reservation', 'Cross Restaurant', 'T1'),
+            'transportation': ('Transportation Booking', 'Cross Transport', 'Cross Van'),
+            'landmarks': ('Landmark Ticket', 'Cross Landmark'),
+            'activities': ('Activity Booking', 'Cross Activity', 'Cross Provider'),
+            'tour_package': ('Tour Package Booking', 'Cross Package'),
+        }
         self.client.force_login(self.owner)
         for app_label, booking in self.bookings.items():
             with self.subTest(service=app_label):
@@ -285,6 +296,8 @@ class CrossServiceCancellationRequestTests(TestCase):
                 response = self.client.get(self._url(booking))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'Verify ownership')
+                for detail in expected_details[app_label]:
+                    self.assertContains(response, detail)
 
     def test_every_supported_type_accepts_a_proof_backed_request(self):
         self.client.force_login(self.owner)
@@ -306,6 +319,46 @@ class CrossServiceCancellationRequestTests(TestCase):
                 self.assertEqual(booking.status, 'CONFIRMED')
 
         self.assertEqual(Cancellation.objects.count(), len(self.bookings))
+
+    def test_generic_approval_refunds_each_types_own_payment(self):
+        amount = Decimal('250.00')
+        for app_label, booking in self.bookings.items():
+            if app_label == 'airlines':
+                continue
+            with self.subTest(service=app_label):
+                bill = Bill.objects.create(
+                    service=app_label, customer=self.owner,
+                    total_amount=amount, amount_paid=amount,
+                    balance_due=Decimal('0'), status=Bill.Status.FULLY_PAID)
+                bill.link_to_booking(booking)
+                bill.save()
+                payment = Payment.objects.create(
+                    bill=bill, customer=self.owner, amount=amount,
+                    method='GCASH', status=Payment.Status.PAID,
+                    paid_at=timezone.now())
+                payment.link_to_booking(booking)
+                payment.save(update_fields=['content_type', 'object_id'])
+                cancellation = Cancellation(
+                    requested_by=self.owner,
+                    status=Cancellation.Status.REQUESTED,
+                    reason='Change of plans',
+                )
+                cancellation.link_to_booking(booking)
+                cancellation.save()
+
+                result = process_generic_cancellation(
+                    cancellation, self.officer, approve=True)
+
+                cancellation.refresh_from_db()
+                booking.refresh_from_db()
+                payment.refresh_from_db()
+                self.assertTrue(result['approved'])
+                self.assertEqual(result['refunded'], amount)
+                self.assertEqual(cancellation.status, Cancellation.Status.APPROVED)
+                self.assertEqual(cancellation.refund_amount, amount)
+                self.assertEqual(booking.status, 'CANCELLED')
+                self.assertEqual(payment.status, Payment.Status.REFUNDED)
+                self.assertEqual(payment.refunded_amount, amount)
 
     def test_a_pending_request_blocks_duplicates_for_every_type(self):
         self.client.force_login(self.owner)
@@ -371,3 +424,33 @@ class CrossServiceCancellationRequestTests(TestCase):
             with self.subTest(service=app_label):
                 response = self.client.get(self._url(booking))
                 self.assertEqual(response.status_code, 404)
+
+    def test_billing_officer_refund_queue_shows_type_specific_details(self):
+        admin = User.objects.create_superuser(
+            'queue-admin', 'queue-admin@example.com', 'pw')
+        for booking in self.bookings.values():
+            cancellation = Cancellation(
+                requested_by=self.owner,
+                status=Cancellation.Status.REQUESTED,
+                reason='Change of plans',
+            )
+            cancellation.link_to_booking(booking)
+            cancellation.save()
+
+        self.client.force_login(admin)
+        response = self.client.get(reverse('transactions:payment_review'))
+
+        self.assertEqual(response.status_code, 200)
+        for detail in (
+            'Hotel Reservation', 'Cross Hotel', 'C1',
+            'Airline Booking', 'Cross Air', 'Manila to Cebu',
+            'Resort Reservation', 'Cross Resort',
+            'Staycation Reservation', 'Cross Staycation',
+            'Restaurant Reservation', 'Cross Restaurant',
+            'Transportation Booking', 'Cross Transport',
+            'Landmark Ticket', 'Cross Landmark',
+            'Activity Booking', 'Cross Activity',
+            'Tour Package Booking', 'Cross Package',
+        ):
+            with self.subTest(detail=detail):
+                self.assertContains(response, detail)

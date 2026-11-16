@@ -35,10 +35,21 @@
         <div class="payment-review-top">
             <div>
                 <h2 class="payment-review-title">Refund request · {{ row.booking.booking_reference }}</h2>
-                <p class="payment-review-subtitle">{{ row.establishment|default:'Establishment' }} · {{ row.customer_name }}</p>
+                <p class="payment-review-subtitle">{{ row.booking_details.service }} · {{ row.establishment|default:'Establishment' }} · {{ row.customer_name }}</p>
             </div>
             <span class="badge badge-yellow">Awaiting Billing Officer review</span>
         </div>
+
+        {% if row.booking_details %}
+        <div class="payment-review-grid" style="margin-bottom:14px">
+            {% for item in row.booking_details.rows %}
+            <div class="payment-review-field">
+                <span class="payment-review-label">{{ item.label }}</span>
+                <span class="payment-review-value">{{ item.value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="payment-review-grid">
             <div class="payment-review-field">

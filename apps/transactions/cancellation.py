@@ -35,6 +35,18 @@ SERVICE_NAMESPACES = {
     'tour_package': 'tour_package',
 }
 
+SERVICE_LABELS = {
+    'airlines': 'Airline Booking',
+    'hotels': 'Hotel Reservation',
+    'resorts': 'Resort Reservation',
+    'staycations': 'Staycation Reservation',
+    'restaurants': 'Restaurant Reservation',
+    'transportation': 'Transportation Booking',
+    'landmarks': 'Landmark Ticket',
+    'activities': 'Activity Booking',
+    'tour_package': 'Tour Package Booking',
+}
+
 CANCELABLE_STATUSES = (
     BookingStatus.PENDING,
     BookingStatus.ON_HOLD,
@@ -62,6 +74,174 @@ def resolve_service_booking(app_label, model_name, object_id):
 def booking_owner_id(booking):
     return getattr(booking, 'customer_id', None) or getattr(
         booking, 'passenger_id', None)
+
+
+def _display_name(user):
+    if user is None:
+        return ''
+    return user.get_full_name() or user.username
+
+
+def _format_date(value):
+    return value.strftime('%b %d, %Y') if value else ''
+
+
+def _format_time(value):
+    return value.strftime('%H:%M') if value else ''
+
+
+def _format_datetime(value):
+    if not value:
+        return ''
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.strftime('%b %d, %Y %H:%M')
+
+
+def _add_detail(rows, label, value):
+    if value is None:
+        return
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return
+    rows.append({'label': label, 'value': value})
+
+
+def booking_summary(booking):
+    """Return the booking-type details shown to the customer and reviewer."""
+    if booking is None:
+        return None
+
+    app_label = booking._meta.app_label
+    rows = []
+
+    if app_label == 'hotels':
+        entries = list(booking.room_entries.select_related('room__hotel').all())
+        hotel = entries[0].room.hotel if entries else None
+        _add_detail(rows, 'Guest', booking.primary_guest_name)
+        _add_detail(rows, 'Hotel', getattr(hotel, 'name', ''))
+        _add_detail(rows, 'Room(s)', ', '.join(
+            entry.room.room_number for entry in entries))
+        _add_detail(rows, 'Check-in', _format_date(booking.check_in))
+        _add_detail(rows, 'Check-out', _format_date(booking.check_out))
+        _add_detail(
+            rows, 'Guests',
+            f'{booking.number_of_adults} adult(s), '
+            f'{booking.number_of_children} child(ren)')
+    elif app_label == 'airlines':
+        flight = getattr(booking, 'flight', None)
+        seats = list(booking.seat_entries.all())
+        passenger_names = [seat.passenger_name for seat in seats if seat.passenger_name]
+        _add_detail(
+            rows, 'Passenger',
+            ', '.join(passenger_names) or _display_name(booking.passenger))
+        _add_detail(
+            rows, 'Airline',
+            getattr(getattr(flight, 'airline', None), 'name', ''))
+        if flight is not None:
+            _add_detail(rows, 'Flight', str(flight))
+            _add_detail(
+                rows, 'Route', f'{flight.origin} to {flight.destination}')
+            _add_detail(
+                rows, 'Departure', _format_datetime(flight.departure_time))
+        if booking.return_flight_id:
+            _add_detail(rows, 'Return flight', str(booking.return_flight))
+            _add_detail(
+                rows, 'Return departure',
+                _format_datetime(booking.return_flight.departure_time))
+        _add_detail(rows, 'Trip type', booking.get_trip_type_display())
+        if seats:
+            _add_detail(rows, 'Seats', ', '.join(
+                seat.seat_number for seat in seats if seat.seat_number))
+            _add_detail(rows, 'Fare class', seats[0].get_fare_class_display())
+    elif app_label == 'resorts':
+        unit = getattr(booking, 'unit', None)
+        _add_detail(rows, 'Guest', booking.primary_guest_name)
+        _add_detail(
+            rows, 'Resort', getattr(getattr(unit, 'resort', None), 'name', ''))
+        _add_detail(
+            rows, 'Unit',
+            f'{unit.get_unit_type_display()} {unit.unit_number}'
+            if unit is not None else '')
+        _add_detail(rows, 'Check-in', _format_date(booking.check_in))
+        _add_detail(rows, 'Check-out', _format_date(booking.check_out))
+        _add_detail(
+            rows, 'Guests',
+            f'{booking.number_of_adults} adult(s), '
+            f'{booking.number_of_children} child(ren)')
+    elif app_label == 'staycations':
+        staycation = getattr(booking, 'staycation', None)
+        _add_detail(rows, 'Guest', booking.primary_guest_name)
+        _add_detail(rows, 'Staycation', getattr(staycation, 'name', ''))
+        _add_detail(rows, 'Check-in', _format_date(booking.check_in))
+        _add_detail(rows, 'Check-out', _format_date(booking.check_out))
+        _add_detail(
+            rows, 'Guests',
+            f'{booking.number_of_adults} adult(s), '
+            f'{booking.number_of_children} child(ren)')
+    elif app_label == 'restaurants':
+        table = getattr(booking, 'table', None)
+        _add_detail(rows, 'Guest', booking.primary_guest_name)
+        _add_detail(
+            rows, 'Restaurant',
+            getattr(getattr(table, 'restaurant', None), 'name', ''))
+        _add_detail(rows, 'Table', getattr(table, 'table_number', ''))
+        _add_detail(
+            rows, 'Date & time',
+            _format_datetime(booking.reservation_datetime))
+        _add_detail(rows, 'Guests', booking.number_of_guests)
+    elif app_label == 'transportation':
+        vehicle = getattr(booking, 'vehicle', None)
+        _add_detail(rows, 'Guest', booking.primary_guest_name)
+        _add_detail(
+            rows, 'Agency', getattr(getattr(vehicle, 'agency', None), 'name', ''))
+        _add_detail(
+            rows, 'Vehicle',
+            getattr(vehicle, 'vehicle_name', '') or str(vehicle or ''))
+        _add_detail(rows, 'Pickup', booking.pickup_location)
+        _add_detail(rows, 'Drop-off', booking.drop_off_location)
+        _add_detail(rows, 'Schedule', _format_datetime(booking.schedule))
+        _add_detail(rows, 'Passengers', booking.passengers)
+    elif app_label == 'landmarks':
+        _add_detail(rows, 'Visitor', booking.primary_guest_name)
+        _add_detail(
+            rows, 'Destination type', booking.get_destination_type_display())
+        _add_detail(
+            rows, 'Destination',
+            getattr(booking.destination, 'name', '')
+            if booking.destination_id else '')
+        _add_detail(rows, 'Visit', _format_datetime(booking.visit_datetime))
+        _add_detail(rows, 'Visitors', booking.number_of_visitors)
+        _add_detail(
+            rows, 'Guided tour', booking.get_guided_tour_display())
+    elif app_label == 'activities':
+        activity = getattr(booking, 'activity', None)
+        _add_detail(rows, 'Participant', booking.primary_participant_name)
+        _add_detail(rows, 'Activity', getattr(activity, 'name', ''))
+        _add_detail(
+            rows, 'Provider',
+            getattr(getattr(activity, 'provider', None), 'name', ''))
+        _add_detail(rows, 'Date', _format_date(booking.schedule_date))
+        _add_detail(rows, 'Time', ' - '.join(filter(None, [
+            _format_time(booking.start_time), _format_time(booking.end_time)])))
+        _add_detail(rows, 'Participants', booking.participant_count)
+    elif app_label == 'tour_package':
+        package = getattr(booking, 'package', None)
+        _add_detail(rows, 'Traveler', booking.primary_traveler_name)
+        _add_detail(rows, 'Package', getattr(package, 'name', ''))
+        _add_detail(rows, 'Travel date', _format_date(booking.travel_date))
+        _add_detail(rows, 'Time', ' - '.join(filter(None, [
+            _format_time(booking.start_time), _format_time(booking.end_time)])))
+        _add_detail(rows, 'Travelers', booking.number_of_travelers)
+    else:
+        _add_detail(rows, 'Booking', str(booking))
+
+    return {
+        'service': SERVICE_LABELS.get(
+            app_label, booking._meta.verbose_name.title()),
+        'rows': rows,
+    }
 
 
 def resolve_owned_booking(user, app_label, model_name, object_id):
