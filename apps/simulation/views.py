@@ -1935,16 +1935,16 @@ def role_detail(request, assignment_id):
         .prefetch_related('task_completions'),
         pk=assignment_id,
     )
-    if assignment.student != request.user and not is_manager(request.user):
-        messages.error(request, "You may only view your own role assignments.")
-        return redirect('simulation:workspace')
-    task_operation = task_operation_for(assignment)
-    if task_operation is not None:
     assigned_hotel = assignment.hotel
     if assignment.establishment_id and assignment.establishment.type == 'HOTEL':
         assigned_hotel = assignment.establishment.entity or assigned_hotel
     hotel_photo = assigned_hotel.photos.first() if assigned_hotel else None
     hotel_image_url = hotel_photo.image.url if hotel_photo and hotel_photo.image else None
+    if assignment.student != request.user and not is_manager(request.user):
+        messages.error(request, "You may only view your own role assignments.")
+        return redirect('simulation:workspace')
+    task_operation = task_operation_for(assignment)
+    if task_operation is not None:
         task_operation = operation_with_urls(assignment, task_operation)
     task_window = task_window_for(assignment)
     if task_window['state'] != 'unscheduled':
@@ -1972,12 +1972,12 @@ def role_detail(request, assignment_id):
         'task_operation': task_operation,
         'task_status': task_status,
         'task_window': task_window,
+        'hotel_image_url': hotel_image_url,
         'permissions': assignment.role_permissions(),
         'is_manager': is_manager(request.user),
         'can_manage': _is_instructor(request.user),
         'role_choices': [
             (code, label) for code, label, _establishment_type
-        'hotel_image_url': hotel_image_url,
             in _assignable_roles()
         ],
         'role_establishment_types': {
