@@ -1610,6 +1610,7 @@ def reactivate_role(request, assignment_id):
     if request.POST.get('open_assignment_editor') == '1' and assignment.session_id:
         return redirect(
             f"{reverse('simulation:workspace')}?edit_assignment={assignment.pk}"
+            f"&student_id={assignment.student_id}"
             f"#session-{assignment.session_id}"
         )
     return redirect('simulation:role_detail', assignment_id=assignment_id)

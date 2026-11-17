@@ -1587,12 +1587,21 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-        var editAssignmentId = new URLSearchParams(window.location.search).get('edit_assignment');
+        var pageParams = new URLSearchParams(window.location.search);
+        var editAssignmentId = pageParams.get('edit_assignment');
+        var studentIdToShow = pageParams.get('student_id');
         if (editAssignmentId) {
             var assignmentButtons = document.querySelectorAll('.js-assignment-open');
             for (var buttonIndex = 0; buttonIndex < assignmentButtons.length; buttonIndex += 1) {
-                if (assignmentButtons[buttonIndex].dataset.assignmentId === editAssignmentId) {
-                    open(assignmentButtons[buttonIndex]);
+                var assignmentButton = assignmentButtons[buttonIndex];
+                if (assignmentButton.dataset.assignmentId === editAssignmentId) {
+                    var row = document.getElementById(
+                        'sim-row-' + assignmentButton.dataset.sessionId + '-'
+                            + (studentIdToShow || assignmentButton.dataset.studentId)
+                    );
+                    var detailsTrigger = row && row.querySelector('[data-student-details-toggle]');
+                    if (detailsTrigger) openStudentDetails(detailsTrigger);
+                    open(assignmentButton);
                     window.history.replaceState(null, '', window.location.pathname + window.location.hash);
                     break;
                 }
