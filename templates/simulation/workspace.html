@@ -209,7 +209,7 @@
             {% if session.student_rows %}
             <div class="simulation-student-list" role="list">
                 {% for row in session.student_rows %}
-                <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}" data-student-status="{{ row.assignment.status|default:'' }}" data-role-display="{{ row.assignment.get_role_display|default:'' }}">
+                <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}" data-student-avatar="{% if row.student.profile_picture %}{{ row.student.profile_picture.url }}{% endif %}" data-student-status="{{ row.assignment.status|default:'' }}" data-role-display="{{ row.assignment.get_role_display|default:'' }}">
                     <div class="simulation-student-summary">
                         <div class="simulation-student-identity">
                             <strong class="simulation-student-name">{{ row.display_name }}</strong>
@@ -322,6 +322,7 @@
                                 data-student-id="{{ row.student.id }}"
                                 data-student-name="{{ row.display_name }}"
                                 data-student-username="{{ row.student.username }}"
+                                data-student-avatar="{% if row.student.profile_picture %}{{ row.student.profile_picture.url }}{% endif %}"
                                 data-role="{{ row.assignment.role }}"
                                 data-establishment-id="{{ row.assignment.establishment_id|default:'' }}"
                                 data-date="{{ session.session_date|date:'Y-m-d' }}"
@@ -344,6 +345,7 @@
                                 data-student-id="{{ row.student.id }}"
                                 data-student-name="{{ row.display_name }}"
                                 data-student-username="{{ row.student.username }}"
+                                data-student-avatar="{% if row.student.profile_picture %}{{ row.student.profile_picture.url }}{% endif %}"
                                 data-role=""
                                 data-establishment-id=""
                                 data-date="{{ session.session_date|date:'Y-m-d' }}"
@@ -651,9 +653,32 @@
             .join('').toUpperCase();
     }
 
+    function setStudentAvatar(element, name, photoUrl) {
+        if (!element) return;
+        element.textContent = '';
+        if (!photoUrl) {
+            element.textContent = studentInitials(name);
+            return;
+        }
+        var image = document.createElement('img');
+        image.src = photoUrl;
+        image.alt = '';
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.style.width = '100%';
+        image.style.height = '100%';
+        image.style.objectFit = 'cover';
+        image.style.objectPosition = 'center';
+        image.style.borderRadius = 'inherit';
+        image.onerror = function () {
+            element.textContent = studentInitials(name);
+        };
+        element.appendChild(image);
+    }
+
     function applyStudentHeader(row, name) {
         if (studentModalAvatar) {
-            studentModalAvatar.textContent = studentInitials(name);
+            setStudentAvatar(studentModalAvatar, name, row.dataset.studentAvatar || '');
         }
         if (studentModalRoleBadge) {
             var role = row.dataset.roleDisplay || '';
@@ -1276,7 +1301,11 @@
         document.getElementById('modalStudentId').value = currentStudentId;
         document.getElementById('modalStudentName').textContent = button.dataset.studentName || '';
         document.getElementById('modalStudentUsername').textContent = '@' + (button.dataset.studentUsername || '');
-        document.getElementById('modalStudentAvatar').textContent = initials(button.dataset.studentName || '');
+        setStudentAvatar(
+            document.getElementById('modalStudentAvatar'),
+            button.dataset.studentName || '',
+            button.dataset.studentAvatar || ''
+        );
         modalTitle.textContent = currentAssignmentId ? 'Edit Assignment' : 'Assign Role';
 
         roleSelect.value = button.dataset.role || '';
