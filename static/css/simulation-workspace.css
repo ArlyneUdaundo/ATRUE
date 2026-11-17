@@ -1296,6 +1296,20 @@ body.sim-modal-open {
     background: var(--slate-50);
 }
 
+.sim-assign-student .simulation-student-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--slate-100);
+    color: var(--indigo);
+    font-size: 14px;
+    font-weight: 700;
+}
+
 .sim-assign-grid {
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr;
