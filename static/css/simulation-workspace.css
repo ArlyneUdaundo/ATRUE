@@ -1331,28 +1331,39 @@ body.sim-modal-open {
 }
 
 .sim-session-student-avatar--photo {
+    position: relative;
     flex: 0 0 56px;
     width: 56px;
     height: 56px;
     aspect-ratio: 1;
     overflow: hidden;
     box-sizing: border-box;
-    border: 2px solid #fff;
+    border: 0;
     border-radius: 50% !important;
     background: transparent;
-    outline: 1px solid #cbd5e1;
-    outline-offset: -1px;
-    box-shadow: 0 0 0 1px #cbd5e1, 0 4px 10px rgba(30, 41, 59, .14);
+    box-shadow: 0 3px 8px rgba(30, 41, 59, .14);
     clip-path: circle(50% at 50% 50%) !important;
 }
 
 .sim-session-student-avatar--photo img {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
     border-radius: 50% !important;
     object-fit: cover;
+    object-position: center;
     clip-path: circle(50% at 50% 50%) !important;
+}
+
+.sim-session-student-avatar--photo::after {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(148, 163, 184, .65);
+    border-radius: 50%;
+    content: "";
+    pointer-events: none;
 }
 
 .sim-session-dialog .simulation-student-name {
