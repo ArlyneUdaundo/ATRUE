@@ -4,7 +4,7 @@
 {% block title %}Simulation Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261117-session-students-ui">
+<link rel="stylesheet" href="{% static 'css/simulation-workspace.css' %}?v=20261117-session-avatar-photo-edge">
 <link rel="stylesheet" href="{% static 'css/role-dropdown.css' %}?v=20261011-1">
 <link rel="stylesheet" href="{% static 'css/simulation-mark-done.css' %}?v=20261109-centered">
 {% endblock %}
@@ -215,7 +215,7 @@
                 <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}" data-student-avatar="{% if row.student.profile_picture %}{{ row.student.profile_picture.url }}{% endif %}" data-student-status="{{ row.assignment.status|default:'' }}" data-role-display="{{ row.assignment.get_role_display|default:'' }}">
                     <div class="simulation-student-summary">
                         <div class="simulation-student-identity">
-                            <span class="sim-session-student-avatar" aria-hidden="true">{% if row.student.profile_picture %}<img src="{{ row.student.profile_picture.url }}" alt="" loading="lazy" decoding="async">{% else %}{{ row.student.initials|default:row.username|slice:":2"|upper }}{% endif %}</span>
+                            <span class="sim-session-student-avatar{% if row.student.profile_picture %} sim-session-student-avatar--photo{% endif %}" aria-hidden="true">{% if row.student.profile_picture %}<img src="{{ row.student.profile_picture.url }}" alt="" loading="lazy" decoding="async">{% else %}{{ row.student.initials|default:row.username|slice:":2"|upper }}{% endif %}</span>
                             <span class="sim-session-student-copy"><strong class="simulation-student-name">{{ row.display_name }}</strong><small class="simulation-student-username">@{{ row.username }}</small></span>
                         </div>
                         {% if row.assignment %}

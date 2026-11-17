@@ -1330,6 +1330,12 @@ body.sim-modal-open {
     object-fit: cover;
 }
 
+.sim-session-student-avatar--photo {
+    border: 0;
+    background: transparent;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, .14);
+}
+
 .sim-session-dialog .simulation-student-name {
     color: #18284d;
     font-size: 16px;
