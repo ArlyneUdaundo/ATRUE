@@ -6,7 +6,7 @@
 {% block content_class %}account-management-wide{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/account-management.css' %}?v=20261118-1">
+<link rel="stylesheet" href="{% static 'css/account-management.css' %}?v=20261118-2">
 {% endblock %}
 
 {% block content %}
@@ -51,7 +51,7 @@
         <div class="account-list-filter-row account-management-filter-bottom">
             <div class="form-group" style="margin:0">
                 <label>Date Created From</label>
-                <div class="account-management-input"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
+                <div class="account-management-input account-management-date-from"><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
             </div>
             <div class="form-group" style="margin:0">
                 <label>Date Created To</label>
