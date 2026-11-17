@@ -1,24 +1,17 @@
 {% extends 'dashboard_base.html' %}
-{% load static %}
 
 {% block title %}Admin Dashboard{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin-overview.css' %}?v=20261117">
-{% endblock %}
-
 {% block content %}
-<div class="admin-overview">
-<div class="page-head admin-overview-head">
-    <span class="admin-overview-mark"><i class="fas fa-chart-bar" aria-hidden="true"></i></span>
-    <div class="admin-overview-heading">
+<div class="page-head">
+    <div>
         <h1>Admin Overview</h1>
         <p>Platform-wide activity across all users, services and simulations.</p>
     </div>
 
 </div>
 
-<div class="stat-grid admin-overview-stats">
+<div class="stat-grid">
     <a href="{% url 'accounts:stats_list' 'users' %}" class="stat-link">
         <div class="stat-card">
             <div class="stat-ico ico-blue"><i class="fas fa-users"></i></div>
@@ -69,23 +62,23 @@
     </a>
 </div>
 
-<div class="grid-2 admin-overview-main-grid">
-    <div class="card admin-overview-panel ao-services">
-        <div class="card-pad ao-panel-head">
+<div class="grid-2" style="margin-bottom:22px">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
             <h3 style="margin-bottom:4px"><i class="fas fa-chart-pie"></i> Bookings by Service</h3>
             <p style="color:var(--slate-500);font-size:13.5px;margin:0">{{ total_bookings }} total booking(s) across the platform.</p>
         </div>
         <div class="card-pad">
             {% for name, count, icon in service_breakdown %}
-            <div class="ao-service-row">
-                <span class="ao-service-icon"><i class="fas {{ icon }}"></i></span>
-                <div class="ao-service-copy">
-                    <div class="ao-service-label">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:13px">
+                <span class="stat-ico" style="width:32px;height:32px;font-size:13px;border-radius:9px;flex-shrink:0;background:var(--slate-100);color:var(--indigo)"><i class="fas {{ icon }}"></i></span>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:4px">
                         <b style="font-weight:600">{{ name }}</b>
-                        <span>{{ count }}</span>
+                        <span style="color:var(--slate-500)">{{ count }}</span>
                     </div>
-                    <div class="ao-service-track">
-                        <div style="width:{% widthratio count max_bookings 100 %}%"></div>
+                    <div style="height:7px;background:var(--slate-100);border-radius:99px;overflow:hidden">
+                        <div style="width:{% widthratio count max_bookings 100 %}%;height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#6366f1)"></div>
                     </div>
                 </div>
             </div>
@@ -93,14 +86,14 @@
         </div>
     </div>
 
-    <div class="card admin-overview-panel ao-payments">
-        <div class="card-pad ao-panel-head">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
             <h3 style="margin-bottom:4px"><i class="fas fa-credit-card"></i> Latest Payments</h3>
             <p style="color:var(--slate-500);font-size:13.5px;margin:0">Most recent payment records.</p>
         </div>
         {% if recent_payments %}
         <div class="table-wrap">
-            <table class="table ao-payments-table">
+            <table class="table">
                 <thead><tr><th>Payment Ref</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
                 <tbody>
                     {% for p in recent_payments %}
@@ -121,20 +114,20 @@
     </div>
 </div>
 
-<div class="grid-2 admin-overview-bottom-grid">
-    <div class="card admin-overview-panel ao-registrations">
-        <div class="card-pad ao-panel-head">
+<div class="grid-2">
+    <div class="card">
+        <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
             <h3 style="margin-bottom:4px"><i class="fas fa-user-plus"></i> Recent Registrations</h3>
             <p style="color:var(--slate-500);font-size:13.5px;margin:0">Newest accounts on the platform.</p>
         </div>
         {% if recent_users %}
         <div class="card-pad-list">
             {% for u in recent_users %}
-            <div class="ao-list-row">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--slate-200)">
                 <span class="avatar" style="width:36px;height:36px;background:var(--slate-100);border-radius:10px;display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:14px">{{ u.username|truncatechars:1 }}</span>
-                <div class="ao-list-copy">
-                    <b>{{ u.get_full_name|default:u.username }}</b>
-                    <div class="meta"><i class="fas fa-calendar"></i> Joined {{ u.date_joined|date:"M d, Y" }}</div>
+                <div style="flex:1;min-width:0">
+                    <b style="font-size:14px">{{ u.get_full_name|default:u.username }}</b>
+                    <div class="meta" style="margin-top:1px"><i class="fas fa-calendar"></i> Joined {{ u.date_joined|date:"M d, Y" }}</div>
                 </div>
                 <span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.account_type|title }}</span>
             </div>
@@ -146,20 +139,20 @@
     </div>
 
     <div>
-        <div class="card admin-overview-panel ao-roles">
-            <div class="card-pad ao-panel-head">
+        <div class="card" style="margin-bottom:20px">
+            <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
                 <h3 style="margin:0"><i class="fas fa-user-tag"></i> Recent Role Assignments</h3>
             </div>
             {% if recent_roles %}
             <div class="card-pad-list">
                 {% for r in recent_roles %}
-                <div class="ao-role-row">
+                <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--slate-200)">
                     <span class="badge badge-blue">{{ r.get_role_display }}</span>
-                    <div class="ao-list-copy">
-                        <b>{{ r.student.get_full_name|default:r.student.username }}</b>
-                        <div class="meta">{{ r.simulation_activity }}</div>
+                    <div style="flex:1;min-width:0">
+                        <b style="font-size:13.5px">{{ r.student.get_full_name|default:r.student.username }}</b>
+                        <div class="meta" style="margin-top:1px">{{ r.simulation_activity }}</div>
                     </div>
-                    <span class="ao-row-date">{{ r.assigned_at|date:"M d, Y" }}</span>
+                    <span style="font-size:12px;color:var(--slate-500)">{{ r.assigned_at|date:"M d" }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -168,17 +161,17 @@
             {% endif %}
         </div>
 
-        <div class="card admin-overview-panel ao-recent-activity">
-            <div class="card-pad ao-panel-head">
+        <div class="card">
+            <div class="card-pad" style="border-bottom:1px solid var(--slate-200)">
                 <h3 style="margin:0"><i class="fas fa-history"></i> Recent Activity</h3>
             </div>
             {% if recent_logs %}
             <div class="card-pad-list">
                 {% for log in recent_logs %}
-                <div class="ao-activity-row">
-                    <b>{{ log.user.get_full_name|default:log.user.username }}</b>
-                    <div>{{ log.action }}</div>
-                    <div class="meta"><i class="fas fa-clock"></i> {{ log.timestamp|date:"M d, Y H:i" }}</div>
+                <div style="padding:11px 18px;border-bottom:1px solid var(--slate-200)">
+                    <b style="font-size:13.5px">{{ log.user.get_full_name|default:log.user.username }}</b>
+                    <div style="font-size:13px;color:var(--slate-500);margin-top:1px">{{ log.action }}</div>
+                    <div class="meta" style="margin-top:3px"><i class="fas fa-clock"></i> {{ log.timestamp|date:"M d, Y H:i" }}</div>
                 </div>
                 {% endfor %}
             </div>
@@ -187,6 +180,5 @@
             {% endif %}
         </div>
     </div>
-</div>
 </div>
 {% endblock %}
