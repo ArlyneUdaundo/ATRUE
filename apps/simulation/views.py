@@ -1713,9 +1713,13 @@ def session_assignment(request, session_id):
         establishment = None
         hotel = None
 
-    if not all((session.session_date, session.start_time, session.end_time)):
-        return fail([
-            'Set the session date, start time and end time before assigning students.'])
+    requested_schedule = _parse_schedule(
+        (request.POST.get('session_date') or '').strip(),
+        (request.POST.get('start_time') or '').strip(),
+        (request.POST.get('end_time') or '').strip(),
+    )
+    if isinstance(requested_schedule, str):
+        return fail([requested_schedule])
 
     active_status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
     try:
@@ -1723,6 +1727,34 @@ def session_assignment(request, session_id):
             # Serialize writes for this student while duplicate and schedule
             # checks run, so two simultaneous saves cannot both pass the checks.
             type(student).objects.select_for_update().get(pk=student.pk)
+            session = SimulationSession.objects.select_for_update().get(pk=session.pk)
+            if session.status in {
+                SimulationSession.Status.COMPLETED,
+                SimulationSession.Status.ARCHIVED,
+            }:
+                return fail(['Completed or archived sessions cannot be changed.'])
+
+            session_has_schedule = all((
+                session.session_date, session.start_time, session.end_time))
+            if session_has_schedule:
+                target_schedule = {
+                    'session_date': session.session_date,
+                    'start_time': session.start_time,
+                    'end_time': session.end_time,
+                }
+                if requested_schedule and any(
+                        requested_schedule[key] != value
+                        for key, value in target_schedule.items()):
+                    return fail([
+                        'This session uses one shared schedule. Update it from '
+                        'Edit Session before changing it.'])
+            else:
+                if not requested_schedule:
+                    return fail([
+                        'Set the session date, start time and end time before '
+                        'saving this assignment.'])
+                target_schedule = requested_schedule
+
             if existing is not None:
                 existing = SimulationRoleAssignment.objects.select_for_update().get(
                     pk=existing.pk, session=session)
@@ -1767,9 +1799,9 @@ def session_assignment(request, session_id):
                 overlaps = SimulationRoleAssignment.objects.filter(
                     student=student,
                     status=active_status,
-                    session__session_date=session.session_date,
-                    session__start_time__lt=session.end_time,
-                    session__end_time__gt=session.start_time,
+                    session__session_date=target_schedule['session_date'],
+                    session__start_time__lt=target_schedule['end_time'],
+                    session__end_time__gt=target_schedule['start_time'],
                 ).exclude(session=session).select_related('session')
                 conflict = overlaps.order_by('session__start_time').first()
                 if conflict:
@@ -1778,6 +1810,14 @@ def session_assignment(request, session_id):
                         f"{conflict.activity_name} "
                         f"({conflict.session.start_time:%H:%M}-{conflict.session.end_time:%H:%M}). Choose a different session time."
                     ], status=409)
+
+            if not session_has_schedule:
+                session.session_date = target_schedule['session_date']
+                session.start_time = target_schedule['start_time']
+                session.end_time = target_schedule['end_time']
+                session.save(update_fields=[
+                    'session_date', 'start_time', 'end_time', 'updated_at',
+                ])
 
             if existing is None:
                 assignment = SimulationRoleAssignment.objects.create(

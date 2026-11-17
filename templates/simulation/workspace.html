@@ -503,7 +503,7 @@
             <header class="sim-assign-head">
                 <div>
                     <h2 id="assignmentModalTitle">Assign Role</h2>
-                    <p class="sim-assign-sub">Assign a role and establishment. This student follows the session's shared schedule.</p>
+                    <p class="sim-assign-sub">This student follows the session's shared schedule. Set it here if the session is not yet scheduled.</p>
                 </div>
                 <button type="button" class="sim-assign-close" data-modal-close aria-label="Close"><i class="fas fa-xmark"></i></button>
             </header>
@@ -541,15 +541,15 @@
                     <div class="sim-assign-grid">
                         <div class="form-group">
                             <label for="modalDate">Assignment Date</label>
-                            <input type="date" id="modalDate" class="form-input" readonly aria-readonly="true">
+                            <input type="date" name="session_date" id="modalDate" class="form-input">
                         </div>
                         <div class="form-group">
                             <label for="modalStart">Start Time</label>
-                            <input type="time" id="modalStart" class="form-input" readonly aria-readonly="true">
+                            <input type="time" name="start_time" id="modalStart" class="form-input">
                         </div>
                         <div class="form-group">
                             <label for="modalEnd">End Time</label>
-                            <input type="time" id="modalEnd" class="form-input" readonly aria-readonly="true">
+                            <input type="time" name="end_time" id="modalEnd" class="form-input">
                         </div>
                     </div>
                 </div>
@@ -1285,6 +1285,20 @@
         document.getElementById('modalDate').value = button.dataset.date || '';
         document.getElementById('modalStart').value = button.dataset.start || '';
         document.getElementById('modalEnd').value = button.dataset.end || '';
+        var sessionScheduleIsSet = Boolean(
+            button.dataset.date && button.dataset.start && button.dataset.end);
+        [
+            document.getElementById('modalDate'),
+            document.getElementById('modalStart'),
+            document.getElementById('modalEnd')
+        ].forEach(function (field) {
+            field.readOnly = sessionScheduleIsSet;
+            if (sessionScheduleIsSet) {
+                field.setAttribute('aria-readonly', 'true');
+            } else {
+                field.removeAttribute('aria-readonly');
+            }
+        });
         updateRepeat();
         clearErrors();
 
