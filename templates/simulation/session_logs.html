@@ -27,7 +27,7 @@
 <div class="card card-pad" style="margin-bottom:18px">
     <form method="get" class="logs-filter-grid">
         <div class="form-group" style="margin:0">
-            <label>Search Student</label>
+            <label>Search Name</label>
             <input type="text" name="q" class="form-input" placeholder="Name or username" value="{{ q }}">
         </div>
         <div class="form-group" style="margin:0">
@@ -73,12 +73,12 @@
         <thead>
             <tr>
                 <th class="col-datetime">Date &amp; Time</th>
-                <th class="col-student">Student</th>
+                <th class="col-student">Name</th>
+                <th class="col-user-type">Type of User</th>
                 <th class="col-session">Session</th>
                 <th class="col-establishment">Establishment</th>
                 <th class="col-role">Role</th>
                 <th class="col-activity">Activity</th>
-                <th class="col-details">Details</th>
                 <th class="col-status">Status</th>
             </tr>
         </thead>
@@ -92,11 +92,11 @@
                     <span class="meta" style="display:block">{{ row.log.timestamp|time:"g:i A" }}</span>
                 </td>
                 <td class="col-student">{{ row.student.get_full_name|default:row.student.username }}</td>
+                <td class="col-user-type">{% if row.student.account_type == 'INSTRUCTOR' %}Instructor{% elif row.student.account_type == 'STUDENT' %}Student{% else %}{{ row.student.get_account_type_display|default:row.student.account_type }}{% endif %}</td>
                 <td class="col-session">{{ session.name }}</td>
                 <td class="col-establishment">{{ row.establishment }}</td>
                 <td class="col-role">{{ row.role_label }}</td>
                 <td class="col-activity"><span class="meta" style="display:block">{{ row.log.action }}</span></td>
-                <td class="col-details"><span class="meta" style="display:block">{{ row.log.details|default:"—" }}</span></td>
                 <td class="col-status">
                     {% if row.status != '-' %}
                     <span class="badge {% if row.status == 'In Progress' %}badge-blue{% elif row.status == 'Completed' %}badge-green{% else %}badge-gray{% endif %}">{{ row.status }}</span>

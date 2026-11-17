@@ -304,8 +304,7 @@ body.log-modal-open {
     /* Condensed list: nondetail columns only; full details live in the popup. */
     .logs-table .col-session,
     .logs-table .col-establishment,
-    .logs-table .col-details,
-    .logs-table .col-status {
+    .logs-table .col-details {
         display: none;
     }
 
