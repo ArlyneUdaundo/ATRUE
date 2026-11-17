@@ -104,7 +104,7 @@ def simulation_task_context(request):
                 **window,
                 'assignment_id': assignment.pk,
                 'role_detail_url': reverse('simulation:role_detail', args=[assignment.pk]),
-                'redirect_on_end': window['state'] == 'available',
+                'redirect_on_end': False,
             }
 
     return {
