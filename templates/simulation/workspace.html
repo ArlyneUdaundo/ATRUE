@@ -157,6 +157,7 @@
             </div>
             <div class="sim-session-status-wrap">
                 <span class="sim-status-badge sim-status-{{ session.status_class }}">{{ session.get_status_display }}</span>
+                <span class="sim-status-badge sim-status-{{ session.schedule_status_display|slugify }}" data-session-schedule-status>Access: {{ session.schedule_status_display }}</span>
                 <span class="sim-session-schedule"><i class="far fa-calendar" aria-hidden="true"></i> {{ session.schedule_label }}</span>
             </div>
             <div class="sim-session-students">
@@ -180,7 +181,7 @@
                 <div hidden data-session-progress-urls>
                     {% for row in session.student_rows %}
                         {% for item in row.assignments %}
-                            {% if item.assignment.status == 'ACTIVE' or item.assignment.status == 'DONE' %}
+                            {% if item.assignment.status == 'ACTIVE' %}
                     <span data-progress-url="{% url 'simulation:assignment_progress' item.assignment.id %}"></span>
                             {% endif %}
                         {% endfor %}
@@ -580,6 +581,21 @@
     var studentDetailsNode = null;
     var studentDetailsOpener = null;
     var assignmentOpener = null;
+    var progressRequests = Object.create(null);
+    var progressPollTimer = null;
+    var progressAbortController = null;
+    var progressPollInFlight = false;
+    var progressNextPollDelay = null;
+    var progressBackoffMs = 0;
+    var progressRetryNotBefore = 0;
+    var progressPollIntervalMs = 15000;
+    var maxProgressBackoffMs = 300000;
+    var progressRateLimited = false;
+    var progressActiveRequests = 0;
+    var progressRequestQueue = [];
+    var maxConcurrentProgressRequests = 4;
+    var saveRetryDelayMs = 0;
+    var saveRetryTimer = null;
 
     var form = document.getElementById('assignmentForm');
     var roleSelect = document.getElementById('modalRole');
@@ -675,11 +691,6 @@
         studentModal.hidden = false;
         trigger.setAttribute('aria-expanded', 'true');
         setBodyLock();
-        refreshProgress(details);
-        window.simulationProgressPoll = window.setInterval(function () {
-            if (!studentDetailsNode || studentDetailsNode.hidden) return;
-            refreshProgress(studentDetailsNode);
-        }, 5000);
         var closeButton = studentModal.querySelector('[data-student-close]');
         if (closeButton) closeButton.focus();
     }
@@ -885,10 +896,8 @@
 
     function refreshProgress(details) {
         var container = details && details.querySelector('[data-session-progress]');
-        if (!container || !container.dataset.progressUrl) return;
-        fetch(container.dataset.progressUrl, { credentials: 'same-origin' })
-            .then(function (response) { return response.ok ? response.json() : null; })
-            .then(function (data) {
+        if (!container || !container.dataset.progressUrl) return Promise.resolve(null);
+        return requestProgress(container.dataset.progressUrl).then(function (data) {
                 if (!data || !data.ok) return;
                 renderProgress(container, data.progress);
                 if (studentModalStatusBadge && data.progress.assignment_status_display) {
@@ -897,21 +906,185 @@
                         + (data.progress.assignment_status === 'DONE'
                             ? 'badge-green' : 'badge-blue');
                 }
-            })
-            .catch(function () {});
+            });
+    }
+
+    function requestProgress(url) {
+        if (progressRequests[url]) return progressRequests[url];
+        var request = new Promise(function (resolve, reject) {
+            var signal = progressAbortController
+                ? progressAbortController.signal : null;
+            var started = false;
+            var job;
+            function rejectIfQueued() {
+                if (started) return;
+                var queuedIndex = progressRequestQueue.indexOf(job);
+                if (queuedIndex !== -1) progressRequestQueue.splice(queuedIndex, 1);
+                var aborted = new Error('Progress request cancelled.');
+                aborted.name = 'AbortError';
+                reject(aborted);
+                pumpProgressRequests();
+            }
+            job = function () {
+                if (signal && signal.aborted) {
+                    rejectIfQueued();
+                    return;
+                }
+                started = true;
+                progressActiveRequests += 1;
+                fetch(url, {
+                    credentials: 'same-origin',
+                    signal: signal || undefined
+                }).then(function (response) {
+                    if (response.status === 429) {
+                        progressRateLimited = true;
+                        var error = new Error('Simulation progress polling was rate limited.');
+                        error.status = 429;
+                        error.retryAfterMs = retryAfterDelay(response);
+                        throw error;
+                    }
+                    return response.ok ? response.json() : null;
+                }).then(resolve, reject).finally(function () {
+                    progressActiveRequests -= 1;
+                    pumpProgressRequests();
+                });
+            };
+            if (signal) signal.addEventListener('abort', rejectIfQueued, {once: true});
+            progressRequestQueue.push(job);
+            pumpProgressRequests();
+        });
+        var trackedRequest = request.finally(function () {
+            if (progressRequests[url] === trackedRequest) delete progressRequests[url];
+        });
+        progressRequests[url] = trackedRequest;
+        return trackedRequest;
+    }
+
+    function retryAfterDelay(response) {
+        var retryAfter = response.headers.get('Retry-After');
+        if (!retryAfter) return 0;
+        var seconds = Number(retryAfter);
+        if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+        var retryAt = Date.parse(retryAfter);
+        return Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : 0;
+    }
+
+    function holdSaveForRateLimit(retryAfterMs) {
+        var exponentialDelay = saveRetryDelayMs
+            ? Math.min(maxProgressBackoffMs, saveRetryDelayMs * 2) : 5000;
+        saveRetryDelayMs = Math.max(exponentialDelay, retryAfterMs || 0);
+        saveBtn.disabled = true;
+        saveBtn.setAttribute('aria-disabled', 'true');
+        saveBtn.setAttribute('aria-label', 'Wait before retrying the assignment');
+        saveRetryTimer = window.setTimeout(function () {
+            saveRetryTimer = null;
+            saveBtn.disabled = false;
+            saveBtn.removeAttribute('aria-disabled');
+            saveBtn.removeAttribute('aria-label');
+            saveBtn.innerHTML = saveButtonMarkup;
+            if (!modal.hidden) {
+                showErrors(['Rate limit cooldown ended. You can retry the assignment now.']);
+            }
+        }, saveRetryDelayMs);
+    }
+
+    function pumpProgressRequests() {
+        while (!progressRateLimited
+                && progressActiveRequests < maxConcurrentProgressRequests
+                && progressRequestQueue.length) {
+            progressRequestQueue.shift()();
+        }
+    }
+
+    function progressPollingAllowed() {
+        return document.visibilityState === 'visible' && modal.hidden;
+    }
+
+    function scheduleProgressPoll(delay) {
+        if (!progressPollingAllowed() || progressPollTimer || progressPollInFlight) return;
+        progressPollTimer = window.setTimeout(function () {
+            progressPollTimer = null;
+            runProgressPoll();
+        }, Math.max(0, delay));
+    }
+
+    function startProgressPolling(delay) {
+        if (!progressPollingAllowed() || progressPollTimer) return;
+        var requestedDelay = delay === undefined ? progressPollIntervalMs : delay;
+        if (progressPollInFlight) {
+            progressNextPollDelay = requestedDelay;
+            return;
+        }
+        scheduleProgressPoll(Math.max(
+            requestedDelay, progressRetryNotBefore - Date.now(), 0));
+    }
+
+    function stopProgressPolling() {
+        if (progressPollTimer) {
+            window.clearTimeout(progressPollTimer);
+            progressPollTimer = null;
+        }
+        progressNextPollDelay = null;
+        if (progressAbortController) {
+            progressAbortController.abort();
+            progressAbortController = null;
+            progressRequests = Object.create(null);
+        }
+        progressRateLimited = false;
+    }
+
+    function runProgressPoll() {
+        if (!progressPollingAllowed() || progressPollInFlight) return;
+        progressPollInFlight = true;
+        progressRateLimited = false;
+        progressAbortController = new AbortController();
+        var refreshRequests = [
+            refreshStudentRows(),
+            refreshSessionProgressCards()
+        ];
+        if (studentModal && !studentModal.hidden && studentDetailsNode) {
+            refreshRequests.push(refreshProgress(studentDetailsNode));
+        }
+        Promise.all(refreshRequests).then(function () {
+            progressBackoffMs = 0;
+            progressRetryNotBefore = 0;
+        }).catch(function (error) {
+            if (error && error.name === 'AbortError') return;
+            if (error && error.status === 429) {
+                var exponentialDelay = progressBackoffMs
+                    ? Math.min(maxProgressBackoffMs, progressBackoffMs * 2)
+                    : progressPollIntervalMs * 2;
+                progressBackoffMs = Math.max(exponentialDelay, error.retryAfterMs || 0);
+                progressRetryNotBefore = Date.now() + progressBackoffMs;
+                if (progressAbortController) progressAbortController.abort();
+                progressRequests = Object.create(null);
+                return;
+            }
+            console.warn('Could not refresh simulation assignment progress:', error);
+        }).finally(function () {
+            progressPollInFlight = false;
+            progressAbortController = null;
+            if (progressPollingAllowed()) {
+                var requestedDelay = progressNextPollDelay === null
+                    ? (progressBackoffMs || progressPollIntervalMs)
+                    : progressNextPollDelay;
+                progressNextPollDelay = null;
+                scheduleProgressPoll(Math.max(
+                    requestedDelay, progressRetryNotBefore - Date.now(), 0));
+            }
+        });
     }
 
     function refreshSessionProgressCards() {
+        var cardRequests = [];
         document.querySelectorAll('.sim-session-progress-card').forEach(function (card) {
             var urls = Array.prototype.map.call(
                 card.querySelectorAll('[data-session-progress-urls] [data-progress-url]'),
                 function (node) { return node.dataset.progressUrl; }
             );
             if (!urls.length) return;
-            Promise.all(urls.map(function (url) {
-                return fetch(url, { credentials: 'same-origin' })
-                    .then(function (response) { return response.ok ? response.json() : null; })
-                    .catch(function () { return null; });
+            cardRequests.push(Promise.all(urls.map(function (url) {
+                return requestProgress(url);
             })).then(function (results) {
                 if (results.some(function (result) {
                     return !result || !result.ok || !result.progress;
@@ -936,17 +1109,18 @@
                 if (caption) caption.textContent = required
                     ? completed + ' of ' + required + ' required tasks completed'
                     : 'No required tasks assigned';
-            });
+            }));
         });
+        return Promise.all(cardRequests);
     }
 
     function refreshStudentRows() {
+        var rowRequests = [];
         document.querySelectorAll('.simulation-student-row').forEach(function (row) {
+            if (row.dataset.studentStatus === 'DONE') return;
             var details = row.querySelector('[data-session-progress]');
             if (!details || !details.dataset.progressUrl) return;
-            fetch(details.dataset.progressUrl, { credentials: 'same-origin' })
-                .then(function (response) { return response.ok ? response.json() : null; })
-                .then(function (data) {
+            rowRequests.push(requestProgress(details.dataset.progressUrl).then(function (data) {
                     if (!data || !data.ok || !data.progress) return;
                     var progress = data.progress;
                     var taskProgress = row.querySelector('.simulation-student-task-progress');
@@ -963,15 +1137,19 @@
                     if (progress.assignment_status) {
                         row.dataset.studentStatus = progress.assignment_status;
                     }
-                })
-                .catch(function () {});
+                }));
         });
+        return Promise.all(rowRequests);
     }
 
-    window.setInterval(refreshStudentRows, 5000);
-    refreshStudentRows();
-    window.setInterval(refreshSessionProgressCards, 5000);
-    refreshSessionProgressCards();
+    startProgressPolling(0);
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            startProgressPolling(0);
+        } else {
+            stopProgressPolling();
+        }
+    });
 
     document.addEventListener('simulation-assignment-completed', function (event) {
         var formNode = event.target.closest('form[data-mark-role-done]');
@@ -994,10 +1172,6 @@
 
     function closeStudentDetails() {
         if (!studentModal || studentModal.hidden) return;
-        if (window.simulationProgressPoll) {
-            window.clearInterval(window.simulationProgressPoll);
-            window.simulationProgressPoll = null;
-        }
         if (studentDetailsNode && studentDetailsPlaceholder && studentDetailsPlaceholder.parentNode) {
             studentDetailsPlaceholder.parentNode.insertBefore(studentDetailsNode, studentDetailsPlaceholder);
             studentDetailsPlaceholder.remove();
@@ -1055,13 +1229,12 @@
         sessionBody.appendChild(activities);
 
         sessionTitle.textContent = summary.dataset.sessionName || 'Session';
-        var dateText = summary.dataset.sessionStart || summary.dataset.sessionEnd
-            ? (summary.dataset.sessionStart || 'Date not set')
-                + (summary.dataset.sessionEnd
-                    && summary.dataset.sessionEnd !== summary.dataset.sessionStart
-                    ? ' – ' + summary.dataset.sessionEnd : '')
-            : 'Dates not set';
-        sessionMeta.textContent = dateText + ' · ' + (summary.dataset.sessionStatus || '');
+        var dateText = summary.dataset.sessionSessionDate || 'Date not set';
+        var startTime = summary.dataset.sessionStartTime || '';
+        var endTime = summary.dataset.sessionEndTime || '';
+        var timeText = startTime && endTime ? startTime + ' – ' + endTime : 'Time not set';
+        sessionMeta.textContent = dateText + ' · ' + timeText + ' · Access: '
+            + (summary.dataset.sessionStatus || 'Schedule Required');
         sessionNotice.hidden = true;
         sessionNotice.textContent = '';
         sessionModal.hidden = false;
@@ -1247,6 +1420,7 @@
     }
 
     function open(button) {
+        stopProgressPolling();
         assignmentOpener = button;
         currentStudentId = button.dataset.studentId || '';
         currentAssignmentId = button.dataset.assignmentId || '';
@@ -1264,9 +1438,6 @@
         roleSelect.value = button.dataset.role || '';
         window.syncRolePicker(roleSelect);
         fillEstablishments(button.dataset.establishmentId || '');
-        document.getElementById('modalDate').value = button.dataset.date || '';
-        document.getElementById('modalStart').value = button.dataset.start || '';
-        document.getElementById('modalEnd').value = button.dataset.end || '';
         updateRepeat();
         clearErrors();
 
@@ -1284,6 +1455,7 @@
         modal.hidden = true;
         initialFormState = '';
         setBodyLock();
+        startProgressPolling(0);
         if (sessionModal && !sessionModal.hidden) {
             var returnTarget = assignmentOpener;
             if (!returnTarget || !returnTarget.isConnected) {
@@ -1383,7 +1555,7 @@
 
     form.addEventListener('submit', function (event) {
         event.preventDefault();
-        if (savePending) return;
+        if (savePending || saveRetryTimer) return;
         clearErrors();
         if (!currentAssignmentId && heldRole() && !repeatCheckbox.checked) {
             updateRepeat();
@@ -1411,7 +1583,12 @@
                     // Django may return an HTML error or login page. Keep that
                     // markup out of the dialog, but show enough to diagnose it.
                 }
-                return { ok: response.ok, status: response.status, data: data };
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: data,
+                    retryAfterMs: retryAfterDelay(response)
+                };
             });
         }).then(function (result) {
             savePending = false;
@@ -1419,6 +1596,7 @@
             saveBtn.removeAttribute('aria-busy');
             saveBtn.innerHTML = saveButtonMarkup;
             if (result.data && result.data.ok) {
+                saveRetryDelayMs = 0;
                 renderRow(result.data.assignment);
                 sessionNotice.textContent = result.data.action === 'edit'
                     ? 'Assignment updated successfully!'
@@ -1427,13 +1605,16 @@
                 close(true);
                 return;
             }
-            var errors = (result.data && result.data.errors)
+            var errors = result.status === 429
+                ? ['HTTP 429: the server is temporarily limiting requests. The save was not confirmed; wait for the retry delay, then try again.']
+                : (result.data && result.data.errors)
                 || [result.status >= 500
                     ? 'The server could not finish saving this assignment (HTTP ' + result.status + '). Refresh the page and check the assignment before trying again.'
                     : result.status === 401 || result.status === 403
                         ? 'Your session may have expired or you no longer have permission to edit this assignment. Refresh the page and sign in again.'
                         : 'Could not save the assignment (HTTP ' + result.status + '). Please review the form and try again.'];
             showErrors(errors);
+            if (result.status === 429) holdSaveForRateLimit(result.retryAfterMs);
             if (result.data && result.data.clash) {
                 repeatGroup.hidden = false;
             }
