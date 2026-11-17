@@ -1299,9 +1299,9 @@ body.sim-modal-open {
 .sim-assign-student .simulation-student-avatar {
     display: grid;
     place-items: center;
-    flex: 0 0 64px;
-    width: 64px;
-    height: 64px;
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
     overflow: hidden;
     border-radius: 50%;
     background: var(--slate-100);
