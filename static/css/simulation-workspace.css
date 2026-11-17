@@ -1331,9 +1331,24 @@ body.sim-modal-open {
 }
 
 .sim-session-student-avatar--photo {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    aspect-ratio: 1;
+    overflow: hidden;
     border: 0;
+    border-radius: 50%;
     background: transparent;
     box-shadow: 0 3px 8px rgba(15, 23, 42, .14);
+    clip-path: circle(50% at 50% 50%);
+}
+
+.sim-session-student-avatar--photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .sim-session-dialog .simulation-student-name {
@@ -1680,6 +1695,7 @@ body.sim-modal-open {
 
     .sim-session-dialog .simulation-student-identity { gap: 10px; }
     .sim-session-student-avatar { flex-basis: 48px; width: 48px; height: 48px; font-size: 14px; }
+    .sim-session-student-avatar--photo { flex-basis: 48px; width: 48px; height: 48px; }
 
     .sim-session-foot {
         padding: 10px 14px 14px;
