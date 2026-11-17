@@ -90,9 +90,11 @@
                         </button>
                     <div class="user-dd-menu">
                         <a href="{% url 'accounts:my_account' %}" class="user-dd-item{% if '/my-account' in request.path %} active{% endif %}"><span class="dd-chip udd-account"><i class="fas fa-user-circle"></i></span><span class="dd-txt"><b>My Account</b><small>Profile &amp; settings</small></span></a>
+                        {% if request.user.account_type != 'INSTRUCTOR' %}
                         <a href="{% url 'accounts:change_password' %}" class="user-dd-item{% if '/change-password' in request.path %} active{% endif %}"><span class="dd-chip udd-security"><i class="fas fa-key"></i></span><span class="dd-txt"><b>Change Password</b><small>Update your password</small></span></a>
                         <a href="{% url 'transactions:booking_list' %}?nav=my-bookings" class="user-dd-item{% if '/transactions/bookings/' in request.path %} active{% endif %}"><span class="dd-chip udd-bookings"><i class="fas fa-bookmark"></i></span><span class="dd-txt"><b>My Bookings</b><small>Manage reservations</small></span></a>
                         <a href="{% url 'transactions:list' %}" class="user-dd-item{% if '/transactions/' in request.path %} active{% endif %}"><span class="dd-chip udd-transactions"><i class="fas fa-credit-card"></i></span><span class="dd-txt"><b>Transactions</b><small>Payments &amp; receipts</small></span></a>
+                        {% endif %}
                         <a href="{% url 'simulation:logs' %}" class="user-dd-item{% if '/logs/' in request.path %} active{% endif %}"><span class="dd-chip udd-logs"><i class="fas fa-history"></i></span><span class="dd-txt"><b>Activity Logs</b><small>Simulation history</small></span></a>
                         <a href="{% url 'accounts:logout' %}" class="user-dd-item"><span class="dd-chip udd-security"><i class="fas fa-sign-out-alt"></i></span><span class="dd-txt"><b>Log Out</b><small>Sign out of your account</small></span></a>
                     </div>
