@@ -1149,7 +1149,7 @@ class RejectedSubmissionKeepsItsInputTests(AssignmentFlowTestCase):
             'establishment': self.sunrise_est.pk,
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'already an active assignment')
+        self.assertContains(response, 'still has a pending role')
         self.assertContains(response, 'id="assignAgain"')
         self.assertEqual(SimulationRoleAssignment.objects.filter(
             student=self.arlyne).count(), 1)

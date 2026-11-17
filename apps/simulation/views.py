@@ -1421,9 +1421,9 @@ def assign_role(request):
         repeat_override = request.POST.get('assign_again') == 'yes'
         if clash and not repeat_override:
             return again(
-                f"{clash[0].get_role_display()} is already an active assignment for this "
-                f"student in “{clash[0].activity_name}”. Tick “Assign this role again” to "
-                f"put them in this session as well."
+                f"This student still has a pending role "
+                f"({clash[0].get_role_display()}) in “{clash[0].activity_name}”. "
+                f"Tick “Assign this role again” to put them in this session as well."
             )
 
         # A posted ``hotel_id`` is no longer consulted. Every role that is
@@ -1742,8 +1742,8 @@ def session_assignment(request, session_id):
                 clash = list(clash_qs.order_by('-assigned_at'))
                 if clash and not repeat_override:
                     return fail(
-                        [f"{role_row.name} is already active for this student in "
-                         f"“{clash[0].activity_name}”. Tick “Assign this role again” "
+                        [f"This student still has a pending role ({role_row.name}) "
+                         f"in “{clash[0].activity_name}”. Tick “Assign this role again” "
                          "to add another assignment."],
                         clash=True,
                     )

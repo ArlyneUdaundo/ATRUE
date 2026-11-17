@@ -201,6 +201,7 @@ class SessionAssignmentEndpointTests(AssignmentFlowTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertTrue(response.json()['clash'])
+        self.assertIn('still has a pending role', response.json()['errors'][0])
         self.assertIn('Assign this role again', response.json()['errors'][0])
 
     def test_overlapping_session_schedule_is_rejected_even_with_repeat_override(self):

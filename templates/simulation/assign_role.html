@@ -66,7 +66,7 @@
             <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px">
                 <div class="form-group" style="margin:0">
                     <label for="simDate">Date</label>
-                    <input type="date" name="session_date" id="simDate" class="form-input" value="{% if posted %}{{ posted.session_date|default:posted.simulation_date }}{% endif %}">
+                    <input type="date" name="session_date" id="simDate" class="form-input" value="{% if posted %}{% if posted.session_date %}{{ posted.session_date }}{% else %}{{ posted.simulation_date|default:'' }}{% endif %}{% endif %}">
                 </div>
                 <div class="form-group" style="margin:0">
                     <label for="startTime">Start Time</label>
@@ -83,7 +83,7 @@
             <label style="display:flex;gap:9px;align-items:flex-start;margin:0;cursor:pointer">
                 <input type="checkbox" name="assign_again" value="yes" id="assignAgain" style="margin-top:3px">
                 <span><b>Assign this role again</b><br>
-                <span class="muted-hint" id="repeatHint">This role is already active for this student in another session.</span></span>
+                <span class="muted-hint" id="repeatHint">This student still has a pending role in another session.</span></span>
             </label>
         </div>
         <div style="display:flex;gap:10px;margin-top:18px">
@@ -384,8 +384,9 @@
                 return;
             }
             group.style.display = '';
-            hint.textContent = held.role + ' is already active in “' + held.activity +
-                '” (' + held.date + '). Tick to place this student in this session as well.';
+            hint.textContent = 'This student still has a pending role (' + held.role +
+                ') in “' + held.activity + '” (' + held.date + '). Tick to place this ' +
+                'student in this session as well.';
         }
 
         if (roleSelect) roleSelect.addEventListener('change', showRepeatPrompt);

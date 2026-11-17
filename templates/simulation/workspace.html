@@ -1247,8 +1247,9 @@
             return;
         }
         repeatGroup.hidden = false;
-        repeatHint.textContent = held.role + ' is already active in “' + held.activity
-            + '” (' + held.date + '). Tick to place this student here as well.';
+        repeatHint.textContent = 'This student still has a pending role (' + held.role
+            + ') in “' + held.activity + '” (' + held.date
+            + '). Tick to place this student here as well.';
     }
 
     function clearErrors() {
@@ -1404,7 +1405,7 @@
         clearErrors();
         if (!currentAssignmentId && heldRole() && !repeatCheckbox.checked) {
             updateRepeat();
-            showErrors(['This role is already active for this student. Tick “Assign this role again” to continue.']);
+            showErrors(['This student still has a pending role. Tick “Assign this role again” to continue.']);
             return;
         }
         savePending = true;
