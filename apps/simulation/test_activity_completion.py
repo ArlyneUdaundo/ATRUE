@@ -395,11 +395,11 @@ class SessionProgressTests(CompletionTestCase):
             'Payment Verification', 'Confirmation of Reservation', 'View E-Ticket'])
         self.assertEqual(tasks[0]['key'], 'passenger_airline.book_flight')
         self.assertEqual(tasks[0]['completion_events'], ['CUSTOMER_BOOKING_SUBMITTED'])
-        self.assertEqual(tasks[1]['completion_events'], [])
+        self.assertEqual(tasks[1]['completion_events'], ['PASSENGER_INFORMATION_SAVED'])
         self.assertEqual(tasks[2]['completion_events'], ['PASSENGER_SEAT_SELECTED'])
         self.assertEqual(tasks[3]['completion_events'], ['PAYMENT_VERIFIED'])
         self.assertEqual(tasks[4]['completion_events'], ['RESERVATION_CONFIRMED'])
-        self.assertEqual(tasks[5]['completion_events'], [])
+        self.assertEqual(tasks[5]['completion_events'], ['PASSENGER_ETICKET_VIEWED'])
         self.assertEqual([task['description'] for task in tasks], [
             'Search for and select a flight to begin a reservation.',
             'Enter the passenger details required for the flight.',
@@ -488,15 +488,18 @@ class SessionProgressTests(CompletionTestCase):
 
         assignment = self.assign(self.guest, 'PASSENGER_AIRLINE')
         record_actor_task_event(
-            self.guest, 'PASSENGER_BOOKING_MANAGED', assignment=assignment)
+            self.guest, 'PASSENGER_INFORMATION_SAVED', assignment=assignment)
         record_actor_task_event(
             self.guest, 'PASSENGER_SEAT_SELECTED', assignment=assignment)
+        record_actor_task_event(
+            self.guest, 'PASSENGER_ETICKET_VIEWED', assignment=assignment)
 
         progress = assignment_progress_data(assignment)
         states = {task['key']: task['state'] for task in progress['tasks']}
-        self.assertEqual(states['passenger_airline.manage_booking'], 'completed')
+        self.assertEqual(states['passenger_airline.passenger_information'], 'completed')
         self.assertEqual(states['passenger_airline.select_seat'], 'completed')
-        self.assertEqual((progress['completed'], progress['tracked']), (2, 3))
+        self.assertEqual(states['passenger_airline.view_eticket'], 'completed')
+        self.assertEqual((progress['completed'], progress['tracked']), (3, 6))
 
     def test_reservation_role_uses_its_configured_booking_task(self):
         restaurant = Restaurant.objects.create(
@@ -702,15 +705,15 @@ class SessionProgressTests(CompletionTestCase):
             initial['subtitle'],
             'Track flight selection, passenger information, seat selection, payment '
             'verification, reservation confirmation, and e-ticket access.')
-        self.assertEqual(initial['required'], 4)
-        self.assertEqual((initial['tracked'], initial['completed'], initial['percent']), (4, 0, 0))
-        self.assertEqual(initial['untracked'], 2)
+        self.assertEqual(initial['required'], 6)
+        self.assertEqual((initial['tracked'], initial['completed'], initial['percent']), (6, 0, 0))
+        self.assertEqual(initial['untracked'], 0)
         self.assertFalse(initial['ready_to_mark_done'])
 
         complete_guest_booking(self.guest, assignment=assignment)
         assignment.refresh_from_db()
         done = assignment_progress_data(assignment)
-        self.assertEqual((done['completed'], done['percent']), (1, 25))
+        self.assertEqual((done['completed'], done['percent']), (1, 17))
         self.assertFalse(done['ready_to_mark_done'])
         self.assertEqual(assignment.status, SimulationRoleAssignment.AssignmentStatus.ACTIVE)
         self.assertEqual(SimulationAssignmentTaskCompletion.objects.filter(assignment=assignment).count(), 1)

@@ -951,7 +951,7 @@ def assignment_tasks_for(assignment):
             item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Passenger Information':
             item['key'] = 'passenger_airline.passenger_information'
-            item['classification'] = 'INFORMATIONAL'
+            item['completion_events'] = ['PASSENGER_INFORMATION_SAVED']
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Seat':
             item['key'] = 'passenger_airline.select_seat'
             item['completion_events'] = ['PASSENGER_SEAT_SELECTED']
@@ -963,7 +963,7 @@ def assignment_tasks_for(assignment):
             item['completion_events'] = ['RESERVATION_CONFIRMED']
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'View E-Ticket':
             item['key'] = 'passenger_airline.view_eticket'
-            item['classification'] = 'INFORMATIONAL'
+            item['completion_events'] = ['PASSENGER_ETICKET_VIEWED']
         elif (GUEST_ROLE_ALIASES.get(role_code, role_code) in GUEST_MODULES
               and item['label'] in GUEST_TASK_RULES):
             suffix, events, description = GUEST_TASK_RULES[item['label']]
@@ -987,9 +987,7 @@ def assignment_tasks_for(assignment):
                    or task['route'].endswith(':operate'))):
             item['key'] = f"{role_code.lower()}.service_fulfilment"
             item['completion_events'] = ['BOOKING_FULFILLED']
-        if item['label'] in {'Passenger Information', 'View E-Ticket'}:
-            item['classification'] = 'INFORMATIONAL'
-        elif not item.get('completion_events') and item['label'].startswith('Manage '):
+        if not item.get('completion_events') and item['label'].startswith('Manage '):
             item['classification'] = 'REQUIRED'
         if item['classification'] != 'INFORMATIONAL' and not item.get('completion_events'):
             item['completion_events'] = [f"WORKFLOW_TASK:{item['key']}"]

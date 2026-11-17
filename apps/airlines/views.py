@@ -4324,6 +4324,13 @@ def confirm_passenger_details(request):
         return HttpResponseBadRequest(str(exc) or 'The booking details are invalid.')
 
     request.session['airlines_passenger_ticket'] = ticket
+    from simulation.completion import record_actor_task_event
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+    record_actor_task_event(
+        request.user, 'PASSENGER_INFORMATION_SAVED',
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+    )
     return redirect('airlines:passenger_payment')
 
 
@@ -4763,6 +4770,11 @@ def _confirm_database_passenger_details(request, payload, flight_id):
     )
     from simulation.completion import record_actor_task_event
     record_actor_task_event(
+        request.user, 'PASSENGER_INFORMATION_SAVED',
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=booking.booking_reference,
+    )
+    record_actor_task_event(
         request.user, 'PASSENGER_SEAT_SELECTED',
         task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
         booking_reference=booking.booking_reference,
@@ -4895,6 +4907,14 @@ def passenger_ticket(request):
     if not ticket:
         messages.info(request, 'Confirm your booking details to view the e-ticket.')
         return redirect('airlines:passenger_details')
+    from simulation.completion import record_actor_task_event
+    from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+
+    record_actor_task_event(
+        request.user, 'PASSENGER_ETICKET_VIEWED',
+        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        booking_reference=ticket.get('booking_reference', ''),
+    )
     return render(request, 'airlines/passenger_ticket.html', {'ticket': ticket})
 
 
