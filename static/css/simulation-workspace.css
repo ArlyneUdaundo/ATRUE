@@ -1353,7 +1353,7 @@ body.sim-modal-open {
     height: 100%;
     border-radius: 50% !important;
     object-fit: cover;
-    object-position: center;
+    object-position: center 38%;
     clip-path: circle(50% at 50% 50%) !important;
 }
 
