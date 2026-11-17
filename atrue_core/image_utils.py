@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 from django.core.exceptions import ValidationError
 
-MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
 MAX_PHOTO_UPLOAD_BYTES = MAX_IMAGE_UPLOAD_BYTES
 MAX_ESTABLISHMENT_PHOTOS = 5
 ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG'}
@@ -17,7 +17,7 @@ FORMAT_EXTENSIONS = {
     'PNG': {'.png'},
 }
 INVALID_IMAGE_MESSAGE = 'Please upload a valid JPG, JPEG, or PNG image.'
-OVERSIZED_IMAGE_MESSAGE = 'Image size must not exceed 5 MB.'
+OVERSIZED_IMAGE_MESSAGE = 'Image size must not exceed 2 MB.'
 EMPTY_IMAGE_MESSAGE = 'The selected image is empty. Please choose a different file.'
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def _validate_content(fileobj):
 
 
 def is_valid_image(fileobj):
-    """Return True when a file is a decodable JPEG/PNG within the 5 MB limit."""
+    """Return True when a file is a decodable JPEG/PNG within the 2 MB limit."""
     try:
         _validate_content(fileobj)
     except ValidationError:

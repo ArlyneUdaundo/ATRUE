@@ -215,7 +215,7 @@ class ProfilePhotoForm(forms.Form):
             'accept': '.jpg,.jpeg,.png,image/jpeg,image/png', 'data-photo-upload': '',
             'data-photo-kind': 'profile', 'data-max-count': '1',
         }),
-        help_text='JPG, JPEG, or PNG, up to 5 MB. A clear, well-lit profile photo is recommended.',
+        help_text='JPG, JPEG, or PNG, up to 2 MB. A clear, well-lit profile photo is recommended.',
         error_messages={'invalid': 'Please upload a valid JPG, JPEG, or PNG image.'},
     )
 
@@ -316,7 +316,7 @@ class UserAccountForm(forms.ModelForm):
                 'Please upload a valid JPG, JPEG, or PNG image.'
             )
             self.fields['profile_picture'].help_text = (
-                'JPG, JPEG, or PNG, up to 5 MB. Clear, well-lit profile photos are recommended.'
+                'JPG, JPEG, or PNG, up to 2 MB. Clear, well-lit profile photos are recommended.'
             )
         self.fields['contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})
         self.fields['emergency_contact_number'].widget.attrs.update({'inputmode': 'numeric', 'pattern': '[0-9]{11}', 'maxlength': 11, 'oninput': "this.value=this.value.replace(/\D/g,'')"})

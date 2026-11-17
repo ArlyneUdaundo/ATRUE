@@ -2,7 +2,9 @@
 
 import os
 from decimal import Decimal
+from pathlib import Path
 
+from PIL import Image, UnidentifiedImageError
 from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -55,8 +57,13 @@ CANCELABLE_STATUSES = (
     BookingStatus.MODIFIED,
 )
 
-PROOF_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
-PROOF_MAX_BYTES = 10 * 1024 * 1024
+PROOF_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
+PROOF_MAX_BYTES = 2 * 1024 * 1024
+PROOF_IMAGE_CONTENT_TYPES = {'image/jpeg', 'image/png'}
+PROOF_IMAGE_FORMATS = {'JPEG', 'PNG'}
+PROOF_PDF_CONTENT_TYPE = 'application/pdf'
+INVALID_PROOF_MESSAGE = 'Upload a JPG, JPEG, PNG, or PDF E-TICKET file (2 MB or smaller).'
+OVERSIZED_PROOF_MESSAGE = 'Supporting file must be 2 MB or smaller.'
 
 
 def resolve_service_booking(app_label, model_name, object_id):
@@ -281,17 +288,62 @@ def can_request_cancellation(booking, user=None):
     return pending_cancellation_request(booking) is None
 
 
+def _rewind(fileobj):
+    try:
+        fileobj.seek(0)
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
 def validate_proof(proof):
     if proof is None:
         raise ValidationError(
             'Upload proof that you own this booking, such as a valid ID or your e-ticket.')
-    name = (getattr(proof, 'name', '') or '').lower()
-    extension = os.path.splitext(name)[1]
-    if extension not in PROOF_EXTENSIONS:
-        raise ValidationError(
-            'Upload a PDF or image file (JPG, PNG, or WEBP) as proof.')
-    if getattr(proof, 'size', 0) > PROOF_MAX_BYTES:
-        raise ValidationError('The proof file must be 10 MB or smaller.')
+
+    name = getattr(proof, 'name', '') or ''
+    suffix = Path(name).suffix.lower()
+    if suffix not in PROOF_EXTENSIONS:
+        raise ValidationError(INVALID_PROOF_MESSAGE)
+
+    size = getattr(proof, 'size', None)
+    if size is not None and size > PROOF_MAX_BYTES:
+        raise ValidationError(OVERSIZED_PROOF_MESSAGE)
+    if size is not None and size <= 0:
+        raise ValidationError(INVALID_PROOF_MESSAGE)
+
+    content_type = (getattr(proof, 'content_type', '') or '').split(';', 1)[0].lower()
+
+    try:
+        if suffix == '.pdf':
+            if content_type and content_type != PROOF_PDF_CONTENT_TYPE:
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            header = proof.read(5)
+            _rewind(proof)
+            if header != b'%PDF-':
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            return
+
+        if content_type and content_type not in PROOF_IMAGE_CONTENT_TYPES:
+            raise ValidationError(INVALID_PROOF_MESSAGE)
+        with Image.open(proof) as image:
+            if image.format not in PROOF_IMAGE_FORMATS:
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            image.verify()
+        _rewind(proof)
+        with Image.open(proof) as image:
+            if image.format not in PROOF_IMAGE_FORMATS:
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            if image.format == 'JPEG' and suffix not in {'.jpg', '.jpeg'}:
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            if image.format == 'PNG' and suffix != '.png':
+                raise ValidationError(INVALID_PROOF_MESSAGE)
+            image.load()
+    except ValidationError:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
+        raise ValidationError(INVALID_PROOF_MESSAGE) from None
+    finally:
+        _rewind(proof)
 
 
 def request_cancellation(booking, user, *, reason, proof, proof_type):

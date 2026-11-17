@@ -30,8 +30,8 @@
     <p class="meta">
         To protect the account owner, every cancellation or refund request must
         include proof of ownership. Upload a valid government-issued ID, your
-        e-ticket or booking voucher, or proof of payment. Files must be a PDF or
-        image (JPG, PNG, WEBP) and no larger than 10 MB.
+        e-ticket or booking voucher, or proof of payment. Files must be JPG, JPEG,
+        PNG, or PDF E-TICKET and no larger than 2 MB.
     </p>
 
     {% if pending_cancellation %}
@@ -92,7 +92,9 @@
             <div class="form-group">
                 <label for="proof-file">Proof file <span class="req">*</span></label>
                 <input id="proof-file" type="file" name="proof" class="form-input"
-                       accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+                       accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                <p class="meta" id="proof-file-name" style="margin:6px 0 0">No file selected.</p>
+                <p class="meta" id="proof-file-error" style="margin:6px 0 0;color:#dc2626" role="alert" hidden></p>
             </div>
         </div>
         <p class="meta">

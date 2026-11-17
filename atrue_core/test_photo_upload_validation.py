@@ -52,11 +52,11 @@ class PhotoUploadValidationTests(unittest.TestCase):
             raised.exception.messages,
         )
 
-    def test_rejects_file_over_5_mb_before_decoding(self):
+    def test_rejects_file_over_2_mb_before_decoding(self):
         with self.assertRaises(ValidationError) as raised:
             validate_image_upload(OversizedUpload())
         self.assertIn(
-            'Image size must not exceed 5 MB.', raised.exception.messages)
+            'Image size must not exceed 2 MB.', raised.exception.messages)
 
     def test_enforces_five_photo_limit_and_allows_slots_freed_by_removal(self):
         with self.assertRaises(ValidationError) as raised:

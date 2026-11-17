@@ -191,7 +191,7 @@
         </div>
         <p class="meta">
             Upload proof that you own this booking, such as a valid ID or your
-            e-ticket. Accepted files: PDF, JPG, PNG, or WEBP up to 10 MB.
+            e-ticket. Accepted files: JPG, JPEG, PNG, or PDF E-TICKET up to 2 MB.
         </p>
         <div class="form-grid">
             <div class="form-group">
@@ -207,13 +207,42 @@
             <div class="form-group">
                 <label for="cancel-proof">Proof file <span class="req">*</span></label>
                 <input id="cancel-proof" type="file" name="proof" class="form-input"
-                       accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+                       accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                <p class="meta" id="cancel-proof-name" style="margin:6px 0 0">No file selected.</p>
+                <p class="meta" id="cancel-proof-error" style="margin:6px 0 0;color:#dc2626" role="alert" hidden></p>
             </div>
         </div>
         <button type="submit" class="btn btn-danger btn-sm">
             <i class="fas fa-paper-plane"></i> Submit Cancellation Request
         </button>
     </form>
+    <script>
+    (() => {
+      const input = document.getElementById('cancel-proof');
+      if (!input) return;
+      const nameEl = document.getElementById('cancel-proof-name');
+      const errEl = document.getElementById('cancel-proof-error');
+      const max = 2 * 1024 * 1024;
+      const allowed = /\.(jpe?g|png|pdf)$/i;
+      const msg = 'Upload a JPG, JPEG, PNG, or PDF E-TICKET file (2 MB or smaller).';
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) {
+          nameEl.textContent = 'No file selected.';
+          errEl.hidden = true; errEl.textContent = ''; input.setCustomValidity('');
+          return;
+        }
+        nameEl.textContent = `Selected: ${file.name}`;
+        let error = '';
+        if (!allowed.test(file.name) || file.size > max || file.size <= 0) error = msg;
+        errEl.textContent = error; errEl.hidden = !error;
+        input.setCustomValidity(error);
+      });
+      input.form && input.form.addEventListener('submit', (e) => {
+        if (input.validationMessage) { e.preventDefault(); errEl.hidden = false; errEl.textContent = input.validationMessage; }
+      });
+    })();
+    </script>
 </div>
 {% endif %}
 

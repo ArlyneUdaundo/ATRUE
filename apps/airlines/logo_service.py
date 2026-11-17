@@ -22,7 +22,7 @@ from .models import Airline, AirlinePhoto
 logger = logging.getLogger(__name__)
 
 USER_AGENT = 'ATRUE-Flight-Management/1.0 (airline logo storage)'
-MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024
+MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 COMMONS_API = 'https://commons.wikimedia.org/w/api.php'

@@ -1209,7 +1209,7 @@ class ProfilePhotoUploadTests(TestCase):
 
     def test_an_oversized_photo_is_rejected(self):
         # Use a realistic large JPEG and lower the helper limit for this test so
-        # the actual oversize path is exercised without allocating 5 MB.
+        # the actual oversize path is exercised without allocating 2 MB.
         from PIL import Image
         from unittest.mock import patch
 
@@ -1221,7 +1221,7 @@ class ProfilePhotoUploadTests(TestCase):
         with patch('atrue_core.image_utils.MAX_PHOTO_UPLOAD_BYTES', 100):
             response = self.client.post(self.detail_url, {'profile_picture': oversized})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Image size must not exceed 5 MB.')
+        self.assertContains(response, 'Image size must not exceed 2 MB.')
         self.user.refresh_from_db()
         self.assertFalse(self.user.profile_picture)
 

@@ -1,10 +1,10 @@
 (() => {
   'use strict';
 
-  const MAX_BYTES = 5 * 1024 * 1024;
+  const MAX_BYTES = 2 * 1024 * 1024;
   const MAX_PHOTOS = 5;
   const INVALID_MESSAGE = 'Please upload a valid JPG, JPEG, or PNG image.';
-  const OVERSIZED_MESSAGE = 'Image size must not exceed 5 MB.';
+  const OVERSIZED_MESSAGE = 'Image size must not exceed 2 MB.';
   const EMPTY_MESSAGE = 'The selected image is empty. Please choose a different file.';
   const JPEG_EXTENSION = /\.jpe?g$/i;
   const PNG_EXTENSION = /\.png$/i;
