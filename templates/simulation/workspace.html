@@ -381,7 +381,7 @@
                             <div class="meta"><i class="fas fa-calendar-day"></i> {{ r.session.session_date|date:"M d, Y" }}{% if r.session.start_time and r.session.end_time %} · {{ r.session.start_time|time:"g:i A" }} – {{ r.session.end_time|time:"g:i A" }}{% endif %}</div>
                         {% endif %}
                         <div class="meta"><i class="fas fa-calendar"></i> Assigned {{ r.assigned_at|date:"M d, Y H:i" }}</div>
-                        {% if r.status == 'ACTIVE' and r.task_window.state == 'upcoming' %}<div class="meta"><i class="fas fa-clock"></i> {{ r.task_window.message }}</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'expired' %}<div class="meta"><i class="fas fa-clock"></i> Session ended; you can still continue this assigned task.</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'unconfigured' %}<div class="meta"><i class="fas fa-clock"></i> Session schedule required.</div>{% endif %}
+                        {% if r.status == 'ACTIVE' and r.task_window.state == 'upcoming' %}<div class="meta"><i class="fas fa-clock"></i> {{ r.task_window.message }}</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'expired' %}<div class="meta"><i class="fas fa-clock"></i> This session has ended.</div>{% elif r.status == 'ACTIVE' and r.task_window.state == 'unconfigured' %}<div class="meta"><i class="fas fa-clock"></i> Session schedule required.</div>{% endif %}
                     </div>
                     <div class="scard-foot">
                         <div class="simulation-role-actions">

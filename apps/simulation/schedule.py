@@ -46,7 +46,9 @@ def session_window_for(session, now=None):
             f'start time. Scheduled start time: {display_start}.')
     elif now >= end_at:
         state = 'expired'
-        message = 'This session has ended. You can still continue your assigned task.'
+        message = (
+            'This session has ended. Access to your assigned task is no longer '
+            'available.')
     else:
         state = 'available'
         message = (
@@ -55,7 +57,7 @@ def session_window_for(session, now=None):
 
     return {
         'state': state,
-        'can_start': state in {'available', 'expired'},
+        'can_start': state == 'available',
         'start_at': start_at.isoformat(),
         'end_at': end_at.isoformat(),
         'server_now': now.isoformat(),

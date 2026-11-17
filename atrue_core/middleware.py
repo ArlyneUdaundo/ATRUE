@@ -142,6 +142,14 @@ class PaymentMethodValidationMiddleware:
 class SimulationTaskScheduleMiddleware:
     """Enforce an assignment's time window before any task view runs."""
 
+    # Expired guest sessions must not keep users from browsing the public
+    # hotel/restaurant catalogues. Booking and task routes remain time-gated.
+    EXPIRED_SESSION_BROWSE_ROUTES = frozenset({
+        'hotels:list',
+        'restaurants:list',
+        'restaurants:detail',
+    })
+
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -212,10 +220,22 @@ class SimulationTaskScheduleMiddleware:
         # legitimate path; otherwise use the matching scheduled assignment.
         windows = [(assignment, task_window_for(assignment))
                    for assignment in assignments]
-        if len(windows) == 1 and windows[0][1]['state'] == 'expired':
-            request.session[TASK_ASSIGNMENT_SESSION_KEY] = windows[0][0].pk
+        if (route_name in self.EXPIRED_SESSION_BROWSE_ROUTES
+                and windows
+                and all(window['state'] == 'expired' for _assignment, window in windows)):
+            # Drop this tab's expired task context for a normal, read-only
+            # catalogue visit. Other task routes still match the assignment
+            # and are rejected by the schedule gate below.
+            matched_ids = {assignment.pk for assignment, _window in windows}
+            if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) in matched_ids:
+                request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
+            active_assignment = getattr(request, 'active_simulation_assignment', None)
+            if active_assignment and active_assignment.pk in matched_ids:
+                del request.active_simulation_assignment
+            return None
+
         blocked = [(assignment, window) for assignment, window in windows
-                   if window['state'] in {'upcoming', 'unconfigured'}]
+                   if window['state'] in {'upcoming', 'expired', 'unconfigured'}]
         ambiguous = route_name != 'simulation:do_task' and len(assignments) > 1
         if not ambiguous and (not blocked or any(
                 window['state'] in {'available', 'unscheduled'}
@@ -229,7 +249,7 @@ class SimulationTaskScheduleMiddleware:
         else:
             assignment, window = assignments[0], windows[0][1]
         request.simulation_task_schedule_blocked = True
-        if (window['state'] == 'unconfigured'
+        if (window['state'] in {'expired', 'unconfigured'}
                 and request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk):
             request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
         if ambiguous and not blocked:

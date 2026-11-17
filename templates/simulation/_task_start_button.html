@@ -12,7 +12,7 @@
         data-task-ready-label="{% if task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}"
         {% if not task_window.can_start %}disabled{% endif %}>
         <i class="fas fa-play"></i>
-        <span data-task-window-label>{% if task_window.state == 'upcoming' %}Scheduled{% elif task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</span>
+        <span data-task-window-label>{% if task_window.state == 'upcoming' %}Scheduled{% elif task_window.state == 'expired' %}Time Ended{% elif task_assignment.started_at %}Resume Task{% else %}Do the Task{% endif %}</span>
     </button>
     {% endif %}
 {% endif %}

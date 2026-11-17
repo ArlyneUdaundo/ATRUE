@@ -157,7 +157,7 @@ def do_task(request, assignment_id):
         return redirect('simulation:workspace')
 
     task_window = task_window_for(assignment)
-    if task_window['state'] in {'upcoming', 'unconfigured'}:
+    if task_window['state'] in {'upcoming', 'expired', 'unconfigured'}:
         if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
             request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
         messages.warning(request, task_window['message'])
@@ -177,7 +177,7 @@ def do_task(request, assignment_id):
             status=SimulationRoleAssignment.AssignmentStatus.ACTIVE,
         )
         task_window = task_window_for(assignment)
-        if task_window['state'] in {'upcoming', 'unconfigured'}:
+        if task_window['state'] in {'upcoming', 'expired', 'unconfigured'}:
             if request.session.get(TASK_ASSIGNMENT_SESSION_KEY) == assignment.pk:
                 request.session.pop(TASK_ASSIGNMENT_SESSION_KEY, None)
             messages.warning(request, task_window['message'])
@@ -1079,7 +1079,7 @@ def assignment_progress_data(assignment):
                     completed_required += 1
         base_state = state
         if completion is None and task_window['state'] in {
-                'upcoming', 'unconfigured'}:
+                'upcoming', 'expired', 'unconfigured'}:
             state = task_window['state']
         rendered.append({
             'key': task['key'], 'label': task['label'],
@@ -1098,13 +1098,15 @@ def assignment_progress_data(assignment):
         state = 'done'
     elif task_window['state'] == 'upcoming':
         state = 'upcoming'
+    elif task_window['state'] == 'expired':
+        state = 'expired'
     elif task_window['state'] == 'unconfigured':
         state = 'unconfigured'
     elif is_complete:
         state = 'complete'
     elif any(item['state'] == 'awaiting' for item in rendered):
         state = 'awaiting'
-    elif task_window['state'] in {'available', 'expired'} and task_window['start_at']:
+    elif task_window['state'] == 'available' and task_window['start_at']:
         state = 'in_progress' if assignment.started_at else 'not_started'
     elif tracked:
         state = 'in_progress'
@@ -2020,6 +2022,8 @@ def role_detail(request, assignment_id):
         task_status = assignment.get_status_display()
     elif task_window['state'] == 'upcoming':
         task_status = 'Upcoming'
+    elif task_window['state'] == 'expired':
+        task_status = 'Expired'
     elif task_window['state'] == 'unconfigured':
         task_status = 'Schedule Required'
     elif assignment.started_at:

@@ -29,8 +29,8 @@
         button.disabled = true;
         label.textContent = 'Upcoming';
       } else if (now >= end) {
-        button.disabled = false;
-        label.textContent = button.dataset.taskReadyLabel || 'Do the Task';
+        button.disabled = true;
+        label.textContent = 'Time Ended';
         return;
       } else {
         button.disabled = false;
@@ -77,7 +77,8 @@
         var taskStatus = task.querySelector('.sim-task-status');
         var baseState = task.dataset.taskBaseState;
         if (!taskStatus || ['completed', 'failed', 'cancelled'].includes(baseState)) return;
-        var displayState = state === 'upcoming' ? 'upcoming' : baseState;
+        var displayState = state === 'upcoming' ? 'upcoming'
+          : state === 'expired' ? 'expired' : baseState;
         task.classList.remove('sim-task--upcoming', 'sim-task--expired');
         task.classList.add('sim-task--' + displayState);
         taskStatus.textContent = displayState === 'upcoming' ? 'Upcoming'
