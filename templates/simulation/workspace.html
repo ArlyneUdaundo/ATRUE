@@ -336,7 +336,7 @@
                                 {% csrf_token %}<input type="hidden" name="open_assignment_editor" value="1"><button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
                             </form>
                             {% elif row.assignment.status == 'DONE' %}
-                            <form method="post" action="{% url 'simulation:reactivate' row.assignment.id %}" style="display:inline">
+                            <form method="post" action="{% url 'simulation:reactivate' row.assignment.id %}" data-reactivate-role data-session-id="{{ session.id }}" data-student-id="{{ row.student.id }}" data-assignment-endpoint="{% url 'simulation:session_assignment' session.id %}" style="display:inline">
                                 {% csrf_token %}<input type="hidden" name="open_assignment_editor" value="1"><button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button>
                             </form>
                             {% endif %}
@@ -1379,6 +1379,14 @@
 
         row.dataset.roleDisplay = assignment.role_display || '';
         row.dataset.studentStatus = assignment.status || '';
+        var rowStatus = row.querySelector('.simulation-student-status');
+        if (rowStatus) {
+            rowStatus.textContent = assignment.status === 'DONE'
+                ? 'Assigned role as done'
+                : assignment.status === 'ACTIVE' ? 'Role assigned' : assignment.status_display;
+        }
+        var rowName = row.querySelector('.simulation-student-name');
+        if (rowName) applyStudentHeader(row, rowName.textContent.trim());
         studentDetails.querySelector('.simulation-student-role-value').innerHTML = '<span class="badge '
             + statusClass(assignment.status) + '">' + escapeHtml(assignment.role_display) + '</span>';
         studentDetails.querySelector('.simulation-student-activity-value').textContent = assignment.activity_name || 'Not assigned';
@@ -1429,7 +1437,10 @@
                     + '<input type="hidden" name="open_assignment_editor" value="1">'
                     + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
             } else if (assignment.status === 'DONE') {
-                html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" style="display:inline">'
+                html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" data-reactivate-role'
+                    + ' data-session-id="' + escapeHtml(currentSessionId) + '"'
+                    + ' data-student-id="' + escapeHtml(currentStudentId) + '"'
+                    + ' data-assignment-endpoint="' + escapeHtml(endpoint) + '" style="display:inline">'
                     + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
                     + '<input type="hidden" name="open_assignment_editor" value="1">'
                     + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button></form>';
@@ -1520,6 +1531,52 @@
     roleSelect.addEventListener('change', function () {
         fillEstablishments('');
         updateRepeat();
+    });
+
+    document.addEventListener('submit', function (event) {
+        var reactivateForm = event.target.closest('form[data-reactivate-role]');
+        if (!reactivateForm || !studentModal || studentModal.hidden || !studentDetailsNode) return;
+        event.preventDefault();
+        if (reactivateForm.dataset.pending === '1') return;
+
+        var reactivateButton = reactivateForm.querySelector('button[type="submit"]');
+        reactivateForm.dataset.pending = '1';
+        if (reactivateButton) {
+            reactivateButton.disabled = true;
+            reactivateButton.setAttribute('aria-busy', 'true');
+        }
+
+        fetch(reactivateForm.action, {
+            method: 'POST',
+            body: new FormData(reactivateForm),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (response) {
+            return response.text().then(function (body) {
+                var data = null;
+                try { data = body ? JSON.parse(body) : null; } catch (error) {}
+                return { ok: response.ok, status: response.status, data: data };
+            });
+        }).then(function (result) {
+            if (!result.ok || !result.data || !result.data.ok || !result.data.assignment) {
+                throw new Error(result.data && result.data.message
+                    ? result.data.message : 'Could not reactivate this assignment. Please try again.');
+            }
+            currentSessionId = reactivateForm.dataset.sessionId || currentSessionId;
+            currentStudentId = reactivateForm.dataset.studentId || currentStudentId;
+            form.setAttribute('action', reactivateForm.dataset.assignmentEndpoint);
+            renderRow(result.data.assignment);
+            var editButton = studentDetailsNode.querySelector('.js-assignment-open');
+            if (!editButton) throw new Error('The assignment editor could not be opened. Please refresh and try again.');
+            open(editButton);
+        }).catch(function (error) {
+            reactivateForm.dataset.pending = '';
+            if (reactivateButton) {
+                reactivateButton.disabled = false;
+                reactivateButton.removeAttribute('aria-busy');
+            }
+            window.alert(error.message || 'Could not reactivate this assignment. Please try again.');
+        });
     });
 
     document.addEventListener('click', function (event) {
