@@ -57,7 +57,15 @@ def _notify_assignment(assignment, actor, *, modified=False):
 
 def _notify_assignment_ended(assignment, actor):
     from notifications.services import notify_role_assignment
-    notify_role_assignment(assignment, actor, removed=True)
+    try:
+        notify_role_assignment(assignment, actor, removed=True)
+    except Exception:
+        # Ending an assignment must still succeed if its notification cannot
+        # be saved; the status update and audit log are the primary operation.
+        logger.exception(
+            'Could not notify student %s about ended assignment %s',
+            assignment.student_id, assignment.pk,
+        )
 
 
 def _is_instructor(user):
@@ -1551,7 +1559,6 @@ def unassign_role(request, assignment_id):
         assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
         assignment.completed_at = timezone.now()
         assignment.save(update_fields=['status', 'completed_at'])
-        _notify_assignment_ended(assignment, request.user)
         log_activity(
             request.user,
             'Marked simulation role as done',
@@ -1560,6 +1567,7 @@ def unassign_role(request, assignment_id):
             session=assignment.session,
         )
 
+    _notify_assignment_ended(assignment, request.user)
     messages.success(request, 'Role marked as done.')
     if is_ajax:
         return JsonResponse({
