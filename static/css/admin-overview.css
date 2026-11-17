@@ -199,7 +199,7 @@
 }
 
 @media (max-width: 600px) {
-    .admin-overview { margin: -24px calc(var(--shell-pad, 16px) * -1); padding: 20px var(--shell-pad, 16px) 24px; }
+    .admin-overview { margin: -24px -12px; padding: 20px 12px 24px; }
     .admin-overview .admin-overview-head { align-items: flex-start; justify-content: flex-start; min-height: 0; margin-top: 0; padding: 0 2px 16px; border-radius: 0; }
     .admin-overview .admin-overview-mark { flex-basis: 48px; width: 48px; height: 48px; border-radius: 13px; font-size: 21px; }
     .admin-overview .admin-overview-head h1 { font-size: 23px; }
@@ -213,4 +213,8 @@
     .admin-overview .ao-list-row,
     .admin-overview .ao-role-row { gap: 9px; padding: 11px 13px; }
     .admin-overview .ao-list-row > .badge { max-width: 105px; white-space: normal; text-align: center; }
+}
+
+@media (max-width: 420px) {
+    .admin-overview { margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
 }
