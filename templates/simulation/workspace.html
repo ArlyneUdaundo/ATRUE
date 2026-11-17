@@ -333,7 +333,7 @@
                                 data-end="{{ session.end_time|time:'H:i' }}"><i class="fas fa-pen"></i> Edit Assignment</button>{% endif %}
                             {% if row.assignment.status == 'ACTIVE' %}
                             <form method="post" action="{% url 'simulation:unassign' row.assignment.id %}" data-mark-role-done style="display:inline">
-                                {% csrf_token %}<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
+                                {% csrf_token %}<input type="hidden" name="open_assignment_editor" value="1"><button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button>
                             </form>
                             {% elif row.assignment.status == 'DONE' %}
                             <form method="post" action="{% url 'simulation:reactivate' row.assignment.id %}" style="display:inline">
@@ -1426,6 +1426,7 @@
             if (assignment.status === 'ACTIVE') {
                 html += ' <form method="post" action="' + escapeHtml(assignment.unassign_url) + '" data-mark-role-done style="display:inline">'
                     + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(csrfInput.value) + '">'
+                    + '<input type="hidden" name="open_assignment_editor" value="1">'
                     + '<button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-circle-check"></i> Mark as Done</button></form>';
             } else if (assignment.status === 'DONE') {
                 html += ' <form method="post" action="' + escapeHtml(assignment.reactivate_url) + '" style="display:inline">'

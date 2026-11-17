@@ -830,9 +830,8 @@ def _attach_session_student_rows(sessions, students):
     The session page shows the whole class: a student with no assignment in a
     session still gets a row labelled "No role assigned" so the instructor can
     place them. A student may hold more than one role in the same session (the
-    assign form allows a deliberate re-run), so the row shows the most
-    significant assignment -- a live one beats a finished one, and the most
-    recent wins a tie -- and notes how many others sit behind it.
+    assign form allows a deliberate re-run), so the row shows the most recently
+    updated assignment and notes how many others sit behind it.
     """
     sessions = list(sessions)
     students = list(students)
@@ -849,18 +848,14 @@ def _attach_session_student_rows(sessions, students):
             .filter(session__in=sessions)
             .select_related('establishment', 'hotel', 'role_ref')
             .prefetch_related('task_completions')
-            .order_by('assigned_at', 'pk')
+            .order_by('updated_at', 'assigned_at', 'pk')
         )
-        priority = {'ACTIVE': 3, 'DONE': 2, 'INACTIVE': 1}
         for assignment in assignments:
             key = (assignment.session_id, assignment.student_id)
             counts[key] = counts.get(key, 0) + 1
             session_assignments.setdefault(assignment.session_id, []).append(assignment)
-            current = by_session.setdefault(assignment.session_id, {}).get(assignment.student_id)
-            if (current is None
-                    or priority.get(assignment.status, 0)
-                    >= priority.get(current.status, 0)):
-                by_session[assignment.session_id][assignment.student_id] = assignment
+            by_session.setdefault(assignment.session_id, {})[
+                assignment.student_id] = assignment
     for session in sessions:
         bucket = by_session.get(session.pk, {})
         session_assignments_for_card = session_assignments.get(session.pk, [])
@@ -1559,7 +1554,7 @@ def unassign_role(request, assignment_id):
 
         assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
         assignment.completed_at = timezone.now()
-        assignment.save(update_fields=['status', 'completed_at'])
+        assignment.save(update_fields=['status', 'completed_at', 'updated_at'])
         log_activity(
             request.user,
             'Marked simulation role as done',
@@ -1601,7 +1596,7 @@ def reactivate_role(request, assignment_id):
             return redirect('simulation:role_detail', assignment_id=assignment_id)
         assignment.status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
         assignment.completed_at = None
-        assignment.save(update_fields=['status', 'completed_at'])
+        assignment.save(update_fields=['status', 'completed_at', 'updated_at'])
         _notify_assignment(assignment, request.user, modified=True)
         log_activity(
             request.user,
@@ -1912,13 +1907,8 @@ def session_student_progress(request, session_id, student_id):
     assignment = SimulationRoleAssignment.objects.filter(
         session=session, student_id=student_id,
     ).select_related('role_ref').prefetch_related('task_completions').order_by(
-        'assigned_at', 'pk')
-    priority = {'ACTIVE': 3, 'DONE': 2, 'INACTIVE': 1}
-    selected = None
-    for candidate in assignment:
-        if selected is None or priority.get(candidate.status, 0) >= priority.get(selected.status, 0):
-            selected = candidate
-    return JsonResponse({'ok': True, 'progress': assignment_progress_data(selected)})
+        '-updated_at', '-assigned_at', '-pk').first()
+    return JsonResponse({'ok': True, 'progress': assignment_progress_data(assignment)})
 
 
 @login_required
