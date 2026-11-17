@@ -967,6 +967,10 @@ class Flight(models.Model):
     premium_economy_fare = models.DecimalField(max_digits=10, decimal_places=2, default=0,
                                                verbose_name="Premium economy fare (₱)")
     economy_fare = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    seat_type_prices = models.JSONField(
+        default=dict, blank=True,
+        help_text="Per-flight seat type prices keyed by seat type code. "
+                  "Blank types use the aircraft layout's configured price.")
     baggage_rate = models.DecimalField(max_digits=10, decimal_places=2,
                                        verbose_name="Baggage rate per 5 kg (₱)",
                                        help_text="Charge for each 5 kg block of extra baggage",

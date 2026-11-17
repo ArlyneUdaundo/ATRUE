@@ -295,8 +295,16 @@ def _seat_map(flight, segment=TripSegment.DEPARTURE):
     price a cabin without knowing which field the fare lives in.
     """
     seat_map = build_seat_map(flight, _booked_seat_numbers(flight, segment))
+    flight_prices = getattr(flight, 'seat_type_prices', {}) or {}
     for cabin in seat_map['cabins']:
         cabin['fare'] = flight.fare_for(cabin['key'])
+        for row in cabin.get('rows', []):
+            for block in row.get('blocks', []):
+                for seat in block.get('cols', []):
+                    code = seat.get('seat_type')
+                    if (seat.get('seat') and seat.get('price_override') is None
+                            and code in flight_prices):
+                        seat['price'] = Decimal(str(flight_prices[code]))
     return seat_map
 
 
@@ -2280,9 +2288,45 @@ def _active_airlines_unique_names():
     return unique
 
 
+def _posted_seat_type_prices(request, prefix, errors):
+    """Read optional per-flight prices for known seat types."""
+    prices = {}
+    max_price = Decimal('99999999.99')
+    for seat_type in SeatType.objects.all():
+        raw = (request.POST.get(f'{prefix}seat_type_price_{seat_type.code}')
+               or '').strip().replace(',', '')
+        if not raw:
+            continue
+        try:
+            price = Decimal(raw)
+            if not price.is_finite() or price < 0 or price > max_price:
+                raise InvalidOperation
+        except (InvalidOperation, TypeError, ValueError):
+            errors.append(
+                f"Enter a valid non-negative price for {seat_type.name} seats.")
+            continue
+        prices[seat_type.code] = format(price.quantize(Decimal('0.01')), 'f')
+    return prices
+
+
+def _seat_type_price_rows(seat_types, flight=None, posted_data=None, prefix=''):
+    """Build flight-form fields while preserving posted or saved prices."""
+    existing = getattr(flight, 'seat_type_prices', {}) or {}
+    rows = []
+    for seat_type in seat_types:
+        field_name = f'{prefix}seat_type_price_{seat_type.code}'
+        value = (posted_data.get(field_name, existing.get(seat_type.code, ''))
+                 if posted_data is not None
+                 else existing.get(seat_type.code, ''))
+        rows.append({'seat_type': seat_type, 'field_name': field_name,
+                     'value': value})
+    return rows
+
+
 def _flight_form_context(airline=None, flight=None, airline_fixed=False,
                          aircraft_type=None, return_aircraft_type=None,
-                         trip_type=None, flight_classification=None):
+                         trip_type=None, flight_classification=None,
+                         posted_data=None):
     """Context for the flight form, scoped to the chosen airline's fleet.
 
     The aircraft list is the airline's own — an Emirates airframe can never be
@@ -2321,6 +2365,7 @@ def _flight_form_context(airline=None, flight=None, airline_fixed=False,
         aircrafts = airline.aircrafts.filter(keep)
     layouts = _fleet_layouts(airline)
     types = [t for t in _fleet_types(airline) if t.pk in layouts]
+    seat_types = list(SeatType.objects.all().order_by('name'))
     return {
         'airline': airline,
         'airline_fixed': airline_fixed,
@@ -2336,6 +2381,12 @@ def _flight_form_context(airline=None, flight=None, airline_fixed=False,
         'flight_classification': flight_classification,
         'flight': flight,
         'return_leg': return_leg,
+        'seat_types': seat_types,
+        'outbound_seat_price_rows': _seat_type_price_rows(
+            seat_types, flight=flight, posted_data=posted_data),
+        'return_seat_price_rows': _seat_type_price_rows(
+            seat_types, flight=return_leg, posted_data=posted_data,
+            prefix='return_'),
         'default_baggage_rate': DEFAULT_BAGGAGE_RATE,
     }
 
@@ -2459,6 +2510,8 @@ def _resolve_leg(request, airline, prefix='', label='Departure',
         'destination_airport': destination_airport,
         'departure_time': departure,
         'arrival_time': arrival,
+        'seat_type_prices': _posted_seat_type_prices(
+            request, prefix, errors),
     }
     if origin_airport and destination_airport:
         origin = _airport_endpoint_payload(origin_airport)
@@ -2764,6 +2817,8 @@ def _resolve_itinerary_leg(request, airline, index, label, exclude_flight_id=Non
             request, _segment_key(index, 'premium_economy_fare')),
         'economy_fare': _posted_decimal(
             request, _segment_key(index, 'economy_fare')),
+        'seat_type_prices': _posted_seat_type_prices(
+            request, _segment_key(index, ''), errors),
     }
     if origin_airport and destination_airport:
         origin = _airport_endpoint_payload(origin_airport)
@@ -3096,6 +3151,7 @@ def _itinerary_form_context(airline=None, itinerary=None, legs=None):
     rejected = bool(legs) and isinstance(legs[0], dict)
     timing = {'legs': []} if rejected else itinerary_timing(legs)
     by_pk = {leg.pk: entry for leg, entry in zip(legs, timing['legs'])}
+    seat_types = list(SeatType.objects.all().order_by('name'))
     leg_fields = []
     for position, leg in enumerate(legs):
         entry = by_pk.get(getattr(leg, 'pk', None), {})
@@ -3110,7 +3166,7 @@ def _itinerary_form_context(airline=None, itinerary=None, legs=None):
             origin = leg.origin_airport if leg.origin_airport_id else None
             destination = leg.destination_airport if leg.destination_airport_id else None
             aircraft_id, leg_id = leg.aircraft_id or '', leg.pk
-        leg_fields.append({
+        fields = {
             'id': leg_id,
             'flight_number': leg['flight_number'] if rejected else (leg.flight_number or ''),
             'aircraft': aircraft_id,
@@ -3137,7 +3193,13 @@ def _itinerary_form_context(airline=None, itinerary=None, legs=None):
             'premium_economy_fare': str(_leg_number(leg, rejected, 'premium_economy_fare')),
             'business_fare': str(_leg_number(leg, rejected, 'business_fare')),
             'first_class_fare': str(_leg_number(leg, rejected, 'first_class_fare')),
-        })
+        }
+        saved_prices = (leg.get('seat_type_prices', {}) if rejected
+                        else getattr(leg, 'seat_type_prices', {})) or {}
+        for seat_type in seat_types:
+            fields[f'seat_type_price_{seat_type.code}'] = saved_prices.get(
+                seat_type.code, '')
+        leg_fields.append(fields)
     active_airlines = _active_airlines_unique_names()
     return {
         'airline': airline,
@@ -3525,7 +3587,8 @@ def _add_itinerary(request, airline, airline_fixed=False):
 
     context = _flight_form_context(
         airline=airline, airline_fixed=airline_fixed,
-        flight_classification=posted_classification)
+        flight_classification=posted_classification,
+        posted_data=request.POST if request.method == 'POST' else None)
     context.update(_itinerary_form_context(airline=airline, legs=posted_legs))
     context['flight_type'] = FlightItinerary.FlightType.CONNECTING
     return render(request, 'airlines/flight_form.html', context)
@@ -3669,7 +3732,8 @@ def add_flight(request, airline_id=None):
                                        aircraft_type=aircraft_type,
                                        return_aircraft_type=return_aircraft_type,
                                        trip_type=posted_trip_type or trip_type,
-                                       flight_classification=posted_classification))
+                                       flight_classification=posted_classification,
+                                       posted_data=request.POST if request.method == 'POST' else None))
 
 
 @manager_required
@@ -3778,7 +3842,8 @@ def update_flight(request, flight_id):
     return render(request, 'airlines/flight_form.html',
                   _flight_form_context(flight=flight, aircraft_type=aircraft_type,
                                        return_aircraft_type=return_aircraft_type,
-                                       flight_classification=posted_classification))
+                                       flight_classification=posted_classification,
+                                       posted_data=request.POST if request.method == 'POST' else None))
 
 
 def _passenger_profile(user):

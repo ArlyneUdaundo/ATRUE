@@ -252,6 +252,7 @@ def build_seat_map(flight, taken=()):
                             'seat_type_label': seat_type_label,
                             'color': seat.get('seat_type__color') or '',
                             'price': price,
+                            'price_override': override,
                         })
                     seat_at += 1
                 blocks.append({'width': block_width, 'cols': cols})

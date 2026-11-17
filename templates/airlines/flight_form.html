@@ -265,6 +265,33 @@
         </div>
     </div>
 
+    <div class="card card-pad" style="margin:12px 0;padding:16px">
+        <h4 style="margin:0 0 5px">Seat Type Prices (₱ per seat)</h4>
+        <p class="meta" style="margin:0 0 12px">These prices apply only to this flight and are added automatically when a passenger selects a seat. Leave a price blank to use the aircraft seat layout's default.</p>
+        <div class="form-grid">
+            {% for price_row in outbound_seat_price_rows %}
+            <div class="form-group">
+                <label>{{ price_row.seat_type.name }} · Outbound</label>
+                <input type="number" name="{{ price_row.field_name }}" step="0.01" min="0" class="form-input" value="{{ price_row.value }}" placeholder="Use layout default">
+                <span class="meta">Layout default: ₱{{ price_row.seat_type.default_price|floatformat:2 }}</span>
+            </div>
+            {% if trip_type == 'ROUND_TRIP' %}
+            {% for return_price_row in return_seat_price_rows %}
+            {% if return_price_row.seat_type.code == price_row.seat_type.code %}
+            <div class="form-group">
+                <label>{{ price_row.seat_type.name }} · Return</label>
+                <input type="number" name="{{ return_price_row.field_name }}" step="0.01" min="0" class="form-input" value="{{ return_price_row.value }}" placeholder="Use layout default">
+                <span class="meta">Layout default: ₱{{ return_price_row.seat_type.default_price|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% empty %}
+            <p class="meta">No seat types are configured yet. Configure seat types in the aircraft seat layout.</p>
+            {% endfor %}
+        </div>
+    </div>
+
     <div class="form-grid">
         <div class="form-group">
             <label>Baggage Rate (₱ / 5 kg)</label>
@@ -367,6 +394,22 @@
                         <input type="number" data-seg="first_class_fare" step="0.01" min="0" class="form-input" value="0">
                     </div>
                 </div>
+
+                <details style="margin-top:6px">
+                    <summary style="cursor:pointer;font-size:13px;color:#5b6472">Seat Type Prices (₱ per seat)</summary>
+                    <p class="meta" style="margin:8px 0">Prices apply only to this segment. Blank prices use the aircraft seat layout's default.</p>
+                    <div class="form-grid" style="margin-top:10px">
+                        {% for seat_type in seat_types %}
+                        <div class="form-group">
+                            <label>{{ seat_type.name }}</label>
+                            <input type="number" data-seg="seat_type_price_{{ seat_type.code }}" step="0.01" min="0" class="form-input" placeholder="Use layout default">
+                            <span class="meta">Layout default: ₱{{ seat_type.default_price|floatformat:2 }}</span>
+                        </div>
+                        {% empty %}
+                        <p class="meta">No seat types are configured yet.</p>
+                        {% endfor %}
+                    </div>
+                </details>
 
                 <details style="margin-top:6px">
                     <summary style="cursor:pointer;font-size:13px;color:#5b6472">Optional segment detail</summary>
