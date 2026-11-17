@@ -4032,7 +4032,8 @@ def passenger_details(request):
             for kg in (0, 5, 10, 15, 20, 25, 30)]
         fare['insurance_plans'] = pd_sample.insurance_options()
         real_map = _seat_map(flight)
-        seat_types = _customer_seat_types(real_map, currency_prefix)
+        seat_types = _flight_seat_type_prices(
+            flight, real_map, currency_prefix)
         fare['seat_types'] = seat_types or [{
             'key': 'standard', 'label': 'Standard Seat', 'price': 0,
             'price_text': f'{currency_prefix}0.00', 'color': '#ffffff'}]
