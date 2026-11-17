@@ -1,12 +1,17 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 {% load cancellation_tags %}
 
 {% block title %}Restaurant Reservation Detail{% endblock %}
 
+{% block extra_css %}
+{% if is_reservation_officer or can_process_checkin %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261117-restaurant-officer-gallery">{% endif %}
+{% endblock %}
+
 {% block content %}
-<div class="page-head">
+<div class="page-head{% if is_reservation_officer or can_process_checkin %} hbd-page-head{% endif %}">
     <div><h1>Reservation {{ booking.booking_reference }}</h1><p>Table reservation details, billing, remarks and status.</p></div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-heading-actions{% endif %}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         {% if bill and bill.balance_due > 0 and booking.customer_id == request.user.id %}<a href="{% url 'transactions:bill_detail' bill.id %}" class="btn btn-brand btn-sm">Submit Payment</a>{% endif %}
         {% if can_print_ticket %}
         {% if booking.status == 'CONFIRMED' or booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' or booking.status == 'MODIFIED' or booking.status == 'COMPLETED' %}
@@ -15,7 +20,7 @@
         <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting Restaurant Reservation Officer confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
         {% endif %}
         {% endif %}
-        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' or booking.status == 'DECLINED' or booking.status == 'REJECTED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.status }}</span>
+        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CANCELLED' or booking.status == 'DECLINED' or booking.status == 'REJECTED' %}badge-gray{% elif booking.status == 'CHECKED_IN' %}badge-blue{% else %}badge-yellow{% endif %}{% if is_reservation_officer or can_process_checkin %} hbd-status{% if booking.status == 'CONFIRMED' %} is-confirmed{% elif booking.status == 'CANCELLED' or booking.status == 'DECLINED' or booking.status == 'REJECTED' %} is-cancelled{% elif booking.status == 'CHECKED_IN' %} is-active{% else %} is-pending{% endif %}{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
     </div>
 </div>
 
@@ -38,9 +43,12 @@
 {% endif %}
 {% endif %}
 
-<div class="grid-2">
-    <div class="card card-pad">
-        <h3><i class="fas fa-chair"></i> Guest &amp; Table</h3>
+<div class="{% if is_reservation_officer or can_process_checkin %}hbd-page hbd-main-grid{% else %}grid-2{% endif %}">
+    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-panel hbd-stay-panel{% else %}card card-pad{% endif %}">
+        {% if is_reservation_officer or can_process_checkin %}
+        {% include 'restaurants/_booking_gallery.html' with restaurant=booking.table.restaurant %}
+        <div class="hbd-section-title"><i class="fas fa-chair"></i><h2>Guest &amp; Table</h2></div>
+        {% else %}<h3><i class="fas fa-chair"></i> Guest &amp; Table</h3>{% endif %}
         <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         {% if booking.contact_number %}<div class="meta">Contact: {{ booking.contact_number }}</div>{% endif %}
         <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
@@ -56,7 +64,9 @@
         {% if booking.checked_out_at %}<div class="meta"><i class="fas fa-sign-out-alt"></i> Completed: {{ booking.checked_out_at|date:"M d, Y H:i" }}</div>{% endif %}
     </div>
 
+    {% if is_reservation_officer or can_process_checkin %}<div class="hbd-billing-wrap">{% endif %}
     {% include 'transactions/_booking_billing.html' %}
+    {% if is_reservation_officer or can_process_checkin %}</div>{% endif %}
 </div>
 
 {% if booking.manager_remarks %}
@@ -154,5 +164,6 @@
 </div>
 {% endif %}
 
+{% if is_reservation_officer or can_process_checkin %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261117-restaurant-gallery" defer></script>{% endif %}
 {% cancellation_panel booking %}
 {% endblock %}

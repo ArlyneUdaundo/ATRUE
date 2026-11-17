@@ -1,0 +1,14 @@
+{% load static %}
+<div class="hbd-gallery" data-hbd-gallery aria-label="{{ restaurant.name }} restaurant photos">
+    {% for photo in restaurant.photos.all %}
+    <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:restaurant.name }}" class="hbd-gallery-image{% if forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
+    {% empty %}
+    <img src="{% static 'img/restaurant-placeholder.svg' %}" alt="{{ restaurant.name }}" class="hbd-gallery-image is-active" data-hbd-image>
+    {% endfor %}
+    <div class="hbd-gallery-label"><i class="fas fa-camera" aria-hidden="true"></i> Restaurant Photos</div>
+    {% if restaurant.photos.all|length > 1 %}
+    <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ restaurant.photos.all|length }}</div>
+    <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous restaurant photo"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+    <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next restaurant photo"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+    {% endif %}
+</div>
