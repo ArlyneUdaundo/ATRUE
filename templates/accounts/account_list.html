@@ -92,7 +92,7 @@
                         </div>
                     </td>
                     <td class="account-col-email">{{ u.email }}</td>
-                    <td class="account-col-type"><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
+                    <td class="account-col-type"><span class="badge {% if u.account_type == 'INSTRUCTOR' or u.is_platform_manager and u.account_type != 'STUDENT' %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
                     <td class="account-col-status account-status-cell"><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
                     <td class="account-col-created">{{ u.date_joined|date:"M d, Y" }}</td>
                     <td class="account-col-actions">
