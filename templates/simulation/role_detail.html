@@ -75,6 +75,7 @@
                 {% if can_manage %}
                 <form method="post" action="{% url 'simulation:reactivate' assignment.id %}">
                     {% csrf_token %}
+                    {% if assignment.session_id %}<input type="hidden" name="open_assignment_editor" value="1">{% endif %}
                     <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> Mark as Active to Edit</button>
                 </form>
                 {% endif %}
