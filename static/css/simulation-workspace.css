@@ -1340,7 +1340,9 @@ body.sim-modal-open {
     border: 2px solid #fff;
     border-radius: 50% !important;
     background: transparent;
-    box-shadow: 0 0 0 1px #fff, 0 4px 10px rgba(30, 41, 59, .14);
+    outline: 1px solid #cbd5e1;
+    outline-offset: -1px;
+    box-shadow: 0 0 0 1px #cbd5e1, 0 4px 10px rgba(30, 41, 59, .14);
     clip-path: circle(50% at 50% 50%) !important;
 }
 
