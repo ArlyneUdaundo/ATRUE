@@ -343,7 +343,7 @@ def add_session(request):
             })
 
         schedule = _parse_schedule(
-            session_date, start_time, end_time, required=True)
+            session_date, start_time, end_time, required=False)
         if isinstance(schedule, str):
             messages.error(request, schedule)
             return render(request, 'simulation/add_session.html', {
@@ -591,8 +591,8 @@ def _parse_schedule(date_str, start_str, end_str, *, required=False):
     """Validate a complete shared session schedule.
 
     Returns session model kwargs on success, or an error message string.
-    Session creation and editing require all three values; the optional mode is
-    used only while assigning into an already-existing session.
+    Session creation may omit all three values; editing and assignment require
+    a complete shared schedule before students can be assigned.
     """
     import datetime
 

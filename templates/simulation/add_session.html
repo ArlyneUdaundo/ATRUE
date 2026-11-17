@@ -12,7 +12,7 @@
     <div class="page-head session-form-page-head">
         <div>
             <h1>Add Simulation Session</h1>
-            <p>Create a session first, then add its activities and role assignments.</p>
+            <p>Create a session first, then set its schedule and add activities or role assignments.</p>
         </div>
     </div>
     <div class="card card-pad">
@@ -26,20 +26,6 @@
             <div class="form-group">
                 <label for="sessionDescription">Description <span class="muted-hint">(optional)</span></label>
                 <textarea name="description" id="sessionDescription" class="form-input" rows="4" placeholder="What will students practice in this session?">{{ description|default:'' }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="sessionDate">Session Date</label>
-                <input type="date" name="session_date" id="sessionDate" class="form-input" value="{{ session_date|default:'' }}" required>
-            </div>
-            <div class="simulation-session-form-row">
-                <div class="form-group">
-                    <label for="sessionStartTime">Start Time</label>
-                    <input type="time" name="start_time" id="sessionStartTime" class="form-input" value="{{ start_time|default:'' }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="sessionEndTime">End Time</label>
-                    <input type="time" name="end_time" id="sessionEndTime" class="form-input" value="{{ end_time|default:'' }}" required>
-                </div>
             </div>
             <div class="simulation-session-form-actions">
                 <button type="submit" class="btn btn-brand"><i class="fas fa-plus"></i> Create Session</button>
