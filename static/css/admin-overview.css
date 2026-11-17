@@ -208,7 +208,6 @@
     .admin-overview .stat-card { min-height: 135px; padding: 13px; border-radius: 15px; }
     .admin-overview .stat-card::after { right: 11px; bottom: 13px; font-size: 52px; }
     .admin-overview .stat-card .stat-val { font-size: 22px; }
-    .admin-overview .admin-overview-stats > .stat-link:nth-child(6) .stat-val { font-size: clamp(12px, 3.7vw, 16px); white-space: nowrap; letter-spacing: -.04em; }
     .admin-overview .ao-panel-head { padding: 14px; }
     .admin-overview .ao-services > .card-pad:last-child { padding: 13px 14px; }
     .admin-overview .ao-list-row,
