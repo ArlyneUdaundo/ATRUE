@@ -386,16 +386,6 @@ body.log-modal-open {
     font-size: 14px;
 }
 
-.session-logs-page .session-logs-hero-art {
-    position: absolute;
-    top: 2px;
-    right: 20%;
-    color: rgba(31, 111, 220, .8);
-    font-size: 50px;
-    transform: rotate(-12deg);
-    filter: drop-shadow(0 8px 6px rgba(31, 87, 150, .2));
-}
-
 .session-logs-page .session-logs-back {
     position: relative;
     z-index: 1;
@@ -610,7 +600,6 @@ body.log-modal-open {
     .session-logs-page .session-logs-hero { align-items: flex-start; flex-direction: column; min-height: auto; padding: 18px; }
     .session-logs-page .session-logs-title-row { gap: 13px; }
     .session-logs-page .session-logs-title-icon { flex-basis: 52px; width: 52px; height: 52px; border-radius: 14px; font-size: 22px; }
-    .session-logs-page .session-logs-hero-art { top: 4px; right: 18px; font-size: 32px; opacity: .35; }
     .session-logs-page .session-logs-hero p { max-width: 34ch; font-size: 12px; }
     .session-logs-page .session-logs-back { align-self: flex-start; }
     .session-logs-page .logs-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
