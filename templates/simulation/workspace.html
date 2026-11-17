@@ -346,9 +346,9 @@
                                 data-student-username="{{ row.student.username }}"
                                 data-role=""
                                 data-establishment-id=""
-                                data-date=""
-                                data-start=""
-                                data-end=""><i class="fas fa-plus"></i> Assign Role</button>
+                                data-date="{{ session.session_date|date:'Y-m-d' }}"
+                                data-start="{{ session.start_time|time:'H:i' }}"
+                                data-end="{{ session.end_time|time:'H:i' }}"><i class="fas fa-plus"></i> Assign Role</button>
                             {% endif %}
                         </div>
                     </div>
@@ -523,6 +523,23 @@
                         <option value="{{ value }}">{{ label }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div>
+                    <strong class="sim-assign-sublabel">Assignment Schedule</strong>
+                    <div class="sim-assign-grid">
+                        <div class="form-group">
+                            <label for="modalDate">Assignment Date</label>
+                            <input type="date" id="modalDate" class="form-input" readonly aria-readonly="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="modalStart">Start Time</label>
+                            <input type="time" id="modalStart" class="form-input" readonly aria-readonly="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="modalEnd">End Time</label>
+                            <input type="time" id="modalEnd" class="form-input" readonly aria-readonly="true">
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group" id="modalEstablishmentGroup" hidden>
                     <label for="modalEstablishment">Establishment</label>
@@ -1264,6 +1281,9 @@
         roleSelect.value = button.dataset.role || '';
         window.syncRolePicker(roleSelect);
         fillEstablishments(button.dataset.establishmentId || '');
+        document.getElementById('modalDate').value = button.dataset.date || '';
+        document.getElementById('modalStart').value = button.dataset.start || '';
+        document.getElementById('modalEnd').value = button.dataset.end || '';
         updateRepeat();
         clearErrors();
 
