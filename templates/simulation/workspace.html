@@ -1264,9 +1264,6 @@
         roleSelect.value = button.dataset.role || '';
         window.syncRolePicker(roleSelect);
         fillEstablishments(button.dataset.establishmentId || '');
-        document.getElementById('modalDate').value = button.dataset.date || '';
-        document.getElementById('modalStart').value = button.dataset.start || '';
-        document.getElementById('modalEnd').value = button.dataset.end || '';
         updateRepeat();
         clearErrors();
 
