@@ -6,7 +6,7 @@
 {% block content_class %}account-management-wide{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/account-management.css' %}?v=20261117-2">
+<link rel="stylesheet" href="{% static 'css/account-management.css' %}?v=20261118-1">
 {% endblock %}
 
 {% block content %}
@@ -55,7 +55,7 @@
             </div>
             <div class="form-group" style="margin:0">
                 <label>Date Created To</label>
-                <div class="account-management-input"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
+                <div class="account-management-input account-management-date-to"><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
             </div>
             <div class="account-list-filter-actions account-management-filter-actions">
                 <button type="submit" class="btn btn-brand"><i class="fas fa-filter" aria-hidden="true"></i> Filter</button>
@@ -71,11 +71,11 @@
         <table class="table account-list-table account-management-table">
             <thead>
                 <tr>
-                    <th class="account-col-user"><i class="fas fa-user" aria-hidden="true"></i> User <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
-                    <th class="account-col-email"><i class="far fa-envelope" aria-hidden="true"></i> Email <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
-                    <th class="account-col-type"><i class="fas fa-id-badge" aria-hidden="true"></i> Type <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
-                    <th class="account-col-status"><i class="fas fa-circle" aria-hidden="true"></i> Status <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
-                    <th class="account-col-created"><i class="far fa-calendar-alt" aria-hidden="true"></i> Date Created <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-user"><i class="fas fa-user" aria-hidden="true"></i> User</th>
+                    <th class="account-col-email"><i class="far fa-envelope" aria-hidden="true"></i> Email</th>
+                    <th class="account-col-type"><i class="fas fa-id-badge" aria-hidden="true"></i> Type</th>
+                    <th class="account-col-status"><i class="fas fa-circle" aria-hidden="true"></i> Status</th>
+                    <th class="account-col-created"><i class="far fa-calendar-alt" aria-hidden="true"></i> Date Created</th>
                     <th class="account-col-actions">Actions</th>
                 </tr>
             </thead>

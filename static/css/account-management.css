@@ -66,6 +66,7 @@
 .account-management-page .account-management-input { position: relative; }
 .account-management-page .account-management-input > i { position: absolute; top: 50%; left: 14px; z-index: 1; color: var(--uam-blue); font-size: 14px; pointer-events: none; transform: translateY(-50%); }
 .account-management-page .account-management-input .form-input { box-sizing: border-box; min-width: 0; height: 46px; padding: 10px 13px 10px 39px; border: 1px solid #cfdbef; border-radius: 13px; background: #fff; color: #1c315d; font-size: 14px; }
+.account-management-page .account-management-date-to .form-input { padding-left: 13px; }
 .account-management-page .account-management-input .form-input:focus { border-color: #4382ed; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .account-management-page .account-list-filter-actions { display: flex; gap: 9px; align-items: end; }
 .account-management-page .account-list-filter-actions .btn { min-height: 46px; padding: 0 17px; border-radius: 13px; white-space: nowrap; }
