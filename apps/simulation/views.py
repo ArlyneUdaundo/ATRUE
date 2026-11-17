@@ -1612,6 +1612,11 @@ def reactivate_role(request, assignment_id):
         )
 
     messages.success(request, 'Role reactivated. You can now edit the assignment.')
+    if request.POST.get('open_assignment_editor') == '1' and assignment.session_id:
+        return redirect(
+            f"{reverse('simulation:workspace')}?edit_assignment={assignment.pk}"
+            f"#session-{assignment.session_id}"
+        )
     return redirect('simulation:role_detail', assignment_id=assignment_id)
 
 
