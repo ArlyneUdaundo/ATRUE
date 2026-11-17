@@ -12,7 +12,7 @@
     var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
     var MAGIC = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    var WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    var WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
     var RANGE_PAIRS = [
         ['check_in', 'check_out'],
@@ -60,8 +60,8 @@
         return out;
     }
 
-    function mondayIndex(d) {
-        return (d.getDay() + 6) % 7;
+    function sundayIndex(d) {
+        return d.getDay();
     }
 
     function sameDay(a, b) {
@@ -423,7 +423,7 @@
             var minDate = parseISO(controller.minISO);
             var maxDate = parseISO(controller.maxISO);
             var disabledSet = controller.disabledISO || {};
-            var gridStart = mondayIndex(visible);
+            var gridStart = sundayIndex(visible);
             var offsetMonth = addMonths(visible, 0);
             var first = new Date(offsetMonth.getFullYear(), offsetMonth.getMonth(), 1, 12, 0, 0, 0);
             var daysInMonth = new Date(offsetMonth.getFullYear(), offsetMonth.getMonth() + 1, 0, 12, 0, 0, 0).getDate();
