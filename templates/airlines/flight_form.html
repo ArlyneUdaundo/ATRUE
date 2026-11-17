@@ -8,6 +8,7 @@
 
 <form method="post" class="card card-pad establishment-form-card flight-form" style="width:100%;margin:0 auto;max-width:860px" data-modal-title="{% if flight %}Update Flight{% else %}Add Flight{% endif %}" data-submit-loading data-flight-form>
     {% csrf_token %}
+    {% if form_errors %}<div class="alert alert-error" role="alert"><ul>{% for error in form_errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
 
     {% comment %}1. Flight type first — it decides which of the two forms below is shown.{% endcomment %}
     <fieldset style="border:0;padding:0;margin:0 0 22px">
@@ -150,8 +151,8 @@
             <div class="flight-datetime" data-flight-datetime>
                 <input type="hidden" name="departure_time" data-outbound="departure" data-flight-datetime-value value="{% if flight %}{{ flight.departure_time|date:'Y-m-d\TH:i' }}{% endif %}">
                 <div class="flight-datetime__parts">
-                    <input type="date" class="form-input" data-flight-date value="{% if flight %}{{ flight.departure_time|date:'Y-m-d' }}{% endif %}" required aria-label="Departure date">
-                    <input type="time" class="form-input" data-flight-time value="{% if flight %}{{ flight.departure_time|date:'H:i' }}{% endif %}" required aria-label="Departure time">
+                    <input type="date" name="departure_date" class="form-input" data-flight-date value="{% if posted_schedule %}{{ posted_schedule.departure_date }}{% elif flight %}{{ flight.departure_time|date:'Y-m-d' }}{% endif %}" required aria-label="Departure date">
+                    <input type="time" name="departure_clock" class="form-input" data-flight-time value="{% if posted_schedule %}{{ posted_schedule.departure_clock }}{% elif flight %}{{ flight.departure_time|date:'H:i' }}{% endif %}" required aria-label="Departure time">
                 </div>
             </div>
         </div>
@@ -160,8 +161,8 @@
             <div class="flight-datetime" data-flight-datetime>
                 <input type="hidden" name="arrival_time" data-flight-datetime-value value="{% if flight %}{{ flight.arrival_time|date:'Y-m-d\TH:i' }}{% endif %}">
                 <div class="flight-datetime__parts">
-                    <input type="date" class="form-input" data-flight-date value="{% if flight %}{{ flight.arrival_time|date:'Y-m-d' }}{% endif %}" required aria-label="Arrival date">
-                    <input type="time" class="form-input" data-flight-time value="{% if flight %}{{ flight.arrival_time|date:'H:i' }}{% endif %}" required aria-label="Arrival time">
+                    <input type="date" name="arrival_date" class="form-input" data-flight-date value="{% if posted_schedule %}{{ posted_schedule.arrival_date }}{% elif flight %}{{ flight.arrival_time|date:'Y-m-d' }}{% endif %}" required aria-label="Arrival date">
+                    <input type="time" name="arrival_clock" class="form-input" data-flight-time value="{% if posted_schedule %}{{ posted_schedule.arrival_clock }}{% elif flight %}{{ flight.arrival_time|date:'H:i' }}{% endif %}" required aria-label="Arrival time">
                 </div>
             </div>
         </div>
@@ -224,8 +225,8 @@
                 <div class="flight-datetime" data-flight-datetime>
                     <input type="hidden" name="return_departure_time" data-flight-datetime-value value="{% if return_leg %}{{ return_leg.departure_time|date:'Y-m-d\TH:i' }}{% endif %}">
                     <div class="flight-datetime__parts">
-                        <input type="date" class="form-input" data-flight-date value="{% if return_leg %}{{ return_leg.departure_time|date:'Y-m-d' }}{% endif %}" aria-label="Return departure date">
-                        <input type="time" class="form-input" data-flight-time value="{% if return_leg %}{{ return_leg.departure_time|date:'H:i' }}{% endif %}" aria-label="Return departure time">
+                        <input type="date" name="return_departure_date" class="form-input" data-flight-date value="{% if posted_schedule %}{{ posted_schedule.return_departure_date }}{% elif return_leg %}{{ return_leg.departure_time|date:'Y-m-d' }}{% endif %}" aria-label="Return departure date">
+                        <input type="time" name="return_departure_clock" class="form-input" data-flight-time value="{% if posted_schedule %}{{ posted_schedule.return_departure_clock }}{% elif return_leg %}{{ return_leg.departure_time|date:'H:i' }}{% endif %}" aria-label="Return departure time">
                     </div>
                 </div>
             </div>
@@ -234,8 +235,8 @@
                 <div class="flight-datetime" data-flight-datetime>
                     <input type="hidden" name="return_arrival_time" data-flight-datetime-value value="{% if return_leg %}{{ return_leg.arrival_time|date:'Y-m-d\TH:i' }}{% endif %}">
                     <div class="flight-datetime__parts">
-                        <input type="date" class="form-input" data-flight-date value="{% if return_leg %}{{ return_leg.arrival_time|date:'Y-m-d' }}{% endif %}" aria-label="Return arrival date">
-                        <input type="time" class="form-input" data-flight-time value="{% if return_leg %}{{ return_leg.arrival_time|date:'H:i' }}{% endif %}" aria-label="Return arrival time">
+                        <input type="date" name="return_arrival_date" class="form-input" data-flight-date value="{% if posted_schedule %}{{ posted_schedule.return_arrival_date }}{% elif return_leg %}{{ return_leg.arrival_time|date:'Y-m-d' }}{% endif %}" aria-label="Return arrival date">
+                        <input type="time" name="return_arrival_clock" class="form-input" data-flight-time value="{% if posted_schedule %}{{ posted_schedule.return_arrival_clock }}{% elif return_leg %}{{ return_leg.arrival_time|date:'H:i' }}{% endif %}" aria-label="Return arrival time">
                     </div>
                 </div>
             </div>

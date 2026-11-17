@@ -2468,6 +2468,17 @@ def _validate_flight_classification(request, legs, errors):
     return classification
 
 
+def _posted_leg_datetime(request, prefix, field):
+    """Read the visible date/time controls, falling back to the legacy field."""
+    date_key = f'{prefix}{field}_date'
+    clock_key = f'{prefix}{field}_clock'
+    if date_key in request.POST or clock_key in request.POST:
+        day = (request.POST.get(date_key) or '').strip()
+        clock = (request.POST.get(clock_key) or '').strip()
+        return _parse_dt(f'{day}T{clock}') if day and clock else None
+    return _parse_dt(request.POST.get(f'{prefix}{field}_time'))
+
+
 def _resolve_leg(request, airline, prefix='', label='Departure',
                  exclude_flight_id=None, aircraft=None):
     """Parse and validate one leg of a schedule.
@@ -2493,8 +2504,8 @@ def _resolve_leg(request, airline, prefix='', label='Departure',
     destination_airport = Airport.objects.filter(
         pk=_post_pk(request, prefix + 'destination_airport') or 0,
         status=Airport.Status.ACTIVE).first()
-    departure = _parse_dt(request.POST.get(prefix + 'departure_time'))
-    arrival = _parse_dt(request.POST.get(prefix + 'arrival_time'))
+    departure = _posted_leg_datetime(request, prefix, 'departure')
+    arrival = _posted_leg_datetime(request, prefix, 'arrival')
     if aircraft is None:
         aircraft = _posted_aircraft(request, prefix, airline)
 
@@ -3792,6 +3803,7 @@ def update_flight(request, flight_id):
     return_aircraft_type = _query_pk(request, 'return_aircraft_type')
     return_leg = flight.return_flight
     posted_classification = None
+    errors = []
     if request.method == 'POST':
         result, errors = _resolve_flight_schedule(request, flight=flight,
                                                   airline=flight.airline)
@@ -3866,11 +3878,16 @@ def update_flight(request, flight_id):
                          f"{flight.flight_number} - {flight.origin} to {flight.destination}")
             messages.success(request, "Flight updated.")
             return redirect('airlines:flight_detail', flight.slug)
-    return render(request, 'airlines/flight_form.html',
-                  _flight_form_context(flight=flight, aircraft_type=aircraft_type,
-                                       return_aircraft_type=return_aircraft_type,
-                                       flight_classification=posted_classification,
-                                       posted_data=request.POST if request.method == 'POST' else None))
+    context = _flight_form_context(
+        flight=flight, aircraft_type=aircraft_type,
+        return_aircraft_type=return_aircraft_type,
+        flight_classification=posted_classification,
+        posted_data=request.POST if request.method == 'POST' else None)
+    context['posted_schedule'] = request.POST if request.method == 'POST' else None
+    context['form_errors'] = (
+        errors if request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        else [])
+    return render(request, 'airlines/flight_form.html', context)
 
 
 def _passenger_profile(user):
