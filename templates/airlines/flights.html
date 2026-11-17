@@ -4,7 +4,7 @@
 {% block title %}Flights{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/flight-schedule.css' %}?v=20261117-modern-1">
+<link rel="stylesheet" href="{% static 'css/flight-schedule.css' %}?v=20261117-modern-2">
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,12 @@
             <span class="fsp-hero-icon" aria-hidden="true"><i class="fas fa-plane"></i></span>
             <div><h1>Flight Schedule</h1><p>All managed flights across airlines.</p></div>
         </div>
-        <i class="fas fa-plane fsp-plane-art" aria-hidden="true"></i>
+        <svg class="fsp-plane-art" viewBox="0 0 340 100" role="img" aria-label="Airplane in flight">
+            <path d="M15 54c0-8 8-13 21-14l98-5 61-32c9-5 20-3 17 5l-12 27 99 5c18 1 29 6 29 12s-11 11-29 12l-99 5 12 27c3 8-8 10-17 5l-61-32-98-5C23 67 15 62 15 54Z" fill="#1380ed"/>
+            <path d="m133 39 21-2 50-27-11 29 94 5c9 1 14 4 14 7s-5 6-14 7l-94 5 11 29-50-27-21-2 18-12-18-12Z" fill="#5bb2ff" opacity=".8"/>
+            <path d="M49 44 21 25c-5-4-2-9 5-7l45 13 34 5-10 13-46-5Zm0 20L21 83c-5 4-2 9 5 7l45-13 34-5-10-13-46 5Z" fill="#0a5dc9"/>
+            <path d="m112 42 10 12-10 12 18-3 9-9-9-9-18-3Z" fill="#eaf6ff"/>
+        </svg>
         {% if can_add_flight %}<a href="{% url 'airlines:add_flight_schedule' %}" class="fsp-add" data-establishment-create><i class="fas fa-plane" aria-hidden="true"></i> Add Flight</a>{% endif %}
     </header>
 

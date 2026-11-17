@@ -13,14 +13,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    min-height: 120px;
-    margin: 0 0 17px;
-    padding: 18px 23px;
+    min-height: 112px;
+    margin: 0 0 18px;
+    padding: 18px 30px;
     overflow: hidden;
     border: 1px solid #d8e8ff;
     border-radius: 22px;
-    background: radial-gradient(ellipse at 77% 112%, rgba(77, 165, 255, .28), transparent 42%), linear-gradient(112deg, #eaf3ff, #f5f9ff 58%, #dfedff);
-    box-shadow: 0 8px 24px rgba(30, 76, 145, .08);
+    background:
+        radial-gradient(ellipse 100px 68px at 40% 96%, rgba(255,255,255,.92) 0 48%, transparent 51%),
+        radial-gradient(ellipse 128px 82px at 46% 103%, rgba(255,255,255,.75) 0 49%, transparent 52%),
+        radial-gradient(ellipse 140px 74px at 84% 101%, rgba(255,255,255,.72) 0 48%, transparent 51%),
+        radial-gradient(ellipse at 75% 112%, rgba(65, 155, 255, .35), transparent 47%),
+        linear-gradient(108deg, #e6f1ff 0%, #d7eaff 48%, #a9d4ff 100%);
+    box-shadow: 0 10px 26px rgba(39, 107, 190, .12);
 }
 
 .flight-schedule-page .fsp-hero::after {
@@ -37,20 +42,20 @@
 }
 
 .flight-schedule-page .fsp-hero-copy { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; min-width: 0; }
-.flight-schedule-page .fsp-hero-icon { display: grid; place-items: center; flex: 0 0 62px; width: 62px; height: 62px; border: 1px solid rgba(255,255,255,.85); border-radius: 19px; background: linear-gradient(145deg,#9bcaff,#dceeff); color: #1261df; font-size: 26px; box-shadow: 0 8px 18px rgba(38,111,218,.16); }
-.flight-schedule-page .fsp-hero h1 { margin: 0; color: #102653; font-size: clamp(24px,3vw,33px); font-weight: 800; letter-spacing: -.04em; line-height: 1.15; }
-.flight-schedule-page .fsp-hero p { margin: 6px 0 0; color: #48658f; font-size: 14px; }
-.flight-schedule-page .fsp-plane-art { position: absolute; z-index: 0; top: 17px; right: 26%; color: rgba(28,110,231,.8); font-size: 49px; transform: rotate(-9deg); filter: drop-shadow(0 7px 7px rgba(23,100,239,.13)); }
+.flight-schedule-page .fsp-hero-icon { display: grid; place-items: center; flex: 0 0 82px; width: 82px; height: 82px; border: 1px solid rgba(255,255,255,.9); border-radius: 24px; background: linear-gradient(145deg,#75b6ff,#b9ddff); color: #0865dc; font-size: 37px; box-shadow: 0 9px 19px rgba(38,111,218,.19); }
+.flight-schedule-page .fsp-hero h1 { margin: 0; color: #102653; font-size: clamp(30px,3.2vw,39px); font-weight: 800; letter-spacing: -.04em; line-height: 1.15; }
+.flight-schedule-page .fsp-hero p { margin: 6px 0 0; color: #294e88; font-size: 16px; }
+.flight-schedule-page .fsp-plane-art { position: absolute; z-index: 0; top: 3px; right: 25%; width: min(260px,24vw); height: 90px; overflow: visible; opacity: .96; filter: drop-shadow(0 8px 7px rgba(23,100,239,.18)); transform: rotate(-3deg); }
 .flight-schedule-page .fsp-add { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 47px; padding: 0 20px; border-radius: 14px; background: linear-gradient(120deg,#155bea,#3985fa); color: #fff; font-weight: 750; text-decoration: none; box-shadow: 0 8px 18px rgba(23,100,239,.23); white-space: nowrap; }
 .flight-schedule-page .fsp-add:hover { color: #fff; filter: brightness(1.04); transform: translateY(-1px); }
 
-.flight-schedule-page .flight-schedule-filters { width: 100%; max-width: none; margin: 0 0 20px !important; padding: 18px 20px !important; border: 1px solid #e1eafa; border-radius: 20px; background: rgba(255,255,255,.95); box-shadow: 0 9px 22px rgba(32,74,132,.07); }
+.flight-schedule-page .flight-schedule-filters { width: 100%; max-width: none; margin: 0 0 22px !important; padding: 20px 22px !important; border: 1px solid rgba(255,255,255,.95); border-radius: 22px; background: rgba(255,255,255,.92); box-shadow: 0 10px 24px rgba(32,74,132,.10); }
 .flight-schedule-page .fsp-filter-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px 18px; }
 .flight-schedule-page .fsp-filter-field { min-width: 0; }
-.flight-schedule-page .fsp-filter-field label { display: block; margin: 0 0 6px; color: #172d56; font-size: 13px; font-weight: 750; }
+.flight-schedule-page .fsp-filter-field label { display: block; margin: 0 0 7px; color: #142b59; font-size: 15px; font-weight: 750; }
 .flight-schedule-page .fsp-control-wrap { position: relative; }
 .flight-schedule-page .fsp-control-wrap > i { position: absolute; z-index: 1; top: 50%; left: 13px; color: #2363d8; transform: translateY(-50%); pointer-events: none; }
-.flight-schedule-page .fsp-control-wrap .form-input { min-height: 43px; padding: 9px 13px 9px 39px; border: 1px solid #cadcf8; border-radius: 12px; background-color: #fbfdff; color: #172d56; }
+.flight-schedule-page .fsp-control-wrap .form-input { min-height: 44px; padding: 9px 13px 9px 39px; border: 1px solid #c6d9fb; border-radius: 13px; background-color: #fbfdff; color: #172d56; font-size: 14px; }
 .flight-schedule-page .fsp-control-wrap .form-input:focus { border-color: #4382ed; background-color: #fff; box-shadow: 0 0 0 3px rgba(43,119,237,.12); }
 .flight-schedule-page .fsp-select-wrap .form-input { padding-right: 42px; }
 .flight-schedule-page .fsp-select-wrap .airline-logo-preview { position: absolute; top: 50%; right: 35px; width: 24px; height: 24px; object-fit: contain; transform: translateY(-50%); pointer-events: none; }
@@ -61,9 +66,9 @@
 .flight-schedule-page .fsp-reset:hover { background: #e8f0ff; color: #123b7a; }
 
 .flight-schedule-page .flight-schedule-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
-.flight-schedule-page .fsp-card { position: relative; display: flex; min-width: 0; min-height: 270px; flex-direction: column; padding: 18px !important; overflow: hidden; border: 1px solid #e0eafb; border-radius: 21px; background: #fff; box-shadow: 0 8px 22px rgba(31,68,122,.075); transition: transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
+.flight-schedule-page .fsp-card { position: relative; display: flex; min-width: 0; min-height: 286px; flex-direction: column; padding: 20px !important; overflow: hidden; border: 1px solid rgba(255,255,255,.95); border-radius: 23px; background: linear-gradient(145deg,#fff 54%,#f4f9ff); box-shadow: 0 9px 24px rgba(31,92,168,.11); transition: transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
 .flight-schedule-page .fsp-card:hover { transform: translateY(-3px); border-color: #c9dcfb; box-shadow: 0 14px 28px rgba(31,83,158,.13); }
-.flight-schedule-page .fsp-card::after { position: absolute; right: -35px; bottom: -68px; width: 190px; height: 108px; border-radius: 50%; background: linear-gradient(135deg,rgba(116,178,255,.035),rgba(85,157,251,.15)); content: ""; pointer-events: none; }
+.flight-schedule-page .fsp-card::after { position: absolute; right: -42px; bottom: -78px; width: 230px; height: 128px; border-radius: 50%; background: linear-gradient(135deg,rgba(116,178,255,.025),rgba(85,157,251,.22)); content: ""; pointer-events: none; }
 .flight-schedule-page .fsp-card-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .flight-schedule-page .fsp-carrier { flex: 1; min-width: 0; }
 .flight-schedule-page .fsp-carrier-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -115,7 +120,7 @@
 
 @media (max-width: 760px) {
     .flight-schedule-page .fsp-hero { min-height: 96px; padding: 15px; }
-    .flight-schedule-page .fsp-plane-art { right: 22%; font-size: 34px; }
+    .flight-schedule-page .fsp-plane-art { right: 22%; width: 150px; height: 58px; }
     .flight-schedule-page .fsp-hero-icon { flex-basis: 49px; width: 49px; height: 49px; border-radius: 15px; font-size: 21px; }
     .flight-schedule-page .fsp-hero p { font-size: 12px; }
     .flight-schedule-page .fsp-add { min-height: 41px; padding: 0 12px; font-size: 12px; }
