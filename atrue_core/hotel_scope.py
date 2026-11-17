@@ -186,8 +186,9 @@ def hotel_scoped(view_func):
             else None
         )
         view_name = getattr(getattr(request.resolver_match, 'func', None), '__name__', '')
-        # Enforce owner-only hotel creation before the unscoped-user fast path.
+        # Enforce owner or full-access permissions before the unscoped-user fast path.
         if (view_name in _PLATFORM_WIDE_VIEWS
+                and not has_full_hotel_access(user)
                 and not can_create_establishment(user, 'hotels')):
             raise PermissionDenied('You are not authorised to add or remove hotels.')
         if not is_hotel_scoped(user) and task_hotel_id is None:
