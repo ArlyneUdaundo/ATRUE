@@ -1220,6 +1220,206 @@ body.sim-modal-open {
 .sim-session-dialog .simulation-student-view { min-height: 48px; padding: 0 18px; border: 2px solid #d3e3ff; border-radius: 999px; background: #fff; color: #1260de; font-size: 14px; font-weight: 750; white-space: nowrap; }
 .sim-session-dialog .simulation-student-view:hover { background: #f2f7ff; border-color: #9fc3ff; }
 
+/* Session students modal polish; keep these styles scoped to this dialog. */
+.sim-session-modal {
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+}
+
+.sim-session-backdrop {
+    background: rgba(18, 35, 67, .48);
+}
+
+.sim-session-dialog {
+    border-color: rgba(216, 229, 250, .95);
+    border-radius: 24px;
+    box-shadow: 0 30px 90px rgba(20, 45, 88, .3);
+}
+
+.sim-session-head {
+    min-height: 118px;
+    gap: 22px;
+    padding: 22px 32px 18px;
+    border-bottom-color: #e6eefb;
+}
+
+.sim-session-modal-icon {
+    flex-basis: 76px;
+    width: 76px;
+    height: 76px;
+    background: linear-gradient(145deg, #45a8ff, #1674ed);
+    font-size: 30px;
+}
+
+.sim-session-head h2 {
+    color: #17294f;
+    font-size: clamp(25px, 2.2vw, 34px);
+    letter-spacing: -.025em;
+}
+
+.sim-session-meta {
+    color: #56698e;
+    font-size: 15px;
+}
+
+.sim-session-dialog .sim-assign-close {
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    color: #455a7e;
+    font-size: 22px;
+    transition: background-color .16s ease, color .16s ease;
+}
+
+.sim-session-dialog .sim-assign-close:hover {
+    background: #edf4ff;
+    color: #145be7;
+}
+
+.sim-session-dialog .simulation-session-activities-head h3 {
+    padding: 8px 10px 8px 14px;
+    border: 1px solid #e2ecfb;
+    background: #f2f7ff;
+    font-size: 16px;
+}
+
+.sim-session-dialog .simulation-session-student-count {
+    background: #e0ecff;
+    font-size: 12px;
+}
+
+.sim-session-dialog .sim-student-columns {
+    min-height: 58px;
+    padding: 0 24px;
+    background: linear-gradient(110deg, #edf4ff, #e4eeff);
+    color: #53678d;
+    letter-spacing: .04em;
+}
+
+.sim-session-dialog .simulation-student-list {
+    display: grid;
+    gap: 7px;
+}
+
+.sim-session-dialog .simulation-student-row {
+    border: 1px solid #e6edf8;
+    border-radius: 16px;
+    box-shadow: 0 3px 12px rgba(32, 71, 130, .04);
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.sim-session-dialog .simulation-student-row:hover {
+    border-color: #cbdcff;
+    box-shadow: 0 7px 20px rgba(32, 71, 130, .08);
+    transform: translateY(-1px);
+}
+
+.sim-session-student-avatar {
+    flex-basis: 56px;
+    width: 56px;
+    height: 56px;
+    border: 2px solid #fff;
+    background: linear-gradient(145deg, #49b7ff, #1673ed);
+    box-shadow: 0 0 0 1px #dce9ff, 0 4px 10px rgba(37, 99, 235, .14);
+}
+
+.sim-session-student-avatar img {
+    object-fit: cover;
+}
+
+.sim-session-dialog .simulation-student-name {
+    color: #18284d;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.sim-session-dialog .simulation-student-username {
+    color: #65799d;
+    font-size: 13px;
+}
+
+.sim-session-dialog .simulation-student-summary > .badge {
+    padding: 8px 15px;
+    background: #f0f3f8;
+    color: #536584;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.sim-session-dialog .simulation-student-task-progress {
+    color: #263858;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.sim-session-dialog .simulation-student-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 15px;
+    background: #edf1f7;
+    color: #293d61;
+    font-size: 13px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.sim-session-dialog .simulation-student-status::before {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border-radius: 50%;
+    background: #53698f;
+    content: "";
+}
+
+.sim-session-dialog .simulation-student-row[data-student-status="ACTIVE"] .simulation-student-status {
+    background: #e4f8eb;
+    color: #138342;
+}
+
+.sim-session-dialog .simulation-student-row[data-student-status="ACTIVE"] .simulation-student-status::before {
+    background: #19a957;
+}
+
+.sim-session-dialog .simulation-student-row[data-student-status="DONE"] .simulation-student-status {
+    background: #e8f0ff;
+    color: #1558c8;
+}
+
+.sim-session-dialog .simulation-student-row[data-student-status="DONE"] .simulation-student-status::before {
+    background: #3478e5;
+}
+
+.sim-session-dialog .simulation-student-view {
+    min-height: 46px;
+    padding: 0 18px;
+    border-color: #cfe0ff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, .06);
+}
+
+.sim-session-dialog .simulation-student-view:focus-visible,
+.sim-session-dialog .sim-assign-close:focus-visible,
+.sim-session-dialog .sim-session-foot button:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .35);
+    outline-offset: 2px;
+}
+
+.sim-session-dialog > .sim-session-foot {
+    padding: 12px 22px 18px;
+    border-top: 0;
+}
+
+.sim-session-dialog > .sim-session-foot .btn {
+    min-width: 124px;
+    min-height: 48px;
+    border-radius: 14px;
+    font-weight: 750;
+}
+
 .sim-session-dialog .simulation-student-identity,
 .sim-session-dialog .simulation-student-summary > .badge,
 .sim-session-dialog .simulation-student-task-progress,
