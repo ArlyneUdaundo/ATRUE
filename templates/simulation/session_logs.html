@@ -4,18 +4,21 @@
 {% block title %}Activity Logs – {{ session.name }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/simulation-logs.css' %}?v=20261009">
+<link rel="stylesheet" href="{% static 'css/simulation-logs.css' %}?v=20261117">
 {% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div>
-        <h1>{{ session.name }}</h1>
-        <p>{% if session.session_id %}{{ session.session_id }} · {% endif %}{{ session.get_status_display }} — activity logs recorded for this session.</p>
+<main class="session-logs-page">
+<div class="session-logs-hero">
+    <div class="session-logs-hero-art" aria-hidden="true"><i class="fas fa-plane"></i></div>
+    <div class="session-logs-title-row">
+        <span class="session-logs-title-icon"><i class="fas fa-clipboard-list" aria-hidden="true"></i></span>
+        <div>
+            <h1>{{ session.name }}</h1>
+            <p>{% if session.session_id %}{{ session.session_id }} · {% endif %}{{ session.get_status_display }} — activity logs recorded for this session.</p>
+        </div>
     </div>
-    <div>
-        <a href="{% url 'simulation:logs' %}" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back to Sessions</a>
-    </div>
+    <a href="{% url 'simulation:logs' %}" class="btn btn-ghost session-logs-back"><i class="fas fa-arrow-left"></i> Back to Sessions</a>
 </div>
 
 <div class="logs-breadcrumb">
@@ -24,62 +27,62 @@
     <span>{{ session.name }}</span>
 </div>
 
-<div class="card card-pad" style="margin-bottom:18px">
+<section class="card card-pad session-logs-filter-card">
     <form method="get" class="logs-filter-grid">
         <div class="form-group" style="margin:0">
             <label>Search Name</label>
-            <input type="text" name="q" class="form-input" placeholder="Name or username" value="{{ q }}">
+            <div class="session-logs-input-icon"><i class="fas fa-search" aria-hidden="true"></i><input type="text" name="q" class="form-input" placeholder="Name or username..." value="{{ q }}"></div>
         </div>
         <div class="form-group" style="margin:0">
             <label>Establishment</label>
-            <select name="establishment" class="form-input">
+            <div class="session-logs-input-icon"><i class="fas fa-building" aria-hidden="true"></i><select name="establishment" class="form-input">
                 <option value="">All establishments</option>
                 {% for e in establishments %}
                 <option value="{{ e.id }}" {% if establishment == e.id|stringformat:'s' %}selected{% endif %}>{{ e.name }}</option>
                 {% endfor %}
-            </select>
+            </select></div>
         </div>
         <div class="form-group" style="margin:0">
             <label>Role</label>
-            <select name="role" class="form-input">
+            <div class="session-logs-input-icon"><i class="fas fa-user-tag" aria-hidden="true"></i><select name="role" class="form-input">
                 <option value="">All roles</option>
                 {% for value, label in role_choices %}
                 <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
-            </select>
+            </select></div>
         </div>
         <div class="form-group" style="margin:0">
             <label>Activity</label>
-            <input type="text" name="activity" class="form-input" placeholder="e.g. Started simulation task" value="{{ activity }}">
+            <div class="session-logs-input-icon"><i class="fas fa-bolt" aria-hidden="true"></i><input type="text" name="activity" class="form-input" placeholder="e.g. started simulation task" value="{{ activity }}"></div>
         </div>
         <div class="form-group" style="margin:0">
             <label>From Date</label>
-            <input type="date" name="from" class="form-input" value="{{ date_from }}">
+            <div class="session-logs-input-icon"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="from" class="form-input" value="{{ date_from }}"></div>
         </div>
         <div class="form-group" style="margin:0">
             <label>To Date</label>
-            <input type="date" name="to" class="form-input" value="{{ date_to }}">
+            <div class="session-logs-input-icon"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="to" class="form-input" value="{{ date_to }}"></div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div class="session-logs-filter-actions">
             <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
-            <a href="{% url 'simulation:session_logs' session.id %}" class="btn btn-outline">Reset</a>
+            <a href="{% url 'simulation:session_logs' session.id %}" class="btn btn-outline"><i class="fas fa-redo-alt" aria-hidden="true"></i> Reset</a>
         </div>
     </form>
-</div>
+</section>
 
 {% if rows %}
-<div class="table-wrap">
+<div class="table-wrap session-logs-table-card">
     <table class="table logs-table">
         <thead>
             <tr>
-                <th class="col-datetime">Date &amp; Time</th>
-                <th class="col-student">Name</th>
-                <th class="col-user-type">Type of User</th>
-                <th class="col-session">Session</th>
-                <th class="col-establishment">Establishment</th>
-                <th class="col-role">Role</th>
-                <th class="col-activity">Activity</th>
-                <th class="col-status">Status</th>
+                <th class="col-datetime"><i class="far fa-calendar-alt" aria-hidden="true"></i> Date &amp; Time</th>
+                <th class="col-student"><i class="fas fa-user" aria-hidden="true"></i> Name</th>
+                <th class="col-user-type"><i class="fas fa-user-graduate" aria-hidden="true"></i> Type of User</th>
+                <th class="col-session"><i class="fas fa-layer-group" aria-hidden="true"></i> Session</th>
+                <th class="col-establishment"><i class="fas fa-building" aria-hidden="true"></i> Establishment</th>
+                <th class="col-role"><i class="fas fa-briefcase" aria-hidden="true"></i> Role</th>
+                <th class="col-activity"><i class="fas fa-bolt" aria-hidden="true"></i> Activity</th>
+                <th class="col-status"><i class="fas fa-signal" aria-hidden="true"></i> Status</th>
             </tr>
         </thead>
         <tbody>
@@ -88,18 +91,17 @@
                 aria-haspopup="dialog" aria-label="View details for {{ row.student.get_full_name|default:row.student.username }}: {{ row.log.action }}"
                 data-idx="{{ forloop.counter0 }}">
                 <td class="col-datetime">
-                    <span class="meta" style="display:block">{{ row.log.timestamp|date:"F j, Y" }}</span>
-                    <span class="meta" style="display:block">{{ row.log.timestamp|time:"g:i A" }}</span>
+                    <span class="session-logs-date"><i class="far fa-clock" aria-hidden="true"></i><span>{{ row.log.timestamp|date:"F j, Y" }}<small>{{ row.log.timestamp|time:"g:i A" }}</small></span></span>
                 </td>
                 <td class="col-student">{{ row.student.get_full_name|default:row.student.username }}</td>
-                <td class="col-user-type">{% if row.student.account_type == 'INSTRUCTOR' %}Instructor{% elif row.student.account_type == 'STUDENT' %}Student{% else %}{{ row.student.get_account_type_display|default:row.student.account_type }}{% endif %}</td>
+                <td class="col-user-type"><span class="session-logs-user-type {% if row.student.account_type == 'STUDENT' %}is-student{% endif %}"><i class="{% if row.student.account_type == 'STUDENT' %}fas fa-graduation-cap{% else %}fas fa-user{% endif %}" aria-hidden="true"></i>{% if row.student.account_type == 'INSTRUCTOR' %}Instructor{% elif row.student.account_type == 'STUDENT' %}Student{% else %}{{ row.student.get_account_type_display|default:row.student.account_type }}{% endif %}</span></td>
                 <td class="col-session">{{ session.name }}</td>
                 <td class="col-establishment">{{ row.establishment }}</td>
                 <td class="col-role">{{ row.role_label }}</td>
-                <td class="col-activity"><span class="meta" style="display:block">{{ row.log.action }}</span></td>
+                <td class="col-activity"><span class="session-logs-activity">{{ row.log.action }}</span></td>
                 <td class="col-status">
                     {% if row.status != '-' %}
-                    <span class="badge {% if row.status == 'In Progress' %}badge-blue{% elif row.status == 'Completed' %}badge-green{% else %}badge-gray{% endif %}">{{ row.status }}</span>
+                    <span class="badge session-logs-status {% if row.status == 'In Progress' %}badge-blue{% elif row.status == 'Completed' %}badge-green{% else %}badge-gray{% endif %}">{% if row.status == 'Completed' %}<i class="far fa-check-circle" aria-hidden="true"></i>{% elif row.status == 'In Progress' %}<i class="fas fa-sync-alt" aria-hidden="true"></i>{% endif %}{{ row.status }}</span>
                     {% else %}
                     -
                     {% endif %}
@@ -109,6 +111,7 @@
         </tbody>
     </table>
 </div>
+<div class="session-logs-table-footer"><span><i class="fas fa-list-ul" aria-hidden="true"></i> Showing {{ rows|length }} record{{ rows|length|pluralize }}</span></div>
 <p class="logs-tap-hint"><i class="fas fa-hand-pointer"></i> Tap any activity to view its full details.</p>
 {% else %}
 <div class="card">
@@ -144,6 +147,7 @@
         </div>
     </div>
 </div>
+ </main>
 {% endblock %}
 
 {% block extra_js %}
