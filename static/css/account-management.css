@@ -1,0 +1,155 @@
+/* User Account Management page only. */
+.account-management-page {
+    --uam-blue: #0759e8;
+    --uam-navy: #142b5c;
+    --uam-muted: #586f98;
+    min-height: 100%;
+    margin: -30px calc(var(--shell-pad, 24px) * -1);
+    padding: 25px var(--shell-pad, 24px) 32px;
+    color: var(--uam-navy);
+    background:
+        radial-gradient(ellipse at 50% -34%, rgba(255,255,255,.9) 0 17%, transparent 53%),
+        linear-gradient(125deg, #edf5ff 0%, #e6f0ff 56%, #edf5ff 100%);
+}
+
+.account-management-page .account-management-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 18px;
+    min-height: 82px;
+    margin: 0 0 20px;
+    padding: 0 5px;
+}
+
+.account-management-page .account-management-mark {
+    display: grid;
+    flex: 0 0 64px;
+    width: 64px;
+    height: 64px;
+    place-items: center;
+    border: 1px solid #c9ddff;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #fafdff, #dceaff);
+    color: var(--uam-blue);
+    font-size: 25px;
+    box-shadow: 0 5px 14px rgba(32,104,221,.11);
+}
+
+.account-management-page .account-management-heading { min-width: 0; }
+.account-management-page .account-management-head h1 { margin: 0; color: #122858; font-size: clamp(25px,2.2vw,34px); font-weight: 800; letter-spacing: -.035em; }
+.account-management-page .account-management-head p { margin: 4px 0 0; color: #4b6390; font-size: 14px; }
+.account-management-page .account-management-head-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.account-management-page .account-management-head-actions .btn { min-height: 44px; padding: 10px 17px; border-radius: 999px; }
+.account-management-page .account-management-head-actions .btn-brand { background: linear-gradient(135deg,#1676f8,#0752df); box-shadow: 0 7px 17px rgba(20,100,228,.19); }
+.account-management-page .account-management-head-actions .btn-outline { border-color: #cfdef5; background: rgba(255,255,255,.9); color: #162e60; }
+
+.account-management-page .account-management-filter-card {
+    margin-bottom: 18px;
+    padding: 20px 22px;
+    border: 1px solid #d2e2fb;
+    border-radius: 19px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 8px 22px rgba(35,86,162,.08);
+}
+
+.account-management-page .account-list-filter-row { display: grid; gap: 14px; align-items: end; }
+.account-management-page .account-management-filter-top { grid-template-columns: 1.4fr 1fr 1fr; }
+.account-management-page .account-management-filter-bottom { grid-template-columns: 1fr 1fr auto; margin-top: 14px; }
+.account-management-page .account-list-filter-row label { display: block; margin-bottom: 7px; color: #20345f; font-size: 13px; font-weight: 700; }
+.account-management-page .account-management-input { position: relative; }
+.account-management-page .account-management-input > i { position: absolute; top: 50%; left: 14px; z-index: 1; color: var(--uam-blue); font-size: 14px; pointer-events: none; transform: translateY(-50%); }
+.account-management-page .account-management-input .form-input { box-sizing: border-box; min-width: 0; height: 46px; padding: 10px 13px 10px 39px; border: 1px solid #cfdbef; border-radius: 13px; background: #fff; color: #1c315d; font-size: 14px; }
+.account-management-page .account-management-input .form-input:focus { border-color: #4382ed; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.account-management-page .account-list-filter-actions { display: flex; gap: 9px; align-items: end; }
+.account-management-page .account-list-filter-actions .btn { min-height: 46px; padding: 0 17px; border-radius: 13px; white-space: nowrap; }
+.account-management-page .account-list-filter-actions .btn-brand { background: linear-gradient(135deg,#1676f8,#0752df); box-shadow: 0 7px 17px rgba(20,100,228,.17); }
+.account-management-page .account-list-filter-actions .btn-outline { border-color: #d4dff0; background: #fff; color: #1b315f; }
+
+.account-management-page .account-management-table-card { overflow: hidden; border: 1px solid #d1e1fa; border-radius: 19px; background: rgba(255,255,255,.97); box-shadow: 0 8px 22px rgba(35,86,162,.08); }
+.account-management-page .account-management-table-wrap { overflow-x: auto; }
+.account-management-page .account-management-table { min-width: 1120px; margin: 0; border-collapse: separate; border-spacing: 0; color: #182d59; font-size: 13.5px; }
+.account-management-page .account-management-table thead th { padding: 15px 13px; border-bottom: 1px solid #dce7f8; background: linear-gradient(180deg,#eef4ff,#e6efff); color: #3b5684; font-size: 12px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.account-management-page .account-management-table thead th:first-child { padding-left: 20px; }
+.account-management-page .account-management-table thead th > i:first-child { margin-right: 6px; color: #0759df; }
+.account-management-page .account-management-table .account-sort-mark { margin-left: 5px; color: #2267d3; font-size: 11px; }
+.account-management-page .account-management-table .account-col-user { min-width: 245px; }
+.account-management-page .account-management-table .account-col-email { min-width: 240px; }
+.account-management-page .account-management-table .account-col-type { min-width: 155px; }
+.account-management-page .account-management-table .account-col-status { min-width: 125px; }
+.account-management-page .account-management-table .account-col-created { min-width: 165px; }
+.account-management-page .account-management-table .account-col-actions { min-width: 330px; text-align: right; }
+.account-management-page .account-management-table tbody td { padding: 12px 13px; border-bottom: 1px solid #e6edf7; background: #fff; color: #1b305b; vertical-align: middle; }
+.account-management-page .account-management-table tbody tr:nth-child(even) td { background: #fbfdff; }
+.account-management-page .account-management-table tbody tr:hover td { background: #f1f6ff; }
+.account-management-page .account-management-table tbody tr:last-child td { border-bottom: 0; }
+
+.account-management-page .account-management-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.account-management-page .account-user-avatar { display: grid; flex: 0 0 56px; width: 56px; height: 56px; place-items: center; overflow: hidden; border: 2px solid #fff; border-radius: 50%; background: #e6f0ff; color: #1762d4; font-size: 19px; font-weight: 750; box-shadow: 0 2px 8px rgba(41,94,167,.12); }
+.account-management-page .account-user-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: inherit; }
+.account-management-page .account-user-name { display: block; color: #172e5e; font-size: 14px; font-weight: 750; }
+.account-management-page .account-username { margin-top: 3px !important; color: #7185a8; font-size: 12px; }
+.account-management-page .account-col-email { color: #30476f; }
+.account-management-page .account-col-type .badge,
+.account-management-page .account-status-cell .badge { padding: 6px 12px; font-size: 12px; font-weight: 700; }
+.account-management-page .account-col-type .badge-blue { background: #e6efff; color: #0759ce; }
+.account-management-page .account-col-type .badge-amber { background: #fff3df; color: #b76a00; }
+.account-management-page .account-status-cell .badge-green { background: #def7e9; color: #07804a; }
+.account-management-page .account-status-cell .badge-red { background: #ffebeb; color: #c62828; }
+.account-management-page .account-status-cell .badge-gray { background: #eef2f7; color: #5a6b86; }
+
+.account-management-page .account-management-actions { display: flex; justify-content: flex-end; align-items: center; gap: 7px; min-width: 320px; white-space: nowrap; }
+.account-management-page .account-management-actions > form { display: inline-flex !important; }
+.account-management-page .account-management-actions .btn { min-height: 38px; padding: 7px 12px; border-radius: 999px; font-size: 12px; }
+.account-management-page .account-management-actions .account-view-btn { border: 1px solid #d5e3f9; background: #f4f8ff; color: #172d58; }
+.account-management-page .account-management-actions .account-secondary-action.btn-outline { border-color: #ffd2d2; background: #fff8f8; color: #cb2828; }
+.account-management-page .account-management-actions .account-secondary-action.btn-outline:hover { border-color: #f2a3a3; background: #fff0f0; }
+.account-management-page .account-management-table-footer { padding: 13px 20px; border-top: 1px solid #e3ebf8; background: #fbfdff; color: #385580; font-size: 13px; font-weight: 650; }
+.account-management-page .account-management-table-card > .empty { padding: 48px 18px; }
+
+.account-management-page #accountDeactivateModal { position: fixed; inset: 0; margin: auto; max-height: calc(100vh - 32px); overflow-y: auto; border: 1px solid #d6e3f5; border-radius: 18px; background: #fff; }
+.account-management-page #accountDeactivateModal::backdrop { background: rgba(15,23,42,.42); }
+.account-management-page #accountDeactivateModal > form { padding: 26px; }
+.account-management-page #accountDeactivateModal h3 { color: #172e5e; }
+.account-management-page #accountDeactivateModal textarea { border: 1px solid #d4dfef; border-radius: 12px; }
+
+@media (max-width: 1100px) {
+    .account-management-page .account-management-filter-top { grid-template-columns: 1.2fr 1fr; }
+    .account-management-page .account-management-filter-top > .form-group:first-child { grid-column: 1 / -1; }
+    .account-management-page .account-management-filter-bottom { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .account-management-page .account-management-filter-actions { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+    .account-management-page { margin: -24px calc(var(--shell-pad,16px) * -1); padding: 20px var(--shell-pad,16px) 24px; }
+    .account-management-page .account-management-head { align-items: flex-start; flex-wrap: wrap; gap: 12px; min-height: 0; margin-bottom: 15px; padding: 0 2px; }
+    .account-management-page .account-management-mark { flex-basis: 48px; width: 48px; height: 48px; font-size: 20px; }
+    .account-management-page .account-management-heading { flex: 1; padding-top: 1px; }
+    .account-management-page .account-management-head h1 { font-size: 22px; }
+    .account-management-page .account-management-head p { font-size: 12px; }
+    .account-management-page .account-management-head-actions { width: 100%; margin-left: 0; }
+    .account-management-page .account-management-head-actions .btn { flex: 1; padding: 9px 11px; font-size: 12px; }
+    .account-management-page .account-management-filter-card { padding: 15px; border-radius: 16px; }
+    .account-management-page .account-management-filter-top,
+    .account-management-page .account-management-filter-bottom { grid-template-columns: minmax(0,1fr); gap: 12px; }
+    .account-management-page .account-management-filter-top > .form-group:first-child,
+    .account-management-page .account-management-filter-actions { grid-column: auto; }
+    .account-management-page .account-management-filter-actions .btn { flex: 1; justify-content: center; }
+    .account-management-page .account-management-table { min-width: 0; table-layout: fixed; }
+    .account-management-page .account-management-table .account-col-email,
+    .account-management-page .account-management-table .account-col-type,
+    .account-management-page .account-management-table .account-col-status,
+    .account-management-page .account-management-table .account-col-created { display: none; }
+    .account-management-page .account-management-table .account-username,
+    .account-management-page .account-management-table .account-secondary-action { display: none !important; }
+    .account-management-page .account-management-table .account-col-user { width: auto; min-width: 0; }
+    .account-management-page .account-management-table .account-col-actions { width: 82px; min-width: 82px; }
+    .account-management-page .account-management-table thead th { padding: 12px 9px; }
+    .account-management-page .account-management-table td { padding: 11px 9px; font-size: 13px; }
+    .account-management-page .account-management-user { gap: 9px; }
+    .account-management-page .account-user-avatar { flex-basis: 44px; width: 44px; height: 44px; font-size: 15px; }
+    .account-management-page .account-user-name { overflow-wrap: anywhere; font-size: 13px; }
+    .account-management-page .account-management-actions { min-width: 0; }
+    .account-management-page .account-management-actions .account-view-btn { min-height: 38px; padding: 7px 10px; }
+    .account-management-page .account-management-table-footer { padding: 12px 14px; }
+}

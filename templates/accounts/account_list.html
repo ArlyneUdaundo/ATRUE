@@ -1,57 +1,32 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}User Accounts{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/account-management.css' %}?v=20261117-1">
+{% endblock %}
+
 {% block content %}
-<style>
-#accountDeactivateModal {
-    position: fixed;
-    inset: 0;
-    margin: auto;
-    max-height: calc(100vh - 32px);
-    overflow-y: auto;
-}
-#accountDeactivateModal::backdrop {
-    background: rgba(15, 23, 42, .28);
-}
-.account-list-table { width: 100%; }
-@media (max-width: 640px) {
-    .account-list-filter-row { grid-template-columns: minmax(0, 1fr) !important; }
-    .account-list-filter-actions { flex-wrap: wrap; }
-}
-@media (max-width: 640px) {
-    .account-list-table { table-layout: fixed; }
-    .account-list-table .account-col-email,
-    .account-list-table .account-col-type,
-    .account-list-table .account-col-status,
-    .account-list-table .account-col-created { display: none; }
-    .account-list-table .account-username,
-    .account-list-table .account-secondary-action { display: none !important; }
-    .account-list-table .account-col-actions { width: 82px; text-align: right !important; }
-    .account-list-table td { padding: 13px 10px; font-size: 14px; }
-    .account-list-table .account-col-user > div { gap: 9px !important; min-width: 0; }
-    .account-list-table .account-user-avatar { width: 44px !important; height: 44px !important; flex: 0 0 44px !important; border-radius: 12px !important; font-size: 15px !important; }
-    .account-list-table .account-col-user > div > div { min-width: 0; }
-    .account-list-table .account-user-name { display: block; overflow-wrap: anywhere; }
-    .account-list-table .account-view-btn { min-height: 40px; padding: 8px 11px; white-space: nowrap; }
-}
-</style>
-<div class="page-head">
-    <div>
+<div class="account-management-page">
+<div class="page-head account-management-head">
+    <span class="account-management-mark"><i class="fas fa-users" aria-hidden="true"></i></span>
+    <div class="account-management-heading">
         <h1>User Account Management</h1>
+        <p>Manage system users and their access.</p>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div class="account-management-head-actions">
         <a href="{% url 'accounts:account_create' %}" data-establishment-create class="btn btn-brand"><i class="fas fa-user-plus"></i> Create Account</a>
         <a href="{% url 'accounts:account_create' %}?mode=bulk" class="btn btn-outline"><i class="fas fa-file-import"></i> Bulk Import</a>
     </div>
 </div>
 
-<div class="card card-pad" style="margin-bottom:20px">
+<section class="card card-pad account-management-filter-card">
     <form method="get">
-        <div class="filter-grid account-list-filter-row" style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;align-items:end">
+        <div class="account-list-filter-row account-management-filter-top">
             <div class="form-group" style="margin:0">
                 <label>Search</label>
-                <input type="text" name="q" class="form-input" placeholder="Name, username or email" value="{{ q }}">
+                <div class="account-management-input"><i class="fas fa-search" aria-hidden="true"></i><input type="text" name="q" class="form-input" placeholder="Name, username or email..." value="{{ q }}"></div>
             </div>
             <div class="form-group" style="margin:0">
                 <label>Status</label>
@@ -71,43 +46,43 @@
                 </select>
             </div>
         </div>
-        <div class="filter-grid account-list-filter-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-top:14px">
+        <div class="account-list-filter-row account-management-filter-bottom">
             <div class="form-group" style="margin:0">
                 <label>Date Created From</label>
-                <input type="date" name="date_from" class="form-input" value="{{ date_from }}">
+                <div class="account-management-input"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
             </div>
             <div class="form-group" style="margin:0">
                 <label>Date Created To</label>
-                <input type="date" name="date_to" class="form-input" value="{{ date_to }}">
+                <div class="account-management-input"><i class="far fa-calendar-alt" aria-hidden="true"></i><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
             </div>
-            <div class="account-list-filter-actions" style="display:flex;gap:8px">
-                <button type="submit" class="btn btn-brand"><i class="fas fa-search"></i> Filter</button>
-                <a href="{% url 'accounts:account_list' %}" class="btn btn-outline">Reset</a>
+            <div class="account-list-filter-actions account-management-filter-actions">
+                <button type="submit" class="btn btn-brand"><i class="fas fa-filter" aria-hidden="true"></i> Filter</button>
+                <a href="{% url 'accounts:account_list' %}" class="btn btn-outline"><i class="fas fa-redo-alt" aria-hidden="true"></i> Reset</a>
             </div>
         </div>
     </form>
-</div>
+</section>
 
-<div class="card">
+<section class="card account-management-table-card">
     {% if accounts %}
     <div class="table-wrap">
-        <table class="table account-list-table">
+        <table class="table account-list-table account-management-table">
             <thead>
                 <tr>
-                    <th class="account-col-user">User</th>
-                    <th class="account-col-email">Email</th>
-                    <th class="account-col-type">Type</th>
-                    <th class="account-col-status">Status</th>
-                    <th class="account-col-created">Date Created</th>
-                    <th class="account-col-actions" style="text-align:right">Actions</th>
+                    <th class="account-col-user"><i class="fas fa-user" aria-hidden="true"></i> User <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-email"><i class="far fa-envelope" aria-hidden="true"></i> Email <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-type"><i class="fas fa-id-badge" aria-hidden="true"></i> Type <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-status"><i class="fas fa-circle" aria-hidden="true"></i> Status <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-created"><i class="far fa-calendar-alt" aria-hidden="true"></i> Date Created <i class="fas fa-sort account-sort-mark" aria-hidden="true"></i></th>
+                    <th class="account-col-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in accounts %}
                 <tr>
                     <td class="account-col-user">
-                        <div style="display:flex;align-items:center;gap:10px">
-                            <span class="avatar account-user-avatar" style="width:80px;height:80px;flex:0 0 80px;border-radius:16px;background:var(--slate-100);display:grid;place-items:center;color:var(--indigo);font-weight:700;font-size:24px">{% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="{{ u.get_full_name|default:u.username }} profile picture" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit">{% else %}{{ u.username|slice:":1" }}{% endif %}</span>
+                        <div class="account-management-user">
+                            <span class="avatar account-user-avatar">{% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="{{ u.get_full_name|default:u.username }} profile picture" loading="lazy" decoding="async">{% else %}{{ u.username|slice:":1" }}{% endif %}</span>
                             <div>
                                 <b class="account-user-name">{{ u.get_full_name|default:u.username }}</b>
                                 <div class="meta account-username" style="margin:0"><i class="fas fa-at"></i> @{{ u.username }}</div>
@@ -118,7 +93,8 @@
                     <td class="account-col-type"><span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.get_account_type_display }}</span></td>
                     <td class="account-col-status account-status-cell"><span class="badge {% if u.status == 'ACTIVE' %}badge-green{% elif u.status == 'SUSPENDED' %}badge-red{% else %}badge-gray{% endif %}">{{ u.get_status_display }}</span></td>
                     <td class="account-col-created">{{ u.date_joined|date:"M d, Y" }}</td>
-                    <td class="account-col-actions" style="text-align:right;white-space:nowrap">
+                    <td class="account-col-actions">
+                      <div class="account-management-actions">
                         <a href="{% url 'accounts:account_detail' u.id %}" class="btn btn-ghost btn-sm account-view-btn"><i class="fas fa-eye"></i> View</a>
                         {% if can_update %}
                         <a href="{% url 'accounts:account_update' u.id %}" class="btn btn-ghost btn-sm account-secondary-action" data-establishment-create><i class="fas fa-edit"></i> Update</a>
@@ -137,16 +113,18 @@
                             <button type="submit" class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#b91c1c"><i class="fas fa-trash"></i> Delete</button>
                         </form>
                         {% endif %}
+                      </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    <div class="account-management-table-footer">{{ accounts|length }} account{{ accounts|length|pluralize }} found</div>
     {% else %}
     <div class="empty"><i class="fas fa-users"></i><h3>No accounts found</h3><p>Try adjusting your search or filters.</p></div>
     {% endif %}
-</div>
+</section>
 <dialog id="accountDeactivateModal" style="width:min(520px,calc(100% - 32px));border:0;border-radius:16px;padding:0;box-shadow:0 24px 70px rgba(15,23,42,.25)">
     <form id="accountDeactivateForm" method="post" style="padding:24px">
         {% csrf_token %}
@@ -163,6 +141,7 @@
         </div>
     </form>
 </dialog>
+</div>
 <script>
 (function () {
     const modal = document.getElementById('accountDeactivateModal');
