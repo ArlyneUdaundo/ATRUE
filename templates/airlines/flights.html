@@ -1,93 +1,116 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Flights{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/flight-schedule.css' %}?v=20261117-modern-1">
+{% endblock %}
+
 {% block content %}
-<div class="page-head">
-    <div><h1>Flight Schedule</h1><p>All managed flights across airlines.</p></div>
-    {% if can_add_flight %}<a href="{% url 'airlines:add_flight_schedule' %}" class="btn btn-brand" data-establishment-create><i class="fas fa-plus"></i> Add Flight</a>{% endif %}
-</div>
+<div class="flight-schedule-page">
+    <header class="fsp-hero">
+        <div class="fsp-hero-copy">
+            <span class="fsp-hero-icon" aria-hidden="true"><i class="fas fa-plane"></i></span>
+            <div><h1>Flight Schedule</h1><p>All managed flights across airlines.</p></div>
+        </div>
+        <i class="fas fa-plane fsp-plane-art" aria-hidden="true"></i>
+        {% if can_add_flight %}<a href="{% url 'airlines:add_flight_schedule' %}" class="fsp-add" data-establishment-create><i class="fas fa-plane" aria-hidden="true"></i> Add Flight</a>{% endif %}
+    </header>
 
-<form method="get" class="card card-pad flight-schedule-filters" style="margin-bottom:18px">
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
-        <div class="form-group atrue-location-autocomplete" data-location-autocomplete><label>Search</label><input type="text" name="q" class="form-input" value="{{ q }}" placeholder="Flight number, airport, city or country" autocomplete="off"><div class="atrue-location-options" role="listbox" hidden></div></div>
-        <div class="form-group">
-            <label>Airline</label>
-            <div style="display:flex;align-items:center;gap:10px">
-                <select name="airline" id="flightAirlineFilter" class="form-input" style="flex:1">
-                    <option value="" data-logo="">All airlines</option>
-                    {% for a in airlines %}<option value="{{ a.id }}" data-logo="{{ a.logo_url }}" {% if airline == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
-                </select>
-                <img id="flightAirlineLogo" class="airline-logo-preview" alt="Selected airline logo" style="display:none">
+    <form method="get" class="card flight-schedule-filters">
+        <div class="fsp-filter-grid">
+            <div class="form-group fsp-filter-field atrue-location-autocomplete" data-location-autocomplete>
+                <label for="flightSearch">Search</label>
+                <div class="fsp-control-wrap"><i class="fas fa-search" aria-hidden="true"></i><input id="flightSearch" type="text" name="q" class="form-input" value="{{ q }}" placeholder="Flight number, airport, city or country" autocomplete="off"></div>
+                <div class="atrue-location-options" role="listbox" hidden></div>
             </div>
-        </div>
-        <div class="form-group">
-            <label>Status</label>
-            <select name="status" class="form-input">
-                <option value="">All statuses</option>
-                <option value="SCHEDULED" {% if status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
-                <option value="DELAYED" {% if status == 'DELAYED' %}selected{% endif %}>Delayed</option>
-                <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
-                <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>Completed</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Classification</label>
-            <select name="classification" class="form-input">
-                <option value="">All classifications</option>
-                {% for value, label in classification_choices %}
-                <option value="{{ value }}" {% if classification == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group"><label>From</label><input type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
-        <div class="form-group"><label>To</label><input type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
-    </div>
-    <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-search"></i> Filter</button>
-</form>
-
-<div class="flight-schedule-grid">
-    {% for f in flights %}
-    <article class="card card-pad">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-            <div style="display:flex;align-items:center;gap:12px">
-                {% include 'airlines/_airline_logo.html' with airline=f.airline logo_class='airline-logo airline-logo--sm' %}
-                <div>
-                    <h3 style="margin:0">{{ f.flight_number }}</h3>
-                    <div class="meta">{{ f.airline.name }}</div>
+            <div class="form-group fsp-filter-field">
+                <label for="flightAirlineFilter">Airline</label>
+                <div class="fsp-control-wrap fsp-select-wrap">
+                    <i class="fas fa-plane" aria-hidden="true"></i>
+                    <select name="airline" id="flightAirlineFilter" class="form-input">
+                        <option value="" data-logo="">All airlines</option>
+                        {% for a in airlines %}<option value="{{ a.id }}" data-logo="{{ a.logo_url }}" {% if airline == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+                    </select>
+                    <img id="flightAirlineLogo" class="airline-logo-preview" alt="Selected airline logo" hidden>
                 </div>
             </div>
-            <span class="badge {% if f.status == 'SCHEDULED' %}badge-green{% elif f.status == 'DELAYED' %}badge-amber{% elif f.status == 'CANCELLED' %}badge-red{% else %}badge-gray{% endif %}">{{ f.get_status_display }}</span>
+            <div class="form-group fsp-filter-field">
+                <label for="flightStatusFilter">Status</label>
+                <div class="fsp-control-wrap"><i class="fas fa-circle fsp-status-icon" aria-hidden="true"></i><select id="flightStatusFilter" name="status" class="form-input">
+                    <option value="">All statuses</option>
+                    <option value="SCHEDULED" {% if status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
+                    <option value="DELAYED" {% if status == 'DELAYED' %}selected{% endif %}>Delayed</option>
+                    <option value="CANCELLED" {% if status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                    <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                </select></div>
+            </div>
+            <div class="form-group fsp-filter-field">
+                <label for="flightClassificationFilter">Classification</label>
+                <div class="fsp-control-wrap"><i class="fas fa-tag" aria-hidden="true"></i><select id="flightClassificationFilter" name="classification" class="form-input">
+                    <option value="">All classifications</option>
+                    {% for value, label in classification_choices %}<option value="{{ value }}" {% if classification == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            </div>
+            <div class="form-group fsp-filter-field">
+                <label for="flightDateFrom">From</label>
+                <div class="fsp-control-wrap"><i class="fas fa-location-dot" aria-hidden="true"></i><input id="flightDateFrom" type="date" name="date_from" class="form-input" value="{{ date_from }}"></div>
+            </div>
+            <div class="form-group fsp-filter-field">
+                <label for="flightDateTo">To</label>
+                <div class="fsp-control-wrap"><i class="far fa-calendar" aria-hidden="true"></i><input id="flightDateTo" type="date" name="date_to" class="form-input" value="{{ date_to }}"></div>
+            </div>
         </div>
-        {% if f.origin_airport and f.destination_airport %}
-        <div class="meta" style="margin-top:10px"><i class="fas fa-route"></i> <b>{{ f.origin_airport.code }}</b> {{ f.origin_airport.airport_name }} → <b>{{ f.destination_airport.code }}</b> {{ f.destination_airport.airport_name }}</div>
-        <div class="meta"><i class="fas fa-map-marker-alt"></i> {{ f.origin_airport.city }}, {{ f.origin_airport.country }} → {{ f.destination_airport.city }}, {{ f.destination_airport.country }}</div>
-        {% else %}
-        <div class="meta" style="margin-top:10px"><i class="fas fa-route"></i> {{ f.origin }}{% if f.origin_code %} ({{ f.origin_code }}){% endif %} → {{ f.destination }}{% if f.destination_code %} ({{ f.destination_code }}){% endif %}</div>
-        {% endif %}
-        <div class="meta"><i class="fas fa-arrows-rotate"></i> Trip type:
-            <span class="badge {% if f.trip_type == 'ROUND_TRIP' %}badge-blue{% else %}badge-gray{% endif %}" style="font-size:11px">{{ f.get_trip_type_display }}</span>
-        </div>
-        <div class="meta"><i class="fas {% if f.flight_classification == 'INTERNATIONAL' %}fa-earth-americas{% else %}fa-map-location-dot{% endif %}"></i> Classification:
-            {% if f.flight_classification %}
-            <span class="badge {% if f.flight_classification == 'INTERNATIONAL' %}badge-blue{% else %}badge-green{% endif %}" style="font-size:11px">{{ f.get_flight_classification_display }}</span>
-            {% else %}
-            <span class="badge badge-gray" style="font-size:11px">Not set</span>
-            {% endif %}
-        </div>
-        <div class="meta"><i class="fas fa-plane"></i> {% if f.aircraft %}{{ f.aircraft.model_name }} · <span class="mono">{{ f.aircraft.tail_number }}</span>{% else %}No aircraft assigned{% endif %}</div>
-        <div class="meta"><i class="fas fa-chair"></i> {{ f.capacity }} seats</div>
-        <div class="meta"><i class="fas fa-plane-departure"></i> {{ f.departure_time|date:"M d, Y H:i" }}</div>
-        <div class="meta"><i class="fas fa-plane-arrival"></i> {{ f.arrival_time|date:"M d, Y H:i" }}</div>
-        <div class="meta"><i class="fas fa-money-bill"></i> Economy ₱ {{ f.economy_fare }} · First ₱ {{ f.first_class_fare }}</div>
-        <div style="margin-top:14px">
-            <a href="{% url 'airlines:flight_detail' f.slug %}" class="btn btn-ghost btn-sm"><i class="fas fa-eye"></i> View</a>
-        </div>
-    </article>
-    {% empty %}
-    <div class="card card-pad" style="grid-column:1/-1"><div class="empty"><i class="fas fa-fighter-jet"></i><h3>No flights found</h3></div></div>
-    {% endfor %}
+        <div class="fsp-filter-actions"><button type="submit" class="btn btn-brand"><i class="fas fa-filter" aria-hidden="true"></i> Filter</button><a href="{% url 'airlines:flights' %}" class="fsp-reset"><i class="fas fa-rotate-left" aria-hidden="true"></i> Reset</a></div>
+    </form>
+
+    <div class="flight-schedule-grid">
+        {% for f in flights %}
+        <article class="card fsp-card">
+            <div class="fsp-card-head">
+                <div class="fsp-carrier">
+                    <div class="fsp-carrier-line">
+                        {% include 'airlines/_airline_logo.html' with airline=f.airline logo_class='airline-logo airline-logo--sm' %}
+                        <div class="fsp-carrier-copy"><strong class="fsp-flight-number">{{ f.flight_number }}</strong><span class="fsp-airline-name">{{ f.airline.name }}</span></div>
+                    </div>
+                </div>
+                <span class="fsp-status {% if f.status == 'SCHEDULED' %}fsp-status--scheduled{% elif f.status == 'DELAYED' %}fsp-status--delayed{% elif f.status == 'CANCELLED' %}fsp-status--cancelled{% else %}fsp-status--other{% endif %}"><i class="fas fa-circle" aria-hidden="true"></i>{{ f.get_status_display }}</span>
+            </div>
+
+            <div class="fsp-route-row">
+                <div class="fsp-route-end fsp-route-end--origin">
+                    <strong class="fsp-route-code">{% if f.origin_airport %}{{ f.origin_airport.code|default:f.origin_code }}{% else %}{{ f.origin_code|default:f.origin|slice:":3"|upper }}{% endif %}</strong>
+                    <span class="fsp-route-city">{% if f.origin_airport %}{{ f.origin_airport.city|default:f.origin_airport.airport_name }}{% else %}{{ f.origin }}{% endif %}</span>
+                </div>
+                <span class="fsp-route-path" aria-hidden="true"><i class="fas fa-plane"></i></span>
+                <div class="fsp-route-end fsp-route-end--destination">
+                    <strong class="fsp-route-code">{% if f.destination_airport %}{{ f.destination_airport.code|default:f.destination_code }}{% else %}{{ f.destination_code|default:f.destination|slice:":3"|upper }}{% endif %}</strong>
+                    <span class="fsp-route-city">{% if f.destination_airport %}{{ f.destination_airport.city|default:f.destination_airport.airport_name }}{% else %}{{ f.destination }}{% endif %}</span>
+                </div>
+                <span class="fsp-route-divider" aria-hidden="true"></span>
+                <div class="fsp-aircraft"><span class="fsp-aircraft-label">Aircraft</span><strong>{% if f.aircraft %}{{ f.aircraft.model_name }}{% else %}Not assigned{% endif %}</strong><small><i class="fas fa-chair" aria-hidden="true"></i> {{ f.capacity }} seats</small></div>
+            </div>
+
+            <div class="fsp-meta">
+                <span class="fsp-meta-item"><i class="far fa-calendar" aria-hidden="true"></i><span>{{ f.departure_time|date:"D, M j, Y" }}</span></span>
+                <span class="fsp-meta-item"><i class="fas fa-arrows-rotate" aria-hidden="true"></i><span>{{ f.get_trip_type_display }}{% if f.flight_classification %} · {{ f.get_flight_classification_display }}{% endif %}</span></span>
+                <span class="fsp-meta-item"><i class="far fa-clock" aria-hidden="true"></i><span>{{ f.departure_time|date:"g:i A" }} – {{ f.arrival_time|date:"g:i A" }}</span></span>
+                <span class="fsp-meta-item"><i class="fas fa-suitcase" aria-hidden="true"></i><span>Baggage: {{ f.checked_baggage_kg }} kg{% if f.cabin_baggage_kg %} · Cabin {{ f.cabin_baggage_kg }} kg{% endif %}</span></span>
+                <span class="fsp-meta-item fsp-fare"><i class="fas fa-ticket" aria-hidden="true"></i><span>Economy ₱{{ f.economy_fare|floatformat:2 }} · First ₱{{ f.first_class_fare|floatformat:2 }}</span></span>
+            </div>
+
+            <footer class="fsp-card-footer">
+                {% if f.aircraft %}<span class="fsp-tail"><i class="fas fa-hashtag" aria-hidden="true"></i> {{ f.aircraft.tail_number }}</span>{% else %}<span></span>{% endif %}
+                <a href="{% url 'airlines:flight_detail' f.slug %}" class="btn"><i class="fas fa-eye" aria-hidden="true"></i> View Details <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+            </footer>
+        </article>
+        {% empty %}
+        <div class="card fsp-empty"><i class="fas fa-plane-slash" aria-hidden="true"></i><h3>No flights found</h3><p>Try changing your filters or search terms.</p></div>
+        {% endfor %}
+    </div>
 </div>
+
 <script>
 (function () {
     var sel = document.getElementById('flightAirlineFilter');
@@ -96,8 +119,8 @@
     function sync() {
         var opt = sel.options[sel.selectedIndex];
         var url = opt ? opt.getAttribute('data-logo') : '';
-        if (url) { img.src = url; img.style.display = ''; }
-        else { img.removeAttribute('src'); img.style.display = 'none'; }
+        if (url) { img.src = url; img.hidden = false; }
+        else { img.removeAttribute('src'); img.hidden = true; }
     }
     sel.addEventListener('change', sync);
     sync();
