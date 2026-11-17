@@ -10,6 +10,12 @@
             <h1 class="fs-hero__title" id="fsHeroTitle">Find Your Next Flight</h1>
             <p class="fs-hero__sub">Explore the world with ease. Book your flight and make new memories.</p>
         </div>
+        {% if can_add_flight %}
+        <a href="{% url 'airlines:flights' %}" class="fs-hero__manage" aria-label="Manage flights">
+            <i class="fas fa-sliders" aria-hidden="true"></i> Manage Flights
+        </a>
+        {% else %}
         <p class="fs-hero__slogan"><i class="fas fa-feather-pointed" aria-hidden="true"></i> Same skies, new stories</p>
+        {% endif %}
     </div>
 </section>

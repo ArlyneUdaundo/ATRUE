@@ -513,6 +513,32 @@ a.fs-btn {
     opacity: .8;
 }
 
+.fs-hero__manage {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid rgba(255, 255, 255, .48);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.fs-hero__manage:hover,
+.fs-hero__manage:focus-visible {
+    border-color: rgba(255, 255, 255, .78);
+    background: rgba(255, 255, 255, .2);
+    color: #fff;
+}
+
 .fs-search-wrap {
     margin-top: -58px;
     position: relative;
