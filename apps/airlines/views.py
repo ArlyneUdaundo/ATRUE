@@ -373,6 +373,30 @@ def _customer_seat_types(real_map, currency_prefix):
     return sorted(types.values(), key=lambda item: item['label'])
 
 
+def _flight_seat_type_prices(flight, real_map, currency_prefix):
+    """Show all configured seat type prices, including types not on this layout."""
+    prices = {
+        item['key']: item
+        for item in _customer_seat_types(real_map, currency_prefix)
+    }
+    flight_prices = getattr(flight, 'seat_type_prices', {}) or {}
+    for seat_type in SeatType.objects.all().order_by('name'):
+        if seat_type.code in flight_prices:
+            amount = Decimal(str(flight_prices[seat_type.code]))
+        elif seat_type.code in prices:
+            continue
+        else:
+            amount = Decimal(str(seat_type.default_price or 0))
+        prices[seat_type.code] = {
+            'key': seat_type.code,
+            'label': seat_type.name,
+            'price': float(amount),
+            'price_text': f'{currency_prefix}{amount:,.2f}',
+            'color': seat_type.color or '',
+        }
+    return sorted(prices.values(), key=lambda item: item['label'])
+
+
 def _seat_types_note(seat_types):
     if any(item['price'] for item in seat_types):
         return ('Seat prices are per seat, per traveller, and are added to the '
@@ -3307,7 +3331,8 @@ def flight_detail(request, flight_id):
             'remaining': remaining,
             'seat_pricing_by_segment': [{
                 'label': flight.flight_number or flight.leg_label,
-                'seat_types': _customer_seat_types(_seat_map(flight), '₱'),
+                'seat_types': _flight_seat_type_prices(
+                    flight, _seat_map(flight), '₱'),
             }],
             'route_points': route_points,
             'schedule_route_label': flight.leg_label,
@@ -3327,7 +3352,7 @@ def flight_detail(request, flight_id):
                 'airlines:update_flight', args=[flight.id]
             ),
         })
-    seat_pricing = _customer_seat_types(_seat_map(flight), '₱')
+    seat_pricing = _flight_seat_type_prices(flight, _seat_map(flight), '₱')
     return render(request, 'airlines/flight_detail.html', {
         'flight': flight,
         'remaining': remaining,
@@ -3386,7 +3411,8 @@ def itinerary_detail(request, itinerary_id):
     segment_rows = _itinerary_seat_maps(itinerary)
     seat_pricing_by_segment = [{
         'label': row['flight'].flight_number or row['flight'].leg_label,
-        'seat_types': _customer_seat_types(row['seat_map'], '₱'),
+        'seat_types': _flight_seat_type_prices(
+            row['flight'], row['seat_map'], '₱'),
     } for row in segment_rows]
     route_points = []
     if legs:
@@ -3460,7 +3486,8 @@ def itinerary_public_detail(request, itinerary_id):
     segment_rows = _itinerary_seat_maps(itinerary)
     seat_pricing_by_segment = [{
         'label': row['flight'].flight_number or row['flight'].leg_label,
-        'seat_types': _customer_seat_types(row['seat_map'], '₱'),
+        'seat_types': _flight_seat_type_prices(
+            row['flight'], row['seat_map'], '₱'),
     } for row in segment_rows]
     return render(request, 'airlines/itinerary_public.html', {
         'itinerary': itinerary,
