@@ -1149,7 +1149,8 @@ def assignment_progress_data(assignment):
         'subtitle': (
             'Track each verified step of the hotel guest workflow.'
             if is_hotel_guest else
-            'Track verified flight booking, booking management, and seat selection.'
+            'Track flight selection, passenger information, seat selection, payment '
+            'verification, reservation confirmation, and e-ticket access.'
             if is_airline_passenger else
             f'Track verified completion for {assignment.role_label}.'),
         'success_message': success_message,

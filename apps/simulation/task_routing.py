@@ -807,15 +807,20 @@ def task_operation_for(assignment):
             {
                 'list', 'airports_api', 'book', 'book_itinerary',
                 'flight_detail', 'booking_detail', 'ticket', 'ticket_pdf',
-                'itinerary_public_detail',
+                'itinerary_public_detail', 'passenger_details',
+                'confirm_passenger_details', 'passenger_payment',
+                'complete_passenger_payment', 'passenger_payment_confirmation',
+                'passenger_ticket',
             },
             'fa-plane',
             tasks=(
-                ('Book Flight', 'airlines:list', 'fa-plane'),
-                ('View Booking', 'transactions:booking_list', 'fa-book-open'),
-                ('Manage Booking', 'transactions:booking_list', 'fa-pen-to-square'),
-                ('Select Seat', 'airlines:list', 'fa-chair'),
-                ('View Ticket', 'transactions:booking_list', 'fa-ticket-alt'),
+                ('Select Flight', 'airlines:list', 'fa-plane'),
+                ('Passenger Information', 'airlines:passenger_details', 'fa-user'),
+                ('Select Seat', 'airlines:passenger_details', 'fa-chair'),
+                ('Payment Verification', 'airlines:passenger_payment', 'fa-credit-card'),
+                ('Confirmation of Reservation', 'transactions:booking_list',
+                 'fa-check-circle'),
+                ('View E-Ticket', 'airlines:passenger_ticket', 'fa-ticket-alt'),
             ),
         )
     guest_workflow_code = GUEST_ROLE_ALIASES.get(role_code, role_code)
@@ -914,11 +919,15 @@ def assignment_tasks_for(assignment):
             item['description'] = 'Complete this customer booking step successfully.'
         if role_code == 'PASSENGER_AIRLINE':
             item['description'] = {
-                'Book Flight': 'Search for and submit a flight booking.',
-                'View Booking': 'Review your submitted flight booking details.',
-                'Manage Booking': 'Make and save an allowed change to your flight booking.',
+                'Select Flight': 'Search for and select a flight to begin a reservation.',
+                'Passenger Information': (
+                    'Enter the passenger details required for the flight.'),
                 'Select Seat': 'Choose and save a seat for your booked flight.',
-                'View Ticket': 'Open and review your flight e-ticket.',
+                'Payment Verification': (
+                    'Complete the payment step and wait for payment verification.'),
+                'Confirmation of Reservation': (
+                    'Wait for the reservation to be confirmed.'),
+                'View E-Ticket': 'Open and review your flight e-ticket.',
             }.get(item['label'], item['description'])
         if item['label'].startswith('Add ') and role_code != 'AIRLINE_OWNER':
             item['completion_events'] = ['ESTABLISHMENT_CREATED']
@@ -937,15 +946,24 @@ def assignment_tasks_for(assignment):
             item['description'] = HOTEL_GUEST_TASK_DESCRIPTIONS.get(item['label'], '')
         if role_code == 'GUEST_HOTEL' and item['label'] in HOTEL_GUEST_TASK_RULES:
             item['key'], item['completion_events'] = HOTEL_GUEST_TASK_RULES[item['label']]
-        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Book Flight':
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Flight':
             item['key'] = 'passenger_airline.book_flight'
             item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
-        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Manage Booking':
-            item['key'] = 'passenger_airline.manage_booking'
-            item['completion_events'] = ['PASSENGER_BOOKING_MANAGED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Passenger Information':
+            item['key'] = 'passenger_airline.passenger_information'
+            item['classification'] = 'INFORMATIONAL'
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Seat':
             item['key'] = 'passenger_airline.select_seat'
             item['completion_events'] = ['PASSENGER_SEAT_SELECTED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Payment Verification':
+            item['key'] = 'passenger_airline.payment_verification'
+            item['completion_events'] = ['PAYMENT_VERIFIED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Confirmation of Reservation':
+            item['key'] = 'passenger_airline.reservation_confirmation'
+            item['completion_events'] = ['RESERVATION_CONFIRMED']
+        elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'View E-Ticket':
+            item['key'] = 'passenger_airline.view_eticket'
+            item['classification'] = 'INFORMATIONAL'
         elif (GUEST_ROLE_ALIASES.get(role_code, role_code) in GUEST_MODULES
               and item['label'] in GUEST_TASK_RULES):
             suffix, events, description = GUEST_TASK_RULES[item['label']]
@@ -969,7 +987,7 @@ def assignment_tasks_for(assignment):
                    or task['route'].endswith(':operate'))):
             item['key'] = f"{role_code.lower()}.service_fulfilment"
             item['completion_events'] = ['BOOKING_FULFILLED']
-        if item['label'] in {'View Booking', 'View Ticket'}:
+        if item['label'] in {'Passenger Information', 'View E-Ticket'}:
             item['classification'] = 'INFORMATIONAL'
         elif not item.get('completion_events') and item['label'].startswith('Manage '):
             item['classification'] = 'REQUIRED'

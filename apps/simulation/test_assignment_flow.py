@@ -1281,8 +1281,8 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         self.assertTemplateUsed(response, 'simulation/task_operations.html')
         self.assertContains(response, 'Airline Passenger Operations')
         for label in (
-            'Book Flight', 'View Booking', 'Manage Booking',
-            'Select Seat', 'View Ticket',
+            'Select Flight', 'Passenger Information', 'Select Seat',
+            'Payment Verification', 'Confirmation of Reservation', 'View E-Ticket',
         ):
             with self.subTest(label=label):
                 self.assertContains(response, label)
@@ -1293,11 +1293,11 @@ class MyRolesAndDoTheTaskTests(AssignmentFlowTestCase):
         )
         self.assertEqual(
             response.context['operation']['tasks'][1]['url'],
-            reverse('transactions:booking_list'),
+            reverse('airlines:passenger_details'),
         )
         for task in response.context['operation']['tasks']:
             with self.subTest(task=task['label']):
-                self.assertEqual(self.client.get(task['url']).status_code, 200)
+                self.assertIn(self.client.get(task['url']).status_code, (200, 302))
         self.assertEqual(
             self.client.session['active_simulation_task_assignment'],
             passenger_assignment.pk,
