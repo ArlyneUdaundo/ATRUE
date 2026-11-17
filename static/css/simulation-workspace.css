@@ -1131,40 +1131,58 @@ body.sim-modal-open {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 1120px;
+    max-width: 1540px;
     max-height: calc(100vh - 36px);
     overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg, 16px);
-    background: var(--white);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    border: 1px solid #e4edfb;
+    border-radius: 22px;
+    background: linear-gradient(160deg, #fff 0%, #fff 78%, #f2f8ff 100%);
+    box-shadow: 0 28px 72px rgba(15, 42, 89, 0.25);
 }
 
 .sim-session-head {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 18px 20px 14px;
+    padding: 22px 30px 18px;
     border-bottom: 1px solid var(--border);
 }
+
+.sim-session-modal-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 88px;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #63b6ff, #1682f4);
+    color: #fff;
+    font-size: 36px;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .2);
+}
+
+.sim-session-head-copy { flex: 1; min-width: 0; }
 
 .sim-session-head h2 {
     margin: 0;
     color: var(--text-1);
-    font-size: 20px;
+    font-size: clamp(24px, 2.4vw, 32px);
+    font-weight: 850;
+    letter-spacing: .01em;
+    text-transform: uppercase;
 }
 
 .sim-session-meta {
     margin: 5px 0 0;
     color: var(--text-2);
-    font-size: 13px;
+    font-size: 16px;
 }
 
 .sim-session-body {
     min-height: 0;
     overflow: auto;
-    padding: 16px 20px 4px;
+    padding: 14px 30px 8px;
     overscroll-behavior: contain;
 }
 
@@ -1176,11 +1194,31 @@ body.sim-modal-open {
 
 .sim-session-dialog .simulation-student-summary {
     display: grid;
-    grid-template-columns: minmax(180px, 1.1fr) minmax(175px, 1fr) minmax(210px, 1.2fr) minmax(100px, .55fr) max-content;
+    grid-template-columns: minmax(245px, 1.25fr) minmax(175px, 1fr) minmax(235px, 1.1fr) minmax(125px, .65fr) max-content;
     align-items: center;
     justify-content: initial;
-    gap: 12px;
+    gap: 16px;
+    min-height: 86px;
+    padding: 12px 20px;
 }
+
+.sim-session-dialog .simulation-session-activities-head { margin: 0 0 12px; padding: 0; border: 0; }
+.sim-session-dialog .simulation-session-activities-head h3 { display: inline-flex; align-items: center; gap: 12px; margin: 0; padding: 9px 16px; border-radius: 15px; background: #edf4ff; color: #145be7; font-size: 17px; }
+.sim-session-dialog .simulation-session-student-count { margin: 0; padding: 5px 11px; border-radius: 999px; background: #dceaff; color: #1857c7; font-size: 13px; }
+.sim-student-columns { display: grid; grid-template-columns: minmax(245px, 1.25fr) minmax(175px, 1fr) minmax(235px, 1.1fr) minmax(125px, .65fr) max-content; gap: 16px; align-items: center; min-height: 56px; padding: 0 22px; border-radius: 14px 14px 0 0; background: linear-gradient(110deg, #e7f0ff, #dce9ff); color: #53698f; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .025em; }
+.sim-session-dialog .simulation-student-list { gap: 2px; margin-bottom: 12px; }
+.sim-session-dialog .simulation-student-row { border: 1px solid #e5edfb; border-left: 0; border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 3px 12px rgba(32,71,130,.045); }
+.sim-session-dialog .simulation-student-identity { display: flex; align-items: center; gap: 14px; }
+.sim-session-student-avatar { display: grid; place-items: center; flex: 0 0 58px; width: 58px; height: 58px; overflow: hidden; border-radius: 50%; background: linear-gradient(145deg,#49b7ff,#1673ed); color: #fff; font-size: 17px; font-weight: 800; box-shadow: 0 4px 10px rgba(37,99,235,.18); }
+.sim-session-student-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: inherit; }
+.sim-session-student-copy { display: grid; gap: 3px; min-width: 0; }
+.sim-session-dialog .simulation-student-name { color: #142b55; font-size: 16px; font-weight: 800; }
+.sim-session-dialog .simulation-student-username { font-size: 13px; }
+.sim-session-dialog .simulation-student-summary > .badge { max-width: 100%; padding: 8px 14px; border-radius: 999px; background: #eef2f8; font-size: 13px; white-space: normal; }
+.sim-session-dialog .simulation-student-task-progress { color: #192d51; font-size: 14px; }
+.sim-session-dialog .simulation-student-status { justify-self: start; padding: 8px 14px; border-radius: 999px; background: #e9eef6; color: #253b60; font-size: 13px; font-weight: 700; }
+.sim-session-dialog .simulation-student-view { min-height: 48px; padding: 0 18px; border: 2px solid #d3e3ff; border-radius: 999px; background: #fff; color: #1260de; font-size: 14px; font-weight: 750; white-space: nowrap; }
+.sim-session-dialog .simulation-student-view:hover { background: #f2f7ff; border-color: #9fc3ff; }
 
 .sim-session-dialog .simulation-student-identity,
 .sim-session-dialog .simulation-student-summary > .badge,
@@ -1368,7 +1406,12 @@ body.sim-modal-open {
     border-top: 1px solid var(--border);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+    .sim-session-head { padding: 18px 20px 14px; }
+    .sim-session-body { padding: 14px 20px 6px; }
+    .sim-session-modal-icon { flex-basis: 60px; width: 60px; height: 60px; font-size: 25px; }
+    .sim-student-columns { display: none; }
+
     .sim-session-dialog .simulation-student-summary {
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 8px 10px;
@@ -1419,6 +1462,8 @@ body.sim-modal-open {
         padding: 14px 14px 12px;
     }
 
+    .sim-session-modal-icon { flex-basis: 48px; width: 48px; height: 48px; font-size: 20px; }
+
     .sim-session-head h2 {
         font-size: 18px;
     }
@@ -1426,6 +1471,9 @@ body.sim-modal-open {
     .sim-session-body {
         padding: 12px 12px 2px;
     }
+
+    .sim-session-dialog .simulation-student-identity { gap: 10px; }
+    .sim-session-student-avatar { flex-basis: 48px; width: 48px; height: 48px; font-size: 14px; }
 
     .sim-session-foot {
         padding: 10px 14px 14px;

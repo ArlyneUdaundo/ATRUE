@@ -207,13 +207,16 @@
                 <h3>Students <span class="simulation-session-student-count">{{ session.student_count }} student{{ session.student_count|pluralize }}</span></h3>
             </div>
             {% if session.student_rows %}
+            <div class="sim-student-columns" aria-hidden="true">
+                <span>Student</span><span>Role Assignment</span><span>Tasks</span><span>Status</span><span>Actions</span>
+            </div>
             <div class="simulation-student-list" role="list">
                 {% for row in session.student_rows %}
                 <div class="simulation-student-row" id="sim-row-{{ session.id }}-{{ row.student.id }}" role="listitem" data-student-username="{{ row.username }}" data-student-avatar="{% if row.student.profile_picture %}{{ row.student.profile_picture.url }}{% endif %}" data-student-status="{{ row.assignment.status|default:'' }}" data-role-display="{{ row.assignment.get_role_display|default:'' }}">
                     <div class="simulation-student-summary">
                         <div class="simulation-student-identity">
-                            <strong class="simulation-student-name">{{ row.display_name }}</strong>
-                            <small class="simulation-student-username">@{{ row.username }}</small>
+                            <span class="sim-session-student-avatar" aria-hidden="true">{% if row.student.profile_picture %}<img src="{{ row.student.profile_picture.url }}" alt="" loading="lazy" decoding="async">{% else %}{{ row.student.initials|default:row.username|slice:":2"|upper }}{% endif %}</span>
+                            <span class="sim-session-student-copy"><strong class="simulation-student-name">{{ row.display_name }}</strong><small class="simulation-student-username">@{{ row.username }}</small></span>
                         </div>
                         {% if row.assignment %}
                         <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
@@ -452,7 +455,8 @@
         aria-labelledby="sessionStudentModalTitle" aria-describedby="sessionStudentModalMeta"
         tabindex="-1">
         <header class="sim-session-head">
-            <div>
+            <span class="sim-session-modal-icon" aria-hidden="true"><i class="fas fa-users"></i></span>
+            <div class="sim-session-head-copy">
                 <h2 id="sessionStudentModalTitle"></h2>
                 <p class="sim-session-meta" id="sessionStudentModalMeta"></p>
             </div>
