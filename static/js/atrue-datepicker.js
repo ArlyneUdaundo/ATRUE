@@ -377,11 +377,11 @@
             yearSelect.setAttribute('aria-label', 'Select year');
             var thisYear = new Date().getFullYear();
             var firstYear = Math.min(1900, visible.getFullYear());
-            var lastYear = Math.max(thisYear + 10, visible.getFullYear());
+            var lastYear = Math.max(thisYear + 10, visible.getFullYear(), 2050);
             var maxBound = parseISO(controller.maxISO);
             var minBound = parseISO(controller.minISO);
             if (minBound) firstYear = Math.min(firstYear, minBound.getFullYear());
-            if (maxBound) lastYear = Math.max(thisYear, maxBound.getFullYear());
+            if (maxBound) lastYear = Math.max(lastYear, maxBound.getFullYear());
             for (var year = firstYear; year <= lastYear; year++) {
                 var yearOption = document.createElement('option');
                 yearOption.value = String(year);
