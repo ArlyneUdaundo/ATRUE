@@ -171,6 +171,7 @@
 
 .admin-overview .ao-list-row:last-child,
 .admin-overview .ao-role-row:last-child { border-bottom: 0; }
+.admin-overview .ao-registrations { align-self: start; }
 .admin-overview .ao-list-row > .avatar { flex: 0 0 40px; width: 40px !important; height: 40px !important; border: 1px solid #d0e1ff; border-radius: 50% !important; background: #e6f0ff !important; color: #1762d4 !important; }
 .admin-overview .ao-list-copy { flex: 1; min-width: 0; }
 .admin-overview .ao-list-copy > b { color: #172e5e; font-size: 13.5px !important; }
