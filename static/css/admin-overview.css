@@ -169,6 +169,9 @@
     border-bottom: 1px solid #e8eef8;
 }
 
+.admin-overview .ao-registrations { display: flex; flex-direction: column; }
+.admin-overview .ao-registrations .card-pad-list { flex: 1; }
+.admin-overview .ao-registrations .ao-list-row { flex: 1 1 0; }
 .admin-overview .ao-list-row:last-child,
 .admin-overview .ao-role-row:last-child { border-bottom: 0; }
 .admin-overview .ao-list-row > .avatar { flex: 0 0 40px; width: 40px !important; height: 40px !important; border: 1px solid #d0e1ff; border-radius: 50% !important; background: #e6f0ff !important; color: #1762d4 !important; }
