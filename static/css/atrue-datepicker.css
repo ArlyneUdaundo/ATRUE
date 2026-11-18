@@ -340,20 +340,21 @@ label.adp-label-noicon .fa-calendar-minus {
     gap: 4px;
     min-width: 0;
 }
-.adp-select {
+.adp-period-button {
     min-width: 0;
-    height: 30px;
-    padding: 2px 5px;
-    border: 1px solid var(--adp-border);
+    padding: 4px 5px;
+    border: 0;
     border-radius: 7px;
-    background: #fff;
-    color: var(--adp-ink);
+    background: transparent;
+    color: var(--adp-accent);
     font: inherit;
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 800;
     cursor: pointer;
 }
-.adp-month-select { box-sizing: border-box; flex: 0 0 104px; width: 104px; max-width: 104px; }
-.adp-year-select { box-sizing: border-box; flex: 0 0 76px; width: 76px; max-width: 76px; }
+.adp-period-button:hover,
+.adp-period-button:focus-visible { background: var(--adp-accent-soft); outline: none; }
+.adp-year-button { font-variant-numeric: tabular-nums; }
 .adp-nav {
     flex: none;
     display: inline-flex;
@@ -534,6 +535,149 @@ label.adp-label-noicon .fa-calendar-minus {
     cursor: not-allowed;
 }
 
+/* Month and year selectors are separate centered dialogs. The year list is
+   intentionally a flex column so each year fills one row and only that list
+   scrolls beneath the fixed header and Cancel action. */
+.adp-select-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 31100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 16px;
+    background: rgba(15, 35, 70, .38);
+    backdrop-filter: blur(3px);
+}
+.adp-select-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(520px, 100%);
+    max-height: min(680px, calc(100vh - 32px));
+    overflow: hidden;
+    border: 1px solid #e3eaf5;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(13, 31, 61, .24);
+    color: var(--adp-ink);
+    font-family: var(--adp-font);
+    animation: adp-pop-in .18s ease;
+}
+.adp-select-dialog--year { width: min(460px, 100%); }
+.adp-select-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 22px 24px 14px;
+}
+.adp-select-title {
+    margin: 0;
+    color: #1a2b3c;
+    font-size: 21px;
+    font-weight: 800;
+}
+.adp-select-close {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #718096;
+    font-size: 20px;
+    cursor: pointer;
+}
+.adp-select-close:hover,
+.adp-select-close:focus-visible { background: #eff6ff; color: var(--adp-accent); outline: none; }
+.adp-select-list-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 4px 24px 18px;
+}
+.adp-month-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.adp-option {
+    min-width: 0;
+    border: 1.5px solid #e3eaf5;
+    border-radius: 13px;
+    background: #fff;
+    color: #1a2b3c;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+}
+.adp-month-option {
+    min-height: 58px;
+    padding: 10px 8px;
+    font-size: 15px;
+}
+.adp-option:hover,
+.adp-option:focus-visible { border-color: #7eb1ff; background: #f4f8ff; outline: none; }
+.adp-option.is-selected {
+    border-color: #1670ec;
+    background: #e7f0ff;
+    color: #075dcc;
+    font-weight: 800;
+    box-shadow: 0 0 0 1px #1670ec;
+}
+.adp-year-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: min(480px, calc(100vh - 190px));
+    min-height: 120px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 8px 2px 0;
+    scrollbar-width: thin;
+    scrollbar-color: #aab4c5 #eef2f8;
+    scroll-behavior: smooth;
+}
+.adp-year-list::-webkit-scrollbar { width: 8px; }
+.adp-year-list::-webkit-scrollbar-track { border-radius: 8px; background: #eef2f8; }
+.adp-year-list::-webkit-scrollbar-thumb { border: 2px solid #eef2f8; border-radius: 8px; background: #aab4c5; }
+.adp-year-option {
+    display: block;
+    flex: none;
+    width: 100%;
+    min-height: 48px;
+    padding: 8px 14px;
+    text-align: center;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+}
+.adp-select-footer {
+    flex: none;
+    padding: 0 24px 20px;
+    background: #fff;
+}
+.adp-select-cancel {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 13px;
+    background: #e5efff;
+    color: #176ad8;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.adp-select-cancel:hover,
+.adp-select-cancel:focus-visible { background: #d8e8ff; outline: none; }
+
 /* ---- responsive ---- */
 @media (max-width: 720px) {
     .adp-popup,
@@ -558,6 +702,14 @@ label.adp-label-noicon .fa-calendar-minus {
     .adp-btn-clear {
         align-self: flex-end;
     }
+    .adp-select-dialog { width: min(520px, 100%); border-radius: 18px; }
+    .adp-select-header { padding: 18px 18px 12px; }
+    .adp-select-title { font-size: 19px; }
+    .adp-select-list-wrap { padding: 4px 18px 14px; }
+    .adp-month-list { gap: 6px; }
+    .adp-month-option { min-height: 50px; font-size: 13px; }
+    .adp-year-list { height: min(440px, calc(100vh - 170px)); }
+    .adp-select-footer { padding: 0 18px 16px; }
 }
 
 /* Tour Package validity calendars share the width of their own date field,

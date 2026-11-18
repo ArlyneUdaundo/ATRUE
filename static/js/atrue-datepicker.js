@@ -11,6 +11,7 @@
 
     var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
+    var MAX_SUPPORTED_YEAR = 275760;
     var MAGIC = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     var WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -40,23 +41,31 @@
     }
 
     function toISO(d) {
-        return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+        var year = String(d.getFullYear()).padStart(4, '0');
+        return year + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
+    function makeDate(year, month, day) {
+        var date = new Date(0);
+        date.setHours(12, 0, 0, 0);
+        date.setFullYear(year, month, day);
+        return date;
     }
 
     function parseISO(text) {
         if (!text) return null;
-        var parts = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(text).trim());
+        var parts = /^(\d{4,})-(\d{1,2})-(\d{1,2})$/.exec(String(text).trim());
         if (!parts) return null;
-        var d = new Date(+parts[1], +parts[2] - 1, +parts[3], 12, 0, 0, 0);
+        var d = makeDate(+parts[1], +parts[2] - 1, +parts[3]);
         return isNaN(d.getTime()) ? null : d;
     }
 
     function startOfMonth(d) {
-        return new Date(d.getFullYear(), d.getMonth(), 1, 12, 0, 0, 0);
+        return makeDate(d.getFullYear(), d.getMonth(), 1);
     }
 
     function addMonths(d, count) {
-        var out = new Date(d.getFullYear(), d.getMonth() + count, 1, 12, 0, 0, 0);
+        var out = makeDate(d.getFullYear(), d.getMonth() + count, 1);
         return out;
     }
 
@@ -139,6 +148,15 @@
         return max.length ? max[0] : null;
     }
 
+    function initialCalendarDate(controller) {
+        var demoDate = makeDate(2020, 10, 1);
+        var minDate = parseISO(controller.minISO);
+        var maxDate = parseISO(controller.maxISO);
+        if (minDate && isBefore(demoDate, minDate)) return minDate;
+        if (maxDate && isBefore(maxDate, demoDate)) return maxDate;
+        return demoDate;
+    }
+
     function buildDateCell(day, opts) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -177,6 +195,7 @@
             range: range,
             popup: null,
             popupShape: null,
+            selectorOverlay: null,
             openedBy: null,
             startDate: pair ? (parseISO(pair.start.value) || null) : null,
             endDate: pair ? (parseISO(pair.end.value) || null) : null,
@@ -362,42 +381,22 @@
 
             var controls = document.createElement('span');
             controls.className = 'adp-month-controls';
-            var monthSelect = document.createElement('select');
-            monthSelect.className = 'adp-select adp-month-select';
-            monthSelect.setAttribute('aria-label', 'Select month');
-            MONTHS.forEach(function (label, monthIndex) {
-                var option = document.createElement('option');
-                option.value = String(monthIndex);
-                option.textContent = label;
-                monthSelect.appendChild(option);
-            });
-            monthSelect.value = String(visible.getMonth());
-            var yearSelect = document.createElement('select');
-            yearSelect.className = 'adp-select adp-year-select';
-            yearSelect.setAttribute('aria-label', 'Select year');
-            var thisYear = new Date().getFullYear();
-            var firstYear = Math.min(1900, visible.getFullYear());
-            var lastYear = Math.max(thisYear + 10, visible.getFullYear());
-            var maxBound = parseISO(controller.maxISO);
-            var minBound = parseISO(controller.minISO);
-            if (minBound) firstYear = Math.min(firstYear, minBound.getFullYear());
-            if (maxBound) lastYear = Math.max(thisYear, maxBound.getFullYear());
-            for (var year = firstYear; year <= lastYear; year++) {
-                var yearOption = document.createElement('option');
-                yearOption.value = String(year);
-                yearOption.textContent = String(year);
-                yearSelect.appendChild(yearOption);
-            }
-            yearSelect.value = String(visible.getFullYear());
-            controls.appendChild(monthSelect);
-            controls.appendChild(yearSelect);
-            function selectVisibleMonth(monthOffset) {
-                var selected = new Date(Number(yearSelect.value), Number(monthSelect.value), 1, 12, 0, 0, 0);
-                controller.base = addMonths(selected, -monthOffset);
-                renderMonths(controller);
-            }
-            monthSelect.addEventListener('change', selectVisibleMonth.bind(null, i));
-            yearSelect.addEventListener('change', selectVisibleMonth.bind(null, i));
+            var monthButton = document.createElement('button');
+            monthButton.type = 'button';
+            monthButton.className = 'adp-period-button adp-month-button';
+            monthButton.textContent = MONTHS[visible.getMonth()];
+            monthButton.setAttribute('aria-label', 'Select month');
+            monthButton.addEventListener('click', openPeriodSelector.bind(
+                null, controller, 'month', i, visible));
+            var yearButton = document.createElement('button');
+            yearButton.type = 'button';
+            yearButton.className = 'adp-period-button adp-year-button';
+            yearButton.textContent = String(visible.getFullYear());
+            yearButton.setAttribute('aria-label', 'Select year');
+            yearButton.addEventListener('click', openPeriodSelector.bind(
+                null, controller, 'year', i, visible));
+            controls.appendChild(monthButton);
+            controls.appendChild(yearButton);
 
             var next = document.createElement('button');
             next.type = 'button';
@@ -425,8 +424,8 @@
             var disabledSet = controller.disabledISO || {};
             var gridStart = sundayIndex(visible);
             var offsetMonth = addMonths(visible, 0);
-            var first = new Date(offsetMonth.getFullYear(), offsetMonth.getMonth(), 1, 12, 0, 0, 0);
-            var daysInMonth = new Date(offsetMonth.getFullYear(), offsetMonth.getMonth() + 1, 0, 12, 0, 0, 0).getDate();
+            var first = makeDate(offsetMonth.getFullYear(), offsetMonth.getMonth(), 1);
+            var daysInMonth = makeDate(offsetMonth.getFullYear(), offsetMonth.getMonth() + 1, 0).getDate();
 
             for (var g = 0; g < gridStart; g++) {
                 var empty = document.createElement('span');
@@ -435,7 +434,7 @@
             }
 
             for (var day = 1; day <= daysInMonth; day++) {
-                var date = new Date(first.getFullYear(), first.getMonth(), day, 12, 0, 0, 0);
+                var date = makeDate(first.getFullYear(), first.getMonth(), day);
                 var disabled = (minDate && isBefore(date, minDate)) ||
                     (maxDate && isBefore(maxDate, date)) ||
                     !!disabledSet[toISO(date)];
@@ -455,12 +454,194 @@
         renderSummary(controller);
     }
 
+    function changeVisiblePeriod(controller, monthOffset, year, month) {
+        var target = makeDate(year, month, 1);
+        controller.base = addMonths(target, -monthOffset);
+
+        // In single-date mode, carry the selected day into the chosen month
+        // where possible, clamping dates such as January 31 to month end.
+        if (!controller.range && controller.selected) {
+            var day = Math.min(controller.selected.getDate(),
+                makeDate(year, month + 1, 0).getDate());
+            var adjusted = makeDate(year, month, day);
+            var minDate = parseISO(controller.minISO);
+            var maxDate = parseISO(controller.maxISO);
+            if ((!minDate || !isBefore(adjusted, minDate)) &&
+                    (!maxDate || !isBefore(maxDate, adjusted))) {
+                controller.selected = adjusted;
+            }
+        }
+        renderMonths(controller);
+    }
+
+    function closePeriodSelector(controller) {
+        if (!controller.selectorOverlay) return;
+        controller.selectorOverlay.remove();
+        controller.selectorOverlay = null;
+    }
+
+    function openPeriodSelector(controller, kind, monthOffset, visible) {
+        closePeriodSelector(controller);
+        var overlay = document.createElement('div');
+        overlay.className = 'adp-select-overlay';
+        overlay.setAttribute('role', 'presentation');
+        var dialog = document.createElement('section');
+        dialog.className = 'adp-select-dialog adp-select-dialog--' + kind;
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'adp-select-title');
+
+        var header = document.createElement('header');
+        header.className = 'adp-select-header';
+        var title = document.createElement('h2');
+        title.className = 'adp-select-title';
+        title.id = 'adp-select-title';
+        title.textContent = kind === 'month' ? 'Select Month' : 'Select Year';
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'adp-select-close';
+        close.setAttribute('aria-label', 'Close');
+        close.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
+        close.addEventListener('click', function () { closePeriodSelector(controller); });
+        header.append(title, close);
+
+        var body = document.createElement('div');
+        body.className = 'adp-select-list-wrap';
+        if (kind === 'month') {
+            var monthList = document.createElement('div');
+            monthList.className = 'adp-month-list';
+            MONTHS.forEach(function (label, monthIndex) {
+                var option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'adp-option adp-month-option';
+                option.textContent = label;
+                option.setAttribute('aria-pressed', String(monthIndex === visible.getMonth()));
+                if (monthIndex === visible.getMonth()) option.classList.add('is-selected');
+                option.addEventListener('click', function () {
+                    changeVisiblePeriod(controller, monthOffset,
+                        visible.getFullYear(), monthIndex);
+                    closePeriodSelector(controller);
+                });
+                monthList.appendChild(option);
+            });
+            body.appendChild(monthList);
+        } else {
+            var yearList = document.createElement('div');
+            yearList.className = 'adp-year-list';
+            yearList.setAttribute('role', 'listbox');
+            yearList.setAttribute('aria-label', 'Years');
+            var state = {
+                first: Math.max(1, visible.getFullYear() - 12),
+                last: Math.min(MAX_SUPPORTED_YEAR, visible.getFullYear() + 12),
+                loading: false
+            };
+
+            function appendYear(year) {
+                var option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'adp-option adp-year-option';
+                option.textContent = String(year);
+                option.dataset.year = String(year);
+                option.setAttribute('role', 'option');
+                option.setAttribute('aria-selected', String(year === visible.getFullYear()));
+                if (year === visible.getFullYear()) option.classList.add('is-selected');
+                option.addEventListener('click', function () {
+                    changeVisiblePeriod(controller, monthOffset, year,
+                        visible.getMonth());
+                    closePeriodSelector(controller);
+                });
+                yearList.appendChild(option);
+            }
+
+            function extendYears(direction) {
+                if (state.loading) return;
+                state.loading = true;
+                if (direction < 0) {
+                    var oldHeight = yearList.scrollHeight;
+                    var oldTop = yearList.scrollTop;
+                    var newFirst = Math.max(1, state.first - 24);
+                    var fragment = document.createDocumentFragment();
+                    for (var earlier = state.first - 1; earlier >= newFirst; earlier--) {
+                        var option = document.createElement('button');
+                        option.type = 'button';
+                        option.className = 'adp-option adp-year-option';
+                        option.textContent = String(earlier);
+                        option.dataset.year = String(earlier);
+                        option.setAttribute('role', 'option');
+                        option.setAttribute('aria-selected', 'false');
+                        option.addEventListener('click', function (event) {
+                            changeVisiblePeriod(controller, monthOffset,
+                                Number(event.currentTarget.dataset.year), visible.getMonth());
+                            closePeriodSelector(controller);
+                        });
+                        fragment.appendChild(option);
+                    }
+                    yearList.insertBefore(fragment, yearList.firstChild);
+                    state.first = newFirst;
+                    yearList.scrollTop = oldTop + yearList.scrollHeight - oldHeight;
+                } else {
+                    var newLast = Math.min(MAX_SUPPORTED_YEAR, state.last + 24);
+                    for (var later = state.last + 1; later <= newLast; later++) appendYear(later);
+                    state.last = newLast;
+                }
+                state.loading = false;
+            }
+
+            for (var year = state.first; year <= state.last; year++) appendYear(year);
+            yearList.addEventListener('scroll', function () {
+                if (yearList.scrollTop < 60) extendYears(-1);
+                else if (yearList.scrollTop + yearList.clientHeight > yearList.scrollHeight - 60) {
+                    extendYears(1);
+                }
+            });
+            body.appendChild(yearList);
+            dialog.dataset.scrollYear = String(visible.getFullYear());
+        }
+
+        var footer = document.createElement('footer');
+        footer.className = 'adp-select-footer';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'adp-select-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', function () { closePeriodSelector(controller); });
+        footer.appendChild(cancel);
+        dialog.append(header, body, footer);
+        overlay.appendChild(dialog);
+        overlay.addEventListener('click', function (event) {
+            if (event.target === overlay) closePeriodSelector(controller);
+        });
+        overlay.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closePeriodSelector(controller);
+            }
+        });
+        var popupHost = controller.openedBy && controller.openedBy.closest('dialog[open]');
+        (popupHost || document.body).appendChild(overlay);
+        controller.selectorOverlay = overlay;
+        if (kind === 'year') {
+            var selectedYear = yearList.querySelector('[data-year="' + visible.getFullYear() + '"]');
+            if (selectedYear) {
+                var previousScrollBehavior = yearList.style.scrollBehavior;
+                yearList.style.scrollBehavior = 'auto';
+                yearList.scrollTop = yearList.scrollTop +
+                    selectedYear.getBoundingClientRect().top -
+                    yearList.getBoundingClientRect().top -
+                    (yearList.clientHeight - selectedYear.offsetHeight) / 2;
+                yearList.style.scrollBehavior = previousScrollBehavior;
+            }
+        }
+        close.focus();
+    }
+
     function updateNavState(controller, prev, next) {
         var minDate = parseISO(controller.minISO);
         var maxDate = parseISO(controller.maxISO);
         var firstVisible = addMonths(controller.base, 0);
         var lastVisible = addMonths(controller.base, controller.range ? 1 : 0);
-        var lastDay = new Date(lastVisible.getFullYear(), lastVisible.getMonth() + 1, 0, 12, 0, 0, 0);
+        var lastDay = makeDate(lastVisible.getFullYear(), lastVisible.getMonth() + 1, 0);
         if (prev) prev.disabled = !!(minDate && isBefore(lastDay, minDate));
         if (next) next.disabled = !!(maxDate && isBefore(maxDate, lastDay));
     }
@@ -585,10 +766,11 @@
                 isBefore(controller.endDate, controller.startDate)) {
             controller.endDate = null;
         }
-        controller.base = startOfMonth(controller.range
-            ? (controller.startDate || new Date())
-            : (controller.selected || new Date()));
         refreshControllerState(controller);
+        var initialDate = initialCalendarDate(controller);
+        controller.base = startOfMonth(controller.range
+            ? (controller.startDate || initialDate)
+            : (controller.selected || initialDate));
 
         if (!controller.popup || controller.popupShape !== controller.range) {
             if (controller.popup && controller.popup.parentNode) {
@@ -658,6 +840,7 @@
 
     function closePopup(controller) {
         if (!controller.popup) return;
+        closePeriodSelector(controller);
         controller.popup.classList.remove('is-open');
         if (controller.openedBy) {
             var trigger = controller.openedBy.querySelector('.adp-trigger');
@@ -669,6 +852,13 @@
     function keydownHandler(event) {
         var controller = openController;
         if (!controller || !controller.popup || !controller.popup.classList.contains('is-open')) return;
+        if (controller.selectorOverlay) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closePeriodSelector(controller);
+            }
+            return;
+        }
         if (event.key === 'Escape') {
             event.preventDefault();
             closePopup(controller);
@@ -822,6 +1012,7 @@
         if (!openController) return;
         var target = e.target;
         if (target.closest && target.closest('.adp-popup')) return;
+        if (target.closest && target.closest('.adp-select-overlay')) return;
         if (target.closest && target.closest('.adp-anchor')) return;
         closePopup(openController);
     });
