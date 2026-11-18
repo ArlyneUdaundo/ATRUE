@@ -281,6 +281,7 @@ rather than one undifferentiated grid of fields.
     </section>
     {% endif %}
 
+    {% if request.user.account_type != 'INSTRUCTOR' %}
     {# ------------------------------------------------------------------ #}
     {# Booking history                                                     #}
     {# ------------------------------------------------------------------ #}
@@ -312,6 +313,7 @@ rather than one undifferentiated grid of fields.
             {% endif %}
         </div>
     </section>
+    {% endif %}
 </div>
 {% else %}
 {# Someone else's account: read-only, and without the owner-only photo controls. #}
@@ -354,7 +356,7 @@ rather than one undifferentiated grid of fields.
         </div>
     </section>
 
-    {% if bookings %}
+    {% if bookings and request.user.account_type != 'INSTRUCTOR' %}
     <section class="profile-block">
         <div class="card">
             <div class="card-pad profile-info-card-head">
