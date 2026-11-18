@@ -459,6 +459,7 @@ rather than one undifferentiated grid of fields.
 <style>
 .profile-edit-modal[hidden] { display:none; }
 .profile-edit-modal { position:fixed; inset:0; z-index:35000; display:grid; place-items:center; padding:20px; background:rgba(15,23,42,.58); }
+body.profile-edit-calendar-context .adp-popup { z-index:35010; }
 .profile-edit-modal__panel { display:flex; flex-direction:column; width:min(900px,100%); max-height:92vh; overflow:hidden; border:1px solid var(--slate-200); border-radius:18px; background:#fff; box-shadow:0 28px 80px rgba(15,23,42,.3); }
 .profile-edit-modal__head { display:flex; flex:none; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--slate-200); }
 .profile-edit-modal__head h2 { margin:0; font-size:18px; }
@@ -589,12 +590,14 @@ body.profile-modal-open { overflow:hidden; }
         modal.hidden = true;
         modal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('profile-modal-open');
+        document.body.classList.remove('profile-edit-calendar-context');
     }
     window.atrueProfileEdit = {
         open: function () {
             modal.hidden = false;
             modal.setAttribute('aria-hidden', 'false');
             document.body.classList.add('profile-modal-open');
+            document.body.classList.add('profile-edit-calendar-context');
             modal.querySelector('.profile-edit-fields input, .profile-edit-fields select, .profile-edit-fields textarea')?.focus();
         }
     };
@@ -602,7 +605,10 @@ body.profile-modal-open { overflow:hidden; }
     modal.querySelector('.profile-edit-cancel').addEventListener('click', close);
     modal.addEventListener('click', function (event) { if (event.target === modal) close(); });
     document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !modal.hidden) close(); });
-    if (!modal.hidden) document.body.classList.add('profile-modal-open');
+    if (!modal.hidden) {
+        document.body.classList.add('profile-modal-open');
+        document.body.classList.add('profile-edit-calendar-context');
+    }
 })();
 </script>
 {% endblock %}
