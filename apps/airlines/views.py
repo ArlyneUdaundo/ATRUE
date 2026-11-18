@@ -110,7 +110,10 @@ from .passenger_pricing import (
 )
 from .route_scope import normalize_route_scope, route_scope_for_legs
 from .sample_flights import sample_results
-from .seat_catalog import apply_default_seat_types, ensure_seat_types
+from .seat_catalog import (
+    apply_configured_seat_row_types, apply_default_seat_types,
+    ensure_seat_types,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -448,7 +451,11 @@ def _seat_selection(flight, seat_numbers, fare_class):
                         f"{dict(FARE_CLASS_CHOICES).get(fare_class, fare_class)}.")
         if not seat.is_available:
             return {}, f"Seat {number} is no longer available. Please choose another seat."
-        resolved[number] = {'seat': seat, **seat_quote(seat)}
+        quote = seat_quote(seat)
+        flight_prices = getattr(flight, 'seat_type_prices', {}) or {}
+        if seat.price_override is None and quote['code'] in flight_prices:
+            quote['price'] = Decimal(str(flight_prices[quote['code']]))
+        resolved[number] = {'seat': seat, **quote}
     return resolved, ''
 
 
@@ -1778,11 +1785,14 @@ def _create_default_layout(airline, aircraft_type):
     cabins by hand.
     """
     from airlines.fleet_data import FALLBACK_SPECS, write_layout
-    from airlines.seat_catalog import apply_default_seat_types
+    from airlines.seat_catalog import (
+        apply_configured_seat_row_types, apply_default_seat_types,
+    )
 
     layout = write_layout(SeatLayout, Cabin, Seat, airline, aircraft_type,
                           FALLBACK_SPECS.get(aircraft_type.body_class, 'NARROW_180'))
     apply_default_seat_types(layout)
+    apply_configured_seat_row_types(layout)
     return layout
 
 
@@ -1897,6 +1907,7 @@ def _save_cabin_specs(layout, specs):
             Seat.objects.bulk_update(
                 preserved, ['seat_type', 'price_override', 'is_available'],
                 batch_size=500)
+        apply_configured_seat_row_types(layout)
         Aircraft.objects.filter(seat_layout=layout).update(
             seating_capacity=total_capacity)
     return total_capacity

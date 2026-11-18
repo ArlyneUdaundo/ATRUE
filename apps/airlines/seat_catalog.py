@@ -66,6 +66,53 @@ def apply_default_seat_types(layout):
     untyped.filter(position='middle').update(seat_type=seat_types['standard'])
 
 
+def apply_configured_seat_row_types(layout):
+    """Apply configured row features while retaining each seat's position.
+
+    ``Seat.position`` continues to identify window, middle, or aisle. The
+    priced ``Seat.seat_type`` records a special row feature when one applies.
+    Emergency exit rows are read only from the layout's aircraft configuration.
+    """
+    from airlines.models import Seat
+
+    cabins = list(layout.cabins.all())
+    if (layout.seat_map != '3-3' or len(cabins) != 1
+            or cabins[0].blocks != [3, 3] or cabins[0].rows < 11):
+        return 0
+
+    seat_types = ensure_seat_types()
+    configured_exits = set()
+    for row in layout.exit_rows or ():
+        try:
+            configured_exits.add(int(row))
+        except (TypeError, ValueError):
+            continue
+
+    special_rows = {1: 'front_row', 4: 'extra_legroom'}
+    for row in configured_exits:
+        if row not in special_rows:
+            special_rows[row] = 'exit_row'
+
+    position_types = {
+        'window': 'window', 'middle': 'standard', 'aisle': 'aisle',
+    }
+    updates = []
+    seats = (Seat.objects.filter(seat_layout=layout)
+             .select_related('seat_type').order_by('row_number', 'letter'))
+    for seat in seats:
+        base_code = position_types.get(seat.position, 'standard')
+        current_code = seat.seat_type.code if seat.seat_type_id else None
+        desired_code = special_rows.get(seat.row_number, base_code)
+        if current_code not in (None, base_code) or current_code == desired_code:
+            continue
+        seat.seat_type = seat_types[desired_code]
+        updates.append(seat)
+
+    if updates:
+        Seat.objects.bulk_update(updates, ['seat_type'], batch_size=500)
+    return len(updates)
+
+
 def seat_types_in_layout(layout):
     """The distinct seat types actually used by a layout, with their price."""
     from airlines.models import Seat
