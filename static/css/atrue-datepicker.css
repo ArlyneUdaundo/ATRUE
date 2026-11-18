@@ -429,8 +429,10 @@ label.adp-label-noicon .fa-calendar-minus {
     cursor: default;
 }
 
-.adp-day:disabled {
-    color: #c8d2e0;
+.adp-popup .adp-day:disabled {
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    opacity: 1 !important;
     cursor: not-allowed;
     background: transparent;
 }
