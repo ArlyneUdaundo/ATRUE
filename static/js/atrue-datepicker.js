@@ -611,8 +611,12 @@
             popupTrigger.setAttribute('aria-expanded', 'true');
         }
 
-        positionPopup(anchor, controller.popup);
         renderMonths(controller);
+        // Measure after the calendar days exist. On the first open the month
+        // containers are still empty; positioning before renderMonths measures
+        // only the header/footer, so the fully rendered grid can fall below the
+        // viewport until a later reposition.
+        positionPopup(anchor, controller.popup);
         controller.popup.classList.add('is-open');
         focusFirstDay(controller.popup);
     }
