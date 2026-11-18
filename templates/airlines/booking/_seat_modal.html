@@ -75,6 +75,7 @@ Every value here comes from the page's own booking state: the seats from
                                     {% if seat.taken %}disabled aria-label="Seat {{ seat.number }} unavailable"{% else %}aria-label="Seat {{ seat.number }} available, {{ seat.position_label }} seat, {{ seat.category_label }}, {{ seat.price_text }}"{% endif %}>
                                 <span class="pd-seat__letter">{{ seat.letter }}</span>
                                 <span class="pd-seat__num">{{ seat.number }}</span>
+                                {% if seat.taken %}<span class="pd-seat__unavailable" aria-hidden="true">&#10005;</span>{% endif %}
                             </button>
                             {% endfor %}
                             <span class="pd-seat-map__rowno pd-seat-map__rowno--right">{{ row.row }}</span>

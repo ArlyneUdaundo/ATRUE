@@ -534,7 +534,9 @@
                     escapeHtml(seat.category_label || 'Standard seat') + '" data-price="' +
                     (Number(seat.price) || 0) + '"' + disabled + ' aria-label="' + escapeHtml(label) + '">' +
                     '<span class="pd-seat__letter">' + escapeHtml(seat.letter || '') + '</span>' +
-                    '<span class="pd-seat__num">' + escapeHtml(seat.number) + '</span></button>';
+                    '<span class="pd-seat__num">' + escapeHtml(seat.number) + '</span>' +
+                    (seat.taken ? '<span class="pd-seat__unavailable" aria-hidden="true">\u2715</span>' : '') +
+                    '</button>';
             }).join('');
             return exit + '<div class="pd-seat-map__row"><span class="pd-seat-map__rowno">' +
                 escapeHtml(row.row || '') + '</span>' + seats +

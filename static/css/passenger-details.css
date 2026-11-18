@@ -584,7 +584,11 @@
     background: #e9edf3; border-color: #d5dce6; color: #aeb8c6; cursor: not-allowed;
 }
 .pd-seat--taken .pd-seat__letter, .pd-seat--taken .pd-seat__num { display: none; }
-.pd-seat--taken::after { content: '\f00d'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 9px; }
+.pd-seat__unavailable { display: none; }
+.pd-seat--taken .pd-seat__unavailable {
+    display: block; color: #64748b; font-size: 17px; font-weight: 800;
+    line-height: 1; pointer-events: none;
+}
 .pd-seat__num { display: none; }
 .pd-seat:focus-visible { outline: 3px solid var(--pd-blue-200); outline-offset: 1px; }
 
