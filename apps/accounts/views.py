@@ -8,7 +8,7 @@ from django.core.validators import validate_email
 from django.contrib import messages
 from django.db.models import Q
 from django.db import transaction
-from django.db.models.deletion import ProtectedError
+from django.db.models.deletion import CASCADE, PROTECT, SET_DEFAULT, SET_NULL, ProtectedError
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1164,7 +1164,7 @@ def account_deactivate(request, pk):
 
 @login_required
 def account_delete(request, pk):
-    """Permanently delete an account that has no protected transaction history."""
+    """Permanently delete an account, including instructor-requested history removal."""
     if request.method != 'POST':
         messages.error(request, 'Invalid request.')
         return redirect('accounts:account_list')
@@ -1177,8 +1177,15 @@ def account_delete(request, pk):
         messages.error(request, 'You cannot delete your own account.')
         return redirect('accounts:account_list')
     display_name = account.get_full_name() or account.username
+    reason = (request.POST.get('reason') or '').strip()[:500]
+    instructor_delete = request.user.account_type == User.AccountType.INSTRUCTOR
+    if instructor_delete and not reason:
+        messages.error(request, 'A reason is required to delete an account.')
+        return redirect('accounts:account_list')
     try:
         with transaction.atomic():
+            if instructor_delete:
+                _delete_protected_account_history(account)
             account.delete()
     except ProtectedError:
         messages.error(
@@ -1187,10 +1194,47 @@ def account_delete(request, pk):
             'Deactivate the account to preserve its history.',
         )
         return redirect('accounts:account_list')
-    log_activity(request.user, 'Deleted user account',
-                 f'Deleted {display_name} (ID: {pk}).')
+    detail = f'Deleted {display_name} (ID: {pk}).'
+    if reason:
+        detail += f' Reason: {reason}'
+    log_activity(request.user, 'Deleted user account', detail)
     messages.success(request, f'{display_name} account has been deleted.')
     return redirect('accounts:account_list')
+
+
+def _delete_protected_account_history(account):
+    """Delete rows protected from account removal, preserving FK integrity.
+
+    Instructor account management explicitly permits removing an account with
+    booking history. Walk cascaded records first, then delete protected and
+    nullable history dependents so the normal collector can remove the account
+    atomically without leaving orphaned records.
+    """
+    visited = set()
+
+    def clear_protected_dependents(instance):
+        key = (instance._meta.label_lower, instance.pk)
+        if key in visited:
+            return
+        visited.add(key)
+        using = instance._state.db
+
+        for relation in instance._meta.get_fields(include_hidden=True):
+            if not (relation.auto_created and (relation.one_to_many or relation.one_to_one)):
+                continue
+            on_delete = getattr(relation, 'on_delete', None)
+            if on_delete not in (CASCADE, PROTECT, SET_NULL, SET_DEFAULT):
+                continue
+
+            related = relation.related_model._base_manager.using(using).filter(
+                **{relation.field.attname: instance.pk}
+            )
+            for dependent in related.iterator():
+                clear_protected_dependents(dependent)
+            if on_delete is not CASCADE:
+                related.delete()
+
+    clear_protected_dependents(account)
 
 
 @login_required
