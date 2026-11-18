@@ -4,7 +4,7 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/admin-overview.css' %}?v=20261117-reference-3">
+<link rel="stylesheet" href="{% static 'css/admin-overview.css' %}?v=20261118-registration-type-colors-1">
 {% endblock %}
 
 {% block content %}
@@ -136,7 +136,7 @@
                     <b>{{ u.get_full_name|default:u.username }}</b>
                     <div class="meta"><i class="fas fa-calendar"></i> Joined {{ u.date_joined|date:"M d, Y" }}</div>
                 </div>
-                <span class="badge {% if u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.account_type|title }}</span>
+                <span class="badge {% if u.account_type == 'INSTRUCTOR' %}ao-registration-instructor{% elif u.account_type == 'STUDENT' %}ao-registration-student{% elif u.is_platform_manager %}badge-amber{% else %}badge-blue{% endif %}">{{ u.account_type|title }}</span>
             </div>
             {% endfor %}
         </div>

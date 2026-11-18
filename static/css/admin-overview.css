@@ -176,6 +176,8 @@
 .admin-overview .ao-list-copy > b { color: #172e5e; font-size: 13.5px !important; }
 .admin-overview .ao-list-copy .meta { display: block; margin-top: 3px !important; color: #65799d; font-size: 11.5px; }
 .admin-overview .ao-list-row > .badge { flex: 0 0 auto; padding: 6px 12px; font-size: 11px; }
+.admin-overview .ao-registrations .ao-registration-instructor { background: #fff3df; color: #b76a00; }
+.admin-overview .ao-registrations .ao-registration-student { background: #e6efff; color: #0759ce; }
 .admin-overview .ao-role-row { flex-wrap: wrap; }
 .admin-overview .ao-role-row > .badge { flex: 0 0 auto; max-width: 55%; padding: 7px 12px; overflow: hidden; background: #e5efff; color: #0754d5; text-overflow: ellipsis; white-space: nowrap; }
 .admin-overview .ao-role-row .ao-list-copy > b { font-size: 13px !important; }
