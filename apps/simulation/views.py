@@ -1555,6 +1555,8 @@ def unassign_role(request, assignment_id):
         assignment.status = SimulationRoleAssignment.AssignmentStatus.DONE
         assignment.completed_at = timezone.now()
         assignment.save(update_fields=['status', 'completed_at', 'updated_at'])
+
+    try:
         log_activity(
             request.user,
             'Marked simulation role as done',
@@ -1562,17 +1564,23 @@ def unassign_role(request, assignment_id):
             f'{assignment.student.get_full_name() or assignment.student.username}',
             session=assignment.session,
         )
+    except Exception:
+        logger.exception('Could not log completion of simulation assignment %s', assignment.pk)
 
     _notify_assignment_ended(assignment, request.user)
     messages.success(request, 'Role marked as done.')
     if is_ajax:
-        return JsonResponse({
+        response_data = {
             'ok': True,
             'status': 'DONE',
             'status_display': assignment.get_status_display(),
-            'progress': assignment_progress_data(assignment),
             'message': 'Role marked as done.',
-        })
+        }
+        try:
+            response_data['progress'] = assignment_progress_data(assignment)
+        except Exception:
+            logger.exception('Could not build progress for completed assignment %s', assignment.pk)
+        return JsonResponse(response_data)
     return redirect('simulation:workspace')
 
 

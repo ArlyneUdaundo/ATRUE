@@ -1035,7 +1035,9 @@
             done.textContent = '✓ Done';
             actions.appendChild(done);
         }
-        renderProgress(details.querySelector('[data-session-progress]'), event.detail.progress);
+        if (event.detail.progress) {
+            renderProgress(details.querySelector('[data-session-progress]'), event.detail.progress);
+        }
     });
 
     function closeStudentDetails() {
