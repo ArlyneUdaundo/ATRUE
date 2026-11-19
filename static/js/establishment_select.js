@@ -1104,10 +1104,23 @@ if (!guestBox) { return; }
     // Keep booking dates and the transport pickup time in sync with their form controls.
     var searchCi = document.getElementById('searchCheckIn');
     var searchCo = document.getElementById('searchCheckOut');
+    var searchTime = document.getElementById('searchTime');
+    function updateTransportTimeMinimum() {
+        if (CATEGORY !== 'transport' || !searchCi || !searchTime || !searchCi.value) { return; }
+        var now = new Date();
+        var today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+            + '-' + String(now.getDate()).padStart(2, '0');
+        if (searchCi.value === today) {
+            searchTime.min = String(now.getHours()).padStart(2, '0') + ':'
+                + String(now.getMinutes()).padStart(2, '0');
+        } else {
+            searchTime.removeAttribute('min');
+        }
+    }
     function syncDates() {
+        updateTransportTimeMinimum();
         if (searchCi && searchCi.value && checkInEl) { checkInEl.value = searchCi.value; }
         if (searchCo && searchCo.value && checkOutEl) { checkOutEl.value = searchCo.value; }
-        var searchTime = document.getElementById('searchTime');
         if (searchTime && searchTime.value && transportTimeEl) {
             transportTimeEl.value = searchTime.value;
         }
@@ -1122,9 +1135,9 @@ if (!guestBox) { return; }
         }
         computeAll();
     }
+    updateTransportTimeMinimum();
     if (searchCi) { searchCi.addEventListener('change', syncDates); }
     if (searchCo) { searchCo.addEventListener('change', syncDates); }
-    var searchTime = document.getElementById('searchTime');
     if (searchTime) { searchTime.addEventListener('change', syncDates); }
     if (transportDistanceEl) {
         transportDistanceEl.addEventListener('input', computeAll);
@@ -1189,6 +1202,17 @@ if (!guestBox) { return; }
     }
 
     renderAll();
+    var serverErrors = document.getElementById('serverErrors');
+    if (CATEGORY === 'transport' && serverErrors && SELECTED.length) {
+        openGuestModal(SELECTED[0].item_id);
+        if (guestModalSub) { guestModalSub.textContent = serverErrors.textContent.trim(); }
+        var invalidTransportField = firstInvalidTransportField();
+        if (invalidTransportField) {
+            requestAnimationFrame(function () {
+                if (invalidTransportField.isConnected) { invalidTransportField.reportValidity(); }
+            });
+        }
+    }
     if (CATEGORY === 'restaurant' && leadGuestModal && !SELECTED_IDS.length) {
         leadGuestModal.classList.add('open');
         document.body.style.overflow = 'hidden';
