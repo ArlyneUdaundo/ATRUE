@@ -545,7 +545,7 @@ GUEST_MODULES = {
     'LANDMARK_GUEST': {'establishment_type': 'LANDMARK', 'detail_route': 'landmarks:detail'},
     'PASSENGER_TRANSPORT': {'establishment_type': 'TRANSPORTATION', 'detail_route': 'transportation:agency_vehicles'},
     'TOUR_GUEST': {'establishment_type': 'TOUR_PACKAGE', 'detail_route': 'tour_package:detail'},
-    'ACTIVITY_GUEST': {'establishment_type': 'ACTIVITY', 'detail_route': 'activities:detail'},
+    'ACTIVITY_GUEST': {'establishment_type': 'ACTIVITY', 'detail_route': 'activities:flow_select'},
 }
 
 # Retired role records remain resolvable while historical assignments are
