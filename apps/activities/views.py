@@ -431,18 +431,14 @@ def booking_detail(request, booking_id):
         elif action == 'attend' or action == 'checkin':
             if booking.status != Booking.Status.CONFIRMED:
                 raise PermissionDenied('Only confirmed activity bookings may be checked in.')
-            from django.utils import timezone
             booking.status = Booking.Status.CHECKED_IN
-            booking.checked_in_at = timezone.now()
-            booking.save(update_fields=['status', 'checked_in_at'])
+            booking.save(update_fields=['status'])
             log_activity(request.user, "Activity booking attended", str(booking.pk))
         elif action == 'checkout':
             if booking.status != Booking.Status.CHECKED_IN:
                 raise PermissionDenied('Only checked-in activity bookings may be checked out.')
-            from django.utils import timezone
             booking.status = Booking.Status.CHECKED_OUT
-            booking.checked_out_at = timezone.now()
-            booking.save(update_fields=['status', 'checked_out_at'])
+            booking.save(update_fields=['status'])
             from simulation.completion import record_booking_fulfilled
             record_booking_fulfilled(booking, actor=request.user,
                 task_assignment_id=request.session.get('active_simulation_task_assignment'))
