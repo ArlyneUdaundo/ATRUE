@@ -22,16 +22,19 @@ same markup, and any block with no real data behind it is simply not rendered.
     <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261002modalfix">
 <link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20260930b">
 {% if category == 'package' %}<style>
-.package-flow-card .rm-rate { display: grid; grid-template-columns: minmax(145px, .8fr) minmax(0, 1.6fr) minmax(0, .7fr); align-items: center; gap: 16px; }
+.package-flow-card .rm-rate { display: grid; grid-template-columns: minmax(145px, .75fr) minmax(0, 1.75fr); align-items: center; gap: 16px; }
 .package-flow-card .rm-rate-group { min-width: 0; width: auto; }
 .package-flow-card .rm-rate-group + .rm-rate-group { border-left: 1px solid rgba(15, 23, 42, .09); border-top: 0; padding: 0 0 0 16px; }
-.package-flow-card .rm-rate-book, .package-flow-card .rm-rate-foot { min-width: 0; max-width: 100%; width: 100%; }
-.package-flow-card .rm-book { box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; padding-left: 10px; padding-right: 10px; }
+.package-flow-card .rm-rate-group + .rm-rate-book { grid-column: 1 / -1; border-left: 0; border-top: 1px solid rgba(15, 23, 42, .09); padding: 14px 0 0; }
+.package-flow-card .rm-rate-foot { min-width: 0; max-width: 100%; width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+.package-flow-card .rm-book { box-sizing: border-box; flex: 1 1 140px; min-width: 140px; max-width: 190px; width: auto; padding-left: 10px; padding-right: 10px; }
+.package-flow-card .rm-rate-foot [data-guest-open] { flex: 0 0 auto; white-space: nowrap; }
 .package-flow-card .rm-perks { display: flex; flex-direction: column; align-items: stretch; }
 .package-flow-card .rm-perk { align-items: flex-start; overflow-wrap: anywhere; }
 @media (max-width: 900px) {
     .package-flow-card .rm-rate { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
     .package-flow-card .rm-rate-group + .rm-rate-group { border-left: 0; border-top: 1px solid rgba(15, 23, 42, .09); padding: 14px 0 0; }
+    .package-flow-card .rm-rate-group + .rm-rate-book { grid-column: auto; }
 }
 </style>{% endif %}
 {% endblock %}
