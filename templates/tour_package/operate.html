@@ -38,24 +38,7 @@
                     <td>₱ {{ b.total_bill }}</td>
                     <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' or b.status == 'COMPLETED' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
                     <td>
-                        {% if b.status == 'CONFIRMED' %}
-                        <form method="post" class="inline-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="checkin">
-                            <input type="hidden" name="package_id" value="{{ package.id }}">
-                            <input type="hidden" name="booking_id" value="{{ b.id }}">
-                            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Guest</button>
-                        </form>
-                        {% endif %}
-                        {% if b.status == 'CHECKED_IN' %}
-                        <form method="post" class="inline-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="checkout">
-                            <input type="hidden" name="package_id" value="{{ package.id }}">
-                            <input type="hidden" name="booking_id" value="{{ b.id }}">
-                            <button type="submit" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Guest</button>
-                        </form>
-                        {% endif %}
+                        <a href="{% url 'tour_package:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a>
                     </td>
                 </tr>
                 {% empty %}

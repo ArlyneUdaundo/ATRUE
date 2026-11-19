@@ -527,9 +527,9 @@ def booking_detail(request, booking_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         allowed_actions = (
-            {'attend', 'complete', 'cancel', 'modify', 'pay'} if is_platform else
+            {'attend', 'complete', 'checkin', 'checkout', 'cancel', 'modify', 'pay'} if is_platform else
             {'confirm'} if is_reservation else
-            {'attend', 'complete'} if is_frontdesk else set()
+            {'checkin', 'checkout'} if is_frontdesk else set()
         )
         if action not in allowed_actions:
             raise PermissionDenied('Your Tour Package role does not permit this booking action.')
@@ -551,10 +551,25 @@ def booking_detail(request, booking_id):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
         elif action == 'decline':
             decline_booking(booking, request.user)
-        elif action == 'attend':
+        elif action == 'checkin':
+            if booking.status != Booking.Status.CONFIRMED:
+                messages.error(request, 'Only confirmed bookings can be checked in.')
+                return redirect('tour_package:booking_detail', booking.id)
             booking.status = Booking.Status.CHECKED_IN
             booking.save(update_fields=['status'])
-        elif action == 'complete':
+        elif action == 'checkout':
+            if booking.status != Booking.Status.CHECKED_IN:
+                messages.error(request, 'Only checked-in bookings can be checked out.')
+                return redirect('tour_package:booking_detail', booking.id)
+            booking.status = Booking.Status.COMPLETED
+            booking.amount_paid = bill.amount_paid if bill else 0
+            booking.balance_due = bill.balance_due if bill else 0
+            booking.save(update_fields=['status', 'amount_paid', 'balance_due'])
+            _record_package_booking_fulfilled(request, booking)
+        elif action == 'attend' and is_platform:
+            booking.status = Booking.Status.CHECKED_IN
+            booking.save(update_fields=['status'])
+        elif action == 'complete' and is_platform:
             booking.status = Booking.Status.COMPLETED
             booking.amount_paid = bill.amount_paid if bill else 0
             booking.balance_due = bill.balance_due if bill else 0
@@ -663,7 +678,7 @@ def operate(request):
             pk=request.POST.get('package_id'),
         )
         booking = None
-        if action in {'checkin', 'checkout'}:
+        if action in {'attend', 'complete'}:
             booking = get_object_or_404(
                 scope_bookings(
                     request,
@@ -674,17 +689,11 @@ def operate(request):
             )
             if booking.package_id != package.pk:
                 raise PermissionDenied('The booking does not belong to the selected tour package.')
-        if action == 'checkin':
-            if booking.status != Booking.Status.CONFIRMED:
-                messages.error(request, 'Only confirmed bookings can be checked in.')
-                return redirect('tour_package:operate')
+        if action == 'attend':
             booking.status = Booking.Status.CHECKED_IN
             booking.save(update_fields=['status'])
             log_activity(request.user, "Package booking attended", str(booking.pk))
-        elif action == 'checkout':
-            if booking.status != Booking.Status.CHECKED_IN:
-                messages.error(request, 'Only checked-in bookings can be checked out.')
-                return redirect('tour_package:operate')
+        elif action == 'complete':
             bill = bill_for_booking(booking)
             booking.status = Booking.Status.COMPLETED
             booking.amount_paid = bill.amount_paid if bill else 0

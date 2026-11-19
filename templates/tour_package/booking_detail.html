@@ -83,10 +83,13 @@
         <button name="action" value="confirm" class="btn btn-brand btn-sm"><i class="fas fa-check"></i> Confirm</button>
         <button name="action" value="decline" class="btn btn-ghost btn-sm"><i class="fas fa-times"></i> Decline</button>
         {% endif %}
-        {% if can_frontdesk and booking.status == 'PENDING' or can_frontdesk and booking.status == 'CONFIRMED' %}
-        <button name="action" value="attend" class="btn btn-ghost btn-sm"><i class="fas fa-user-check"></i> Attend</button>
+        {% if can_frontdesk and booking.status == 'CONFIRMED' %}
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Guest</button>
         {% endif %}
-        {% if can_manage and booking.status == 'CONFIRMED' or can_frontdesk and booking.status == 'CHECKED_IN' %}
+        {% if can_frontdesk and booking.status == 'CHECKED_IN' %}
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Guest</button>
+        {% endif %}
+        {% if can_manage and booking.status == 'CONFIRMED' %}
         <button name="action" value="complete" class="btn btn-brand btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
         {% endif %}
         {% if can_manage and booking.status == 'CONFIRMED' %}
