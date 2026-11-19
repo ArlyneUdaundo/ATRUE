@@ -691,6 +691,36 @@ def _assignment_establishment_key(assignment):
     return establishment.entity_id
 
 
+def _activity_guest_destination_key(assignment):
+    """Resolve the exact Activity for a Guest Activity task assignment.
+
+    Some older ACTIVITY establishment wrappers have a name but no linked
+    Activity foreign target. A unique exact-name match still directs the guest
+    to that activity's booking flow instead of the general search page.
+    """
+    establishment = assignment.establishment
+    if establishment is None or establishment.type != 'ACTIVITY':
+        return None
+
+    from activities.models import Activity
+
+    if establishment.entity_type_id and establishment.entity_id:
+        try:
+            content_type = ContentType.objects.get_for_id(
+                establishment.entity_type_id)
+            if (content_type.model_class() is Activity
+                    and Activity.objects.filter(pk=establishment.entity_id).exists()):
+                return establishment.entity_id
+        except ObjectDoesNotExist:
+            pass
+
+    matches = list(
+        Activity.objects.filter(name__iexact=establishment.name)
+        .order_by('pk').values_list('pk', flat=True)[:2]
+    )
+    return matches[0] if len(matches) == 1 else None
+
+
 def _guest_operation(role_code):
     """The guest's storefront operation, annotated for deep-linking."""
     operation = dict(_GUEST_OPERATIONS[role_code])
@@ -1001,7 +1031,12 @@ def operation_with_urls(assignment, operation):
     if assignment.hotel_id and operation['namespace'] == 'hotels':
         result['url'] += f'?hotel={assignment.hotel_id}'
 
-    landing_key = _assignment_establishment_key(assignment)
+    role_code = assignment.role_ref.code if assignment.role_ref_id else assignment.role
+    landing_key = (
+        _activity_guest_destination_key(assignment)
+        if role_code == 'ACTIVITY_GUEST'
+        else _assignment_establishment_key(assignment)
+    )
     if operation.get('detail_route') and landing_key is not None:
         # A guest pointed at a specific establishment lands on *that place's*
         # public page, not the whole-module list.
