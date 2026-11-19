@@ -753,6 +753,15 @@ if (!guestBox) { return; }
         return errs;
     }
 
+    function firstInvalidTransportField() {
+        if (CATEGORY !== 'transport') { return null; }
+        var fields = document.querySelectorAll('[data-transport-trip-details] [required]');
+        for (var i = 0; i < fields.length; i++) {
+            if (!fields[i].checkValidity()) { return fields[i]; }
+        }
+        return null;
+    }
+
     function showErrors(errs) {
         Array.prototype.forEach.call(document.querySelectorAll('.bk-guest-card'), function (sec) {
             sec.classList.remove('has-error');
@@ -969,6 +978,11 @@ if (!guestBox) { return; }
                 showErrors(errs);
                 return;
             }
+            var invalidTransportField = firstInvalidTransportField();
+            if (invalidTransportField) {
+                invalidTransportField.reportValidity();
+                return;
+            }
             closeGuestModal();
             document.dispatchEvent(new CustomEvent('atrue:establishment-guest-info-complete'));
         });
@@ -1122,12 +1136,15 @@ if (!guestBox) { return; }
         syncFromDom();
         syncDates();
         if (CATEGORY === 'transport') {
-            var pickupDate = document.getElementById('searchCheckIn');
-            var pickupTime = document.getElementById('searchTime');
-            if ((pickupDate && !pickupDate.value) || (pickupTime && !pickupTime.value)) {
+            var invalidTransportField = firstInvalidTransportField();
+            if (invalidTransportField) {
                 ev.preventDefault();
-                if (pickupDate && !pickupDate.value) { pickupDate.reportValidity(); }
-                else if (pickupTime) { pickupTime.reportValidity(); }
+                if (!guestModalOpen() && SELECTED.length) {
+                    openGuestModal(SELECTED[0].item_id);
+                }
+                requestAnimationFrame(function () {
+                    if (invalidTransportField.isConnected) { invalidTransportField.reportValidity(); }
+                });
                 return;
             }
         }

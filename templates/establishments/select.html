@@ -281,54 +281,6 @@ same markup, and any block with no real data behind it is simply not rendered.
             {% endfor %}
         </div>
 
-        {% if category == 'transport' %}
-        <section class="card card-pad" style="margin:18px 0" aria-labelledby="transportTripDetailsTitle">
-            <h3 id="transportTripDetailsTitle"><i class="fas fa-route"></i> Trip details</h3>
-            <p class="meta">Choose your pickup schedule and provide the route and distance to calculate your fare.</p>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="searchCheckIn">{{ date_label }}</label>
-                    <input id="searchCheckIn" type="date" class="form-input" value="{{ check_in|date:'Y-m-d' }}"
-                           min="{% now 'Y-m-d' %}" required>
-                </div>
-                <div class="form-group">
-                    <label for="searchTime">{{ time_label }}</label>
-                    <input id="searchTime" type="time" class="form-input" value="{{ selected_time|default:'09:00' }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="transportPickup">Pickup location</label>
-                    <input id="transportPickup" type="text" name="pickup_location" class="form-input"
-                           maxlength="255" required value="{{ transport_values.pickup_location }}">
-                </div>
-                <div class="form-group">
-                    <label for="transportDropoff">Drop-off location</label>
-                    <input id="transportDropoff" type="text" name="drop_off_location" class="form-input"
-                           maxlength="255" required value="{{ transport_values.drop_off_location }}">
-                </div>
-                <div class="form-group">
-                    <label for="transportDistance">Distance (km)</label>
-                    <input id="transportDistance" type="number" name="distance_km" class="form-input"
-                           min="0.01" max="999999.99" step="0.01" required
-                           value="{{ transport_values.distance_km }}">
-                </div>
-                <div class="form-group">
-                    <label for="transportDuration">Duration (hours)</label>
-                    <input id="transportDuration" type="number" name="duration_hours" class="form-input"
-                           min="1" required value="{{ transport_values.duration_hours|default:'3' }}">
-                </div>
-                <div class="form-group">
-                    <label for="transportDriver">Preferred driver</label>
-                    <select id="transportDriver" name="driver_id" class="form-input">
-                        <option value="">No preference</option>
-                        {% for driver in transport_drivers %}
-                        <option value="{{ driver.pk }}"{% if transport_values.driver_id == driver.pk|stringformat:'s' %} selected{% endif %}>{{ driver.full_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </section>
-        {% endif %}
-
         {% if tour_options %}
         <div class="card card-pad" style="margin:18px 0">
             <h3 style="margin:0 0 10px"><i class="fas fa-sliders"></i> {{ tour_options.0.label }}</h3>
@@ -473,6 +425,53 @@ same markup, and any block with no real data behind it is simply not rendered.
         </div>
         <div class="rm-modal-body">
             <div id="selectedItemsSection" class="bk-guest-wrap"></div>
+            {% if category == 'transport' %}
+            <section class="card card-pad" style="margin:18px 0 0" aria-labelledby="transportTripDetailsTitle" data-transport-trip-details>
+                <h3 id="transportTripDetailsTitle"><i class="fas fa-route"></i> Trip details</h3>
+                <p class="meta">Choose your pickup schedule and provide the route and distance to calculate your fare.</p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="searchCheckIn">{{ date_label }}</label>
+                        <input id="searchCheckIn" type="date" class="form-input" value="{{ check_in|date:'Y-m-d' }}"
+                               min="{% now 'Y-m-d' %}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="searchTime">{{ time_label }}</label>
+                        <input id="searchTime" type="time" class="form-input" value="{{ selected_time|default:'09:00' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="transportPickup">Pickup location</label>
+                        <input id="transportPickup" type="text" name="pickup_location" class="form-input"
+                               form="bookingForm" maxlength="255" required value="{{ transport_values.pickup_location }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="transportDropoff">Drop-off location</label>
+                        <input id="transportDropoff" type="text" name="drop_off_location" class="form-input"
+                               form="bookingForm" maxlength="255" required value="{{ transport_values.drop_off_location }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="transportDistance">Distance (km)</label>
+                        <input id="transportDistance" type="number" name="distance_km" class="form-input"
+                               form="bookingForm" min="0.01" max="999999.99" step="0.01" required
+                               value="{{ transport_values.distance_km }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="transportDuration">Duration (hours)</label>
+                        <input id="transportDuration" type="number" name="duration_hours" class="form-input"
+                               form="bookingForm" min="1" required value="{{ transport_values.duration_hours|default:'3' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="transportDriver">Preferred driver</label>
+                        <select id="transportDriver" name="driver_id" class="form-input" form="bookingForm">
+                            <option value="">No preference</option>
+                            {% for driver in transport_drivers %}
+                            <option value="{{ driver.pk }}"{% if transport_values.driver_id == driver.pk|stringformat:'s' %} selected{% endif %}>{{ driver.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
         </div>
         <div class="rm-modal-foot">
             <button type="button" class="ag-btn ag-btn-muted" data-guest-close><i class="fas fa-xmark"></i> Cancel</button>
@@ -483,5 +482,5 @@ same markup, and any block with no real data behind it is simply not rendered.
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/establishment_select.js' %}?v=20261112-transport-schedule"></script>
+<script src="{% static 'js/establishment_select.js' %}?v=20261119-guest-trip-details"></script>
 {% endblock %}
