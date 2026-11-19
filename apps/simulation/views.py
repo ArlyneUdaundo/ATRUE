@@ -1586,7 +1586,7 @@ def unassign_role(request, assignment_id):
 
 @login_required
 def reactivate_role(request, assignment_id):
-    """Return a completed assignment to active so an instructor can edit it."""
+    """Reject reactivation: instructor-marked completed assignments stay done."""
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
@@ -1596,42 +1596,11 @@ def reactivate_role(request, assignment_id):
         messages.error(request, "Only instructors may reactivate role assignments.")
         return redirect('simulation:workspace')
 
-    with transaction.atomic():
-        assignment = get_object_or_404(
-            SimulationRoleAssignment.objects.select_for_update(of=('self',)).select_related(
-                'student', 'session', 'establishment'),
-            pk=assignment_id,
-        )
-        if assignment.status != SimulationRoleAssignment.AssignmentStatus.DONE:
-            if is_ajax:
-                return JsonResponse({'ok': False, 'message': 'Only completed role assignments can be reactivated.'}, status=409)
-            messages.info(request, 'Only completed role assignments can be reactivated.')
-            return redirect('simulation:role_detail', assignment_id=assignment_id)
-        assignment.status = SimulationRoleAssignment.AssignmentStatus.ACTIVE
-        assignment.completed_at = None
-        assignment.save(update_fields=['status', 'completed_at', 'updated_at'])
-        _notify_assignment(assignment, request.user, modified=True)
-        log_activity(
-            request.user,
-            'Reactivated simulation role',
-            f'{assignment.get_role_display()} for '
-            f'{assignment.student.get_full_name() or assignment.student.username}',
-            session=assignment.session,
-        )
-
+    assignment = get_object_or_404(SimulationRoleAssignment, pk=assignment_id)
+    message = 'Completed role assignments stay Done and cannot be reactivated or edited.'
     if is_ajax:
-        return JsonResponse({
-            'ok': True,
-            'assignment': _assignment_json(assignment),
-            'message': 'Role reactivated. You can now edit the assignment.',
-        })
-    messages.success(request, 'Role reactivated. You can now edit the assignment.')
-    if request.POST.get('open_assignment_editor') == '1' and assignment.session_id:
-        return redirect(
-            f"{reverse('simulation:workspace')}?edit_assignment={assignment.pk}"
-            f"&student_id={assignment.student_id}"
-            f"#session-{assignment.session_id}"
-        )
+        return JsonResponse({'ok': False, 'message': message}, status=409)
+    messages.error(request, message)
     return redirect('simulation:role_detail', assignment_id=assignment_id)
 
 
