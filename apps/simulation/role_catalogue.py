@@ -106,12 +106,12 @@ ROLE_CATALOGUE = [
      Role.EstablishmentType.HOTEL, Role.OperationCategory.FRONT_DESK, 130),
 
     # -- Transportation: Manager / Reservation Agent / Front Desk -------------
-    ('TRANSPORT_MANAGER', 'Transportation Manager', Role.Category.TRANSPORTATION,
+    ('TRANSPORT_MANAGER', 'Land Transportation Manager', Role.Category.TRANSPORTATION,
      Role.EstablishmentType.TRANSPORTATION, Role.OperationCategory.MANAGER, 510),
-    ('TRANSPORT_RESERVATION_AGENT', 'Transportation Reservation Agent',
+    ('TRANSPORT_RESERVATION_AGENT', 'Land Transportation Reservation Officer',
      Role.Category.TRANSPORTATION, Role.EstablishmentType.TRANSPORTATION,
      Role.OperationCategory.RESERVATION, 520),
-    ('TRANSPORT_FRONT_DESK', 'Transportation Front Desk / Operations',
+    ('TRANSPORT_FRONT_DESK', 'Land Transportation Front Desk Officer',
      Role.Category.TRANSPORTATION, Role.EstablishmentType.TRANSPORTATION,
      Role.OperationCategory.FRONT_DESK, 530),
 
@@ -217,7 +217,7 @@ ROLE_CATALOGUE = [
      Role.OperationCategory.BILLING, 788),
     ('ACTIVITY_BILLING_OFFICER', 'Activity Billing Officer', Role.Category.ACTIVITY,
      Role.EstablishmentType.ACTIVITY, Role.OperationCategory.BILLING, 789),
-    ('TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer',
+    ('TRANSPORT_BILLING_OFFICER', 'Land Transportation Billing Officer',
      Role.Category.TRANSPORTATION, Role.EstablishmentType.TRANSPORTATION,
      Role.OperationCategory.BILLING, 790),
 
@@ -242,7 +242,7 @@ ROLE_CATALOGUE = [
      Role.EstablishmentType.TOUR_PACKAGE, Role.OperationCategory.MANAGER, 890),
     ('ACTIVITY_OWNER', 'Activity Owner', Role.Category.ACTIVITY,
      Role.EstablishmentType.ACTIVITY, Role.OperationCategory.MANAGER, 900),
-    ('TRANSPORTATION_OWNER', 'Transportation Owner', Role.Category.TRANSPORTATION,
+    ('TRANSPORTATION_OWNER', 'Land Transportation Owner', Role.Category.TRANSPORTATION,
      Role.EstablishmentType.TRANSPORTATION, Role.OperationCategory.MANAGER, 910),
 
     # -- Administrative ------------------------------------------------------

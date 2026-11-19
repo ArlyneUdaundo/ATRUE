@@ -99,9 +99,9 @@ class SimulationRoleAssignment(models.Model):
         HOTEL_RESERVATION_OFFICER = 'HOTEL_RESERVATION_OFFICER', 'Hotel Reservation Officer'
         HOTEL_FRONT_DESK = 'HOTEL_FRONT_DESK', 'Hotel Front Desk Officer'
         # Transportation
-        TRANSPORT_MANAGER = 'TRANSPORT_MANAGER', 'Transportation Manager'
-        TRANSPORT_RESERVATION_AGENT = 'TRANSPORT_RESERVATION_AGENT', 'Transportation Reservation Agent'
-        TRANSPORT_FRONT_DESK = 'TRANSPORT_FRONT_DESK', 'Transportation Front Desk / Operations'
+        TRANSPORT_MANAGER = 'TRANSPORT_MANAGER', 'Land Transportation Manager'
+        TRANSPORT_RESERVATION_AGENT = 'TRANSPORT_RESERVATION_AGENT', 'Land Transportation Reservation Officer'
+        TRANSPORT_FRONT_DESK = 'TRANSPORT_FRONT_DESK', 'Land Transportation Front Desk Officer'
         # Tour operation
         TOUR_OPERATOR_MANAGER = 'TOUR_OPERATOR_MANAGER', 'Tour Operator Manager'
         TOUR_RESERVATION_AGENT = 'TOUR_RESERVATION_AGENT', 'Tour Reservation Agent'
@@ -148,7 +148,7 @@ class SimulationRoleAssignment(models.Model):
         TOUR_OPERATOR_OWNER = 'TOUR_OPERATOR_OWNER', 'Tour Operator Owner'
         TOUR_PACKAGE_OWNER = 'TOUR_PACKAGE_OWNER', 'Tour Package Owner'
         ACTIVITY_OWNER = 'ACTIVITY_OWNER', 'Activity Owner'
-        TRANSPORTATION_OWNER = 'TRANSPORTATION_OWNER', 'Transportation Owner'
+        TRANSPORTATION_OWNER = 'TRANSPORTATION_OWNER', 'Land Transportation Owner'
         BILLING_OFFICER = 'BILLING_OFFICER', 'Billing Officer (legacy)'
         # -- Section 6.3 roles retained for existing data --------------------
         # These are no longer offered: every establishment role is one of the
@@ -169,7 +169,7 @@ class SimulationRoleAssignment(models.Model):
         TOUR_BILLING_OFFICER = 'TOUR_BILLING_OFFICER', 'Tour Billing Officer (legacy)'
         TRANSPORT_RESERVATION_OFFICER = 'TRANSPORT_RESERVATION_OFFICER', 'Transportation Reservation Officer (legacy)'
         TRANSPORT_DISPATCHER = 'TRANSPORT_DISPATCHER', 'Transportation Dispatcher (legacy)'
-        TRANSPORT_BILLING_OFFICER = 'TRANSPORT_BILLING_OFFICER', 'Transportation Billing Officer'
+        TRANSPORT_BILLING_OFFICER = 'TRANSPORT_BILLING_OFFICER', 'Land Transportation Billing Officer'
         RESORT_BILLING_OFFICER = 'RESORT_BILLING_OFFICER', 'Resort Billing Officer'
         RESTAURANT_BILLING_OFFICER = 'RESTAURANT_BILLING_OFFICER', 'Restaurant Billing Officer'
         STAYCATION_BILLING_OFFICER = 'STAYCATION_BILLING_OFFICER', 'Staycation Billing Officer'
