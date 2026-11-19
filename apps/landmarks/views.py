@@ -479,8 +479,8 @@ def booking_detail(request, booking_id):
 
     if request.method == 'POST' and can_manage:
         action = request.POST.get('action')
-        if can_checkin and action != 'use':
-            raise PermissionDenied('Landmark Front Desk may only check confirmed tickets in.')
+        if can_checkin and action not in {'use', 'checkout'}:
+            raise PermissionDenied('Landmark Front Desk may only check tickets in or out.')
         if reservation_officer and action != 'confirm':
             raise PermissionDenied('Reservation Officers may only confirm payment-verified tickets.')
         if action == 'confirm':
@@ -504,12 +504,25 @@ def booking_detail(request, booking_id):
             if not can_checkin:
                 messages.error(request, "Only the landmark front desk officer can check this ticket in.")
                 return redirect('landmarks:booking_detail', booking.id)
+            if booking.status != Ticket.Status.CONFIRMED:
+                messages.error(request, "Only confirmed tickets can be checked in.")
+                return redirect('landmarks:booking_detail', booking.id)
             booking.status = Ticket.Status.USED
             booking.save(update_fields=['status'])
             from simulation.completion import record_booking_fulfilled
             record_booking_fulfilled(booking, actor=request.user,
                 task_assignment_id=request.session.get('active_simulation_task_assignment'))
             log_activity(request.user, "Ticket checked in", str(booking.pk))
+        elif action == 'checkout':
+            if not can_checkin:
+                messages.error(request, "Only the landmark front desk officer can check this ticket out.")
+                return redirect('landmarks:booking_detail', booking.id)
+            if booking.status != Ticket.Status.USED:
+                messages.error(request, "Check in the ticket before checking it out.")
+                return redirect('landmarks:booking_detail', booking.id)
+            booking.status = Ticket.Status.CHECKED_OUT
+            booking.save(update_fields=['status'])
+            log_activity(request.user, "Visitor checked out", str(booking.pk))
         elif action == 'modify':
             booking.number_of_visitors = int(request.POST.get('visitors') or booking.number_of_visitors)
             booking.visit_datetime = _parse_datetime(request.POST.get('visit_datetime'), booking.visit_datetime)
