@@ -1,7 +1,10 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 {% load cancellation_tags %}
 
 {% block title %}Staycation Reservation Detail{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261119-staycation-gallery">{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -28,6 +31,7 @@
 
 <div class="grid-2">
     <div class="card card-pad">
+        {% include 'reservations/_property_gallery.html' with reservation_property=booking.staycation %}
         <h3><i class="fas fa-home"></i> Guest &amp; Staycation</h3>
         <div class="meta">Guest: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         <div class="meta">Payer: {{ booking.payer_name|default:"Same as guest" }}</div>
@@ -133,4 +137,5 @@
 {% endif %}
 
 {% cancellation_panel booking %}
+<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>
 {% endblock %}
