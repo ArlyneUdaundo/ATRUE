@@ -763,7 +763,7 @@ def _staycation_card(item, request):
         "price_label": "/night",
         "imgs": images,
         "icon": "fa-couch",
-        **_flow_cta(request, "staycation", item.pk, reverse("staycations:detail", args=[item.slug]),
+        **_flow_cta(request, "staycation", item.pk, None,
                     "Reserve this stay", stay_params=("check_in", "check_out")),
     }
 
