@@ -1,7 +1,10 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 {% load cancellation_tags %}
 
 {% block title %}Ticket Booking Detail{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261119-landmark-gallery">{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -28,6 +31,7 @@
 
 <div class="grid-2">
     <div class="card card-pad">
+        {% include 'reservations/_property_gallery.html' with reservation_property=booking.destination %}
         <h3><i class="fas fa-ticket-alt"></i> Visitor &amp; Destination</h3>
         <div class="meta">Visitor: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         {% if booking.visitor_age %} <div class="meta">Age: {{ booking.visitor_age }}</div>{% endif %}
@@ -136,4 +140,5 @@
 {% endif %}
 
 {% cancellation_panel booking %}
+<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>
 {% endblock %}
