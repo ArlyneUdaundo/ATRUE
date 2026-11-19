@@ -1,7 +1,10 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 {% load cancellation_tags %}
 
 {% block title %}Activity Booking Detail{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-7">{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -28,6 +31,25 @@
 
 <div class="grid-2">
     <div class="card card-pad">
+        {% with activity_photos=booking.activity.photos.all %}
+        <div class="hbd-gallery" data-hbd-gallery aria-label="{{ booking.activity.name }} activity photos">
+            {% for photo in activity_photos %}
+            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:booking.activity.name }}" class="hbd-gallery-image{% if forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
+            {% empty %}
+                {% if booking.activity.image %}
+                <img src="{{ booking.activity.image.url }}" alt="{{ booking.activity.name }}" class="hbd-gallery-image is-active" data-hbd-image>
+                {% else %}
+                <img src="{% static 'img/activity-placeholder.svg' %}" alt="{{ booking.activity.name }}" class="hbd-gallery-image is-active" data-hbd-image>
+                {% endif %}
+            {% endfor %}
+            <div class="hbd-gallery-label"><i class="fas fa-camera"></i> Activity Photos</div>
+            {% if activity_photos|length > 1 %}
+            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ activity_photos|length }}</div>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous activity photo"><i class="fas fa-chevron-left"></i></button>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next activity photo"><i class="fas fa-chevron-right"></i></button>
+            {% endif %}
+        </div>
+        {% endwith %}
         <h3><i class="fas fa-hiking"></i> Booking</h3>
         <div class="meta">Activity: <b>{{ booking.activity.name }}</b></div>
         <div class="meta">Provider: {{ booking.activity.provider.name }}</div>
@@ -110,3 +132,5 @@
 
 {% cancellation_panel booking %}
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>{% endblock %}
