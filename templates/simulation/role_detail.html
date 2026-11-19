@@ -183,11 +183,7 @@
             <label>Reason <em class="muted-hint">Optional</em></label>
             <input type="text" name="reason" class="form-input" placeholder="Reason for change">
         </div>
-        {% if assignment.status == 'ACTIVE' %}
         <button type="submit" class="btn btn-brand update-role-submit"><i class="fas fa-check"></i> Save Update</button>
-        {% else %}
-        <button type="submit" class="btn btn-brand update-role-submit" disabled>Inactive – Reactivate to update</button>
-        {% endif %}
     </form>
 </div>
 {% endif %}
