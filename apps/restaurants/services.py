@@ -119,7 +119,8 @@ def create_restaurant_reservation(
         return reservation
 
 
-def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
+def confirm_restaurant_reservation(*, reservation_id, officer, remarks='',
+                                  task_assignment_id=None):
     with transaction.atomic():
         reservation = Reservation.objects.select_for_update().select_related(
             'customer', 'table__restaurant',
@@ -185,6 +186,7 @@ def confirm_restaurant_reservation(*, reservation_id, officer, remarks=''):
             complete_reservation_confirmation(
                 officer, establishment=establishment,
                 booking_reference=reservation.booking_reference,
+                task_assignment_id=task_assignment_id,
             )
         from notifications.email_service import queue_booking_confirmation
         queue_booking_confirmation(reservation)

@@ -578,7 +578,9 @@ def booking_detail(request, booking_id):
         if action == 'confirm':
             if not reservation_officer:
                 raise PermissionDenied('Only the Staycation Reservation Officer may confirm a payment-verified booking.')
-            confirm_booking(booking, request.user)
+            confirm_booking(
+                booking, request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             if booking.status == Reservation.Status.CONFIRMED:
                 from notifications.services import notify_service_booking
                 notify_service_booking(booking, 'confirmed', request.user)

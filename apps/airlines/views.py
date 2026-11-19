@@ -6021,7 +6021,9 @@ def booking_detail(request, booking_id):
         remark = request.POST.get('manager_remarks', '').strip()
         if action == 'confirm':
             was_pending = booking.status == Booking.Status.PENDING
-            confirm_booking(booking, request.user)
+            confirm_booking(
+                booking, request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
             payment_review_pending = getattr(booking, 'payment_review_pending', False)
             if payment_review_pending:
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')

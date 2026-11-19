@@ -363,7 +363,8 @@ def billing_officer_session_for_booking(booking, user, session=None):
         return review_session
     return None
 
-def confirm_booking(booking, user, notify=True, session=None, establishment=None):
+def confirm_booking(booking, user, notify=True, session=None, establishment=None,
+                    task_assignment_id=None):
     """Set a booking to CONFIRMED with payment gate and audit."""
     from decimal import Decimal
     from django.db import transaction
@@ -411,7 +412,8 @@ def confirm_booking(booking, user, notify=True, session=None, establishment=None
     if resolved_establishment is not None:
         complete_reservation_confirmation(
             user, establishment=resolved_establishment, session=session,
-            booking_reference=getattr(booking, 'booking_reference', '') or '')
+            booking_reference=getattr(booking, 'booking_reference', '') or '',
+            task_assignment_id=task_assignment_id)
     record_guest_reservation_confirmed(
         booking, session=session,
         actor=user)

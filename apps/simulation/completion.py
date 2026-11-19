@@ -414,8 +414,13 @@ def _record_task_event(target, task_event, user, *, booking_reference=''):
 
 
 def complete_reservation_confirmation(user, *, assignment=None, session=None,
-                                      establishment=None, booking_reference=''):
+                                      establishment=None, booking_reference='',
+                                      task_assignment_id=None):
     """Record the confirmed-booking task for the assigned role."""
+    if assignment is None and task_assignment_id:
+        assignment = _active_assignment(task_assignment_id, user)
+        if assignment is None:
+            return None
     details = (
         'Booking confirmed (%s).' % booking_reference
         if booking_reference else 'Booking confirmed.'
