@@ -626,12 +626,20 @@ def operate(request):
         request,
         Activity.objects.select_related('provider').prefetch_related('photos').all(),
     )
+    platform_user = is_activity_platform_user(request.user)
+    operator_ids = assigned_activity_ids_for_roles(request, {'ACTIVITY_OPERATOR'})
     bookings = scope_bookings(request, Booking.objects.select_related('customer').all())
     bookings_by_activity = {}
     for booking in bookings:
         bookings_by_activity.setdefault(booking.activity_id, []).append(booking)
     rows = [
-        {'activity': activity, 'bookings': bookings_by_activity.get(activity.id, [])}
+        {
+            'activity': activity,
+            'bookings': bookings_by_activity.get(activity.id, []),
+            'can_complete': platform_user or (
+                operator_ids is not None and activity.id in operator_ids
+            ),
+        }
         for activity in activities
     ]
     return render(request, 'activities/operate.html', {

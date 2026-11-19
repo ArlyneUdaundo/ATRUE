@@ -39,16 +39,8 @@
                     <td>₱ {{ b.total_bill }}</td>
                     <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' or b.status == 'COMPLETED' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
                     <td>
-                        {% if b.status == 'CONFIRMED' or b.status == 'PENDING' %}
-                        <form method="post" class="inline-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="attend">
-                            <input type="hidden" name="activity_id" value="{{ activity.id }}">
-                            <input type="hidden" name="booking_id" value="{{ b.id }}">
-                            <button type="submit" class="btn btn-ghost btn-sm">Attend</button>
-                        </form>
-                        {% endif %}
-                        {% if b.status == 'CHECKED_IN' %}
+                        <a href="{% url 'activities:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a>
+                        {% if b.status == 'CHECKED_IN' and row.can_complete %}
                         <form method="post" class="inline-form">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="complete">
