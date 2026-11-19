@@ -879,7 +879,7 @@ def _landmark_card(item, request):
         "price_label": "/visitor",
         "imgs": images,
         "icon": "fa-mountain" if spot else "fa-landmark",
-        **_flow_cta(request, "landmark", item.pk, reverse("landmarks:detail", args=[item.pk]),
+        **_flow_cta(request, "landmark", item.pk, None,
                     "Get tickets", stay_params=("check_in",)),
     }
 

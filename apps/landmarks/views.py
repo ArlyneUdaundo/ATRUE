@@ -26,6 +26,7 @@ from atrue_core.services import (
 )
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from accounts.roles import can_create_establishment
 
@@ -567,40 +568,14 @@ def ticket_pdf(request, booking_id):
 
 
 def landmark_detail(request, pk):
-    """Establishment detail step for a landmark / tourist spot.
-
-    Landmarks previously jumped straight from the search results to the ticket
-    form, so they had no detail page.  This renders the shared detail step and
-    links onward to the shared selection page.
-    """
-    from atrue_core.establishment_flow import detail_context, get_adapter
-
     landmark = get_object_or_404(
-        Landmark.objects.filter(status=Landmark.Status.ACTIVE).prefetch_related('photos'),
-        pk=pk,
-    )
-    adapter = get_adapter('landmark')
-    from datetime import date, timedelta
-
-    check_in = adapter.default_date(landmark, date.today() + timedelta(days=1))
-    from atrue_core.establishment_flow import parse_date
-
-    check_in = parse_date(request.GET.get('date'), check_in)
-    check_out = parse_date(request.GET.get('check_out'), check_in + timedelta(days=1))
-    if check_out <= check_in:
-        check_out = check_in + timedelta(days=1)
-    context = detail_context(adapter, landmark, check_in, check_out)
-    # The shared detail page is also used by public visitors. Show the
-    # management shortcuts only to accounts that can enter management flows.
-    from accounts.roles import can_access_module
-    context['is_landmark_manager'] = bool(
-        request.user.is_authenticated and can_access_module(request.user, 'landmarks')
-    )
-    context['landmark_edit_url'] = (
-        'landmarks:update_landmark' if landmark.category == Landmark.Category.LANDMARK
-        else 'landmarks:update_spot'
-    )
-    return render(request, 'establishments/detail.html', context)
+        Landmark.objects.filter(status=Landmark.Status.ACTIVE), pk=pk)
+    query = request.GET.copy()
+    if query.get('date') and not query.get('check_in'):
+        query['check_in'] = query['date']
+    booking_url = reverse('landmarks:flow_select', args=[landmark.pk])
+    query_string = query.urlencode()
+    return redirect(f'{booking_url}?{query_string}' if query_string else booking_url)
 
 
 @login_required
