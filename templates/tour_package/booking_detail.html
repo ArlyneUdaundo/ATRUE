@@ -1,7 +1,11 @@
 {% extends 'dashboard_base.html' %}
-{% load cancellation_tags %}
+{% load static cancellation_tags %}
 
 {% block title %}Tour Package Booking Detail{% endblock %}
+
+{% block extra_css %}
+{% if is_reservation_officer or can_frontdesk %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-7">{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -26,9 +30,26 @@
 </div>
 {% endif %}
 
-<div class="grid-2">
-    <div class="card card-pad">
-        <h3><i class="fas fa-luggage-cart"></i> Booking</h3>
+<div class="{% if is_reservation_officer or can_frontdesk %}hbd-page hbd-main-grid{% else %}grid-2{% endif %}">
+    <div class="{% if is_reservation_officer or can_frontdesk %}hbd-panel hbd-stay-panel{% else %}card card-pad{% endif %}">
+        {% if is_reservation_officer or can_frontdesk %}
+        {% with package_photos=booking.package.photos.all %}
+        <div class="hbd-gallery" data-hbd-gallery aria-label="{{ booking.package.name }} tour package photos">
+            {% for photo in package_photos %}
+            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:booking.package.name }}" class="hbd-gallery-image{% if forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
+            {% empty %}
+            <img src="{% static 'img/tour-package-placeholder.svg' %}" alt="{{ booking.package.name }}" class="hbd-gallery-image is-active" data-hbd-image>
+            {% endfor %}
+            <div class="hbd-gallery-label"><i class="fas fa-camera"></i> Tour Package Photos</div>
+            {% if package_photos|length > 1 %}
+            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ package_photos|length }}</div>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous tour package photo"><i class="fas fa-chevron-left"></i></button>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next tour package photo"><i class="fas fa-chevron-right"></i></button>
+            {% endif %}
+        </div>
+        {% endwith %}
+        <div class="hbd-section-title"><i class="fas fa-luggage-cart"></i><h2>Booking</h2></div>
+        {% else %}<h3><i class="fas fa-luggage-cart"></i> Booking</h3>{% endif %}
         <div class="meta">Package: <b>{{ booking.package.name }}</b></div>
         <div class="meta">Customer: {{ booking.customer.get_full_name|default:booking.customer.username }}</div>
         <div class="meta">Primary traveler: {{ booking.primary_traveler_name|default:"Same as customer" }}</div>
@@ -48,8 +69,10 @@
         {% endif %}
     </div>
 
-    {% include 'transactions/_booking_billing.html' %}
+    <div class="{% if is_reservation_officer or can_frontdesk %}hbd-billing-wrap{% endif %}">{% include 'transactions/_booking_billing.html' %}</div>
 </div>
+
+{% if is_reservation_officer or can_frontdesk %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>{% endif %}
 
 {% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
