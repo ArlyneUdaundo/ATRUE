@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models.deletion import ProtectedError
 from django.db.models import Q
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from accounts.roles import can_create_establishment
 from atrue_core.decorators import manager_required, student_booking_required
@@ -215,10 +216,9 @@ def staycation_detail(request, staycation_id):
     if staycation.status != Staycation.Status.ACTIVE and not (getattr(request.user, 'is_staff', False) or getattr(request.user, 'account_type', None) in ('ADMIN', 'INSTRUCTOR')):
         messages.error(request, "This staycation is currently unavailable.")
         return redirect('staycations:list')
-    return render(request, 'staycations/detail.html', {
-        'staycation': staycation,
-        'is_manager': getattr(request.user, 'is_staff', False) or getattr(request.user, 'account_type', None) in ('ADMIN', 'INSTRUCTOR'),
-    })
+    booking_url = reverse('staycations:flow_select', args=[staycation.id])
+    query_string = request.GET.urlencode()
+    return redirect(f'{booking_url}?{query_string}' if query_string else booking_url)
 
 
 @manager_required
