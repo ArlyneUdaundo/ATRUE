@@ -224,7 +224,7 @@
                         {% if row.assignment %}
                         <span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>
                         <span class="simulation-student-task-progress">{% if row.progress.required %}{{ row.progress.percent }}% · {{ row.progress.completed_required }}/{{ row.progress.required }} required tasks{% else %}No required tasks{% endif %}</span>
-                        <span class="simulation-student-status">{% if row.assignment.status == 'DONE' %}Assigned role as done{% elif row.assignment.status == 'ACTIVE' %}Role assigned{% else %}{{ row.assignment.get_status_display }}{% endif %}</span>
+                        <span class="simulation-student-status">{% if row.assignment.status == 'DONE' %}Done{% elif row.assignment.status == 'ACTIVE' %}Role assigned{% else %}{{ row.assignment.get_status_display }}{% endif %}</span>
                         {% else %}
                         <span class="badge badge-gray">No role assigned</span>
                         <span class="simulation-student-task-progress">No progress yet</span>
@@ -236,7 +236,7 @@
                         <div class="simulation-student-detail-grid">
                             <div class="simulation-student-detail-item"><span>Session</span><strong>{{ session.name }}</strong></div>
                             <div class="simulation-student-detail-item"><span>Activity</span><strong class="simulation-student-activity-value">{% if row.assignment %}{{ row.assignment.activity_name }}{% else %}No activity assigned{% endif %}</strong></div>
-                            <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% if row.assignment.status == 'DONE' %}<small>Assigned role as done</small>{% endif %}{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
+                            <div class="simulation-student-detail-item"><span>Assigned Role</span><strong class="simulation-student-role-value">{% if row.assignment %}<span class="badge {% if row.assignment.status == 'ACTIVE' %}badge-blue{% elif row.assignment.status == 'DONE' %}badge-green{% else %}badge-gray{% endif %}">{{ row.assignment.get_role_display }}</span>{% if row.assignment.status == 'DONE' %}<small>Done</small>{% endif %}{% else %}<span class="badge badge-gray">No role assigned</span>{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Establishment</span><strong class="simulation-student-establishment-value">{% if row.assignment.establishment %}{{ row.assignment.establishment.name }}{% else %}No establishment{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Session Date</span><strong class="simulation-student-date-value">{% if session.session_date %}{{ session.session_date|date:"M d, Y" }}{% else %}Not scheduled{% endif %}</strong></div>
                             <div class="simulation-student-detail-item"><span>Session Time</span><strong class="simulation-student-time-value">{% if session.start_time and session.end_time %}{{ session.start_time|time:"g:i A" }} – {{ session.end_time|time:"g:i A" }}{% else %}Not set{% endif %}</strong></div>
@@ -1499,7 +1499,7 @@
         var rowStatus = row.querySelector('.simulation-student-status');
         if (rowStatus) {
             rowStatus.textContent = assignment.status === 'DONE'
-                ? 'Assigned role as done'
+                ? 'Done'
                 : assignment.status === 'ACTIVE' ? 'Role assigned' : assignment.status_display;
         }
         var rowName = row.querySelector('.simulation-student-name');
