@@ -32,7 +32,7 @@
                     <td>{{ b.schedule_date|date:"M d, Y" }}</td>
                     <td>{{ b.participant_count }}</td>
                     <td>₱ {{ b.total_bill }}</td>
-                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
+                    <td><span class="badge {% if b.status == 'CONFIRMED' %}badge-green{% elif b.status == 'CHECKED_IN' or b.status == 'CHECKED_OUT' %}badge-blue{% elif b.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}">{{ b.get_status_display }}</span></td>
                     <td><a href="{% url 'activities:booking_detail' b.id %}" class="btn btn-ghost btn-sm">View</a></td>
                 </tr>
                 {% empty %}

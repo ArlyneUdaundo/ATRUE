@@ -406,7 +406,7 @@ def booking_detail(request, booking_id):
         if can_reserve:
             allowed_actions.update({'confirm'} if reservation_officer else {'confirm', 'decline', 'modify', 'cancel'})
         if can_frontdesk:
-            allowed_actions.add('attend')
+            allowed_actions.update({'attend', 'checkin', 'checkout'})
         if can_operator:
             allowed_actions.update({'complete', 'pay'})
         if action not in allowed_actions:
@@ -428,12 +428,25 @@ def booking_detail(request, booking_id):
             decline_booking(booking, request.user)
             from notifications.services import notify_service_booking
             notify_service_booking(booking, 'rejected', request.user)
-        elif action == 'attend':
+        elif action == 'attend' or action == 'checkin':
             if booking.status != Booking.Status.CONFIRMED:
                 raise PermissionDenied('Only confirmed activity bookings may be checked in.')
+            from django.utils import timezone
             booking.status = Booking.Status.CHECKED_IN
-            booking.save(update_fields=['status'])
+            booking.checked_in_at = timezone.now()
+            booking.save(update_fields=['status', 'checked_in_at'])
             log_activity(request.user, "Activity booking attended", str(booking.pk))
+        elif action == 'checkout':
+            if booking.status != Booking.Status.CHECKED_IN:
+                raise PermissionDenied('Only checked-in activity bookings may be checked out.')
+            from django.utils import timezone
+            booking.status = Booking.Status.CHECKED_OUT
+            booking.checked_out_at = timezone.now()
+            booking.save(update_fields=['status', 'checked_out_at'])
+            from simulation.completion import record_booking_fulfilled
+            record_booking_fulfilled(booking, actor=request.user,
+                task_assignment_id=request.session.get('active_simulation_task_assignment'))
+            log_activity(request.user, "Activity booking checked out", str(booking.pk))
         elif action == 'complete':
             if booking.status != Booking.Status.CHECKED_IN:
                 raise PermissionDenied('Only checked-in activity bookings may be completed.')
@@ -482,6 +495,7 @@ def booking_detail(request, booking_id):
         'bill': bill,
         'payments': payments,
         'can_manage': can_manage,
+        'can_frontdesk': can_frontdesk,
         'is_reservation_officer': reservation_officer,
         'can_manage_lifecycle': can_manage and not reservation_officer and not can_frontdesk,
         'can_print_ticket': booking.customer_id == request.user.id and not request.user.is_staff and not can_manage,

@@ -18,7 +18,7 @@
         <span class="btn btn-ghost btn-sm" style="pointer-events:none;opacity:.55" title="Awaiting front desk confirmation"><i class="fas fa-print"></i> Print E-Ticket</span>
         {% endif %}
         {% endif %}
-        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CHECKED_IN' %}badge-blue{% elif booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
+        <span class="badge {% if booking.status == 'CONFIRMED' %}badge-green{% elif booking.status == 'CHECKED_IN' or booking.status == 'CHECKED_OUT' %}badge-blue{% elif booking.status == 'CANCELLED' %}badge-gray{% else %}badge-yellow{% endif %}" style="font-size:14px">{{ booking.get_status_display }}</span>
     </div>
 </div>
 
@@ -68,15 +68,17 @@
     {% include 'transactions/_booking_billing.html' %}
 </div>
 
-{% if can_manage and not is_reservation_officer %}
+{% if can_frontdesk %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-concierge-bell"></i> Front Desk</h3>
     <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">
         {% csrf_token %}
         {% if booking.status == 'CONFIRMED' %}
-        <button name="action" value="attend" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Participant</button>
+        <button name="action" value="checkin" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Participant</button>
         {% elif booking.status == 'CHECKED_IN' %}
-        <span class="meta"><i class="fas fa-check-circle"></i> Participant is checked in.</span>
+        <button name="action" value="checkout" class="btn btn-brand btn-sm"><i class="fas fa-sign-out-alt"></i> Check-Out Participant</button>
+        {% elif booking.status == 'CHECKED_OUT' %}
+        <span class="meta"><i class="fas fa-check-circle"></i> Participant has checked out.</span>
         {% else %}
         <span class="meta">Check-in is available after the Reservation Officer confirms the booking.</span>
         {% endif %}
