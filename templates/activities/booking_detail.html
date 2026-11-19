@@ -68,6 +68,22 @@
     {% include 'transactions/_booking_billing.html' %}
 </div>
 
+{% if can_manage and not is_reservation_officer %}
+<div class="card card-pad" style="margin-top:18px">
+    <h3><i class="fas fa-concierge-bell"></i> Front Desk</h3>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap">
+        {% csrf_token %}
+        {% if booking.status == 'CONFIRMED' %}
+        <button name="action" value="attend" class="btn btn-brand btn-sm"><i class="fas fa-sign-in-alt"></i> Check-In Participant</button>
+        {% elif booking.status == 'CHECKED_IN' %}
+        <span class="meta"><i class="fas fa-check-circle"></i> Participant is checked in.</span>
+        {% else %}
+        <span class="meta">Check-in is available after the Reservation Officer confirms the booking.</span>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+
 {% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
     <h3><i class="fas fa-tasks"></i> Lifecycle</h3>
