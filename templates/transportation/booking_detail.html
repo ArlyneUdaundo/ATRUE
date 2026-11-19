@@ -1,7 +1,13 @@
 {% extends 'dashboard_base.html' %}
 {% load cancellation_tags %}
+{% load static %}
 
 {% block title %}Transport Booking Detail{% endblock %}
+
+{% block extra_css %}
+{% if is_reservation_officer or can_process_checkin %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-7">{% endif %}
+{% if is_reservation_officer or can_process_checkin %}<style>.hbd-transport-photo-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#58718e;background:linear-gradient(135deg,#e8f0f8,#dce8f5);font-size:11px;font-weight:700}.hbd-transport-photo-empty i{font-size:34px;color:#47719e}</style>{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -26,8 +32,30 @@
 </div>
 {% endif %}
 
-<div class="grid-2">
-    <div class="card card-pad">
+<div class="{% if is_reservation_officer or can_process_checkin %}hbd-page hbd-main-grid{% else %}grid-2{% endif %}">
+    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-panel hbd-stay-panel{% else %}card card-pad{% endif %}">
+        {% if is_reservation_officer or can_process_checkin %}
+        {% with agency_photos=booking.vehicle.agency.photos.all %}
+        <div class="hbd-gallery" data-hbd-gallery aria-label="{{ booking.vehicle.label }} vehicle photos">
+            {% if booking.vehicle.image %}<img src="{{ booking.vehicle.image.url }}" alt="{{ booking.vehicle.label }}" class="hbd-gallery-image is-active" data-hbd-image loading="lazy">{% endif %}
+            {% for photo in agency_photos %}
+            <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:booking.vehicle.agency.name }}" class="hbd-gallery-image{% if not booking.vehicle.image and forloop.first %} is-active{% endif %}" data-hbd-image loading="lazy">
+            {% empty %}
+            {% if not booking.vehicle.image %}<div class="hbd-transport-photo-empty"><i class="fas fa-bus"></i><span>No vehicle photo available</span></div>{% endif %}
+            {% endfor %}
+            <div class="hbd-gallery-label"><i class="fas fa-camera"></i> Vehicle Photos</div>
+            {% if booking.vehicle.image and agency_photos|length %}
+            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ agency_photos|length|add:1 }}</div>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous vehicle photo"><i class="fas fa-chevron-left"></i></button>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next vehicle photo"><i class="fas fa-chevron-right"></i></button>
+            {% elif not booking.vehicle.image and agency_photos|length > 1 %}
+            <div class="hbd-gallery-count"><span data-hbd-current>1</span> / {{ agency_photos|length }}</div>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-prev" data-hbd-step="-1" aria-label="Previous vehicle photo"><i class="fas fa-chevron-left"></i></button>
+            <button type="button" class="hbd-gallery-arrow hbd-gallery-next" data-hbd-step="1" aria-label="Next vehicle photo"><i class="fas fa-chevron-right"></i></button>
+            {% endif %}
+        </div>
+        {% endwith %}
+        {% endif %}
         <h3><i class="fas fa-bus"></i> Trip Details</h3>
         <div class="meta">Passenger: <b>{{ booking.primary_guest_name|default:booking.customer.get_full_name }}</b></div>
         <div class="meta">Payer: {{ booking.payer_name|default:"Same as passenger" }}</div>
@@ -39,8 +67,9 @@
         {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
     </div>
 
-    {% include 'transactions/_booking_billing.html' %}
+    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-billing-wrap{% endif %}">{% include 'transactions/_booking_billing.html' %}</div>
 </div>
+{% if is_reservation_officer or can_process_checkin %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>{% endif %}
 
 {% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
