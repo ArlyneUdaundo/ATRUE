@@ -5,8 +5,8 @@
 {% block title %}Transport Booking Detail{% endblock %}
 
 {% block extra_css %}
-{% if is_reservation_officer or can_process_checkin %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-7">{% endif %}
-{% if is_reservation_officer or can_process_checkin %}<style>.hbd-transport-photo-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#58718e;background:linear-gradient(135deg,#e8f0f8,#dce8f5);font-size:11px;font-weight:700}.hbd-transport-photo-empty i{font-size:34px;color:#47719e}</style>{% endif %}
+{% if is_reservation_officer or can_process_checkin or can_print_ticket %}<link rel="stylesheet" href="{% static 'css/hotel-booking-detail.css' %}?v=20261109-7">{% endif %}
+{% if is_reservation_officer or can_process_checkin or can_print_ticket %}<style>.hbd-transport-photo-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#58718e;background:linear-gradient(135deg,#e8f0f8,#dce8f5);font-size:11px;font-weight:700}.hbd-transport-photo-empty i{font-size:34px;color:#47719e}</style>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -32,9 +32,9 @@
 </div>
 {% endif %}
 
-<div class="{% if is_reservation_officer or can_process_checkin %}hbd-page hbd-main-grid{% else %}grid-2{% endif %}">
-    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-panel hbd-stay-panel{% else %}card card-pad{% endif %}">
-        {% if is_reservation_officer or can_process_checkin %}
+<div class="{% if is_reservation_officer or can_process_checkin or can_print_ticket %}hbd-page hbd-main-grid{% else %}grid-2{% endif %}">
+    <div class="{% if is_reservation_officer or can_process_checkin or can_print_ticket %}hbd-panel hbd-stay-panel{% else %}card card-pad{% endif %}">
+        {% if is_reservation_officer or can_process_checkin or can_print_ticket %}
         {% with agency_photos=booking.vehicle.agency.photos.all %}
         <div class="hbd-gallery" data-hbd-gallery aria-label="{{ booking.vehicle.label }} vehicle photos">
             {% if booking.vehicle.image %}<img src="{{ booking.vehicle.image.url }}" alt="{{ booking.vehicle.label }}" class="hbd-gallery-image is-active" data-hbd-image loading="lazy">{% endif %}
@@ -67,9 +67,9 @@
         {% if booking.special_requests %}<div class="meta">Requests: {{ booking.special_requests }}</div>{% endif %}
     </div>
 
-    <div class="{% if is_reservation_officer or can_process_checkin %}hbd-billing-wrap{% endif %}">{% include 'transactions/_booking_billing.html' %}</div>
+    <div class="{% if is_reservation_officer or can_process_checkin or can_print_ticket %}hbd-billing-wrap{% endif %}">{% include 'transactions/_booking_billing.html' %}</div>
 </div>
-{% if is_reservation_officer or can_process_checkin %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>{% endif %}
+{% if is_reservation_officer or can_process_checkin or can_print_ticket %}<script src="{% static 'js/hotel-booking-detail.js' %}?v=20261109-1" defer></script>{% endif %}
 
 {% if can_manage_lifecycle %}
 <div class="card card-pad" style="margin-top:18px">
