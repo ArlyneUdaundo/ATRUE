@@ -1474,7 +1474,6 @@ class TransportAdapter(BaseAdapter):
     date_label = 'Pickup date'
     time_label = 'Pickup time'
     show_time = True
-    use_account_primary_guest = False
 
     def get_est(self, pk):
         from transportation.models import Agency
