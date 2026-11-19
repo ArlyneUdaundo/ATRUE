@@ -21,6 +21,7 @@ same markup, and any block with no real data behind it is simply not rendered.
     <link rel="stylesheet" href="{% static 'css/booking.css' %}?v=20261010-all-cards-organized">
     <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261002modalfix">
 <link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20260930b">
+{% if category == 'package' %}<style>.package-flow-card .rm-shot { object-fit: contain; }</style>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -126,7 +127,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 
         <div class="rm-list">
             {% for card in cards %}
-            <article class="rm-card{% if not card.bookable %} is-unavailable{% endif %}" data-item-card="{{ card.id }}">
+            <article class="rm-card{% if category == 'package' %} package-flow-card{% endif %}{% if not card.bookable %} is-unavailable{% endif %}" data-item-card="{{ card.id }}">
 
                 <div class="rm-media">
                     {% if card.photos %}
@@ -328,7 +329,7 @@ same markup, and any block with no real data behind it is simply not rendered.
         </div>
         {% endif %}
 
-        {% if category != 'staycation' and category != 'landmark' %}<div id="computationSummary"></div>{% endif %}
+        {% if category != 'staycation' and category != 'landmark' and category != 'package' %}<div id="computationSummary"></div>{% endif %}
         {% else %}
         <div class="card"><div class="empty"><i class="fas {{ adapter.icon }}"></i><h3>Nothing available yet</h3><p>Options will appear here once the administrator adds them for {{ est_name }}.</p></div></div>
         {% endif %}
