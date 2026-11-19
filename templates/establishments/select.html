@@ -21,6 +21,17 @@ same markup, and any block with no real data behind it is simply not rendered.
     <link rel="stylesheet" href="{% static 'css/booking.css' %}?v=20261010-all-cards-organized">
     <link rel="stylesheet" href="{% static 'css/rooms.css' %}?v=20261002modalfix">
 <link rel="stylesheet" href="{% static 'css/establishment_flow.css' %}?v=20260930b">
+{% if category == 'package' %}<style>
+.package-flow-card .rm-rate { display: grid; grid-template-columns: minmax(145px, .8fr) minmax(0, 1.6fr) minmax(120px, .7fr); align-items: center; gap: 16px; }
+.package-flow-card .rm-rate-group { min-width: 0; width: auto; }
+.package-flow-card .rm-rate-group + .rm-rate-group { border-left: 1px solid rgba(15, 23, 42, .09); border-top: 0; padding: 0 0 0 16px; }
+.package-flow-card .rm-perks { display: flex; flex-direction: column; align-items: stretch; }
+.package-flow-card .rm-perk { align-items: flex-start; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+    .package-flow-card .rm-rate { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+    .package-flow-card .rm-rate-group + .rm-rate-group { border-left: 0; border-top: 1px solid rgba(15, 23, 42, .09); padding: 14px 0 0; }
+}
+</style>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -126,7 +137,7 @@ same markup, and any block with no real data behind it is simply not rendered.
 
         <div class="rm-list">
             {% for card in cards %}
-            <article class="rm-card{% if not card.bookable %} is-unavailable{% endif %}" data-item-card="{{ card.id }}">
+            <article class="rm-card{% if category == 'package' %} package-flow-card{% endif %}{% if not card.bookable %} is-unavailable{% endif %}" data-item-card="{{ card.id }}">
 
                 <div class="rm-media">
                     {% if card.photos %}
