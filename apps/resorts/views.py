@@ -988,7 +988,9 @@ def booking_detail(request, booking_id):
                 booking.save(update_fields=['manager_remarks'])
             confirm_booking(
                 booking, request.user,
-                task_assignment_id=request.session.get('active_simulation_task_assignment'))
+                task_assignment_id=(
+                    getattr(getattr(request, 'active_simulation_assignment', None), 'pk', None)
+                    or request.session.get('active_simulation_task_assignment')))
             if booking.status == Reservation.Status.CONFIRMED:
                 from notifications.services import notify_service_booking
                 notify_service_booking(booking, 'confirmed', request.user)

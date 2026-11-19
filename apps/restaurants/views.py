@@ -753,7 +753,9 @@ def booking_detail(request, booking_id):
                     reservation_id=booking.pk,
                     officer=request.user,
                     remarks=remark,
-                    task_assignment_id=request.session.get('active_simulation_task_assignment'),
+                    task_assignment_id=(
+                        getattr(getattr(request, 'active_simulation_assignment', None), 'pk', None)
+                        or request.session.get('active_simulation_task_assignment')),
                 )
             except RestaurantReservationError as exc:
                 messages.error(request, str(exc))

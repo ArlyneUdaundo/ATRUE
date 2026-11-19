@@ -563,7 +563,9 @@ def booking_detail(request, booking_id):
                 raise PermissionDenied('Only the Transport Reservation Officer may confirm a payment-verified booking.')
             confirm_booking(
                 booking, request.user,
-                task_assignment_id=request.session.get('active_simulation_task_assignment'))
+                task_assignment_id=(
+                    getattr(getattr(request, 'active_simulation_assignment', None), 'pk', None)
+                    or request.session.get('active_simulation_task_assignment')))
             if getattr(booking, 'payment_review_pending', False):
                 messages.warning(request, 'Waiting for the Billing Officer to verify full payment before confirmation.')
             else:

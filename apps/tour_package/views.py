@@ -542,7 +542,9 @@ def booking_detail(request, booking_id):
                 record_actor_task_event(
                     request.user,
                     'BOOKING_CONFIRMED',
-                    task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+                    task_assignment_id=(
+                        getattr(getattr(request, 'active_simulation_assignment', None), 'pk', None)
+                        or request.session.get(TASK_ASSIGNMENT_SESSION_KEY)),
                     booking_reference=booking.booking_reference,
                 )
             if getattr(booking, 'payment_review_pending', False):
