@@ -181,7 +181,10 @@
                     {% for row in session.student_rows %}
                         {% for item in row.assignments %}
                             {% if item.assignment.status == 'ACTIVE' or item.assignment.status == 'DONE' %}
-                    <span data-progress-url="{% url 'simulation:assignment_progress' item.assignment.id %}"></span>
+                    <span data-progress-url="{% url 'simulation:assignment_progress' item.assignment.id %}"
+                        data-assignment-status="{{ item.assignment.status }}"
+                        data-progress-required="{{ item.progress.required }}"
+                        data-progress-completed="{{ item.progress.completed_required }}"></span>
                             {% endif %}
                         {% endfor %}
                     {% endfor %}
@@ -601,6 +604,13 @@
     var studentDetailsNode = null;
     var studentDetailsOpener = null;
     var assignmentOpener = null;
+    var progressPollTimeout = null;
+    var progressPollRunning = false;
+    var progressPollPaused = null;
+    var progressPollGeneration = 0;
+    var progressRequestControllers = [];
+    var PROGRESS_POLL_DELAY = 30000;
+    var MAX_PROGRESS_REQUESTS = 4;
 
     var form = document.getElementById('assignmentForm');
     var roleSelect = document.getElementById('modalRole');
@@ -647,6 +657,55 @@
             !modal.hidden || (sessionModal && !sessionModal.hidden)
                 || (studentModal && !studentModal.hidden)
         );
+        syncProgressPolling();
+    }
+
+    function shouldPauseProgressPolling() {
+        return document.hidden || !modal.hidden || (studentModal && !studentModal.hidden);
+    }
+
+    function cancelProgressPolling() {
+        if (progressPollTimeout !== null) {
+            window.clearTimeout(progressPollTimeout);
+            progressPollTimeout = null;
+        }
+        progressPollGeneration += 1;
+        progressPollRunning = false;
+        progressRequestControllers.forEach(function (controller) { controller.abort(); });
+        progressRequestControllers = [];
+    }
+
+    function scheduleProgressPolling(delay) {
+        if (shouldPauseProgressPolling() || progressPollTimeout !== null || progressPollRunning) return;
+        progressPollTimeout = window.setTimeout(runProgressPolling, delay);
+    }
+
+    function syncProgressPolling() {
+        var paused = shouldPauseProgressPolling();
+        if (paused) {
+            if (progressPollPaused !== true) cancelProgressPolling();
+            progressPollPaused = true;
+            return;
+        }
+        if (progressPollPaused !== false) {
+            progressPollPaused = false;
+            scheduleProgressPolling(PROGRESS_POLL_DELAY);
+        } else {
+            scheduleProgressPolling(PROGRESS_POLL_DELAY);
+        }
+    }
+
+    function fetchProgressData(url) {
+        var controller = new AbortController();
+        progressRequestControllers.push(controller);
+        return fetch(url, { credentials: 'same-origin', signal: controller.signal })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .catch(function () { return null; })
+            .then(function (data) {
+                var index = progressRequestControllers.indexOf(controller);
+                if (index !== -1) progressRequestControllers.splice(index, 1);
+                return data;
+            });
     }
 
     function studentInitials(name) {
@@ -720,10 +779,6 @@
         trigger.setAttribute('aria-expanded', 'true');
         setBodyLock();
         refreshProgress(details);
-        window.simulationProgressPoll = window.setInterval(function () {
-            if (!studentDetailsNode || studentDetailsNode.hidden) return;
-            refreshProgress(studentDetailsNode);
-        }, 5000);
         var closeButton = studentModal.querySelector('[data-student-close]');
         if (closeButton) closeButton.focus();
     }
@@ -930,8 +985,7 @@
     function refreshProgress(details) {
         var container = details && details.querySelector('[data-session-progress]');
         if (!container || !container.dataset.progressUrl) return;
-        fetch(container.dataset.progressUrl, { credentials: 'same-origin' })
-            .then(function (response) { return response.ok ? response.json() : null; })
+        fetchProgressData(container.dataset.progressUrl)
             .then(function (data) {
                 if (!data || !data.ok) return;
                 renderProgress(container, data.progress);
@@ -945,83 +999,144 @@
             .catch(function () {});
     }
 
-    function refreshSessionProgressCards() {
+    function cacheProgressUrl(url, progress) {
+        if (!url || !progress) return;
+        document.querySelectorAll('[data-session-progress-urls] [data-progress-url]').forEach(function (node) {
+            if (node.dataset.progressUrl !== url) return;
+            node.dataset.assignmentStatus = progress.assignment_status || node.dataset.assignmentStatus;
+            node.dataset.progressRequired = String(Number(progress.required) || 0);
+            node.dataset.progressCompleted = String(Number(progress.completed_required) || 0);
+        });
+    }
+
+    function applySessionProgressCards(progressByUrl) {
         document.querySelectorAll('.sim-session-progress-card').forEach(function (card) {
-            var urls = Array.prototype.map.call(
-                card.querySelectorAll('[data-session-progress-urls] [data-progress-url]'),
-                function (node) { return node.dataset.progressUrl; }
+            var nodes = Array.prototype.slice.call(
+                card.querySelectorAll('[data-session-progress-urls] [data-progress-url]')
             );
-            if (!urls.length) return;
-            Promise.all(urls.map(function (url) {
-                return fetch(url, { credentials: 'same-origin' })
-                    .then(function (response) { return response.ok ? response.json() : null; })
-                    .catch(function () { return null; });
-            })).then(function (results) {
-                if (results.some(function (result) {
-                    return !result || !result.ok || !result.progress;
-                })) return;
-                var required = 0;
-                var completed = 0;
-                results.forEach(function (result) {
-                    if (!['ACTIVE', 'DONE'].includes(result.progress.assignment_status)) return;
-                    required += Number(result.progress.required) || 0;
-                    completed += Number(result.progress.completed_required) || 0;
-                });
-                var percent = required ? Math.round(completed * 100 / required) : 0;
-                var percentNode = card.querySelector('.sim-session-progress-head strong');
-                var track = card.querySelector('.sim-session-progress-track');
-                var caption = card.querySelector('.sim-session-progress-caption');
-                if (percentNode) percentNode.textContent = percent + '%';
-                if (track) {
-                    track.setAttribute('aria-valuenow', String(percent));
-                    var bar = track.querySelector('span');
-                    if (bar) bar.style.width = percent + '%';
+            if (!nodes.length) return;
+            var required = 0;
+            var completed = 0;
+            var incomplete = false;
+            nodes.forEach(function (node) {
+                var progress;
+                if (node.dataset.assignmentStatus === 'DONE') {
+                    progress = {
+                        assignment_status: 'DONE',
+                        required: node.dataset.progressRequired,
+                        completed_required: node.dataset.progressCompleted,
+                    };
+                } else {
+                    var result = progressByUrl[node.dataset.progressUrl];
+                    if (!result || !result.ok || !result.progress) {
+                        incomplete = true;
+                        return;
+                    }
+                    progress = result.progress;
+                    cacheProgressUrl(node.dataset.progressUrl, progress);
                 }
-                if (caption) caption.textContent = required
-                    ? completed + ' of ' + required + ' required tasks completed'
-                    : 'No required tasks assigned';
+                if (!['ACTIVE', 'DONE'].includes(progress.assignment_status)) return;
+                required += Number(progress.required) || 0;
+                completed += Number(progress.completed_required) || 0;
             });
+            if (incomplete) return;
+            var percent = required ? Math.round(completed * 100 / required) : 0;
+            var percentNode = card.querySelector('.sim-session-progress-head strong');
+            var track = card.querySelector('.sim-session-progress-track');
+            var caption = card.querySelector('.sim-session-progress-caption');
+            if (percentNode) percentNode.textContent = percent + '%';
+            if (track) {
+                track.setAttribute('aria-valuenow', String(percent));
+                var bar = track.querySelector('span');
+                if (bar) bar.style.width = percent + '%';
+            }
+            if (caption) caption.textContent = required
+                ? completed + ' of ' + required + ' required tasks completed'
+                : 'No required tasks assigned';
         });
     }
 
-    function refreshStudentRows() {
+    function applyStudentRowProgress(progressByUrl) {
         document.querySelectorAll('.simulation-student-row').forEach(function (row) {
+            if (row.dataset.studentStatus !== 'ACTIVE') return;
             var details = row.querySelector('[data-session-progress]');
-            if (!details || !details.dataset.progressUrl) return;
-            fetch(details.dataset.progressUrl, { credentials: 'same-origin' })
-                .then(function (response) { return response.ok ? response.json() : null; })
-                .then(function (data) {
-                    if (!data || !data.ok || !data.progress) return;
-                    var progress = data.progress;
-                    var taskProgress = row.querySelector('.simulation-student-task-progress');
-                    if (taskProgress) {
-                        taskProgress.textContent = progress.required
-                            ? progress.percent + '% · ' + progress.completed_required + '/'
-                                + progress.required + ' required tasks'
-                            : 'No required tasks';
-                    }
-                    var status = row.querySelector('.simulation-student-status');
-                    if (status && progress.assignment_status_display) {
-                        status.textContent = progress.assignment_status_display;
-                    }
-                    if (progress.assignment_status) {
-                        row.dataset.studentStatus = progress.assignment_status;
-                    }
-                })
-                .catch(function () {});
+            var data = details && progressByUrl[details.dataset.progressUrl];
+            if (!data || !data.ok || !data.progress) return;
+            var progress = data.progress;
+            cacheProgressUrl(details.dataset.progressUrl, progress);
+            var taskProgress = row.querySelector('.simulation-student-task-progress');
+            if (taskProgress) {
+                taskProgress.textContent = progress.required
+                    ? progress.percent + '% · ' + progress.completed_required + '/'
+                        + progress.required + ' required tasks'
+                    : 'No required tasks';
+            }
+            var status = row.querySelector('.simulation-student-status');
+            if (status && progress.assignment_status_display) {
+                status.textContent = progress.assignment_status_display;
+            }
+            if (progress.assignment_status) row.dataset.studentStatus = progress.assignment_status;
         });
     }
 
-    window.setInterval(refreshStudentRows, 5000);
-    refreshStudentRows();
-    window.setInterval(refreshSessionProgressCards, 5000);
-    refreshSessionProgressCards();
+    function runProgressPolling() {
+        progressPollTimeout = null;
+        if (shouldPauseProgressPolling() || progressPollRunning) return;
+        progressPollRunning = true;
+        var generation = ++progressPollGeneration;
+        var requested = Object.create(null);
+        document.querySelectorAll('.simulation-student-row').forEach(function (row) {
+            if (row.dataset.studentStatus !== 'ACTIVE') return;
+            var node = row.querySelector('[data-session-progress][data-progress-url]');
+            if (node) requested[node.dataset.progressUrl] = true;
+        });
+        document.querySelectorAll('[data-session-progress-urls] [data-progress-url]').forEach(function (node) {
+            if (node.dataset.assignmentStatus === 'ACTIVE') {
+                requested[node.dataset.progressUrl] = true;
+            }
+        });
+        var urls = Object.keys(requested);
+        if (!urls.length) {
+            progressPollRunning = false;
+            scheduleProgressPolling(PROGRESS_POLL_DELAY);
+            return;
+        }
 
+        var results = Object.create(null);
+        var nextIndex = 0;
+        function worker() {
+            if (generation !== progressPollGeneration || shouldPauseProgressPolling()) {
+                return Promise.resolve();
+            }
+            var url = urls[nextIndex++];
+            if (!url) return Promise.resolve();
+            return fetchProgressData(url).then(function (data) {
+                results[url] = data;
+                return worker();
+            });
+        }
+
+        var workerCount = Math.min(MAX_PROGRESS_REQUESTS, urls.length);
+        Promise.all(Array.from({ length: workerCount }, worker)).then(function () {
+            if (generation !== progressPollGeneration || shouldPauseProgressPolling()) return;
+            applyStudentRowProgress(results);
+            applySessionProgressCards(results);
+        }).finally(function () {
+            if (generation !== progressPollGeneration) return;
+            progressPollRunning = false;
+            scheduleProgressPolling(PROGRESS_POLL_DELAY);
+        });
+    }
+
+    document.addEventListener('visibilitychange', syncProgressPolling);
+    syncProgressPolling();
     document.addEventListener('simulation-assignment-completed', function (event) {
         var formNode = event.target.closest('form[data-mark-role-done]');
         var details = formNode && formNode.closest('.simulation-student-details');
         if (!details || !event.detail) return;
         event.preventDefault();
+        var row = details.closest('.simulation-student-row');
+        if (row) row.dataset.studentStatus = 'DONE';
         var status = details.querySelector('.simulation-student-status-value');
         if (status) status.textContent = event.detail.status_display || 'Done';
         var actions = details.querySelector('.simulation-student-actions');
@@ -1034,16 +1149,18 @@
             actions.appendChild(done);
         }
         if (event.detail.progress) {
-            renderProgress(details.querySelector('[data-session-progress]'), event.detail.progress);
+            var progressNode = details.querySelector('[data-session-progress]');
+            renderProgress(progressNode, event.detail.progress);
+            if (progressNode) {
+                cacheProgressUrl(progressNode.dataset.progressUrl, Object.assign(
+                    {}, event.detail.progress, { assignment_status: 'DONE' }
+                ));
+            }
         }
     });
 
     function closeStudentDetails() {
         if (!studentModal || studentModal.hidden) return;
-        if (window.simulationProgressPoll) {
-            window.clearInterval(window.simulationProgressPoll);
-            window.simulationProgressPoll = null;
-        }
         if (studentDetailsNode && studentDetailsPlaceholder && studentDetailsPlaceholder.parentNode) {
             studentDetailsPlaceholder.parentNode.insertBefore(studentDetailsNode, studentDetailsPlaceholder);
             studentDetailsPlaceholder.remove();
