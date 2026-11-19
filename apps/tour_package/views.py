@@ -663,7 +663,7 @@ def operate(request):
             pk=request.POST.get('package_id'),
         )
         booking = None
-        if action in {'attend', 'complete'}:
+        if action in {'checkin', 'checkout'}:
             booking = get_object_or_404(
                 scope_bookings(
                     request,
@@ -674,11 +674,17 @@ def operate(request):
             )
             if booking.package_id != package.pk:
                 raise PermissionDenied('The booking does not belong to the selected tour package.')
-        if action == 'attend':
+        if action == 'checkin':
+            if booking.status != Booking.Status.CONFIRMED:
+                messages.error(request, 'Only confirmed bookings can be checked in.')
+                return redirect('tour_package:operate')
             booking.status = Booking.Status.CHECKED_IN
             booking.save(update_fields=['status'])
             log_activity(request.user, "Package booking attended", str(booking.pk))
-        elif action == 'complete':
+        elif action == 'checkout':
+            if booking.status != Booking.Status.CHECKED_IN:
+                messages.error(request, 'Only checked-in bookings can be checked out.')
+                return redirect('tour_package:operate')
             bill = bill_for_booking(booking)
             booking.status = Booking.Status.COMPLETED
             booking.amount_paid = bill.amount_paid if bill else 0
