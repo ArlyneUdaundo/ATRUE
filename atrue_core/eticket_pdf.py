@@ -31,6 +31,7 @@ GREEN_DARK = colors.HexColor('#065f46')
 LIGHT = colors.HexColor('#f8fafc')
 BORDER = colors.HexColor('#e2e8f0')
 SLATE = colors.HexColor('#64748b')
+CONTENT_WIDTH = A4[0] - 28 * mm
 
 
 def _php(value):
@@ -47,7 +48,7 @@ def _dashed_line():
     line.strokeColor = BORDER
     line.strokeDashArray = (2, 3)
     d.add(line)
-    d.width = 520
+    d.width = CONTENT_WIDTH
     d.height = 2
     return d
 
@@ -96,7 +97,7 @@ def build_story(ctx):
         [Paragraph(f"{estab['name']} · Estab. ID {estab['code']}", s_sub)],
         [Paragraph(f"{estab['location']} · {estab['contact']} · {estab['email']}", s_small)],
     ]
-    estab_tbl = Table(estab_cell, colWidths=[300])
+    estab_tbl = Table(estab_cell, colWidths=[296])
     estab_tbl.setStyle(TableStyle([
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
@@ -117,7 +118,8 @@ def build_story(ctx):
         ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
     ]))
 
-    header = Table([[estab_tbl, Paragraph('', s_sub), right_tbl]], colWidths=[300, 40, 200])
+    header = Table([[estab_tbl, Paragraph('', s_sub), right_tbl]],
+                   colWidths=[296, CONTENT_WIDTH - 496, 200])
     header.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -197,7 +199,7 @@ def build_story(ctx):
          Paragraph(_quote(lead['contact']), s_small),
          Paragraph(_quote(lead['email']), s_small),
          Paragraph(_quote(ctx['voucher_number']), s_value)],
-    ]], colWidths=[520])
+    ]], colWidths=[CONTENT_WIDTH])
     lead_tbl.setStyle(TableStyle([
         ('SPAN', (0, 0), (-1, 0)),
         ('GRID', (0, 1), (-1, 1), 0.5, BORDER),
@@ -222,7 +224,7 @@ def build_story(ctx):
         pairs.append(row)
     if len(pairs[-1]) == 1:
         pairs[-1].append([Paragraph('', s_label), Paragraph('', s_value)])
-    details = Table(pairs, colWidths=[260, 260])
+    details = Table(pairs, colWidths=[CONTENT_WIDTH / 2, CONTENT_WIDTH / 2])
     details.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, BORDER),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -251,7 +253,7 @@ def build_story(ctx):
          Paragraph('', s_small)],
     ]
     total_idx = len(fare_rows) - 4
-    fare_tbl = Table(fare_rows, colWidths=[300, 100])
+    fare_tbl = Table(fare_rows, colWidths=[CONTENT_WIDTH - 220, 100])
     fare_tbl.setStyle(TableStyle([
         ('SPAN', (0, 0), (1, 0)),
         ('BOX', (0, 0), (-1, -1), 0.5, BORDER),
@@ -295,7 +297,7 @@ def build_story(ctx):
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
 
-    lower = Table([[fare_tbl, stub_tbl]], colWidths=[400, 120])
+    lower = Table([[fare_tbl, stub_tbl]], colWidths=[CONTENT_WIDTH - 120, 120])
     lower.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
