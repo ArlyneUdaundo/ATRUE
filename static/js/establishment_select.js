@@ -587,6 +587,10 @@ if (!guestBox) { return; }
     function renderSummary(rows, baseSub, extraSub, svcSub, grand, okDates) {
         if (!compBox) { return; }
         if (!SELECTED.length) {
+            if (CATEGORY === 'activity') {
+                compBox.innerHTML = '';
+                return;
+            }
             compBox.innerHTML = '<div class="card card-pad bk-summary"><h3>Booking computation</h3>'
                 + '<p class="bk-sum-hint">Select at least one ' + esc(ITEM_PLURAL)
                 + ' to see the full computation.</p></div>';
