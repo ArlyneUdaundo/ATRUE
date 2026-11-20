@@ -90,7 +90,7 @@
     </article>
 </section>
 
-<form class="sim-dashboard-toolbar" method="get" role="search" aria-label="Filter simulation sessions">
+<form class="sim-dashboard-toolbar" method="get" action="{% url 'simulation:workspace' %}" role="search" aria-label="Filter simulation sessions">
     <label class="sim-toolbar-search">
         <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
         <span class="visually-hidden">Search sessions</span>
