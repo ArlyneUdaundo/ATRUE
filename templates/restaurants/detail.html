@@ -160,7 +160,7 @@
                     {% if is_manager %}
                     <button type="button" class="btn btn-ghost btn-sm" data-modal-open="restaurantEditTable{{ t.id }}" aria-label="Edit Table {{ t.table_number }}"><i class="fas fa-pencil-alt"></i> Edit</button>
                     {% elif t.status != 'MAINTENANCE' %}
-                    <a href="{% url 'restaurants:flow_select' restaurant.id %}" class="ag-btn btn-sm"><i class="fas fa-chair"></i> Reserve</a>
+                    <button type="button" class="ag-btn btn-sm" data-restaurant-reserve-table="{{ t.id }}" data-table-capacity="{{ t.capacity }}" data-table-name="Table {{ t.table_number }}"><i class="fas fa-chair"></i> Reserve</button>
                     {% endif %}
                 </div>
             </article>
