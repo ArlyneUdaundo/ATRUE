@@ -900,7 +900,4 @@ def restaurant_flow_select(request, restaurant_id):
     from atrue_core.establishment_flow import handle_flow
 
     _require_assigned_restaurant(request, restaurant_id)
-    if request.method == 'GET':
-        restaurant = get_object_or_404(Restaurant, pk=restaurant_id)
-        return redirect('restaurants:detail', restaurant.slug)
     return handle_flow(request, 'restaurant', restaurant_id)
