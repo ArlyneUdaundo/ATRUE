@@ -83,6 +83,7 @@
     .restaurant-details-layout { grid-template-columns:minmax(0,1fr); }
     .restaurant-tables-section { min-width: 0; }
     .restaurant-table-workspace { display:grid; grid-template-columns:minmax(0,1fr) 300px; align-items:start; gap:14px; }
+    .restaurant-table-workspace.has-selection .restaurant-tables-grid { grid-template-columns:minmax(0,1fr); }
     #restaurantBookingCart { position:sticky; top:160px; margin:0; box-shadow:0 12px 36px rgba(23,61,112,.14); }
     .restaurant-tables-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
     .restaurant-tables-heading h3 { margin:0 0 4px; }
@@ -214,6 +215,7 @@
         var reservationTime = '';
         var pendingTable = null;
         var cart = document.getElementById('restaurantBookingCart');
+        var tableWorkspace = cart && cart.closest('.restaurant-table-workspace');
         var error = document.getElementById('restaurantGuestError');
         var fieldsBox = document.getElementById('restaurantBookingFields');
         function openGuest(tableButton) {
@@ -244,6 +246,7 @@
         function closeGuest() { modal.classList.remove('open'); document.body.style.overflow = ''; }
         function renderCart() {
             cart.hidden = !selected.length;
+            if (tableWorkspace) tableWorkspace.classList.toggle('has-selection', selected.length > 0);
             var lines = document.getElementById('restaurantBookingCartItems');
             lines.innerHTML = '';
             var guests = selected.reduce(function (sum, t) { return sum + t.guest.adults + t.guest.children; }, 0);
