@@ -109,7 +109,7 @@
     <label class="sim-toolbar-select">
         <span class="visually-hidden">Sort sessions</span>
         <i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i>
-        <select name="sort" onchange="this.form.submit()">
+        <select name="sort" onchange="this.form.requestSubmit()">
             <option value="newest"{% if sort == 'newest' %} selected{% endif %}>Newest First</option>
             <option value="oldest"{% if sort == 'oldest' %} selected{% endif %}>Oldest First</option>
             <option value="session_date"{% if sort == 'session_date' %} selected{% endif %}>Session Date</option>
