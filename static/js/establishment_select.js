@@ -587,7 +587,7 @@ if (!guestBox) { return; }
     function renderSummary(rows, baseSub, extraSub, svcSub, grand, okDates) {
         if (!compBox) { return; }
         if (!SELECTED.length) {
-            if (CATEGORY === 'activity') {
+            if (CATEGORY === 'activity' || CATEGORY === 'resort') {
                 compBox.innerHTML = '';
                 return;
             }
