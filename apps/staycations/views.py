@@ -422,12 +422,23 @@ def book_staycation(request, staycation_id):
                     country=(ct or '').strip(),
                 )
 
-        from simulation.completion import complete_guest_booking
+        from simulation.completion import (
+            complete_guest_booking, record_actor_task_event,
+        )
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+        task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+        record_actor_task_event(
+            request.user, 'STAYCATION_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'STAYCATION_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
 
         complete_guest_booking(
             request.user,
-            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            task_assignment_id=task_assignment_id,
             booking_reference=reservation.booking_reference,
         )
 

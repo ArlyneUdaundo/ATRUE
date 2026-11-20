@@ -1893,12 +1893,24 @@ def _context_for(request, adapter, est, check_in, check_out, source,
 
 
 def _record_guest_booking_progress(request, booking):
-    from simulation.completion import complete_guest_booking
+    from simulation.completion import (
+        complete_guest_booking, record_actor_task_event,
+    )
     from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+    task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+    if booking._meta.app_label == 'staycations':
+        record_actor_task_event(
+            request.user, 'STAYCATION_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'STAYCATION_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
 
     return complete_guest_booking(
         request.user,
-        task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+        task_assignment_id=task_assignment_id,
         booking_reference=booking.booking_reference,
     )
 
