@@ -1925,6 +1925,15 @@ def _record_guest_booking_progress(request, booking):
             request.user, 'LANDMARK_GUEST_INFO_COMPLETED',
             task_assignment_id=task_assignment_id,
         )
+    elif booking._meta.app_label == 'activities':
+        record_actor_task_event(
+            request.user, 'ACTIVITY_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'ACTIVITY_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
 
     return complete_guest_booking(
         request.user,

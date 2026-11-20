@@ -666,6 +666,8 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'flow_select', 'booking_detail', 'ticket'},
         'fa-person-hiking',
         tasks=(
+            ('Select an activity', 'activities:list', 'fa-person-hiking'),
+            ('Complete guest information', 'activities:list', 'fa-user-pen'),
             ('Submit booking request', 'activities:list', 'fa-paper-plane'),
             ('Payment verification by Billing Officer',
              'transactions:booking_list', 'fa-file-invoice-dollar'),
@@ -838,6 +840,15 @@ LANDMARK_GUEST_TASK_RULES = {
     'Complete guest information': (
         'landmark_guest.guest_information', ['LANDMARK_GUEST_INFO_COMPLETED'],
         'Enter the required visitor details.'),
+}
+
+ACTIVITY_GUEST_TASK_RULES = {
+    'Select an activity': (
+        'activity_guest.select_activity', ['ACTIVITY_SELECTED'],
+        'Choose an available activity.'),
+    'Complete guest information': (
+        'activity_guest.guest_information', ['ACTIVITY_GUEST_INFO_COMPLETED'],
+        'Enter the required participant details.'),
 }
 
 #: The verified events every non-hotel guest workflow can prove. The key suffix
@@ -1027,6 +1038,8 @@ def assignment_tasks_for(assignment):
             item['key'], item['completion_events'], item['description'] = RESTAURANT_GUEST_TASK_RULES[item['label']]
         elif role_code == 'LANDMARK_GUEST' and item['label'] in LANDMARK_GUEST_TASK_RULES:
             item['key'], item['completion_events'], item['description'] = LANDMARK_GUEST_TASK_RULES[item['label']]
+        elif role_code == 'ACTIVITY_GUEST' and item['label'] in ACTIVITY_GUEST_TASK_RULES:
+            item['key'], item['completion_events'], item['description'] = ACTIVITY_GUEST_TASK_RULES[item['label']]
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Flight':
             item['key'] = 'passenger_airline.book_flight'
             item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
