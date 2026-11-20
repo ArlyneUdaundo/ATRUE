@@ -632,8 +632,7 @@
     function renderSummary(rows, roomsSub, extraSub, svcSub, grand, okDates) {
         if (!summary) return;
         if (!SELECTED.length) {
-            summary.innerHTML = '<div class="card card-pad bk-summary"><h3>Booking computation</h3>' +
-                '<p class="bk-sum-hint">Select at least one room to see the full computation.</p></div>';
+            summary.innerHTML = '';
             return;
         }
         var roomHtml = rows.map(function (r, i) {
