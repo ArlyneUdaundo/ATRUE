@@ -99,7 +99,7 @@
     <label class="sim-toolbar-select">
         <span class="visually-hidden">Filter by status</span>
         <i class="fas fa-filter" aria-hidden="true"></i>
-        <select name="status" onchange="this.form.submit()">
+        <select name="status" onchange="this.form.requestSubmit()">
             <option value="">All Statuses</option>
             {% for value, label in status_choices %}
             <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
