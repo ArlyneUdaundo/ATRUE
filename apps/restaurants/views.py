@@ -584,12 +584,23 @@ def book_restaurant(request, table_id):
                 'booking_error': str(exc),
             })
 
-        from simulation.completion import complete_guest_booking
+        from simulation.completion import (
+            complete_guest_booking, record_actor_task_event,
+        )
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+        task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+        record_actor_task_event(
+            request.user, 'RESTAURANT_TABLE_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'RESTAURANT_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
 
         complete_guest_booking(
             request.user,
-            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            task_assignment_id=task_assignment_id,
             booking_reference=reservation.booking_reference,
         )
 

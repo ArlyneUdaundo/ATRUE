@@ -600,6 +600,8 @@ _GUEST_OPERATIONS = {
         {'list', 'detail', 'book', 'flow_select', 'booking_detail', 'ticket'},
         'fa-utensils',
         tasks=(
+            ('Select a restaurant table', 'restaurants:list', 'fa-chair'),
+            ('Complete guest information', 'restaurants:list', 'fa-user-pen'),
             ('Submit booking request', 'restaurants:list', 'fa-paper-plane'),
             ('Payment verification by Billing Officer',
              'transactions:booking_list', 'fa-file-invoice-dollar'),
@@ -818,6 +820,15 @@ STAYCATION_GUEST_TASK_RULES = {
         'Enter the required guest details.'),
 }
 
+RESTAURANT_GUEST_TASK_RULES = {
+    'Select a restaurant table': (
+        'restaurant_guest.select_table', ['RESTAURANT_TABLE_SELECTED'],
+        'Choose an available restaurant table.'),
+    'Complete guest information': (
+        'restaurant_guest.guest_information', ['RESTAURANT_GUEST_INFO_COMPLETED'],
+        'Enter the required guest details.'),
+}
+
 #: The verified events every non-hotel guest workflow can prove. The key suffix
 #: is namespaced by the role code so two guest roles in one class never share a
 #: completion row.
@@ -1001,6 +1012,8 @@ def assignment_tasks_for(assignment):
             item['key'], item['completion_events'], item['description'] = RESORT_GUEST_TASK_RULES[item['label']]
         elif role_code == 'STAYCATION_GUEST' and item['label'] in STAYCATION_GUEST_TASK_RULES:
             item['key'], item['completion_events'], item['description'] = STAYCATION_GUEST_TASK_RULES[item['label']]
+        elif role_code == 'RESTAURANT_GUEST' and item['label'] in RESTAURANT_GUEST_TASK_RULES:
+            item['key'], item['completion_events'], item['description'] = RESTAURANT_GUEST_TASK_RULES[item['label']]
         elif role_code == 'PASSENGER_AIRLINE' and item['label'] == 'Select Flight':
             item['key'] = 'passenger_airline.book_flight'
             item['completion_events'] = ['CUSTOMER_BOOKING_SUBMITTED']
