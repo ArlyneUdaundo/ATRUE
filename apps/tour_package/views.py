@@ -388,6 +388,18 @@ def book_package(request, package_id):
         booking.save(update_fields=['total_bill'])
         _save_guests(booking, request)
 
+        from simulation.completion import record_actor_task_event
+        from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+        task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+        record_actor_task_event(
+            request.user, 'TOUR_PACKAGE_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'TOUR_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
+
         messages.success(request, 'Guest information saved. Review your package and continue to payment.')
         return redirect('tour_package:booking_payment', booking_id=booking.id)
     today = date.today()
