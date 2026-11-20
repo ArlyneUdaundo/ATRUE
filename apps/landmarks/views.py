@@ -348,12 +348,23 @@ def _render_ticket_page(request, *, destination_type, destination, name, fee, ca
         from notifications.services import notify_service_booking
         notify_service_booking(ticket, 'submitted', request.user)
 
-        from simulation.completion import complete_guest_booking
+        from simulation.completion import (
+            complete_guest_booking, record_actor_task_event,
+        )
         from simulation.task_routing import TASK_ASSIGNMENT_SESSION_KEY
+        task_assignment_id = request.session.get(TASK_ASSIGNMENT_SESSION_KEY)
+        record_actor_task_event(
+            request.user, 'LANDMARK_SELECTED',
+            task_assignment_id=task_assignment_id,
+        )
+        record_actor_task_event(
+            request.user, 'LANDMARK_GUEST_INFO_COMPLETED',
+            task_assignment_id=task_assignment_id,
+        )
 
         complete_guest_booking(
             request.user,
-            task_assignment_id=request.session.get(TASK_ASSIGNMENT_SESSION_KEY),
+            task_assignment_id=task_assignment_id,
             booking_reference=ticket.booking_reference,
         )
 
