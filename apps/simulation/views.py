@@ -1010,6 +1010,13 @@ def _guest_task_state(task, completion, booking, awaiting_payment):
         if completion.status == SimulationAssignmentTaskCompletion.Status.CANCELLED:
             return 'cancelled'
         return 'completed'
+    if booking is not None and any(
+            event in task.get('completion_events', ())
+            for event in ('RESORT_UNIT_SELECTED', 'RESORT_GUEST_INFO_COMPLETED')):
+        # A saved resort booking is verified proof that the guest selected a
+        # unit and completed the required guest information, including for
+        # assignments created before those events were recorded explicitly.
+        return 'completed'
     key = task['key']
     if key.endswith('payment_verification'):
         return 'awaiting' if awaiting_payment else 'pending'
