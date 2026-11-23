@@ -92,7 +92,7 @@
             <div class="resort-unit-content">
                 <div class="resort-unit-main">
                     <div>
-                        <b>{{ unit.unit_number }}</b> <a href="{% url 'resorts:book' unit.id %}" class="resort-unit-open" aria-label="Book {{ unit.unit_number }}"><i class="fas fa-external-link-alt"></i></a>
+                        <b>{{ unit.unit_number }}</b> <a href="{% url 'resorts:flow_select' resort.id %}" class="resort-unit-open" aria-label="Book {{ unit.unit_number }}"><i class="fas fa-external-link-alt"></i></a>
                         <div class="meta">{{ unit.get_unit_type_display }} &middot; {{ unit.capacity_adults }}A / {{ unit.capacity_children }}C</div>
                         {% if unit.features %}<div class="meta"><i class="fas fa-bed"></i> {{ unit.features }}</div>{% endif %}
                     </div>
@@ -104,7 +104,7 @@
                         {% if is_manager %}
                         <a href="{% url 'resorts:update_unit' unit.id %}" class="btn btn-ghost btn-sm" data-establishment-create><i class="fas fa-edit"></i> Manage</a>
                         {% elif unit.status == 'AVAILABLE' %}
-                        <a href="{% url 'resorts:book' unit.id %}" class="btn btn-brand btn-sm"><i class="fas fa-umbrella-beach"></i> Book</a>
+                        <a href="{% url 'resorts:flow_select' resort.id %}" class="btn btn-brand btn-sm"><i class="fas fa-umbrella-beach"></i> Book</a>
                         {% endif %}
                     </div>
                 </div>
