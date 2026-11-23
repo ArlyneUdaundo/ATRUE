@@ -1012,10 +1012,17 @@ def _guest_task_state(task, completion, booking, awaiting_payment):
         return 'completed'
     if booking is not None and any(
             event in task.get('completion_events', ())
-            for event in ('RESORT_UNIT_SELECTED', 'RESORT_GUEST_INFO_COMPLETED')):
-        # A saved resort booking is verified proof that the guest selected a
-        # unit and completed the required guest information, including for
-        # assignments created before those events were recorded explicitly.
+            for event in (
+                'RESORT_UNIT_SELECTED', 'RESORT_GUEST_INFO_COMPLETED',
+                'STAYCATION_SELECTED', 'STAYCATION_GUEST_INFO_COMPLETED',
+                'RESTAURANT_TABLE_SELECTED', 'RESTAURANT_GUEST_INFO_COMPLETED',
+                'LANDMARK_SELECTED', 'LANDMARK_GUEST_INFO_COMPLETED',
+                'ACTIVITY_SELECTED', 'ACTIVITY_GUEST_INFO_COMPLETED',
+                'TOUR_PACKAGE_SELECTED', 'TOUR_GUEST_INFO_COMPLETED',
+            )):
+        # A saved guest booking verifies its preceding selection and guest-info
+        # steps, including for assignments created before those events were
+        # recorded explicitly.
         return 'completed'
     key = task['key']
     if key.endswith('payment_verification'):
