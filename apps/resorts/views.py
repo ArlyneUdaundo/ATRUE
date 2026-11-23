@@ -224,6 +224,8 @@ def resort_detail(request, resort_id):
     if resort.status != Resort.Status.ACTIVE and not is_manager:
         messages.error(request, "This resort is currently unavailable.")
         return redirect('resorts:list')
+    if not is_manager:
+        return redirect('resorts:flow_select', resort.id)
     return render(request, 'resorts/detail.html', {
         'resort': resort,
         'is_manager': is_manager,
